@@ -2,6 +2,7 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function updateSession(request: NextRequest) {
+  // Create initial response
   let response = NextResponse.next({
     request: {
       headers: request.headers,
@@ -24,41 +25,53 @@ export async function updateSession(request: NextRequest) {
       {
         cookies: {
           get(name: string) {
-            return request.cookies.get(name)?.value
+            try {
+              return request.cookies.get(name)?.value
+            } catch {
+              return undefined
+            }
           },
           set(name: string, value: string, options: CookieOptions) {
-            request.cookies.set({
-              name,
-              value,
-              ...options,
-            })
-            response = NextResponse.next({
-              request: {
-                headers: request.headers,
-              },
-            })
-            response.cookies.set({
-              name,
-              value,
-              ...options,
-            })
+            try {
+              request.cookies.set({
+                name,
+                value,
+                ...options,
+              })
+              response = NextResponse.next({
+                request: {
+                  headers: request.headers,
+                },
+              })
+              response.cookies.set({
+                name,
+                value,
+                ...options,
+              })
+            } catch (error) {
+              console.error('Error setting cookie:', error)
+            }
           },
           remove(name: string, options: CookieOptions) {
-            request.cookies.set({
-              name,
-              value: '',
-              ...options,
-            })
-            response = NextResponse.next({
-              request: {
-                headers: request.headers,
-              },
-            })
-            response.cookies.set({
-              name,
-              value: '',
-              ...options,
-            })
+            try {
+              request.cookies.set({
+                name,
+                value: '',
+                ...options,
+              })
+              response = NextResponse.next({
+                request: {
+                  headers: request.headers,
+                },
+              })
+              response.cookies.set({
+                name,
+                value: '',
+                ...options,
+              })
+            } catch (error) {
+              console.error('Error removing cookie:', error)
+            }
           },
         },
       }
@@ -66,11 +79,16 @@ export async function updateSession(request: NextRequest) {
 
     await supabase.auth.getUser()
   } catch (error) {
-    console.error('Error in middleware:', error)
+    console.error('Error in updateSession:', error)
     // Return response even if there's an error to prevent blocking requests
   }
 
-  return response
+  // Ensure we always return a valid response
+  return response || NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
+  })
 }
 
 

@@ -3,32 +3,68 @@
 @tailwind utilities;
 
 :root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
+  --primary-blue: #2563EB;
+  --primary-red: #DC2626;
+  --success-green: #059669;
+  --warning-orange: #EA580C;
+  --info-purple: #7C3AED;
+  --neutral-bg: #F9FAFB;
+  --neutral-text: #111827;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
-  }
+* {
+  @apply transition-colors duration-200;
 }
 
 body {
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+  @apply bg-neutral-bg text-neutral-text;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+  
+  .bg-club-gradient {
+    background: linear-gradient(135deg, #2563EB 0%, #DC2626 100%) !important;
+  }
+  
+  .text-club-gradient {
+    background: linear-gradient(135deg, #2563EB 0%, #DC2626 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  
+  .hover-lift {
+    transition: all 300ms ease-in-out;
+  }
+  
+  .hover-lift:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+  }
+  
+  .card-shadow {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+  
+  .card-hover {
+    transition: all 300ms ease-in-out;
+  }
+  
+  .card-hover:hover {
+    box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+    border-color: rgba(37, 99, 235, 0.2);
+  }
+}
+
+/* Ensure Tailwind custom values are available */
+@layer base {
+  :root {
+    --radius-card: 12px;
+    --radius-button: 8px;
   }
 }
 

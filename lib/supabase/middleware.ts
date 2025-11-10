@@ -19,65 +19,65 @@ export async function updateSession(request: NextRequest) {
   }
 
   try {
-    const supabase = createServerClient(
+  const supabase = createServerClient(
       supabaseUrl,
       supabaseAnonKey,
-      {
-        cookies: {
-          get(name: string) {
+    {
+      cookies: {
+        get(name: string) {
             try {
-              return request.cookies.get(name)?.value
+          return request.cookies.get(name)?.value
             } catch {
               return undefined
             }
-          },
-          set(name: string, value: string, options: CookieOptions) {
+        },
+        set(name: string, value: string, options: CookieOptions) {
             try {
-              request.cookies.set({
-                name,
-                value,
-                ...options,
-              })
-              response = NextResponse.next({
-                request: {
-                  headers: request.headers,
-                },
-              })
-              response.cookies.set({
-                name,
-                value,
-                ...options,
-              })
+          request.cookies.set({
+            name,
+            value,
+            ...options,
+          })
+          response = NextResponse.next({
+            request: {
+              headers: request.headers,
+            },
+          })
+          response.cookies.set({
+            name,
+            value,
+            ...options,
+          })
             } catch (error) {
               console.error('Error setting cookie:', error)
             }
-          },
-          remove(name: string, options: CookieOptions) {
+        },
+        remove(name: string, options: CookieOptions) {
             try {
-              request.cookies.set({
-                name,
-                value: '',
-                ...options,
-              })
-              response = NextResponse.next({
-                request: {
-                  headers: request.headers,
-                },
-              })
-              response.cookies.set({
-                name,
-                value: '',
-                ...options,
-              })
+          request.cookies.set({
+            name,
+            value: '',
+            ...options,
+          })
+          response = NextResponse.next({
+            request: {
+              headers: request.headers,
+            },
+          })
+          response.cookies.set({
+            name,
+            value: '',
+            ...options,
+          })
             } catch (error) {
               console.error('Error removing cookie:', error)
             }
-          },
         },
-      }
-    )
+      },
+    }
+  )
 
-    await supabase.auth.getUser()
+  await supabase.auth.getUser()
   } catch (error) {
     console.error('Error in updateSession:', error)
     // Return response even if there's an error to prevent blocking requests

@@ -20,7 +20,7 @@ const roles = [
   },
   {
     value: 'data_admin',
-    label: 'Data Admin',
+    label: 'Team Manager',
     icon: BarChart3,
     description: 'Log match stats, training attendance, player data',
   },
@@ -131,4 +131,3 @@ export default function DevLoginPage() {
     </div>
   )
 }
-

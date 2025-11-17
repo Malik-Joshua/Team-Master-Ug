@@ -45,7 +45,9 @@ export default function DashboardPage() {
     winRate: 0,
     totalRevenue: 0,
     totalExpenses: 0,
+    trainingSessionsAttended: 0,
   })
+  const [trainingSessionsData, setTrainingSessionsData] = useState<any[]>([])
 
   useEffect(() => {
     const loadDashboard = async () => {
@@ -69,8 +71,20 @@ export default function DashboardPage() {
               winRate: 65,
               totalRevenue: 50000000,
               totalExpenses: 32000000,
+              trainingSessionsAttended: userData.role === 'coach' ? 18 : 0,
             }
             setStats(mockStats)
+            // Mock training sessions data for coach
+            if (userData.role === 'coach') {
+              const mockSessions = Array.from({ length: 18 }, (_, i) => ({
+                id: `session-${i + 1}`,
+                session_date: new Date(2024, 0, 1 + i * 7).toISOString().split('T')[0],
+                session_number: i + 1,
+                location: 'Training Ground',
+                description: `Training Session ${i + 1}`,
+              }))
+              setTrainingSessionsData(mockSessions)
+            }
             return
           } catch (e) {
             console.error('Error parsing dev user data:', e)
@@ -100,6 +114,20 @@ export default function DashboardPage() {
           if (profile) {
             setUser(profile)
             // Load real stats based on role
+            if (profile.role === 'coach') {
+              try {
+                const { db } = await import('@/lib/db-helpers')
+                const sessionCount = await db.getCoachTrainingSessionsCount(authUser.id)
+                const sessions = await db.getCoachTrainingSessions(authUser.id)
+                setStats(prev => ({
+                  ...prev,
+                  trainingSessionsAttended: sessionCount,
+                }))
+                setTrainingSessionsData(sessions)
+              } catch (error) {
+                console.error('Error loading coach training sessions:', error)
+              }
+            }
           } else {
             router.push('/dev-login')
           }
@@ -286,7 +314,7 @@ export default function DashboardPage() {
       <Layout pageTitle="Coach Control Center">
         <div className="space-y-6">
           {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <StatCard
               title="Total Players"
               value={stats.totalPlayers}
@@ -305,6 +333,102 @@ export default function DashboardPage() {
               icon={AlertCircle}
               iconColor="bg-secondary"
             />
+            <StatCard
+              title="Training Sessions"
+              value={stats.trainingSessionsAttended}
+              icon={Calendar}
+              iconColor="bg-info"
+            />
+          </div>
+
+          {/* Training Sessions Track */}
+          <div className="bg-white rounded-card border border-neutral-light shadow-soft p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-neutral-text">Training Sessions Track</h3>
+              <span className="text-sm text-neutral-medium">Total: {stats.trainingSessionsAttended} sessions</span>
+            </div>
+            <div className="h-64">
+              <Line
+                data={{
+                  labels: trainingSessionsData.length > 0
+                    ? trainingSessionsData.map((session, index) => {
+                        const date = new Date(session.session_date)
+                        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                      })
+                    : Array.from({ length: 12 }, (_, i) => {
+                        const date = new Date()
+                        date.setDate(date.getDate() - (12 - i) * 7)
+                        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                      }),
+                  datasets: [
+                    {
+                      label: 'Training Sessions Conducted',
+                      data: trainingSessionsData.length > 0
+                        ? trainingSessionsData.map((_, index) => index + 1)
+                        : Array.from({ length: 12 }, (_, i) => i + 1),
+                      borderColor: '#2563EB',
+                      backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                      fill: true,
+                      tension: 0.4,
+                      pointRadius: 5,
+                      pointHoverRadius: 7,
+                      pointBackgroundColor: '#2563EB',
+                      pointBorderColor: '#ffffff',
+                      pointBorderWidth: 2,
+                    },
+                  ],
+                }}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                    legend: {
+                      display: true,
+                      position: 'top' as const,
+                    },
+                    tooltip: {
+                      mode: 'index' as const,
+                      intersect: false,
+                      callbacks: {
+                        label: function(context) {
+                          return `Session ${context.parsed.y}`
+                        }
+                      }
+                    },
+                  },
+                  scales: {
+                    y: {
+                      beginAtZero: true,
+                      ticks: {
+                        stepSize: 1,
+                        precision: 0,
+                      },
+                      grid: {
+                        color: 'rgba(0, 0, 0, 0.05)',
+                      },
+                      title: {
+                        display: true,
+                        text: 'Number of Sessions',
+                      },
+                    },
+                    x: {
+                      grid: {
+                        display: false,
+                      },
+                      title: {
+                        display: true,
+                        text: 'Date',
+                      },
+                    },
+                  },
+                }}
+              />
+            </div>
+            {trainingSessionsData.length === 0 && (
+              <div className="mt-4 text-center text-neutral-medium text-sm">
+                No training sessions recorded yet. Start by creating a training session!
+              </div>
+            )}
           </div>
 
           {/* Top Performers Table */}

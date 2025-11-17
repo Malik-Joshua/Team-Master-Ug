@@ -32,9 +32,9 @@ interface NavItem {
 const navigationItems: NavItem[] = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Players', href: '/players', icon: Users, roles: ['coach', 'data_admin', 'admin'] },
-  { name: 'My Profile', href: '/profile', icon: User, roles: ['player'] },
+  { name: 'My Profile', href: '/profile', icon: User, roles: ['player', 'coach'] },
   { name: 'Performance', href: '/performance', icon: BarChart3 },
-  { name: 'Training', href: '/training', icon: Calendar, roles: ['coach', 'data_admin', 'admin'] },
+  { name: 'Training', href: '/training', icon: Calendar },
   { name: 'Finance', href: '/finance', icon: DollarSign, roles: ['finance_admin', 'admin'] },
   { name: 'Inventory', href: '/inventory', icon: Package, roles: ['data_admin', 'admin'] },
   { name: 'Messages', href: '/messages', icon: MessageSquare },
@@ -57,7 +57,6 @@ export default function Sidebar({ userRole, onLogout }: SidebarProps) {
 
   const SidebarContent = ({ isMobile = false }: { isMobile?: boolean }) => (
     <>
-      {/* Logo/Header with Gradient */}
       <div className="bg-club-gradient p-4">
         <div className="flex items-center justify-between">
           {(!collapsed || isMobile) && (
@@ -87,7 +86,6 @@ export default function Sidebar({ userRole, onLogout }: SidebarProps) {
         </div>
       </div>
 
-      {/* Navigation Items */}
       <nav className="flex-1 p-4 space-y-2 bg-white">
         {filteredNavItems.map((item) => {
           const Icon = item.icon
@@ -114,7 +112,6 @@ export default function Sidebar({ userRole, onLogout }: SidebarProps) {
         })}
       </nav>
 
-      {/* Settings & Logout */}
       <div className="p-4 border-t border-neutral-light bg-white space-y-2">
         <Link
           href="/settings"
@@ -148,7 +145,6 @@ export default function Sidebar({ userRole, onLogout }: SidebarProps) {
 
   return (
     <>
-      {/* Mobile Menu Button */}
       <button
         onClick={() => setMobileOpen(true)}
         className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-white rounded-lg shadow-md border border-neutral-light"
@@ -157,7 +153,6 @@ export default function Sidebar({ userRole, onLogout }: SidebarProps) {
         <Menu className="w-6 h-6" />
       </button>
 
-      {/* Mobile Sidebar */}
       {mobileOpen && (
         <>
           <div
@@ -170,7 +165,6 @@ export default function Sidebar({ userRole, onLogout }: SidebarProps) {
         </>
       )}
 
-      {/* Desktop Sidebar */}
       <aside
         className={cn(
           'hidden lg:flex lg:flex-col fixed left-0 top-0 h-full bg-white shadow-md border-r border-neutral-light transition-all duration-300 z-30',
@@ -180,9 +174,7 @@ export default function Sidebar({ userRole, onLogout }: SidebarProps) {
         <SidebarContent />
       </aside>
       
-      {/* Spacer for mobile */}
       <div className="lg:hidden w-0" />
     </>
   )
 }
-

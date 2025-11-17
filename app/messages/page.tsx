@@ -15,14 +15,25 @@ interface Message {
   created_at: string
 }
 
+interface UserProfile {
+  user_id: string
+  name: string
+  role: string
+  email: string
+}
+
 export default function MessagesPage() {
   const [user, setUser] = useState<any>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [loading, setLoading] = useState(true)
   const [showCompose, setShowCompose] = useState(false)
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null)
+  const [players, setPlayers] = useState<UserProfile[]>([])
+  const [admins, setAdmins] = useState<UserProfile[]>([])
   const [composeData, setComposeData] = useState({
+    recipientType: 'role', // 'role' or 'individual'
     recipient: '',
+    recipientId: '',
     subject: '',
     message: '',
   })
@@ -56,16 +67,19 @@ export default function MessagesPage() {
                 read: true,
                 created_at: new Date(Date.now() - 86400000).toISOString(),
               },
-              {
-                id: 'msg-3',
-                sender_name: 'Finance Admin',
-                sender_role: 'finance_admin',
-                subject: 'Membership Fee Reminder',
-                message: 'A friendly reminder that the annual membership fees are due by the end of the month. Please make your payments to ensure uninterrupted access to club facilities.',
-                read: true,
-                created_at: new Date(Date.now() - 2 * 86400000).toISOString(),
-              },
             ])
+            
+            // Mock players and admins for coach in dev mode
+            if (userData.role === 'coach') {
+              setPlayers([
+                { user_id: '1', name: 'John Doe', role: 'player', email: 'john@example.com' },
+                { user_id: '2', name: 'Jane Smith', role: 'player', email: 'jane@example.com' },
+              ])
+              setAdmins([
+                { user_id: '3', name: 'Admin Sarah', role: 'admin', email: 'admin@example.com' },
+              ])
+            }
+            
             setLoading(false)
             return
           } catch (e) {
@@ -86,28 +100,54 @@ export default function MessagesPage() {
 
         if (profile) {
           setUser(profile)
+          
           // Fetch messages
           const { data: fetchedMessages } = await supabase
             .from('messages')
             .select(`
               *,
-              sender:sender_id(name, role),
-              recipient:recipient_id(name, role)
+              sender:user_profiles!messages_sender_id_fkey(name, role),
+              recipient:user_profiles!messages_recipient_id_fkey(name, role)
             `)
-            .or(`sender_id.eq.${authUser.id},recipient_id.eq.${authUser.id}`)
+            .or(`sender_id.eq.${authUser.id},recipient_id.eq.${authUser.id},recipient_role.eq.${profile.role}`)
             .order('created_at', { ascending: false })
 
           if (fetchedMessages) {
             const formattedMessages: Message[] = fetchedMessages.map((msg: any) => ({
               id: msg.id,
-              sender_name: msg.sender.name,
-              sender_role: msg.sender.role,
-              subject: msg.subject,
+              sender_name: msg.sender?.name || 'Unknown',
+              sender_role: msg.sender?.role || 'unknown',
+              subject: msg.subject || '',
               message: msg.message,
-              read: msg.read,
+              read: msg.read || false,
               created_at: msg.created_at,
             }))
             setMessages(formattedMessages)
+          }
+
+          // If user is a coach, fetch players and admins for messaging
+          if (profile.role === 'coach') {
+            // Fetch all players
+            const { data: playersData } = await supabase
+              .from('user_profiles')
+              .select('user_id, name, role, email')
+              .eq('role', 'player')
+              .order('name', { ascending: true })
+
+            if (playersData) {
+              setPlayers(playersData as UserProfile[])
+            }
+
+            // Fetch all admins
+            const { data: adminsData } = await supabase
+              .from('user_profiles')
+              .select('user_id, name, role, email')
+              .in('role', ['admin', 'data_admin', 'finance_admin'])
+              .order('name', { ascending: true })
+
+            if (adminsData) {
+              setAdmins(adminsData as UserProfile[])
+            }
           }
         }
       }
@@ -136,56 +176,94 @@ export default function MessagesPage() {
       let recipientId: string | null = null
       let recipientRole: string | null = null
 
-      if (composeData.recipient === 'admin') {
-        recipientRole = 'admin'
-      } else if (composeData.recipient === 'coach') {
-        recipientRole = 'coach'
+      if (user?.role === 'coach') {
+        // Coach can send to players or admins
+        if (composeData.recipientType === 'role') {
+          // Send to all players or all admins
+          if (composeData.recipient === 'all_players') {
+            recipientRole = 'player'
+          } else if (composeData.recipient === 'all_admins') {
+            recipientRole = 'admin'
+          }
+        } else {
+          // Send to individual player or admin
+          recipientId = composeData.recipientId
+        }
       } else {
-        // If specific recipient selected, get their ID
-        const { data: recipientProfile } = await supabase
-          .from('user_profiles')
-          .select('user_id')
-          .eq('role', composeData.recipient)
-          .limit(1)
-          .single()
-
-        if (recipientProfile) {
-          recipientId = recipientProfile.user_id
+        // For other roles, use the old logic
+        if (composeData.recipient === 'admin') {
+          recipientRole = 'admin'
+        } else if (composeData.recipient === 'coach') {
+          recipientRole = 'coach'
+        } else if (composeData.recipientId) {
+          recipientId = composeData.recipientId
         }
       }
 
-      const { data: newMessage, error } = await supabase
-        .from('messages')
-        .insert({
-          sender_id: authUser.id,
-          recipient_id: recipientId,
-          recipient_role: recipientRole,
-          subject: composeData.subject,
-          message: composeData.message,
-        })
-        .select(`
-          *,
-          sender:user_profiles!messages_sender_id_fkey(name, role)
-        `)
-        .single()
+      // If sending to a role (all players or all admins), we need to send individual messages
+      if (recipientRole && (recipientRole === 'player' || recipientRole === 'admin')) {
+        // Get all users with that role
+        const roleToQuery = recipientRole === 'player' ? 'player' : recipientRole
+        const { data: recipients } = await supabase
+          .from('user_profiles')
+          .select('user_id')
+          .eq('role', roleToQuery)
 
-      if (error) throw error
+        if (recipients && recipients.length > 0) {
+          // Send message to each recipient
+          const messagePromises = recipients.map((recipient) =>
+            supabase
+              .from('messages')
+              .insert({
+                sender_id: authUser.id,
+                recipient_id: recipient.user_id,
+                subject: composeData.subject,
+                message: composeData.message,
+              })
+          )
 
-      // Add to local state
-      const formattedMessage: Message = {
-        id: newMessage.id,
-        sender_name: newMessage.sender?.name || user.name,
-        sender_role: newMessage.sender?.role || user.role,
-        subject: newMessage.subject || '',
-        message: newMessage.message,
-        read: false,
-        created_at: newMessage.created_at,
+          await Promise.all(messagePromises)
+          alert(`Message sent successfully to ${recipients.length} ${recipientRole === 'player' ? 'players' : 'admins'}!`)
+        } else {
+          alert(`No ${recipientRole === 'player' ? 'players' : 'admins'} found`)
+          return
+        }
+      } else {
+        // Send to individual recipient
+        const { data: newMessage, error } = await supabase
+          .from('messages')
+          .insert({
+            sender_id: authUser.id,
+            recipient_id: recipientId,
+            recipient_role: recipientRole,
+            subject: composeData.subject,
+            message: composeData.message,
+          })
+          .select(`
+            *,
+            sender:user_profiles!messages_sender_id_fkey(name, role)
+          `)
+          .single()
+
+        if (error) throw error
+
+        // Add to local state
+        const formattedMessage: Message = {
+          id: newMessage.id,
+          sender_name: newMessage.sender?.name || user.name,
+          sender_role: newMessage.sender?.role || user.role,
+          subject: newMessage.subject || '',
+          message: newMessage.message,
+          read: false,
+          created_at: newMessage.created_at,
+        }
+
+        setMessages([formattedMessage, ...messages])
+        alert('Message sent successfully!')
       }
 
-      setMessages([formattedMessage, ...messages])
-      setComposeData({ recipient: '', subject: '', message: '' })
+      setComposeData({ recipientType: 'role', recipient: '', recipientId: '', subject: '', message: '' })
       setShowCompose(false)
-      alert('Message sent successfully!')
     } catch (error: any) {
       console.error('Error sending message:', error)
       alert(`Error sending message: ${error.message}`)
@@ -212,7 +290,11 @@ export default function MessagesPage() {
         <div className="flex justify-between items-center">
           <div className="mb-2">
             <h1 className="text-4xl font-extrabold text-club-gradient mb-2">Messages</h1>
-            <p className="text-lg text-neutral-medium font-medium">Communicate with coaches and administrators</p>
+            <p className="text-lg text-neutral-medium font-medium">
+              {user?.role === 'coach' 
+                ? 'Communicate with players and administrators' 
+                : 'Communicate with coaches and administrators'}
+            </p>
           </div>
           <button
             onClick={() => setShowCompose(!showCompose)}
@@ -228,20 +310,81 @@ export default function MessagesPage() {
           <div className="bg-white rounded-card shadow-soft border border-neutral-light p-6">
             <h2 className="text-xl font-semibold text-neutral-text mb-4">Compose Message</h2>
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-neutral-medium mb-2">
-                  To (Admin or Coach)
-                </label>
-                <select
-                  value={composeData.recipient}
-                  onChange={(e) => setComposeData({ ...composeData, recipient: e.target.value })}
-                  className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
-                >
-                  <option value="">Select recipient...</option>
-                  <option value="admin">Administrator</option>
-                  <option value="coach">Coach</option>
-                </select>
-              </div>
+              {user?.role === 'coach' ? (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-medium mb-2">
+                      Send To
+                    </label>
+                    <select
+                      value={composeData.recipientType}
+                      onChange={(e) => setComposeData({ ...composeData, recipientType: e.target.value, recipient: '', recipientId: '' })}
+                      className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                    >
+                      <option value="role">All Players / All Admins</option>
+                      <option value="individual">Individual Player / Admin</option>
+                    </select>
+                  </div>
+                  {composeData.recipientType === 'role' ? (
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-medium mb-2">
+                        Select Recipient Group
+                      </label>
+                      <select
+                        value={composeData.recipient}
+                        onChange={(e) => setComposeData({ ...composeData, recipient: e.target.value })}
+                        className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                      >
+                        <option value="">Select recipient group...</option>
+                        <option value="all_players">All Players</option>
+                        <option value="all_admins">All Administrators</option>
+                      </select>
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-medium mb-2">
+                        Select Individual Recipient
+                      </label>
+                      <select
+                        value={composeData.recipientId}
+                        onChange={(e) => setComposeData({ ...composeData, recipientId: e.target.value, recipient: '' })}
+                        className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                      >
+                        <option value="">Select recipient...</option>
+                        <optgroup label="Players">
+                          {players.map((player) => (
+                            <option key={player.user_id} value={player.user_id}>
+                              {player.name} (Player)
+                            </option>
+                          ))}
+                        </optgroup>
+                        <optgroup label="Administrators">
+                          {admins.map((admin) => (
+                            <option key={admin.user_id} value={admin.user_id}>
+                              {admin.name} ({admin.role.replace('_', ' ')})
+                            </option>
+                          ))}
+                        </optgroup>
+                      </select>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div>
+                  <label className="block text-sm font-medium text-neutral-medium mb-2">
+                    To (Admin or Coach)
+                  </label>
+                  <select
+                    value={composeData.recipient}
+                    onChange={(e) => setComposeData({ ...composeData, recipient: e.target.value })}
+                    className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                  >
+                    <option value="">Select recipient...</option>
+                    <option value="admin">Administrator</option>
+                    <option value="coach">Coach</option>
+                  </select>
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-neutral-medium mb-2">Subject</label>
                 <input
@@ -272,7 +415,7 @@ export default function MessagesPage() {
                 <button
                   onClick={() => {
                     setShowCompose(false)
-                    setComposeData({ recipient: '', subject: '', message: '' })
+                    setComposeData({ recipientType: 'role', recipient: '', recipientId: '', subject: '', message: '' })
                   }}
                   className="px-6 py-3 bg-neutral-light text-neutral-text rounded-button hover:bg-neutral-medium transition-all duration-300 font-semibold"
                 >
@@ -394,4 +537,3 @@ export default function MessagesPage() {
     </Layout>
   )
 }
-

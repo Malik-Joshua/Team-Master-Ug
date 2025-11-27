@@ -297,7 +297,7 @@ export default function PlayersPage() {
                             <Eye className="w-4 h-4" />
                           </button>
                           {(user?.role === 'coach' || user?.role === 'admin' || user?.role === 'data_admin') && (
-                            <button onClick={() => { setSelectedPlayer(player); const pos = positions.find(p => p.value === player.position); setPlayerForm({ name: player.name, email: player.email, phone: player.phone || '', position: player.position, category: pos?.category || 'forwards', jersey_number: '', date_of_birth: '', height_cm: '', weight_kg: '', status: player.status }); setShowEditModal(true) }} className="p-2 text-info hover:bg-info/10 rounded-lg transition-colors" title="Edit Player">
+                            <button onClick={() => { setSelectedPlayer(player); const pos = positions.find(p => p.value === player.position); setPlayerForm({ name: player.name, email: player.email, phone: player.phone || '', position: player.position, category: (pos?.category === 'forwards' || pos?.category === 'backs') ? pos.category : ('forwards' as 'forwards' | 'backs'), jersey_number: '', date_of_birth: '', height_cm: '', weight_kg: '', status: player.status }); setShowEditModal(true) }} className="p-2 text-info hover:bg-info/10 rounded-lg transition-colors" title="Edit Player">
                               <Edit className="w-4 h-4" />
                             </button>
                           )}

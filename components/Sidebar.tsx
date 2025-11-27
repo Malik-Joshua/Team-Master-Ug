@@ -34,7 +34,7 @@ const navigationItems: NavItem[] = [
   { name: 'Players', href: '/players', icon: Users, roles: ['coach', 'data_admin', 'admin'] },
   { name: 'My Profile', href: '/profile', icon: User, roles: ['player', 'coach'] },
   { name: 'Performance', href: '/performance', icon: BarChart3 },
-  { name: 'Training', href: '/training', icon: Calendar },
+  { name: 'Training', href: '/training', icon: Calendar, roles: ['player', 'coach', 'data_admin', 'admin'] },
   { name: 'Finance', href: '/finance', icon: DollarSign, roles: ['finance_admin', 'admin'] },
   { name: 'Inventory', href: '/inventory', icon: Package, roles: ['data_admin', 'admin'] },
   { name: 'Messages', href: '/messages', icon: MessageSquare },

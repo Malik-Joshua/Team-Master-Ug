@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
-import { BarChart3, TrendingUp, Trophy, Target, Activity, Calendar, Users, Award, AlertCircle } from 'lucide-react'
+import { BarChart3, TrendingUp, TrendingDown, Trophy, Target, Activity, Calendar, Users, Award, AlertCircle, DollarSign, FileText, CheckCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import {
   Chart as ChartJS,
@@ -43,6 +43,21 @@ export default function PerformancePage() {
   const [teamStats, setTeamStats] = useState<any>(null)
   const [playersSummary, setPlayersSummary] = useState<any[]>([])
   const [coachMatches, setCoachMatches] = useState<any[]>([])
+  
+  // Team Manager-specific stats
+  const [teamManagerStats, setTeamManagerStats] = useState({
+    gameDays: 0,
+    trainingSessionsAttended: 0,
+    injuryReports: 0,
+  })
+  const [injuryReports, setInjuryReports] = useState<any[]>([])
+  const [teamManagerMatches, setTeamManagerMatches] = useState<any[]>([])
+  
+  // Finance Admin - Club Performance stats
+  const [clubPerformance, setClubPerformance] = useState<any>(null)
+  
+  // Admin - Club Performance stats
+  const [adminClubPerformance, setAdminClubPerformance] = useState<any>(null)
   
   // Player-specific stats
   const [playerStats, setPlayerStats] = useState({
@@ -86,6 +101,70 @@ export default function PerformancePage() {
                 { name: 'John Doe', status: 'active', totalMatches: 10, totalTries: 5, totalTackles: 35, attendanceRate: 85.5 },
                 { name: 'Jane Smith', status: 'active', totalMatches: 8, totalTries: 3, totalTackles: 28, attendanceRate: 92.0 },
               ])
+            } else if (userData.role === 'data_admin') {
+              setTeamManagerStats({
+                gameDays: 15,
+                trainingSessionsAttended: 28,
+                injuryReports: 3,
+              })
+              setInjuryReports([
+                { name: 'Mike Johnson', position: 'Wing', status: 'injured', email: 'mike@example.com' },
+              ])
+              setPlayersSummary([
+                { name: 'John Doe', status: 'active', totalMatches: 10, totalTries: 5, totalTackles: 35, attendanceRate: 85.5 },
+                { name: 'Jane Smith', status: 'active', totalMatches: 8, totalTries: 3, totalTackles: 28, attendanceRate: 92.0 },
+              ])
+            } else if (userData.role === 'finance_admin') {
+              setClubPerformance({
+                totalRevenue: 45000000,
+                totalExpenses: 32000000,
+                netBalance: 13000000,
+                budgetStats: {
+                  pending: 2,
+                  approved: 5,
+                  totalAmount: 15000000,
+                },
+                recentTransactions: [],
+              })
+            } else if (userData.role === 'admin') {
+              setAdminClubPerformance({
+                teamPerformance: {
+                  totalTries: 45,
+                  totalTackles: 320,
+                  totalTacklesMissed: 45,
+                  totalBallCarries: 180,
+                  totalBallHandlingErrors: 25,
+                  matchCount: 12,
+                  avgTriesPerMatch: 3.8,
+                  avgTacklesPerMatch: 26.7,
+                  tackleSuccessRate: 87.7,
+                },
+                playersSummary: [
+                  { name: 'John Doe', status: 'active', totalMatches: 10, totalTries: 5, totalTackles: 35, attendanceRate: 85.5 },
+                  { name: 'Jane Smith', status: 'active', totalMatches: 8, totalTries: 3, totalTackles: 28, attendanceRate: 92.0 },
+                ],
+                financial: {
+                  totalRevenue: 45000000,
+                  totalExpenses: 32000000,
+                  netBalance: 13000000,
+                  budgetStats: {
+                    pending: 2,
+                    approved: 5,
+                    totalAmount: 15000000,
+                  },
+                },
+                clubStats: {
+                  totalPlayers: 30,
+                  activePlayers: 25,
+                  injuredPlayers: 3,
+                  totalMatches: 12,
+                  wins: 8,
+                  losses: 3,
+                  draws: 1,
+                  winRate: 66.7,
+                  totalTrainingSessions: 24,
+                },
+              })
             } else {
               setPlayerStats({
                 totalMatches: 15,
@@ -156,6 +235,55 @@ export default function PerformancePage() {
                 tackleSuccessRate: 0,
               })
             }
+          } else if (profile.role === 'data_admin') {
+            // Load Team Manager-specific data
+            try {
+              const { db } = await import('@/lib/db-helpers')
+              
+              // Game days (matches created by team manager)
+              const gameDays = await db.getTeamManagerGameDays(authUser.id)
+              
+              // Training sessions attended (where team manager recorded attendance)
+              const trainingSessions = await db.getTeamManagerTrainingSessionsAttended(authUser.id)
+              
+              // Injury reports
+              const injuries = await db.getInjuryReports()
+              
+              // Matches created by team manager
+              const matches = await db.getTeamManagerMatches(authUser.id)
+              
+              // Players performance summary
+              const playersPerf = await db.getPlayersPerformanceSummary()
+              
+              setTeamManagerStats({
+                gameDays,
+                trainingSessionsAttended: trainingSessions,
+                injuryReports: injuries.length,
+              })
+              setInjuryReports(injuries)
+              setPlayersSummary(playersPerf)
+              setTeamManagerMatches(matches)
+            } catch (error) {
+              console.error('Error loading team manager performance data:', error)
+            }
+          } else if (profile.role === 'finance_admin') {
+            // Load Club Performance data for Finance Admin
+            try {
+              const { db } = await import('@/lib/db-helpers')
+              const performance = await db.getClubFinancialPerformance()
+              setClubPerformance(performance)
+            } catch (error) {
+              console.error('Error loading club performance data:', error)
+            }
+          } else if (profile.role === 'admin') {
+            // Load Club Performance data for Admin
+            try {
+              const { db } = await import('@/lib/db-helpers')
+              const performance = await db.getClubPerformance()
+              setAdminClubPerformance(performance)
+            } catch (error) {
+              console.error('Error loading club performance data:', error)
+            }
           } else {
             // Load player-specific match stats
             try {
@@ -195,6 +323,229 @@ export default function PerformancePage() {
       <Layout pageTitle="Performance">
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        </div>
+      </Layout>
+    )
+  }
+
+  // Team Manager Performance View
+  if (user.role === 'data_admin') {
+    const teamManagerPerformanceCards = [
+      {
+        title: 'Game Days',
+        value: teamManagerStats.gameDays,
+        icon: Trophy,
+        color: 'bg-primary',
+        description: 'Matches managed as Team Manager',
+      },
+      {
+        title: 'Training Sessions',
+        value: teamManagerStats.trainingSessionsAttended,
+        icon: Calendar,
+        color: 'bg-success',
+        description: 'Sessions attended/recorded',
+      },
+      {
+        title: 'Injury Reports',
+        value: teamManagerStats.injuryReports,
+        icon: AlertCircle,
+        color: 'bg-secondary',
+        description: 'Players currently injured',
+      },
+      {
+        title: 'Total Players',
+        value: playersSummary.length,
+        icon: Users,
+        color: 'bg-info',
+        description: 'Players in system',
+      },
+    ]
+
+    const getStatusColor = (status: string) => {
+      switch (status) {
+        case 'active':
+          return 'bg-success/10 text-success'
+        case 'injured':
+          return 'bg-warning/10 text-warning'
+        case 'inactive':
+          return 'bg-neutral-medium/10 text-neutral-medium'
+        default:
+          return 'bg-neutral-light/10 text-neutral-medium'
+      }
+    }
+
+    return (
+      <Layout pageTitle="Team Manager Performance">
+        <div className="space-y-6">
+          <div className="mb-2">
+            <h1 className="text-4xl font-extrabold text-club-gradient mb-2">Team Manager Performance Dashboard</h1>
+            <p className="text-lg text-neutral-medium font-medium">Track your management activities and team overview</p>
+          </div>
+
+          {/* Team Manager Stats Overview */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {teamManagerPerformanceCards.map((card) => {
+              const Icon = card.icon
+              return (
+                <StatCard
+                  key={card.title}
+                  title={card.title}
+                  value={card.value}
+                  icon={Icon}
+                  iconColor={card.color}
+                  description={card.description}
+                />
+              )
+            })}
+          </div>
+
+          {/* Injury Reports Section */}
+          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+            <h2 className="text-2xl font-bold text-neutral-text mb-6 flex items-center">
+              <AlertCircle className="w-6 h-6 mr-2 text-secondary" />
+              Injury Reports
+            </h2>
+            {injuryReports.length === 0 ? (
+              <div className="text-center py-12">
+                <AlertCircle className="w-16 h-16 text-neutral-medium mx-auto mb-4" />
+                <p className="text-neutral-medium">No injury reports at this time</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-neutral-light">
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-text">Player Name</th>
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-text">Position</th>
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-text">Email</th>
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-text">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {injuryReports.map((player) => (
+                      <tr key={player.user_id || player.id} className="border-b border-neutral-light/50 hover:bg-neutral-light/30 transition-colors">
+                        <td className="py-3 px-4">
+                          <p className="font-medium text-neutral-text">{player.name}</p>
+                        </td>
+                        <td className="py-3 px-4 text-neutral-medium capitalize">
+                          {player.position?.replace('_', ' ') || 'N/A'}
+                        </td>
+                        <td className="py-3 px-4 text-neutral-medium">{player.email}</td>
+                        <td className="py-3 px-4">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(player.status)}`}>
+                            {player.status || 'injured'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Players Performance Summary */}
+          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+            <h2 className="text-2xl font-bold text-neutral-text mb-6 flex items-center">
+              <Users className="w-6 h-6 mr-2 text-primary" />
+              Players Performance Summary
+            </h2>
+            {playersSummary.length === 0 ? (
+              <div className="text-center py-12">
+                <Users className="w-16 h-16 text-neutral-medium mx-auto mb-4" />
+                <p className="text-neutral-medium">No player data available yet</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-neutral-light">
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-text">Player Name</th>
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-text">Status</th>
+                      <th className="text-center py-3 px-4 text-sm font-semibold text-neutral-text">Matches</th>
+                      <th className="text-center py-3 px-4 text-sm font-semibold text-neutral-text">Tries</th>
+                      <th className="text-center py-3 px-4 text-sm font-semibold text-neutral-text">Tackles</th>
+                      <th className="text-center py-3 px-4 text-sm font-semibold text-neutral-text">Avg Minutes</th>
+                      <th className="text-center py-3 px-4 text-sm font-semibold text-neutral-text">Attendance Rate</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {playersSummary.map((player) => (
+                      <tr key={player.playerId || player.id} className="border-b border-neutral-light/50 hover:bg-neutral-light/30 transition-colors">
+                        <td className="py-3 px-4">
+                          <p className="font-medium text-neutral-text">{player.name}</p>
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(player.status)}`}>
+                            {player.status || 'N/A'}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-center text-neutral-text">{player.totalMatches || 0}</td>
+                        <td className="py-3 px-4 text-center text-neutral-text">{player.totalTries || 0}</td>
+                        <td className="py-3 px-4 text-center text-neutral-text">{player.totalTackles || 0}</td>
+                        <td className="py-3 px-4 text-center text-neutral-text">{player.avgMinutes || 0} min</td>
+                        <td className="py-3 px-4 text-center">
+                          <span className={`font-semibold ${player.attendanceRate >= 80 ? 'text-success' : player.attendanceRate >= 60 ? 'text-warning' : 'text-secondary'}`}>
+                            {player.attendanceRate || 0}%
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Recent Game Days */}
+          {teamManagerMatches.length > 0 && (
+            <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+              <h2 className="text-2xl font-bold text-neutral-text mb-6 flex items-center">
+                <Trophy className="w-6 h-6 mr-2 text-primary" />
+                Recent Game Days
+              </h2>
+              <div className="space-y-3">
+                {teamManagerMatches.slice(0, 5).map((match) => {
+                  const matchDate = new Date(match.match_date)
+                  const getResultColor = (result: string) => {
+                    switch (result) {
+                      case 'win':
+                        return 'bg-success/10 text-success'
+                      case 'loss':
+                        return 'bg-secondary/10 text-secondary'
+                      case 'draw':
+                        return 'bg-warning/10 text-warning'
+                      default:
+                        return 'bg-neutral-light/10 text-neutral-medium'
+                    }
+                  }
+                  
+                  return (
+                    <div key={match.id} className="p-4 bg-neutral-light/50 rounded-lg hover:bg-neutral-light transition-colors">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium text-neutral-text">{match.opponent}</p>
+                          <p className="text-sm text-neutral-medium">
+                            {matchDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} • {match.tournament_type}
+                            {match.score_our_team !== null && match.score_opponent !== null && (
+                              <span className="ml-2">
+                                {match.score_our_team} - {match.score_opponent}
+                              </span>
+                            )}
+                          </p>
+                        </div>
+                        {match.result && (
+                          <span className={`px-3 py-1 rounded-full text-sm font-medium ${getResultColor(match.result)}`}>
+                            {match.result.charAt(0).toUpperCase() + match.result.slice(1)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </Layout>
     )
@@ -493,6 +844,372 @@ export default function PerformancePage() {
                 })}
               </div>
             </div>
+          )}
+        </div>
+      </Layout>
+    )
+  }
+
+  // Admin - Club Performance View
+  if (user.role === 'admin') {
+    const formatCurrency = (amount: number) => {
+      if (amount >= 1000000) {
+        return `UGX ${(amount / 1000000).toFixed(1)}M`
+      }
+      return `UGX ${amount.toLocaleString()}`
+    }
+
+    const clubPerformanceCards = adminClubPerformance ? [
+      {
+        title: 'Total Players',
+        value: adminClubPerformance.clubStats.totalPlayers,
+        icon: Users,
+        color: 'bg-primary',
+        description: 'All registered players',
+      },
+      {
+        title: 'Active Players',
+        value: adminClubPerformance.clubStats.activePlayers,
+        icon: Activity,
+        color: 'bg-success',
+        description: 'Currently active players',
+      },
+      {
+        title: 'Total Matches',
+        value: adminClubPerformance.clubStats.totalMatches,
+        icon: Trophy,
+        color: 'bg-warning',
+        description: 'Matches played',
+      },
+      {
+        title: 'Win Rate',
+        value: `${adminClubPerformance.clubStats.winRate}%`,
+        icon: TrendingUp,
+        color: 'bg-info',
+        description: 'Match win percentage',
+      },
+      {
+        title: 'Training Sessions',
+        value: adminClubPerformance.clubStats.totalTrainingSessions,
+        icon: Calendar,
+        color: 'bg-primary',
+        description: 'Total training sessions',
+      },
+      {
+        title: 'Net Balance',
+        value: formatCurrency(adminClubPerformance.financial.netBalance),
+        icon: DollarSign,
+        color: 'bg-success',
+        description: 'Financial net balance',
+      },
+    ] : []
+
+    return (
+      <Layout pageTitle="Club Performance">
+        <div className="space-y-6">
+          <div className="mb-2">
+            <h1 className="text-4xl font-extrabold text-club-gradient mb-2">Club Performance Dashboard</h1>
+            <p className="text-lg text-neutral-medium font-medium">Comprehensive overview of club performance and statistics</p>
+          </div>
+
+          {adminClubPerformance && (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6">
+                {clubPerformanceCards.map((card) => {
+                  const Icon = card.icon
+                  return (
+                    <StatCard
+                      key={card.title}
+                      title={card.title}
+                      value={card.value}
+                      icon={Icon}
+                      iconColor={card.color}
+                      description={card.description}
+                    />
+                  )
+                })}
+              </div>
+
+              {/* Team Performance Section */}
+              {adminClubPerformance.teamPerformance && (
+                <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+                  <h2 className="text-2xl font-bold text-neutral-text mb-6 flex items-center">
+                    <Trophy className="w-6 h-6 mr-2 text-primary" />
+                    Team Performance
+                  </h2>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                    <div className="p-4 bg-primary/10 rounded-lg border border-primary/20">
+                      <p className="text-sm text-neutral-medium mb-1">Total Tries</p>
+                      <p className="text-3xl font-bold text-primary">{adminClubPerformance.teamPerformance.totalTries}</p>
+                    </div>
+                    <div className="p-4 bg-success/10 rounded-lg border border-success/20">
+                      <p className="text-sm text-neutral-medium mb-1">Total Tackles</p>
+                      <p className="text-3xl font-bold text-success">{adminClubPerformance.teamPerformance.totalTackles}</p>
+                    </div>
+                    <div className="p-4 bg-info/10 rounded-lg border border-info/20">
+                      <p className="text-sm text-neutral-medium mb-1">Tackle Success Rate</p>
+                      <p className="text-3xl font-bold text-info">{adminClubPerformance.teamPerformance.tackleSuccessRate}%</p>
+                    </div>
+                    <div className="p-4 bg-warning/10 rounded-lg border border-warning/20">
+                      <p className="text-sm text-neutral-medium mb-1">Avg Tries/Match</p>
+                      <p className="text-3xl font-bold text-warning">{adminClubPerformance.teamPerformance.avgTriesPerMatch}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Match Statistics */}
+              {adminClubPerformance.clubStats && (
+                <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+                  <h2 className="text-2xl font-bold text-neutral-text mb-6 flex items-center">
+                    <BarChart3 className="w-6 h-6 mr-2 text-primary" />
+                    Match Statistics
+                  </h2>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                    <div className="p-4 bg-success/10 rounded-lg border border-success/20">
+                      <p className="text-sm text-neutral-medium mb-1">Wins</p>
+                      <p className="text-3xl font-bold text-success">{adminClubPerformance.clubStats.wins}</p>
+                    </div>
+                    <div className="p-4 bg-secondary/10 rounded-lg border border-secondary/20">
+                      <p className="text-sm text-neutral-medium mb-1">Losses</p>
+                      <p className="text-3xl font-bold text-secondary">{adminClubPerformance.clubStats.losses}</p>
+                    </div>
+                    <div className="p-4 bg-warning/10 rounded-lg border border-warning/20">
+                      <p className="text-sm text-neutral-medium mb-1">Draws</p>
+                      <p className="text-3xl font-bold text-warning">{adminClubPerformance.clubStats.draws}</p>
+                    </div>
+                    <div className="p-4 bg-primary/10 rounded-lg border border-primary/20">
+                      <p className="text-sm text-neutral-medium mb-1">Win Rate</p>
+                      <p className="text-3xl font-bold text-primary">{adminClubPerformance.clubStats.winRate}%</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Financial Overview */}
+              {adminClubPerformance.financial && (
+                <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+                  <h2 className="text-2xl font-bold text-neutral-text mb-6 flex items-center">
+                    <DollarSign className="w-6 h-6 mr-2 text-success" />
+                    Financial Overview
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="p-4 bg-success/10 rounded-lg border border-success/20">
+                      <p className="text-sm text-neutral-medium mb-1">Total Revenue</p>
+                      <p className="text-3xl font-bold text-success">{formatCurrency(adminClubPerformance.financial.totalRevenue)}</p>
+                    </div>
+                    <div className="p-4 bg-secondary/10 rounded-lg border border-secondary/20">
+                      <p className="text-sm text-neutral-medium mb-1">Total Expenses</p>
+                      <p className="text-3xl font-bold text-secondary">{formatCurrency(adminClubPerformance.financial.totalExpenses)}</p>
+                    </div>
+                    <div className="p-4 bg-primary/10 rounded-lg border border-primary/20">
+                      <p className="text-sm text-neutral-medium mb-1">Net Balance</p>
+                      <p className="text-3xl font-bold text-primary">{formatCurrency(adminClubPerformance.financial.netBalance)}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Players Performance Summary */}
+              {adminClubPerformance.playersSummary && adminClubPerformance.playersSummary.length > 0 && (
+                <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+                  <h2 className="text-2xl font-bold text-neutral-text mb-6 flex items-center">
+                    <Users className="w-6 h-6 mr-2 text-primary" />
+                    Players Performance Summary
+                  </h2>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-neutral-light">
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-text">Player Name</th>
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-text">Status</th>
+                          <th className="text-center py-3 px-4 text-sm font-semibold text-neutral-text">Matches</th>
+                          <th className="text-center py-3 px-4 text-sm font-semibold text-neutral-text">Tries</th>
+                          <th className="text-center py-3 px-4 text-sm font-semibold text-neutral-text">Tackles</th>
+                          <th className="text-center py-3 px-4 text-sm font-semibold text-neutral-text">Avg Minutes</th>
+                          <th className="text-center py-3 px-4 text-sm font-semibold text-neutral-text">Attendance Rate</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {adminClubPerformance.playersSummary.map((player: any) => {
+                          const getStatusColor = (status: string) => {
+                            switch (status) {
+                              case 'active':
+                                return 'bg-success/10 text-success'
+                              case 'injured':
+                                return 'bg-warning/10 text-warning'
+                              case 'inactive':
+                                return 'bg-neutral-medium/10 text-neutral-medium'
+                              default:
+                                return 'bg-neutral-light/10 text-neutral-medium'
+                            }
+                          }
+                          return (
+                            <tr key={player.playerId || player.id} className="border-b border-neutral-light/50 hover:bg-neutral-light/30 transition-colors">
+                              <td className="py-3 px-4">
+                                <p className="font-medium text-neutral-text">{player.name}</p>
+                              </td>
+                              <td className="py-3 px-4">
+                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(player.status)}`}>
+                                  {player.status || 'N/A'}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4 text-center text-neutral-text">{player.totalMatches || 0}</td>
+                              <td className="py-3 px-4 text-center text-neutral-text">{player.totalTries || 0}</td>
+                              <td className="py-3 px-4 text-center text-neutral-text">{player.totalTackles || 0}</td>
+                              <td className="py-3 px-4 text-center text-neutral-text">{player.avgMinutes || 0} min</td>
+                              <td className="py-3 px-4 text-center">
+                                <span className={`font-semibold ${player.attendanceRate >= 80 ? 'text-success' : player.attendanceRate >= 60 ? 'text-warning' : 'text-secondary'}`}>
+                                  {player.attendanceRate || 0}%
+                                </span>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </Layout>
+    )
+  }
+
+  // Finance Admin - Club Performance View
+  if (user.role === 'finance_admin') {
+    const formatCurrency = (amount: number) => {
+      if (amount >= 1000000) {
+        return `UGX ${(amount / 1000000).toFixed(1)}M`
+      }
+      return `UGX ${amount.toLocaleString()}`
+    }
+
+    const clubPerformanceCards = clubPerformance ? [
+      {
+        title: 'Total Revenue',
+        value: formatCurrency(clubPerformance.totalRevenue),
+        icon: TrendingUp,
+        color: 'bg-success',
+        description: 'All club revenue',
+      },
+      {
+        title: 'Total Expenses',
+        value: formatCurrency(clubPerformance.totalExpenses),
+        icon: TrendingDown,
+        color: 'bg-secondary',
+        description: 'All club expenses',
+      },
+      {
+        title: 'Net Balance',
+        value: formatCurrency(clubPerformance.netBalance),
+        icon: DollarSign,
+        color: 'bg-primary',
+        description: 'Revenue minus expenses',
+      },
+      {
+        title: 'Pending Budgets',
+        value: clubPerformance.budgetStats.pending,
+        icon: FileText,
+        color: 'bg-warning',
+        description: 'Budgets awaiting approval',
+      },
+      {
+        title: 'Approved Budgets',
+        value: clubPerformance.budgetStats.approved,
+        icon: CheckCircle,
+        color: 'bg-info',
+        description: 'Approved budget requests',
+      },
+    ] : []
+
+    return (
+      <Layout pageTitle="Club Performance">
+        <div className="space-y-6">
+          <div className="mb-2">
+            <h1 className="text-4xl font-extrabold text-club-gradient mb-2">Club Performance Dashboard</h1>
+            <p className="text-lg text-neutral-medium font-medium">Financial overview and club performance metrics</p>
+          </div>
+
+          {clubPerformance && (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+                {clubPerformanceCards.map((card) => {
+                  const Icon = card.icon
+                  return (
+                    <StatCard
+                      key={card.title}
+                      title={card.title}
+                      value={card.value}
+                      icon={Icon}
+                      iconColor={card.color}
+                      description={card.description}
+                    />
+                  )
+                })}
+              </div>
+
+              <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+                <h2 className="text-2xl font-bold text-neutral-text mb-6 flex items-center">
+                  <DollarSign className="w-6 h-6 mr-2 text-success" />
+                  Financial Overview
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="p-4 bg-success/10 rounded-lg border border-success/20">
+                    <p className="text-sm text-neutral-medium mb-1">Total Revenue</p>
+                    <p className="text-3xl font-bold text-success">{formatCurrency(clubPerformance.totalRevenue)}</p>
+                  </div>
+                  <div className="p-4 bg-secondary/10 rounded-lg border border-secondary/20">
+                    <p className="text-sm text-neutral-medium mb-1">Total Expenses</p>
+                    <p className="text-3xl font-bold text-secondary">{formatCurrency(clubPerformance.totalExpenses)}</p>
+                  </div>
+                  <div className="p-4 bg-primary/10 rounded-lg border border-primary/20">
+                    <p className="text-sm text-neutral-medium mb-1">Net Balance</p>
+                    <p className="text-3xl font-bold text-primary">{formatCurrency(clubPerformance.netBalance)}</p>
+                  </div>
+                </div>
+              </div>
+
+              {clubPerformance.recentTransactions && clubPerformance.recentTransactions.length > 0 && (
+                <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+                  <h2 className="text-2xl font-bold text-neutral-text mb-6">Recent Financial Transactions</h2>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-neutral-light">
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-text">Date</th>
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-text">Type</th>
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-text">Category</th>
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-text">Amount</th>
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-text">Description</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {clubPerformance.recentTransactions.map((transaction: any) => (
+                          <tr key={transaction.id} className="border-b border-neutral-light/50 hover:bg-neutral-light/30 transition-colors">
+                            <td className="py-3 px-4 text-sm text-neutral-medium">
+                              {new Date(transaction.transaction_date).toLocaleDateString()}
+                            </td>
+                            <td className="py-3 px-4">
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${transaction.type === 'revenue' ? 'bg-success/10 text-success' : 'bg-secondary/10 text-secondary'}`}>
+                                {transaction.type === 'revenue' ? 'Revenue' : 'Expense'}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 text-neutral-text">{transaction.category}</td>
+                            <td className={`py-3 px-4 font-bold ${transaction.type === 'revenue' ? 'text-success' : 'text-secondary'}`}>
+                              {transaction.type === 'revenue' ? '+' : '-'}{formatCurrency(parseFloat(transaction.amount.toString()))}
+                            </td>
+                            <td className="py-3 px-4 text-sm text-neutral-medium">{transaction.description}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       </Layout>

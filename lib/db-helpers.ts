@@ -386,4 +386,442 @@ export const db = {
       }
     })
   },
+
+  // Player Performance Operations
+  async getPlayerTrainingSessionsAttended(playerId: string) {
+    const supabase = createClient()
+    const { count, error } = await supabase
+      .from('training_attendance')
+      .select('*', { count: 'exact', head: true })
+      .eq('player_id', playerId)
+      .eq('attendance_status', 'P')
+    
+    if (error) throw error
+    return count || 0
+  },
+
+  async getPlayerGymStats(playerId: string) {
+    const supabase = createClient()
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select('gym_stats')
+      .eq('user_id', playerId)
+      .single()
+    
+    if (error) throw error
+    
+    // Return gym stats with default values if not set
+    const gymStats = data?.gym_stats || {}
+    return {
+      benchPressPB: gymStats.bench_press_pb || gymStats.benchPressPB || null,
+      squatPB: gymStats.squat_pb || gymStats.squatPB || null,
+      deadliftPB: gymStats.deadlift_pb || gymStats.deadliftPB || null,
+      pullUpPB: gymStats.pull_up_pb || gymStats.pullUpPB || null,
+    }
+  },
+
+  async updatePlayerGymStats(playerId: string, gymStats: {
+    benchPressPB?: number | null
+    squatPB?: number | null
+    deadliftPB?: number | null
+    pullUpPB?: number | null
+  }) {
+    const supabase = createClient()
+    
+    // Get current gym stats
+    const { data: currentData, error: fetchError } = await supabase
+      .from('user_profiles')
+      .select('gym_stats')
+      .eq('user_id', playerId)
+      .single()
+    
+    if (fetchError) throw fetchError
+    
+    // Merge with existing stats
+    const currentStats = currentData?.gym_stats || {}
+    const updatedStats = {
+      ...currentStats,
+      bench_press_pb: gymStats.benchPressPB !== undefined ? gymStats.benchPressPB : currentStats.bench_press_pb || currentStats.benchPressPB,
+      squat_pb: gymStats.squatPB !== undefined ? gymStats.squatPB : currentStats.squat_pb || currentStats.squatPB,
+      deadlift_pb: gymStats.deadliftPB !== undefined ? gymStats.deadliftPB : currentStats.deadlift_pb || currentStats.deadliftPB,
+      pull_up_pb: gymStats.pullUpPB !== undefined ? gymStats.pullUpPB : currentStats.pull_up_pb || currentStats.pullUpPB,
+    }
+    
+    // Update the gym_stats field
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .update({ gym_stats: updatedStats })
+      .eq('user_id', playerId)
+      .select()
+      .single()
+    
+    if (error) throw error
+    return data
+  },
+
+  // Player Management Operations
+  // Note: addPlayer is handled via API route due to admin requirements
+
+  async updatePlayer(playerId: string, playerData: {
+    name?: string
+    email?: string
+    phone?: string
+    position?: string
+    category?: 'forwards' | 'backs'
+    jersey_number?: number
+    date_of_birth?: string
+    height_cm?: number
+    weight_kg?: number
+    status?: string
+  }) {
+    const supabase = createClient()
+    
+    // Update user profile
+    const profileUpdate: any = {}
+    if (playerData.name) profileUpdate.name = playerData.name
+    if (playerData.email) profileUpdate.email = playerData.email
+    if (playerData.phone !== undefined) profileUpdate.phone = playerData.phone
+    if (playerData.status) profileUpdate.status = playerData.status
+    
+    if (Object.keys(profileUpdate).length > 0) {
+      const { error: profileError } = await supabase
+        .from('user_profiles')
+        .update(profileUpdate)
+        .eq('user_id', playerId)
+      
+      if (profileError) throw profileError
+    }
+    
+    // Update player record
+    const playerUpdate: any = {}
+    if (playerData.position) playerUpdate.position = playerData.position
+    if (playerData.category) playerUpdate.category = playerData.category
+    if (playerData.jersey_number !== undefined) playerUpdate.jersey_number = playerData.jersey_number
+    if (playerData.date_of_birth) playerUpdate.date_of_birth = playerData.date_of_birth
+    if (playerData.height_cm !== undefined) playerUpdate.height_cm = playerData.height_cm
+    if (playerData.weight_kg !== undefined) playerUpdate.weight_kg = playerData.weight_kg
+    
+    if (Object.keys(playerUpdate).length > 0) {
+      const { error: playerError } = await supabase
+        .from('players')
+        .update(playerUpdate)
+        .eq('user_id', playerId)
+      
+      if (playerError) throw playerError
+    }
+    
+    return { success: true }
+  },
+
+  async getPlayerDetails(playerId: string) {
+    const supabase = createClient()
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select(`
+        *,
+        players (*)
+      `)
+      .eq('user_id', playerId)
+      .single()
+    
+    if (error) throw error
+    return data
+  },
+
+  // Team Manager Operations
+  async getTeamManagerGameDays(teamManagerId: string) {
+    const supabase = createClient()
+    const { count, error } = await supabase
+      .from('matches')
+      .select('*', { count: 'exact', head: true })
+      .eq('created_by', teamManagerId)
+    
+    if (error) throw error
+    return count || 0
+  },
+
+  async getTeamManagerTrainingSessionsAttended(teamManagerId: string) {
+    const supabase = createClient()
+    // Count distinct training sessions where team manager recorded attendance
+    const { data, error } = await supabase
+      .from('training_attendance')
+      .select('session_id')
+      .eq('recorded_by', teamManagerId)
+    
+    if (error) throw error
+    
+    // Get unique session IDs
+    const uniqueSessions = new Set(data?.map(record => record.session_id) || [])
+    return uniqueSessions.size
+  },
+
+  async getInjuryReports() {
+    const supabase = createClient()
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('role', 'player')
+      .eq('status', 'injured')
+    
+    if (error) throw error
+    return data || []
+  },
+
+  async getTeamManagerMatches(teamManagerId: string) {
+    const supabase = createClient()
+    const { data, error } = await supabase
+      .from('matches')
+      .select('*')
+      .eq('created_by', teamManagerId)
+      .order('match_date', { ascending: false })
+    
+    if (error) throw error
+    return data || []
+  },
+
+  // Budget Operations
+  async createBudget(budgetData: {
+    event_name: string
+    event_type: string
+    event_date: string
+    description?: string
+    total_amount: number
+    created_by: string
+    items: Array<{
+      item_name: string
+      category?: string
+      quantity: number
+      unit_price: number
+      total_amount: number
+      notes?: string
+    }>
+  }) {
+    const supabase = createClient()
+    
+    const { data: budget, error: budgetError } = await supabase
+      .from('budgets')
+      .insert({
+        event_name: budgetData.event_name,
+        event_type: budgetData.event_type,
+        event_date: budgetData.event_date,
+        description: budgetData.description || null,
+        total_amount: budgetData.total_amount,
+        status: 'pending',
+        created_by: budgetData.created_by,
+      })
+      .select('id')
+      .single()
+    
+    if (budgetError) throw budgetError
+    
+    if (budgetData.items.length > 0) {
+      const itemsToInsert = budgetData.items.map(item => ({
+        budget_id: budget.id,
+        item_name: item.item_name,
+        category: item.category || null,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        total_amount: item.total_amount,
+        notes: item.notes || null,
+      }))
+      
+      const { error: itemsError } = await supabase
+        .from('budget_items')
+        .insert(itemsToInsert)
+      
+      if (itemsError) throw itemsError
+    }
+    
+    return budget
+  },
+
+  async getBudgets(userId: string, role: string) {
+    const supabase = createClient()
+    
+    let query = supabase
+      .from('budgets')
+      .select('*, budget_items(*), created_by_profile:user_profiles!budgets_created_by_fkey(name, email)')
+      .order('created_at', { ascending: false })
+    
+    // Finance admins see their own budgets, admins see all
+    if (role === 'finance_admin') {
+      query = query.eq('created_by', userId)
+    }
+    
+    const { data, error } = await query
+    
+    if (error) throw error
+    return data || []
+  },
+
+  async approveBudget(budgetId: string, adminId: string) {
+    const supabase = createClient()
+    
+    const { data, error } = await supabase
+      .from('budgets')
+      .update({
+        status: 'approved',
+        approved_by: adminId,
+        approved_at: new Date().toISOString(),
+      })
+      .eq('id', budgetId)
+      .select()
+      .single()
+    
+    if (error) throw error
+    return data
+  },
+
+  async rejectBudget(budgetId: string, adminId: string, rejectionReason: string) {
+    const supabase = createClient()
+    
+    const { data, error } = await supabase
+      .from('budgets')
+      .update({
+        status: 'rejected',
+        approved_by: adminId,
+        approved_at: new Date().toISOString(),
+        rejection_reason: rejectionReason,
+      })
+      .eq('id', budgetId)
+      .select()
+      .single()
+    
+    if (error) throw error
+    return data
+  },
+
+  async getPendingBudgets() {
+    const supabase = createClient()
+    
+    const { data, error } = await supabase
+      .from('budgets')
+      .select('*, budget_items(*), created_by_profile:user_profiles!budgets_created_by_fkey(name, email)')
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false })
+    
+    if (error) throw error
+    return data || []
+  },
+
+  // Club Performance Operations for Finance Admin
+  async getClubFinancialPerformance() {
+    const supabase = createClient()
+    
+    // Get total revenue
+    const { data: revenueData, error: revenueError } = await supabase
+      .from('financial_transactions')
+      .select('amount')
+      .eq('type', 'revenue')
+    
+    if (revenueError) throw revenueError
+    
+    // Get total expenses
+    const { data: expenseData, error: expenseError } = await supabase
+      .from('financial_transactions')
+      .select('amount')
+      .eq('type', 'expense')
+    
+    if (expenseError) throw expenseError
+    
+    const totalRevenue = revenueData?.reduce((sum, t) => sum + parseFloat(t.amount.toString()), 0) || 0
+    const totalExpenses = expenseData?.reduce((sum, t) => sum + parseFloat(t.amount.toString()), 0) || 0
+    
+    // Get recent transactions
+    const { data: recentTransactions, error: transactionsError } = await supabase
+      .from('financial_transactions')
+      .select('*')
+      .order('transaction_date', { ascending: false })
+      .limit(10)
+    
+    if (transactionsError) throw transactionsError
+    
+    // Get budget statistics
+    const { data: budgetsData, error: budgetsError } = await supabase
+      .from('budgets')
+      .select('*')
+    
+    if (budgetsError) throw budgetsError
+    
+    const pendingBudgets = budgetsData?.filter(b => b.status === 'pending').length || 0
+    const approvedBudgets = budgetsData?.filter(b => b.status === 'approved').length || 0
+    const totalBudgetAmount = budgetsData?.reduce((sum, b) => sum + parseFloat(b.total_amount.toString()), 0) || 0
+    
+    return {
+      totalRevenue,
+      totalExpenses,
+      netBalance: totalRevenue - totalExpenses,
+      recentTransactions: recentTransactions || [],
+      budgetStats: {
+        pending: pendingBudgets,
+        approved: approvedBudgets,
+        totalAmount: totalBudgetAmount,
+      },
+    }
+  },
+
+  // Club Performance Operations for Admin
+  async getClubPerformance() {
+    const supabase = createClient()
+    
+    // Get team performance stats
+    const teamPerformance = await this.getTeamPerformanceStats()
+    
+    // Get players performance summary
+    const playersPerf = await this.getPlayersPerformanceSummary()
+    
+    // Get financial performance
+    const financialPerf = await this.getClubFinancialPerformance()
+    
+    // Get total players
+    const { data: players, error: playersError } = await supabase
+      .from('user_profiles')
+      .select('user_id, status')
+      .eq('role', 'player')
+    
+    if (playersError) throw playersError
+    
+    const totalPlayers = players?.length || 0
+    const activePlayers = players?.filter(p => p.status === 'active').length || 0
+    const injuredPlayers = players?.filter(p => p.status === 'injured').length || 0
+    
+    // Get total matches
+    const { data: matches, error: matchesError } = await supabase
+      .from('matches')
+      .select('*')
+    
+    if (matchesError) throw matchesError
+    
+    const totalMatches = matches?.length || 0
+    const wins = matches?.filter(m => m.result === 'win').length || 0
+    const losses = matches?.filter(m => m.result === 'loss').length || 0
+    const draws = matches?.filter(m => m.result === 'draw').length || 0
+    const winRate = totalMatches > 0 ? parseFloat(((wins / totalMatches) * 100).toFixed(1)) : 0
+    
+    // Get training sessions
+    const { data: trainingSessions, error: sessionsError } = await supabase
+      .from('training_sessions')
+      .select('*')
+    
+    if (sessionsError) throw sessionsError
+    
+    const totalTrainingSessions = trainingSessions?.length || 0
+    
+    return {
+      teamPerformance,
+      playersSummary: playersPerf,
+      financial: financialPerf,
+      clubStats: {
+        totalPlayers,
+        activePlayers,
+        injuredPlayers,
+        totalMatches,
+        wins,
+        losses,
+        draws,
+        winRate,
+        totalTrainingSessions,
+      },
+    }
+  },
 }

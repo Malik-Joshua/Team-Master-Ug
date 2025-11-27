@@ -803,6 +803,21 @@ export default function TrainingPage() {
 
   if (!user) return null
 
+  // Block Finance Admin from accessing training page
+  if (user.role === 'finance_admin') {
+    return (
+      <Layout pageTitle="Training">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <Calendar className="w-16 h-16 text-neutral-medium mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-neutral-text mb-2">Access Restricted</h2>
+            <p className="text-neutral-medium">Finance Admin does not have access to the Training feature.</p>
+          </div>
+        </div>
+      </Layout>
+    )
+  }
+
   // Player-specific view: Show upcoming training sessions with drills
   if (user.role === 'player') {
     const upcomingSessions = sessions.filter(session => {
@@ -947,7 +962,7 @@ export default function TrainingPage() {
             <div>
               <h1 className="text-3xl font-bold mb-2">Player Attendance at Training Sessions</h1>
               <p className="text-blue-100">
-                {user?.role === 'admin' 
+                {user?.role === 'admin'
                   ? 'View training attendance summary and statistics'
                   : 'Track and record player attendance for all training sessions'}
               </p>
@@ -1254,7 +1269,7 @@ export default function TrainingPage() {
         )}
 
         {/* Instructions */}
-        {user?.role !== 'admin' && (
+        {user?.role !== 'admin' && user?.role !== 'finance_admin' && (
           <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
             <h2 className="text-lg font-bold text-neutral-text mb-3">Attendance Codes</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -1298,8 +1313,8 @@ export default function TrainingPage() {
         </div>
         )}
 
-        {/* Attendance Table - Hidden for Admin */}
-        {user?.role !== 'admin' && (
+        {/* Attendance Table - Hidden for Admin and Finance Admin */}
+        {user?.role !== 'admin' && user?.role !== 'finance_admin' && (
           <div className="bg-white rounded-card border border-neutral-light shadow-soft overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1200px]">
@@ -1391,8 +1406,8 @@ export default function TrainingPage() {
         </div>
         )}
 
-        {/* Session Dates Reference - Hidden for Admin */}
-        {user?.role !== 'admin' && (
+        {/* Session Dates Reference - Hidden for Admin and Finance Admin */}
+        {user?.role !== 'admin' && user?.role !== 'finance_admin' && (
           <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
             <h2 className="text-lg font-bold text-neutral-text mb-4">Training Session Dates</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">

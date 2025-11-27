@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
-import { Calendar, Activity, Trophy, Target, AlertCircle } from 'lucide-react'
+import { Calendar, Activity, Trophy, Target, AlertCircle, Dumbbell, Edit, X, Save } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import {
   Chart as ChartJS,
@@ -48,6 +48,20 @@ export default function DashboardPage() {
     trainingSessionsAttended: 0,
   })
   const [trainingSessionsData, setTrainingSessionsData] = useState<any[]>([])
+  const [gymStats, setGymStats] = useState({
+    benchPressPB: null as number | null,
+    squatPB: null as number | null,
+    deadliftPB: null as number | null,
+    pullUpPB: null as number | null,
+  })
+  const [showGymForm, setShowGymForm] = useState(false)
+  const [gymFormData, setGymFormData] = useState({
+    benchPressPB: '',
+    squatPB: '',
+    deadliftPB: '',
+    pullUpPB: '',
+  })
+  const [savingGymStats, setSavingGymStats] = useState(false)
 
   useEffect(() => {
     const loadDashboard = async () => {
@@ -71,9 +85,18 @@ export default function DashboardPage() {
               winRate: 65,
               totalRevenue: 50000000,
               totalExpenses: 32000000,
-              trainingSessionsAttended: userData.role === 'coach' ? 18 : 0,
+              trainingSessionsAttended: userData.role === 'coach' ? 18 : (userData.role === 'player' ? 15 : 0),
             }
             setStats(mockStats)
+            // Mock gym stats for players in dev mode
+            if (userData.role === 'player') {
+              setGymStats({
+                benchPressPB: 100,
+                squatPB: 150,
+                deadliftPB: 180,
+                pullUpPB: 20,
+              })
+            }
             // Mock training sessions data for coach
             if (userData.role === 'coach') {
               const mockSessions = Array.from({ length: 18 }, (_, i) => ({
@@ -126,6 +149,19 @@ export default function DashboardPage() {
                 setTrainingSessionsData(sessions)
               } catch (error) {
                 console.error('Error loading coach training sessions:', error)
+              }
+            } else if (profile.role === 'player') {
+              try {
+                const { db } = await import('@/lib/db-helpers')
+                const sessionsAttended = await db.getPlayerTrainingSessionsAttended(authUser.id)
+                const gymMetrics = await db.getPlayerGymStats(authUser.id)
+                setStats(prev => ({
+                  ...prev,
+                  trainingSessionsAttended: sessionsAttended,
+                }))
+                setGymStats(gymMetrics)
+              } catch (error) {
+                console.error('Error loading player stats:', error)
               }
             }
           } else {
@@ -202,30 +238,246 @@ export default function DashboardPage() {
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <StatCard
-              title="Games Played"
-              value={stats.totalMatches}
+              title="Training Sessions Attended"
+              value={stats.trainingSessionsAttended}
               icon={Calendar}
               iconColor="bg-primary"
             />
             <StatCard
-              title="Tries Scored"
-              value={stats.totalTries}
+              title="Games Played"
+              value={stats.totalMatches}
               icon={Trophy}
               iconColor="bg-secondary"
             />
             <StatCard
-              title="Tackles Made"
-              value={stats.totalTackles}
+              title="Tries Scored"
+              value={stats.totalTries}
               icon={Target}
               iconColor="bg-success"
             />
             <StatCard
-              title="Avg Minutes"
-              value={`${stats.avgMinutes} min`}
+              title="Tackles Made"
+              value={stats.totalTackles}
               icon={Activity}
               iconColor="bg-info"
             />
           </div>
+
+          {/* Gym Metrics Section */}
+          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center">
+                <Dumbbell className="w-6 h-6 text-primary mr-2" />
+                <h3 className="text-xl font-bold text-neutral-text">Gym Metrics - Personal Bests</h3>
+              </div>
+              <button
+                onClick={() => {
+                  setGymFormData({
+                    benchPressPB: gymStats.benchPressPB?.toString() || '',
+                    squatPB: gymStats.squatPB?.toString() || '',
+                    deadliftPB: gymStats.deadliftPB?.toString() || '',
+                    pullUpPB: gymStats.pullUpPB?.toString() || '',
+                  })
+                  setShowGymForm(true)
+                }}
+                className="flex items-center px-4 py-2 bg-primary text-white rounded-button font-semibold hover:bg-primary-dark transition-colors"
+              >
+                <Edit className="w-4 h-4 mr-2" />
+                Update Metrics
+              </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="bg-gradient-to-br from-primary/10 to-primary/5 rounded-lg p-6 border border-primary/20">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-semibold text-neutral-medium uppercase tracking-wide">Bench Press</h4>
+                  <Dumbbell className="w-5 h-5 text-primary" />
+                </div>
+                <p className="text-3xl font-bold text-neutral-text">
+                  {gymStats.benchPressPB !== null ? `${gymStats.benchPressPB} kg` : 'N/A'}
+                </p>
+                <p className="text-xs text-neutral-medium mt-1">Personal Best</p>
+              </div>
+              <div className="bg-gradient-to-br from-secondary/10 to-secondary/5 rounded-lg p-6 border border-secondary/20">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-semibold text-neutral-medium uppercase tracking-wide">Squat</h4>
+                  <Dumbbell className="w-5 h-5 text-secondary" />
+                </div>
+                <p className="text-3xl font-bold text-neutral-text">
+                  {gymStats.squatPB !== null ? `${gymStats.squatPB} kg` : 'N/A'}
+                </p>
+                <p className="text-xs text-neutral-medium mt-1">Personal Best</p>
+              </div>
+              <div className="bg-gradient-to-br from-success/10 to-success/5 rounded-lg p-6 border border-success/20">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-semibold text-neutral-medium uppercase tracking-wide">Deadlift</h4>
+                  <Dumbbell className="w-5 h-5 text-success" />
+                </div>
+                <p className="text-3xl font-bold text-neutral-text">
+                  {gymStats.deadliftPB !== null ? `${gymStats.deadliftPB} kg` : 'N/A'}
+                </p>
+                <p className="text-xs text-neutral-medium mt-1">Personal Best</p>
+              </div>
+              <div className="bg-gradient-to-br from-info/10 to-info/5 rounded-lg p-6 border border-info/20">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-semibold text-neutral-medium uppercase tracking-wide">Pull-ups</h4>
+                  <Dumbbell className="w-5 h-5 text-info" />
+                </div>
+                <p className="text-3xl font-bold text-neutral-text">
+                  {gymStats.pullUpPB !== null ? `${gymStats.pullUpPB} reps` : 'N/A'}
+                </p>
+                <p className="text-xs text-neutral-medium mt-1">Personal Best</p>
+              </div>
+            </div>
+            {gymStats.benchPressPB === null && gymStats.squatPB === null && gymStats.deadliftPB === null && gymStats.pullUpPB === null && (
+              <div className="mt-4 text-center text-neutral-medium text-sm">
+                No gym metrics recorded yet. Click "Update Metrics" above to add your personal bests.
+              </div>
+            )}
+          </div>
+
+          {/* Gym Metrics Edit Modal */}
+          {showGymForm && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-card shadow-soft max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                <div className="p-6 border-b border-neutral-light">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <Dumbbell className="w-6 h-6 text-primary mr-2" />
+                      <h3 className="text-2xl font-bold text-neutral-text">Update Gym Metrics</h3>
+                    </div>
+                    <button
+                      onClick={() => setShowGymForm(false)}
+                      className="text-neutral-medium hover:text-neutral-text transition-colors"
+                    >
+                      <X className="w-6 h-6" />
+                    </button>
+                  </div>
+                </div>
+                <div className="p-6 space-y-6">
+                  <div>
+                    <label className="block text-sm font-semibold text-neutral-text mb-2">
+                      Bench Press Personal Best (kg)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      value={gymFormData.benchPressPB}
+                      onChange={(e) => setGymFormData({ ...gymFormData, benchPressPB: e.target.value })}
+                      className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                      placeholder="Enter weight in kg"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-neutral-text mb-2">
+                      Squat Personal Best (kg)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      value={gymFormData.squatPB}
+                      onChange={(e) => setGymFormData({ ...gymFormData, squatPB: e.target.value })}
+                      className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                      placeholder="Enter weight in kg"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-neutral-text mb-2">
+                      Deadlift Personal Best (kg)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      value={gymFormData.deadliftPB}
+                      onChange={(e) => setGymFormData({ ...gymFormData, deadliftPB: e.target.value })}
+                      className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                      placeholder="Enter weight in kg"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-neutral-text mb-2">
+                      Pull-ups Personal Best (reps)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={gymFormData.pullUpPB}
+                      onChange={(e) => setGymFormData({ ...gymFormData, pullUpPB: e.target.value })}
+                      className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                      placeholder="Enter number of reps"
+                    />
+                  </div>
+                </div>
+                <div className="p-6 border-t border-neutral-light flex justify-end space-x-3">
+                  <button
+                    onClick={() => setShowGymForm(false)}
+                    className="px-6 py-2 border border-neutral-light rounded-button font-semibold text-neutral-text hover:bg-neutral-light transition-colors"
+                    disabled={savingGymStats}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={async () => {
+                      setSavingGymStats(true)
+                      try {
+                        // Check for dev mode
+                        if (typeof window !== 'undefined' && localStorage.getItem('dev_user')) {
+                          const devUser = JSON.parse(localStorage.getItem('dev_user') || '{}')
+                          const updatedGymStats = {
+                            benchPressPB: gymFormData.benchPressPB ? parseFloat(gymFormData.benchPressPB) : null,
+                            squatPB: gymFormData.squatPB ? parseFloat(gymFormData.squatPB) : null,
+                            deadliftPB: gymFormData.deadliftPB ? parseFloat(gymFormData.deadliftPB) : null,
+                            pullUpPB: gymFormData.pullUpPB && gymFormData.pullUpPB.trim() !== '' ? parseInt(gymFormData.pullUpPB) : null,
+                          }
+                          setGymStats(updatedGymStats)
+                          setShowGymForm(false)
+                          alert('Gym metrics updated! (Dev Mode)')
+                          setSavingGymStats(false)
+                          return
+                        }
+
+                        const supabase = createClient()
+                        const { data: { user: authUser } } = await supabase.auth.getUser()
+
+                        if (!authUser) {
+                          alert('Please log in to update gym metrics')
+                          setSavingGymStats(false)
+                          return
+                        }
+
+                        const { db } = await import('@/lib/db-helpers')
+                        await db.updatePlayerGymStats(authUser.id, {
+                          benchPressPB: gymFormData.benchPressPB && gymFormData.benchPressPB.trim() !== '' ? parseFloat(gymFormData.benchPressPB) : null,
+                          squatPB: gymFormData.squatPB && gymFormData.squatPB.trim() !== '' ? parseFloat(gymFormData.squatPB) : null,
+                          deadliftPB: gymFormData.deadliftPB && gymFormData.deadliftPB.trim() !== '' ? parseFloat(gymFormData.deadliftPB) : null,
+                          pullUpPB: gymFormData.pullUpPB && gymFormData.pullUpPB.trim() !== '' ? parseInt(gymFormData.pullUpPB) : null,
+                        })
+
+                        // Reload gym stats
+                        const updatedStats = await db.getPlayerGymStats(authUser.id)
+                        setGymStats(updatedStats)
+                        setShowGymForm(false)
+                        alert('Gym metrics updated successfully!')
+                      } catch (error: any) {
+                        console.error('Error updating gym metrics:', error)
+                        alert(`Error updating gym metrics: ${error.message}`)
+                      } finally {
+                        setSavingGymStats(false)
+                      }
+                    }}
+                    className="px-6 py-2 bg-primary text-white rounded-button font-semibold hover:bg-primary-dark transition-colors flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={savingGymStats}
+                  >
+                    <Save className="w-4 h-4 mr-2" />
+                    {savingGymStats ? 'Saving...' : 'Save Metrics'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Performance Chart */}
           <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
@@ -466,7 +718,10 @@ export default function DashboardPage() {
               </table>
             </div>
             <div className="p-6 border-t border-neutral-light">
-              <button className="px-6 py-2 bg-club-gradient text-white rounded-button font-semibold hover:opacity-90 transition-opacity">
+              <button
+                onClick={() => router.push('/players')}
+                className="px-6 py-2 bg-club-gradient text-white rounded-button font-semibold hover:opacity-90 transition-opacity"
+              >
                 View All Players
               </button>
             </div>

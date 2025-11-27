@@ -330,7 +330,7 @@ export default function DashboardPage() {
             </div>
             {gymStats.benchPressPB === null && gymStats.squatPB === null && gymStats.deadliftPB === null && gymStats.pullUpPB === null && (
               <div className="mt-4 text-center text-neutral-medium text-sm">
-                No gym metrics recorded yet. Click "Update Metrics" above to add your personal bests.
+                No gym metrics recorded yet. Click &quot;Update Metrics&quot; above to add your personal bests.
               </div>
             )}
           </div>

@@ -971,4 +971,92 @@ export const db = {
       },
     }
   },
+
+  // Best Gym Metrics of the Week
+  async getBestGymMetricsOfWeek() {
+    const supabase = createClient()
+    
+    // Get start of current week (Monday)
+    const now = new Date()
+    const dayOfWeek = now.getDay()
+    const diff = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1) // Adjust when day is Sunday
+    const startOfWeek = new Date(now)
+    startOfWeek.setDate(diff)
+    startOfWeek.setHours(0, 0, 0, 0)
+    
+    // Get all players with gym stats
+    const { data: players, error: playersError } = await supabase
+      .from('user_profiles')
+      .select('user_id, name')
+      .eq('role', 'player')
+      .eq('status', 'active')
+
+    if (playersError) throw playersError
+    if (!players || players.length === 0) return null
+
+    const playersWithStats = await Promise.all(
+      players.map(async (player) => {
+        const gymStats = await this.getPlayerGymStats(player.user_id)
+        return {
+          ...player,
+          gymStats,
+        }
+      })
+    )
+
+    // Filter out players with no gym stats
+    const playersWithValidStats = playersWithStats.filter(p => 
+      p.gymStats.benchPressPB !== null || 
+      p.gymStats.squatPB !== null || 
+      p.gymStats.deadliftPB !== null || 
+      p.gymStats.pullUpPB !== null
+    )
+
+    if (playersWithValidStats.length === 0) return null
+
+    // Find best in each category
+    const bestBenchPress = playersWithValidStats.reduce((best, current) => {
+      const currentValue = current.gymStats.benchPressPB || 0
+      const bestValue = best.gymStats.benchPressPB || 0
+      return currentValue > bestValue ? current : best
+    }, playersWithValidStats[0])
+
+    const bestSquat = playersWithValidStats.reduce((best, current) => {
+      const currentValue = current.gymStats.squatPB || 0
+      const bestValue = best.gymStats.squatPB || 0
+      return currentValue > bestValue ? current : best
+    }, playersWithValidStats[0])
+
+    const bestDeadlift = playersWithValidStats.reduce((best, current) => {
+      const currentValue = current.gymStats.deadliftPB || 0
+      const bestValue = best.gymStats.deadliftPB || 0
+      return currentValue > bestValue ? current : best
+    }, playersWithValidStats[0])
+
+    const bestPullUps = playersWithValidStats.reduce((best, current) => {
+      const currentValue = current.gymStats.pullUpPB || 0
+      const bestValue = best.gymStats.pullUpPB || 0
+      return currentValue > bestValue ? current : best
+    }, playersWithValidStats[0])
+
+    return {
+      weekStart: startOfWeek.toISOString(),
+      bestBenchPress: {
+        playerName: bestBenchPress.name,
+        value: bestBenchPress.gymStats.benchPressPB,
+      },
+      bestSquat: {
+        playerName: bestSquat.name,
+        value: bestSquat.gymStats.squatPB,
+      },
+      bestDeadlift: {
+        playerName: bestDeadlift.name,
+        value: bestDeadlift.gymStats.deadliftPB,
+      },
+      bestPullUps: {
+        playerName: bestPullUps.name,
+        value: bestPullUps.gymStats.pullUpPB,
+      },
+    }
+  },
 }

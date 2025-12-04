@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
-import { Users, Search, Filter, UserPlus, Eye, Edit, AlertCircle, CheckCircle, X, Save } from 'lucide-react'
+import { Users, Search, Filter, UserPlus, Eye, Edit, AlertCircle, CheckCircle, X, Save, Dumbbell } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 interface Player {
@@ -41,7 +41,20 @@ export default function PlayersPage() {
     height_cm: '',
     weight_kg: '',
     status: 'active',
+    benchPressPB: '',
+    squatPB: '',
+    deadliftPB: '',
+    pullUpPB: '',
   })
+  const [showGymMetricsModal, setShowGymMetricsModal] = useState(false)
+  const [selectedPlayerForGym, setSelectedPlayerForGym] = useState<Player | null>(null)
+  const [gymMetricsForm, setGymMetricsForm] = useState({
+    benchPressPB: '',
+    squatPB: '',
+    deadliftPB: '',
+    pullUpPB: '',
+  })
+  const [savingGymMetrics, setSavingGymMetrics] = useState(false)
 
   useEffect(() => {
     const loadData = async () => {
@@ -214,7 +227,7 @@ export default function PlayersPage() {
           {(user?.role === 'coach' || user?.role === 'admin' || user?.role === 'data_admin') && (
             <button
               onClick={() => {
-                setPlayerForm({ name: '', email: '', phone: '', position: '', category: 'forwards', jersey_number: '', date_of_birth: '', height_cm: '', weight_kg: '', status: 'active' })
+                setPlayerForm({ name: '', email: '', phone: '', position: '', category: 'forwards', jersey_number: '', date_of_birth: '', height_cm: '', weight_kg: '', status: 'active', benchPressPB: '', squatPB: '', deadliftPB: '', pullUpPB: '' })
                 setShowAddModal(true)
               }}
               className="bg-club-gradient text-white px-6 py-3 rounded-button font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
@@ -297,9 +310,30 @@ export default function PlayersPage() {
                             <Eye className="w-4 h-4" />
                           </button>
                           {(user?.role === 'coach' || user?.role === 'admin' || user?.role === 'data_admin') && (
-                            <button onClick={() => { setSelectedPlayer(player); const pos = positions.find(p => p.value === player.position); setPlayerForm({ name: player.name, email: player.email, phone: player.phone || '', position: player.position, category: (pos?.category === 'forwards' || pos?.category === 'backs') ? pos.category : ('forwards' as 'forwards' | 'backs'), jersey_number: '', date_of_birth: '', height_cm: '', weight_kg: '', status: player.status }); setShowEditModal(true) }} className="p-2 text-info hover:bg-info/10 rounded-lg transition-colors" title="Edit Player">
-                              <Edit className="w-4 h-4" />
-                            </button>
+                            <>
+                              <button onClick={() => { setSelectedPlayer(player); const pos = positions.find(p => p.value === player.position); setPlayerForm({ name: player.name, email: player.email, phone: player.phone || '', position: player.position, category: (pos?.category === 'forwards' || pos?.category === 'backs') ? pos.category : ('forwards' as 'forwards' | 'backs'), jersey_number: '', date_of_birth: '', height_cm: '', weight_kg: '', status: player.status, benchPressPB: '', squatPB: '', deadliftPB: '', pullUpPB: '' }); setShowEditModal(true) }} className="p-2 text-info hover:bg-info/10 rounded-lg transition-colors" title="Edit Player">
+                                <Edit className="w-4 h-4" />
+                              </button>
+                              <button onClick={async () => {
+                                setSelectedPlayerForGym(player)
+                                const playerId = player.user_id || player.id
+                                try {
+                                  const { db } = await import('@/lib/db-helpers')
+                                  const gymStats = await db.getPlayerGymStats(playerId)
+                                  setGymMetricsForm({
+                                    benchPressPB: gymStats.benchPressPB?.toString() || '',
+                                    squatPB: gymStats.squatPB?.toString() || '',
+                                    deadliftPB: gymStats.deadliftPB?.toString() || '',
+                                    pullUpPB: gymStats.pullUpPB?.toString() || '',
+                                  })
+                                } catch (error) {
+                                  setGymMetricsForm({ benchPressPB: '', squatPB: '', deadliftPB: '', pullUpPB: '' })
+                                }
+                                setShowGymMetricsModal(true)
+                              }} className="p-2 text-warning hover:bg-warning/10 rounded-lg transition-colors" title="Update Gym Metrics">
+                                <Dumbbell className="w-4 h-4" />
+                              </button>
+                            </>
                           )}
                         </div>
                       </td>
@@ -476,6 +510,129 @@ export default function PlayersPage() {
             <div className="p-6 border-t border-neutral-light flex justify-end">
               <button onClick={() => setShowViewModal(false)} className="px-6 py-2 bg-primary text-white rounded-button font-semibold hover:bg-primary-dark transition-colors">
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showGymMetricsModal && selectedPlayerForGym && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-card shadow-soft max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-neutral-light">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <Dumbbell className="w-6 h-6 text-primary mr-2" />
+                  <h3 className="text-2xl font-bold text-neutral-text">Update Gym Metrics - {selectedPlayerForGym.name}</h3>
+                </div>
+                <button onClick={() => { setShowGymMetricsModal(false); setSelectedPlayerForGym(null) }} className="text-neutral-medium hover:text-neutral-text transition-colors">
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+            <div className="p-6 space-y-6">
+              <div>
+                <label className="block text-sm font-semibold text-neutral-text mb-2">
+                  Bench Press Personal Best (kg)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  value={gymMetricsForm.benchPressPB}
+                  onChange={(e) => setGymMetricsForm({ ...gymMetricsForm, benchPressPB: e.target.value })}
+                  className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="Enter weight in kg"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-neutral-text mb-2">
+                  Squat Personal Best (kg)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  value={gymMetricsForm.squatPB}
+                  onChange={(e) => setGymMetricsForm({ ...gymMetricsForm, squatPB: e.target.value })}
+                  className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="Enter weight in kg"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-neutral-text mb-2">
+                  Deadlift Personal Best (kg)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  value={gymMetricsForm.deadliftPB}
+                  onChange={(e) => setGymMetricsForm({ ...gymMetricsForm, deadliftPB: e.target.value })}
+                  className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="Enter weight in kg"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-neutral-text mb-2">
+                  Pull-ups Personal Best (reps)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={gymMetricsForm.pullUpPB}
+                  onChange={(e) => setGymMetricsForm({ ...gymMetricsForm, pullUpPB: e.target.value })}
+                  className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="Enter number of reps"
+                />
+              </div>
+            </div>
+            <div className="p-6 border-t border-neutral-light flex justify-end space-x-3">
+              <button
+                onClick={() => { setShowGymMetricsModal(false); setSelectedPlayerForGym(null) }}
+                className="px-6 py-2 border border-neutral-light rounded-button font-semibold text-neutral-text hover:bg-neutral-light transition-colors"
+                disabled={savingGymMetrics}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  setSavingGymMetrics(true)
+                  try {
+                    const playerId = selectedPlayerForGym.user_id || selectedPlayerForGym.id
+                    
+                    if (typeof window !== 'undefined' && localStorage.getItem('dev_user')) {
+                      alert('Gym metrics updated! (Dev Mode)')
+                      setShowGymMetricsModal(false)
+                      setSelectedPlayerForGym(null)
+                      setSavingGymMetrics(false)
+                      return
+                    }
+
+                    const { db } = await import('@/lib/db-helpers')
+                    await db.updatePlayerGymStats(playerId, {
+                      benchPressPB: gymMetricsForm.benchPressPB && gymMetricsForm.benchPressPB.trim() !== '' ? parseFloat(gymMetricsForm.benchPressPB) : null,
+                      squatPB: gymMetricsForm.squatPB && gymMetricsForm.squatPB.trim() !== '' ? parseFloat(gymMetricsForm.squatPB) : null,
+                      deadliftPB: gymMetricsForm.deadliftPB && gymMetricsForm.deadliftPB.trim() !== '' ? parseFloat(gymMetricsForm.deadliftPB) : null,
+                      pullUpPB: gymMetricsForm.pullUpPB && gymMetricsForm.pullUpPB.trim() !== '' ? parseInt(gymMetricsForm.pullUpPB) : null,
+                    })
+
+                    alert('Gym metrics updated successfully!')
+                    setShowGymMetricsModal(false)
+                    setSelectedPlayerForGym(null)
+                  } catch (error: any) {
+                    console.error('Error updating gym metrics:', error)
+                    alert(`Error updating gym metrics: ${error.message}`)
+                  } finally {
+                    setSavingGymMetrics(false)
+                  }
+                }}
+                className="px-6 py-2 bg-primary text-white rounded-button font-semibold hover:bg-primary-dark transition-colors flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={savingGymMetrics}
+              >
+                <Save className="w-4 h-4 mr-2" />
+                {savingGymMetrics ? 'Saving...' : 'Save Metrics'}
               </button>
             </div>
           </div>

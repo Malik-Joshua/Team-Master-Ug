@@ -54,16 +54,10 @@ export default function DashboardPage() {
     deadliftPB: null as number | null,
     pullUpPB: null as number | null,
   })
-  const [showGymForm, setShowGymForm] = useState(false)
-  const [gymFormData, setGymFormData] = useState({
-    benchPressPB: '',
-    squatPB: '',
-    deadliftPB: '',
-    pullUpPB: '',
-  })
-  const [savingGymStats, setSavingGymStats] = useState(false)
   const [injuries, setInjuries] = useState<any[]>([])
   const [loadingInjuries, setLoadingInjuries] = useState(false)
+  const [bestGymMetrics, setBestGymMetrics] = useState<any>(null)
+  const [loadingBestMetrics, setLoadingBestMetrics] = useState(false)
 
   useEffect(() => {
     const loadDashboard = async () => {
@@ -190,6 +184,21 @@ export default function DashboardPage() {
                 setLoadingInjuries(false)
               }
             }
+            
+            // Load best gym metrics for all roles except finance_admin and physio
+            if (profile.role !== 'finance_admin' && profile.role !== 'physio') {
+              try {
+                setLoadingBestMetrics(true)
+                const { db } = await import('@/lib/db-helpers')
+                const bestMetrics = await db.getBestGymMetricsOfWeek()
+                setBestGymMetrics(bestMetrics)
+              } catch (error) {
+                console.error('Error loading best gym metrics:', error)
+                setBestGymMetrics(null)
+              } finally {
+                setLoadingBestMetrics(false)
+              }
+            }
           } else {
             router.push('/dev-login')
           }
@@ -294,26 +303,9 @@ export default function DashboardPage() {
 
           {/* Gym Metrics Section */}
           <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center">
-                <Dumbbell className="w-6 h-6 text-primary mr-2" />
-                <h3 className="text-xl font-bold text-neutral-text">Gym Metrics - Personal Bests</h3>
-              </div>
-              <button
-                onClick={() => {
-                  setGymFormData({
-                    benchPressPB: gymStats.benchPressPB?.toString() || '',
-                    squatPB: gymStats.squatPB?.toString() || '',
-                    deadliftPB: gymStats.deadliftPB?.toString() || '',
-                    pullUpPB: gymStats.pullUpPB?.toString() || '',
-                  })
-                  setShowGymForm(true)
-                }}
-                className="flex items-center px-4 py-2 bg-primary text-white rounded-button font-semibold hover:bg-primary-dark transition-colors"
-              >
-                <Edit className="w-4 h-4 mr-2" />
-                Update Metrics
-              </button>
+            <div className="flex items-center mb-6">
+              <Dumbbell className="w-6 h-6 text-primary mr-2" />
+              <h3 className="text-xl font-bold text-neutral-text">Gym Metrics - Personal Bests</h3>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <div className="bg-gradient-to-br from-primary/10 to-primary/5 rounded-lg p-6 border border-primary/20">
@@ -359,7 +351,7 @@ export default function DashboardPage() {
             </div>
             {gymStats.benchPressPB === null && gymStats.squatPB === null && gymStats.deadliftPB === null && gymStats.pullUpPB === null && (
               <div className="mt-4 text-center text-neutral-medium text-sm">
-                No gym metrics recorded yet. Click &quot;Update Metrics&quot; above to add your personal bests.
+                No gym metrics recorded yet. Contact your coach or team manager to update your metrics.
               </div>
             )}
           </div>
@@ -492,147 +484,67 @@ export default function DashboardPage() {
             )}
           </div>
 
-          {/* Gym Metrics Edit Modal */}
-          {showGymForm && (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-              <div className="bg-white rounded-card shadow-soft max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-                <div className="p-6 border-b border-neutral-light">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <Dumbbell className="w-6 h-6 text-primary mr-2" />
-                      <h3 className="text-2xl font-bold text-neutral-text">Update Gym Metrics</h3>
-                    </div>
-                    <button
-                      onClick={() => setShowGymForm(false)}
-                      className="text-neutral-medium hover:text-neutral-text transition-colors"
-                    >
-                      <X className="w-6 h-6" />
-                    </button>
-                  </div>
-                </div>
-                <div className="p-6 space-y-6">
-                  <div>
-                    <label className="block text-sm font-semibold text-neutral-text mb-2">
-                      Bench Press Personal Best (kg)
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.5"
-                      value={gymFormData.benchPressPB}
-                      onChange={(e) => setGymFormData({ ...gymFormData, benchPressPB: e.target.value })}
-                      className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                      placeholder="Enter weight in kg"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-neutral-text mb-2">
-                      Squat Personal Best (kg)
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.5"
-                      value={gymFormData.squatPB}
-                      onChange={(e) => setGymFormData({ ...gymFormData, squatPB: e.target.value })}
-                      className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                      placeholder="Enter weight in kg"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-neutral-text mb-2">
-                      Deadlift Personal Best (kg)
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.5"
-                      value={gymFormData.deadliftPB}
-                      onChange={(e) => setGymFormData({ ...gymFormData, deadliftPB: e.target.value })}
-                      className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                      placeholder="Enter weight in kg"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-neutral-text mb-2">
-                      Pull-ups Personal Best (reps)
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="1"
-                      value={gymFormData.pullUpPB}
-                      onChange={(e) => setGymFormData({ ...gymFormData, pullUpPB: e.target.value })}
-                      className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                      placeholder="Enter number of reps"
-                    />
-                  </div>
-                </div>
-                <div className="p-6 border-t border-neutral-light flex justify-end space-x-3">
-                  <button
-                    onClick={() => setShowGymForm(false)}
-                    className="px-6 py-2 border border-neutral-light rounded-button font-semibold text-neutral-text hover:bg-neutral-light transition-colors"
-                    disabled={savingGymStats}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={async () => {
-                      setSavingGymStats(true)
-                      try {
-                        // Check for dev mode
-                        if (typeof window !== 'undefined' && localStorage.getItem('dev_user')) {
-                          const devUser = JSON.parse(localStorage.getItem('dev_user') || '{}')
-                          const updatedGymStats = {
-                            benchPressPB: gymFormData.benchPressPB ? parseFloat(gymFormData.benchPressPB) : null,
-                            squatPB: gymFormData.squatPB ? parseFloat(gymFormData.squatPB) : null,
-                            deadliftPB: gymFormData.deadliftPB ? parseFloat(gymFormData.deadliftPB) : null,
-                            pullUpPB: gymFormData.pullUpPB && gymFormData.pullUpPB.trim() !== '' ? parseInt(gymFormData.pullUpPB) : null,
-                          }
-                          setGymStats(updatedGymStats)
-                          setShowGymForm(false)
-                          alert('Gym metrics updated! (Dev Mode)')
-                          setSavingGymStats(false)
-                          return
-                        }
-
-                        const supabase = createClient()
-                        const { data: { user: authUser } } = await supabase.auth.getUser()
-
-                        if (!authUser) {
-                          alert('Please log in to update gym metrics')
-                          setSavingGymStats(false)
-                          return
-                        }
-
-                        const { db } = await import('@/lib/db-helpers')
-                        await db.updatePlayerGymStats(authUser.id, {
-                          benchPressPB: gymFormData.benchPressPB && gymFormData.benchPressPB.trim() !== '' ? parseFloat(gymFormData.benchPressPB) : null,
-                          squatPB: gymFormData.squatPB && gymFormData.squatPB.trim() !== '' ? parseFloat(gymFormData.squatPB) : null,
-                          deadliftPB: gymFormData.deadliftPB && gymFormData.deadliftPB.trim() !== '' ? parseFloat(gymFormData.deadliftPB) : null,
-                          pullUpPB: gymFormData.pullUpPB && gymFormData.pullUpPB.trim() !== '' ? parseInt(gymFormData.pullUpPB) : null,
-                        })
-
-                        // Reload gym stats
-                        const updatedStats = await db.getPlayerGymStats(authUser.id)
-                        setGymStats(updatedStats)
-                        setShowGymForm(false)
-                        alert('Gym metrics updated successfully!')
-                      } catch (error: any) {
-                        console.error('Error updating gym metrics:', error)
-                        alert(`Error updating gym metrics: ${error.message}`)
-                      } finally {
-                        setSavingGymStats(false)
-                      }
-                    }}
-                    className="px-6 py-2 bg-primary text-white rounded-button font-semibold hover:bg-primary-dark transition-colors flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
-                    disabled={savingGymStats}
-                  >
-                    <Save className="w-4 h-4 mr-2" />
-                    {savingGymStats ? 'Saving...' : 'Save Metrics'}
-                  </button>
-                </div>
+          {/* Best Gym Metrics of the Week */}
+          {user.role !== 'finance_admin' && user.role !== 'physio' && (
+            <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+              <div className="flex items-center mb-6">
+                <Trophy className="w-6 h-6 text-warning mr-2" />
+                <h3 className="text-xl font-bold text-neutral-text">Best Gym Metrics of the Week</h3>
               </div>
+              
+              {loadingBestMetrics ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                </div>
+              ) : !bestGymMetrics ? (
+                <div className="text-center py-8">
+                  <Dumbbell className="w-12 h-12 mx-auto mb-4 text-neutral-light" />
+                  <p className="text-neutral-medium">No gym metrics recorded yet.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="bg-gradient-to-br from-primary/10 to-primary/5 rounded-lg p-6 border border-primary/20">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-sm font-semibold text-neutral-medium uppercase tracking-wide">Bench Press</h4>
+                      <Dumbbell className="w-5 h-5 text-primary" />
+                    </div>
+                    <p className="text-3xl font-bold text-neutral-text">
+                      {bestGymMetrics.bestBenchPress?.value || 0} kg
+                    </p>
+                    <p className="text-sm text-primary font-medium mt-1">{bestGymMetrics.bestBenchPress?.playerName || 'N/A'}</p>
+                  </div>
+                  <div className="bg-gradient-to-br from-secondary/10 to-secondary/5 rounded-lg p-6 border border-secondary/20">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-sm font-semibold text-neutral-medium uppercase tracking-wide">Squat</h4>
+                      <Dumbbell className="w-5 h-5 text-secondary" />
+                    </div>
+                    <p className="text-3xl font-bold text-neutral-text">
+                      {bestGymMetrics.bestSquat?.value || 0} kg
+                    </p>
+                    <p className="text-sm text-secondary font-medium mt-1">{bestGymMetrics.bestSquat?.playerName || 'N/A'}</p>
+                  </div>
+                  <div className="bg-gradient-to-br from-success/10 to-success/5 rounded-lg p-6 border border-success/20">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-sm font-semibold text-neutral-medium uppercase tracking-wide">Deadlift</h4>
+                      <Dumbbell className="w-5 h-5 text-success" />
+                    </div>
+                    <p className="text-3xl font-bold text-neutral-text">
+                      {bestGymMetrics.bestDeadlift?.value || 0} kg
+                    </p>
+                    <p className="text-sm text-success font-medium mt-1">{bestGymMetrics.bestDeadlift?.playerName || 'N/A'}</p>
+                  </div>
+                  <div className="bg-gradient-to-br from-info/10 to-info/5 rounded-lg p-6 border border-info/20">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-sm font-semibold text-neutral-medium uppercase tracking-wide">Pull-ups</h4>
+                      <Dumbbell className="w-5 h-5 text-info" />
+                    </div>
+                    <p className="text-3xl font-bold text-neutral-text">
+                      {bestGymMetrics.bestPullUps?.value || 0} reps
+                    </p>
+                    <p className="text-sm text-info font-medium mt-1">{bestGymMetrics.bestPullUps?.playerName || 'N/A'}</p>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

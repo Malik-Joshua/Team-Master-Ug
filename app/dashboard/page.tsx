@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
-import { Calendar, Activity, Trophy, Target, AlertCircle, Dumbbell, Edit, X, Save } from 'lucide-react'
+import { Calendar, Activity, Trophy, Target, AlertCircle, Dumbbell, Edit, X, Save, HeartPulse, Pill, FileText, Clock, CheckCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import {
   Chart as ChartJS,
@@ -62,6 +62,8 @@ export default function DashboardPage() {
     pullUpPB: '',
   })
   const [savingGymStats, setSavingGymStats] = useState(false)
+  const [injuries, setInjuries] = useState<any[]>([])
+  const [loadingInjuries, setLoadingInjuries] = useState(false)
 
   useEffect(() => {
     const loadDashboard = async () => {
@@ -96,6 +98,23 @@ export default function DashboardPage() {
                 deadliftPB: 180,
                 pullUpPB: 20,
               })
+              // Mock injury data for dev mode
+              setInjuries([
+                {
+                  id: '1',
+                  injury_date: '2024-12-01',
+                  cause: 'Training collision',
+                  diagnosis: 'Sprained ankle',
+                  action_taken: 'RICE treatment, compression bandage applied',
+                  further_treatment: 'Physiotherapy sessions 3x/week for 2 weeks',
+                  medication: 'Ibuprofen 400mg twice daily for 5 days',
+                  return_to_training_date: '2024-12-15',
+                  return_to_play_date: '2024-12-22',
+                  status: 'active',
+                  notes: 'Player responding well to treatment. Continue with physio sessions and monitor progress.',
+                  created_at: '2024-12-01T10:00:00Z',
+                },
+              ])
             }
             // Mock training sessions data for coach
             if (userData.role === 'coach') {
@@ -160,8 +179,15 @@ export default function DashboardPage() {
                   trainingSessionsAttended: sessionsAttended,
                 }))
                 setGymStats(gymMetrics)
+                
+                // Load player injuries
+                setLoadingInjuries(true)
+                const playerInjuries = await db.getInjuries(authUser.id)
+                setInjuries(playerInjuries || [])
+                setLoadingInjuries(false)
               } catch (error) {
                 console.error('Error loading player stats:', error)
+                setLoadingInjuries(false)
               }
             }
           } else {
@@ -334,6 +360,134 @@ export default function DashboardPage() {
             {gymStats.benchPressPB === null && gymStats.squatPB === null && gymStats.deadliftPB === null && gymStats.pullUpPB === null && (
               <div className="mt-4 text-center text-neutral-medium text-sm">
                 No gym metrics recorded yet. Click &quot;Update Metrics&quot; above to add your personal bests.
+              </div>
+            )}
+          </div>
+
+          {/* Injury Information Section */}
+          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+            <div className="flex items-center mb-6">
+              <HeartPulse className="w-6 h-6 text-secondary mr-2" />
+              <h3 className="text-xl font-bold text-neutral-text">My Injury Information</h3>
+            </div>
+            
+            {loadingInjuries ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              </div>
+            ) : injuries.length === 0 ? (
+              <div className="text-center py-8">
+                <CheckCircle className="w-12 h-12 mx-auto mb-4 text-success" />
+                <p className="text-neutral-medium">No active injuries recorded. You&apos;re good to go!</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {injuries.map((injury) => (
+                  <div
+                    key={injury.id}
+                    className={`p-6 rounded-lg border-2 transition-all ${
+                      injury.status === 'active'
+                        ? 'border-secondary bg-red-50'
+                        : injury.status === 'cleared' || injury.status === 'healed'
+                        ? 'border-success bg-green-50'
+                        : 'border-neutral-light bg-white'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center space-x-3">
+                        <AlertCircle className={`w-6 h-6 ${
+                          injury.status === 'active' ? 'text-secondary' : 'text-success'
+                        }`} />
+                        <div>
+                          <h4 className="text-lg font-bold text-neutral-text">{injury.diagnosis}</h4>
+                          <p className="text-sm text-neutral-medium">
+                            Injured on {new Date(injury.injury_date).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                        injury.status === 'active'
+                          ? 'bg-secondary text-white'
+                          : injury.status === 'cleared' || injury.status === 'healed'
+                          ? 'bg-success text-white'
+                          : 'bg-neutral-light text-neutral-medium'
+                      }`}>
+                        {injury.status === 'active' ? 'ACTIVE' : injury.status === 'cleared' ? 'CLEARED' : 'HEALED'}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <label className="text-xs font-semibold text-neutral-medium uppercase">Cause</label>
+                        <p className="text-neutral-text mt-1">{injury.cause}</p>
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-neutral-medium uppercase">Diagnosis</label>
+                        <p className="text-neutral-text mt-1 font-medium">{injury.diagnosis}</p>
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="text-xs font-semibold text-neutral-medium uppercase">Action Taken</label>
+                        <p className="text-neutral-text mt-1">{injury.action_taken}</p>
+                      </div>
+                      {injury.further_treatment && (
+                        <div className="md:col-span-2">
+                          <label className="text-xs font-semibold text-neutral-medium uppercase">Treatment Plan</label>
+                          <p className="text-neutral-text mt-1">{injury.further_treatment}</p>
+                        </div>
+                      )}
+                      {injury.medication && (
+                        <div className="md:col-span-2">
+                          <label className="text-xs font-semibold text-neutral-medium uppercase flex items-center">
+                            <Pill className="w-4 h-4 mr-1" />
+                            Medication Plan
+                          </label>
+                          <p className="text-neutral-text mt-1 font-medium text-primary">{injury.medication}</p>
+                        </div>
+                      )}
+                      {injury.return_to_training_date && (
+                        <div>
+                          <label className="text-xs font-semibold text-neutral-medium uppercase flex items-center">
+                            <Calendar className="w-4 h-4 mr-1" />
+                            Return to Training
+                          </label>
+                          <p className="text-neutral-text mt-1">
+                            {new Date(injury.return_to_training_date).toLocaleDateString()}
+                          </p>
+                        </div>
+                      )}
+                      {injury.return_to_play_date && (
+                        <div>
+                          <label className="text-xs font-semibold text-neutral-medium uppercase flex items-center">
+                            <Calendar className="w-4 h-4 mr-1" />
+                            Return to Play
+                          </label>
+                          <p className="text-neutral-text mt-1">
+                            {new Date(injury.return_to_play_date).toLocaleDateString()}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {injury.notes && (
+                      <div className="mt-4 p-4 bg-white/80 rounded-lg border border-neutral-light">
+                        <label className="text-xs font-semibold text-neutral-medium uppercase flex items-center mb-2">
+                          <FileText className="w-4 h-4 mr-1" />
+                          Physiotherapist Notes
+                        </label>
+                        <p className="text-neutral-text italic">{injury.notes}</p>
+                      </div>
+                    )}
+
+                    {injury.status === 'active' && injury.return_to_play_date && (
+                      <div className="mt-4 flex items-center space-x-2 text-sm">
+                        <Clock className="w-4 h-4 text-neutral-medium" />
+                        <span className="text-neutral-medium">
+                          Estimated return to play: {new Date(injury.return_to_play_date).toLocaleDateString()}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
             )}
           </div>

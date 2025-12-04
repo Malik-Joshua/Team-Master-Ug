@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Users, Shield, BarChart3, DollarSign, UserCheck } from 'lucide-react'
+import { Users, Shield, BarChart3, DollarSign, UserCheck, HeartPulse } from 'lucide-react'
 
 const roles = [
   {
@@ -35,6 +35,12 @@ const roles = [
     label: 'General Admin',
     icon: Shield,
     description: 'Full access to all features and user management',
+  },
+  {
+    value: 'physio',
+    label: 'Physiotherapist',
+    icon: HeartPulse,
+    description: 'Manage injuries, track healing, and medication records',
   },
 ]
 

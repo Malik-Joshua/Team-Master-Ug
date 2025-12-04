@@ -191,6 +191,9 @@ export default function DashboardPage() {
       } else if (user.role === 'admin') {
         router.push('/dashboard/admin')
         return
+      } else if (user.role === 'physio') {
+        router.push('/dashboard/physio')
+        return
       }
     }
   }, [user, router])

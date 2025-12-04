@@ -567,6 +567,153 @@ export const db = {
     return data || []
   },
 
+  // Injury Management Operations
+  async getInjuries(playerId?: string) {
+    const supabase = createClient()
+    let query = supabase
+      .from('injuries')
+      .select(`
+        *,
+        player:user_profiles!injuries_player_id_fkey(name, email)
+      `)
+      .order('injury_date', { ascending: false })
+
+    if (playerId) {
+      query = query.eq('player_id', playerId)
+    }
+
+    const { data, error } = await query
+    if (error) throw error
+    return data || []
+  },
+
+  async getActiveInjuries() {
+    const supabase = createClient()
+    const { data, error } = await supabase
+      .from('injuries')
+      .select(`
+        *,
+        player:user_profiles!injuries_player_id_fkey(name, email)
+      `)
+      .eq('status', 'active')
+      .order('injury_date', { ascending: false })
+    
+    if (error) throw error
+    return data || []
+  },
+
+  async createInjury(injuryData: {
+    player_id: string
+    injury_date: string
+    cause: string
+    diagnosis: string
+    action_taken: string
+    further_treatment?: string
+    medication?: string
+    return_to_training_date?: string
+    return_to_play_date?: string
+    notes?: string
+    created_by: string
+  }) {
+    const supabase = createClient()
+    const { data, error } = await supabase
+      .from('injuries')
+      .insert(injuryData)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  },
+
+  async updateInjury(injuryId: string, injuryData: {
+    injury_date?: string
+    cause?: string
+    diagnosis?: string
+    action_taken?: string
+    further_treatment?: string
+    medication?: string
+    return_to_training_date?: string
+    return_to_play_date?: string
+    notes?: string
+  }) {
+    const supabase = createClient()
+    const { data, error } = await supabase
+      .from('injuries')
+      .update(injuryData)
+      .eq('id', injuryId)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  },
+
+  async clearInjury(injuryId: string, clearedBy: string) {
+    const supabase = createClient()
+    const { data, error } = await supabase
+      .from('injuries')
+      .update({
+        status: 'cleared',
+        cleared_at: new Date().toISOString(),
+        cleared_by: clearedBy,
+      })
+      .eq('id', injuryId)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  },
+
+  async getInjuryStats() {
+    const supabase = createClient()
+    
+    // Get active injuries count
+    const { count: activeCount } = await supabase
+      .from('injuries')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'active')
+
+    // Get cleared injuries count
+    const { count: clearedCount } = await supabase
+      .from('injuries')
+      .select('*', { count: 'exact', head: true })
+      .in('status', ['cleared', 'healed'])
+
+    // Get average healing time
+    const { data: clearedInjuries } = await supabase
+      .from('injuries')
+      .select('injury_date, return_to_play_date')
+      .in('status', ['cleared', 'healed'])
+      .not('return_to_play_date', 'is', null)
+
+    let avgHealingTime = 0
+    if (clearedInjuries && clearedInjuries.length > 0) {
+      const healingTimes = clearedInjuries
+        .map(injury => {
+          if (injury.return_to_play_date && injury.injury_date) {
+            return Math.ceil(
+              (new Date(injury.return_to_play_date).getTime() - new Date(injury.injury_date).getTime()) / (1000 * 60 * 60 * 24)
+            )
+          }
+          return null
+        })
+        .filter((time): time is number => time !== null)
+
+      if (healingTimes.length > 0) {
+        avgHealingTime = Math.round(healingTimes.reduce((sum, time) => sum + time, 0) / healingTimes.length)
+      }
+    }
+
+    return {
+      active: activeCount || 0,
+      cleared: clearedCount || 0,
+      total: (activeCount || 0) + (clearedCount || 0),
+      averageHealingTime: avgHealingTime,
+    }
+  },
+
   async getTeamManagerMatches(teamManagerId: string) {
     const supabase = createClient()
     const { data, error } = await supabase

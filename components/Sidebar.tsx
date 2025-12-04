@@ -18,6 +18,7 @@ import {
   X,
   User,
   Trophy,
+  HeartPulse,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useSidebar } from '@/contexts/SidebarContext'
@@ -35,6 +36,7 @@ const navigationItems: NavItem[] = [
   { name: 'My Profile', href: '/profile', icon: User, roles: ['player', 'coach'] },
   { name: 'Performance', href: '/performance', icon: BarChart3 },
   { name: 'Training', href: '/training', icon: Calendar, roles: ['player', 'coach', 'data_admin', 'admin'] },
+  { name: 'Injuries', href: '/dashboard/physio', icon: HeartPulse, roles: ['physio'] },
   { name: 'Finance', href: '/finance', icon: DollarSign, roles: ['finance_admin', 'admin'] },
   { name: 'Inventory', href: '/inventory', icon: Package, roles: ['data_admin', 'admin'] },
   { name: 'Messages', href: '/messages', icon: MessageSquare },

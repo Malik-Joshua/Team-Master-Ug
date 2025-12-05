@@ -68,6 +68,12 @@ export default function PerformancePage() {
     winRate: 0,
   })
 
+  // Physio-specific stats
+  const [physioStats, setPhysioStats] = useState({
+    trainingSessionsAttended: 0,
+    gamesAttended: 0,
+  })
+
   useEffect(() => {
     const loadData = async () => {
       setLoading(true)
@@ -106,6 +112,11 @@ export default function PerformancePage() {
                 gameDays: 15,
                 trainingSessionsAttended: 28,
                 injuryReports: 3,
+              })
+            } else if (userData.role === 'physio') {
+              setPhysioStats({
+                trainingSessionsAttended: 18,
+                gamesAttended: 12,
               })
               setInjuryReports([
                 { name: 'Mike Johnson', position: 'Wing', status: 'injured', email: 'mike@example.com' },
@@ -283,6 +294,19 @@ export default function PerformancePage() {
               setAdminClubPerformance(performance)
             } catch (error) {
               console.error('Error loading club performance data:', error)
+            }
+          } else if (profile.role === 'physio') {
+            // Load Physio-specific data
+            try {
+              const { db } = await import('@/lib/db-helpers')
+              const sessionsCount = await db.getTotalTrainingSessions()
+              const matchesCount = await db.getTotalMatches()
+              setPhysioStats({
+                trainingSessionsAttended: sessionsCount,
+                gamesAttended: matchesCount,
+              })
+            } catch (error) {
+              console.error('Error loading physio performance data:', error)
             }
           } else {
             // Load player-specific match stats
@@ -1211,6 +1235,77 @@ export default function PerformancePage() {
               )}
             </>
           )}
+        </div>
+      </Layout>
+    )
+  }
+
+  // Physio Performance View
+  if (user.role === 'physio') {
+    const physioPerformanceCards = [
+      {
+        title: 'Training Sessions Attended',
+        value: physioStats.trainingSessionsAttended,
+        icon: Calendar,
+        color: 'bg-primary',
+        description: 'Total training sessions attended',
+      },
+      {
+        title: 'Games Attended',
+        value: physioStats.gamesAttended,
+        icon: Trophy,
+        color: 'bg-secondary',
+        description: 'Total matches attended',
+      },
+    ]
+
+    return (
+      <Layout pageTitle="Physio Performance">
+        <div className="space-y-6">
+          <div className="mb-2">
+            <h1 className="text-4xl font-extrabold text-club-gradient mb-2">Physiotherapist Activity Dashboard</h1>
+            <p className="text-lg text-neutral-medium font-medium">Track your training sessions and games attended</p>
+          </div>
+
+          {/* Stats Overview */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {physioPerformanceCards.map((card) => {
+              const Icon = card.icon
+              return (
+                <StatCard
+                  key={card.title}
+                  title={card.title}
+                  value={card.value}
+                  icon={Icon}
+                  iconColor={card.color}
+                  description={card.description}
+                />
+              )
+            })}
+          </div>
+
+          {/* Activity Summary */}
+          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+            <h2 className="text-2xl font-bold text-neutral-text mb-6">Activity Summary</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="p-6 bg-gradient-to-br from-primary/10 to-primary/5 rounded-lg border border-primary/20">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-bold text-neutral-text">Training Sessions</h3>
+                  <Calendar className="w-8 h-8 text-primary" />
+                </div>
+                <p className="text-4xl font-bold text-neutral-text mb-2">{physioStats.trainingSessionsAttended}</p>
+                <p className="text-sm text-neutral-medium">Total sessions attended to provide medical support</p>
+              </div>
+              <div className="p-6 bg-gradient-to-br from-secondary/10 to-secondary/5 rounded-lg border border-secondary/20">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-bold text-neutral-text">Games Attended</h3>
+                  <Trophy className="w-8 h-8 text-secondary" />
+                </div>
+                <p className="text-4xl font-bold text-neutral-text mb-2">{physioStats.gamesAttended}</p>
+                <p className="text-sm text-neutral-medium">Total matches attended for medical coverage</p>
+              </div>
+            </div>
+          </div>
         </div>
       </Layout>
     )

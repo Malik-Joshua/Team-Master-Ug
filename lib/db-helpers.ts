@@ -1059,4 +1059,25 @@ export const db = {
       },
     }
   },
+
+  // Physio Operations
+  async getTotalTrainingSessions() {
+    const supabase = createClient()
+    const { count, error } = await supabase
+      .from('training_sessions')
+      .select('*', { count: 'exact', head: true })
+    
+    if (error) throw error
+    return count || 0
+  },
+
+  async getTotalMatches() {
+    const supabase = createClient()
+    const { count, error } = await supabase
+      .from('matches')
+      .select('*', { count: 'exact', head: true })
+    
+    if (error) throw error
+    return count || 0
+  },
 }

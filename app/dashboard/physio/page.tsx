@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
-import { Activity, AlertCircle, CheckCircle, Clock, Plus, X, Save, Edit, Calendar, Pill, FileText, User } from 'lucide-react'
+import { Activity, AlertCircle, CheckCircle, Clock, Plus, X, Save, Edit, Calendar, Pill, FileText, User, CalendarDays, Trophy } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 
@@ -52,6 +52,8 @@ export default function PhysioDashboard() {
   const [loading, setLoading] = useState(true)
   const [players, setPlayers] = useState<Player[]>([])
   const [injuries, setInjuries] = useState<Injury[]>([])
+  const [trainingSessionsAttended, setTrainingSessionsAttended] = useState(0)
+  const [gamesAttended, setGamesAttended] = useState(0)
   const [showInjuryForm, setShowInjuryForm] = useState(false)
   const [editingInjury, setEditingInjury] = useState<Injury | null>(null)
   const [injuryForm, setInjuryForm] = useState<InjuryForm>({
@@ -124,6 +126,9 @@ export default function PhysioDashboard() {
                 healing_duration: 35,
               },
             ])
+            // Mock stats for dev mode
+            setTrainingSessionsAttended(18)
+            setGamesAttended(12)
             setLoading(false)
             return
           } catch (e) {
@@ -174,6 +179,17 @@ export default function PhysioDashboard() {
 
           // Fetch injuries
           await loadInjuries()
+
+          // Load training sessions and games attended
+          try {
+            const { db } = await import('@/lib/db-helpers')
+            const sessionsCount = await db.getTotalTrainingSessions()
+            const matchesCount = await db.getTotalMatches()
+            setTrainingSessionsAttended(sessionsCount)
+            setGamesAttended(matchesCount)
+          } catch (error) {
+            console.error('Error loading physio stats:', error)
+          }
         }
       }
       setLoading(false)
@@ -418,28 +434,30 @@ export default function PhysioDashboard() {
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <StatCard 
+            title="Training Sessions Attended" 
+            value={trainingSessionsAttended} 
+            icon={CalendarDays} 
+            iconColor="bg-primary" 
+            description="Total training sessions"
+          />
+          <StatCard 
+            title="Games Attended" 
+            value={gamesAttended} 
+            icon={Trophy} 
+            iconColor="bg-secondary" 
+            description="Total matches attended"
+          />
+          <StatCard 
             title="Active Injuries" 
             value={activeInjuries.length} 
             icon={AlertCircle} 
-            iconColor="bg-secondary" 
+            iconColor="bg-warning" 
           />
           <StatCard 
             title="Cleared Injuries" 
             value={clearedInjuries.length} 
             icon={CheckCircle} 
             iconColor="bg-success" 
-          />
-          <StatCard 
-            title="Total Injuries" 
-            value={injuries.length} 
-            icon={Activity} 
-            iconColor="bg-info" 
-          />
-          <StatCard 
-            title="Avg Healing Time" 
-            value={averageHealingTime > 0 ? `${averageHealingTime} days` : 'N/A'} 
-            icon={Clock} 
-            iconColor="bg-warning" 
           />
         </div>
 
@@ -797,6 +815,7 @@ export default function PhysioDashboard() {
     </Layout>
   )
 }
+
 
 
 

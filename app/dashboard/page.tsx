@@ -280,6 +280,7 @@ export default function DashboardPage() {
             }
 
             // Load fixture team selection for all roles except finance_admin
+            // Fixed: Using correct state variables setLoadingPlayerFixture and setPlayerFixtureSelection
             if (profile.role !== 'finance_admin') {
               try {
                 setLoadingPlayerFixture(true)

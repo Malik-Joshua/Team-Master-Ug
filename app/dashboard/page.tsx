@@ -21,17 +21,20 @@ import {
 } from 'chart.js'
 import { Line } from 'react-chartjs-2'
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-  Filler
-)
+// Register Chart.js components only on client side
+if (typeof window !== 'undefined') {
+  ChartJS.register(
+    CategoryScale,
+    LinearScale,
+    PointElement,
+    LineElement,
+    BarElement,
+    Title,
+    Tooltip,
+    Legend,
+    Filler
+  )
+}
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -73,7 +76,7 @@ export default function DashboardPage() {
 
         if (devRole && devUser) {
           try {
-            const userData = JSON.parse(devUser)
+            const userData = JSON.parse(devUser || '{}')
             setUser(userData)
             // Set mock stats based on role
             const mockStats = {

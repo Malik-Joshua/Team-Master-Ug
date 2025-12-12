@@ -58,6 +58,10 @@ export default function DashboardPage() {
   const [loadingInjuries, setLoadingInjuries] = useState(false)
   const [bestGymMetrics, setBestGymMetrics] = useState<any>(null)
   const [loadingBestMetrics, setLoadingBestMetrics] = useState(false)
+  const [playerFixtureSelection, setPlayerFixtureSelection] = useState<any>(null)
+  const [loadingPlayerFixture, setLoadingPlayerFixture] = useState(false)
+  const [activeInjuriesView, setActiveInjuriesView] = useState<any[]>([])
+  const [loadingActiveInjuries, setLoadingActiveInjuries] = useState(false)
 
   useEffect(() => {
     const loadDashboard = async () => {
@@ -84,6 +88,35 @@ export default function DashboardPage() {
               trainingSessionsAttended: userData.role === 'coach' ? 18 : (userData.role === 'player' ? 15 : 0),
             }
             setStats(mockStats)
+            
+            // Mock active injuries for coaches, admins, and team managers in dev mode
+            if (userData.role === 'coach' || userData.role === 'admin' || userData.role === 'data_admin') {
+              setActiveInjuriesView([
+                {
+                  id: '1',
+                  player_id: 'player1',
+                  player: { name: 'John Doe' },
+                  injury_date: '2024-12-01',
+                  cause: 'Training collision',
+                  diagnosis: 'Sprained ankle',
+                  return_to_play_date: '2024-12-20',
+                  return_to_training_date: '2024-12-15',
+                  status: 'active',
+                },
+                {
+                  id: '2',
+                  player_id: 'player2',
+                  player: { name: 'Mike Johnson' },
+                  injury_date: '2024-12-05',
+                  cause: 'Match injury',
+                  diagnosis: 'Shoulder strain',
+                  return_to_play_date: '2024-12-25',
+                  return_to_training_date: '2024-12-18',
+                  status: 'active',
+                },
+              ])
+            }
+            
             // Mock gym stats for players in dev mode
             if (userData.role === 'player') {
               setGymStats({
@@ -91,6 +124,23 @@ export default function DashboardPage() {
                 squatPB: 150,
                 deadliftPB: 180,
                 pullUpPB: 20,
+              })
+              // Mock fixture selection for dev mode
+              setPlayerFixtureSelection({
+                match: {
+                  id: '1',
+                  match_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                  opponent: 'Kampala RFC',
+                  venue: 'Home Ground',
+                  tournament_type: 'league',
+                },
+                isSelected: true,
+                selection: {
+                  is_starting: true,
+                  is_substitute: false,
+                  jersey_number: 10,
+                  position: 'fly_half',
+                },
               })
               // Mock injury data for dev mode
               setInjuries([
@@ -179,9 +229,22 @@ export default function DashboardPage() {
                 const playerInjuries = await db.getInjuries(authUser.id)
                 setInjuries(playerInjuries || [])
                 setLoadingInjuries(false)
+
+                // Load player fixture selection
+                setLoadingPlayerFixture(true)
+                try {
+                  const fixtureSelection = await db.getPlayerFixtureSelection(authUser.id)
+                  setPlayerFixtureSelection(fixtureSelection)
+                } catch (error) {
+                  console.error('Error loading player fixture selection:', error)
+                  setPlayerFixtureSelection(null)
+                } finally {
+                  setLoadingPlayerFixture(false)
+                }
               } catch (error) {
                 console.error('Error loading player stats:', error)
                 setLoadingInjuries(false)
+                setLoadingPlayerFixture(false)
               }
             }
             
@@ -197,6 +260,36 @@ export default function DashboardPage() {
                 setBestGymMetrics(null)
               } finally {
                 setLoadingBestMetrics(false)
+              }
+            }
+
+            // Load active injuries for coaches, admins, and team managers (read-only view)
+            if (profile.role === 'coach' || profile.role === 'admin' || profile.role === 'data_admin') {
+              try {
+                setLoadingActiveInjuries(true)
+                const { db } = await import('@/lib/db-helpers')
+                const injuries = await db.getActiveInjuries()
+                setActiveInjuriesView(injuries || [])
+              } catch (error) {
+                console.error('Error loading active injuries:', error)
+                setActiveInjuriesView([])
+              } finally {
+                setLoadingActiveInjuries(false)
+              }
+            }
+
+            // Load fixture team selection for all roles except finance_admin
+            if (profile.role !== 'finance_admin') {
+              try {
+                setLoadingFixtureTeam(true)
+                const { db } = await import('@/lib/db-helpers')
+                const teamSelection = await db.getLatestFixtureTeamSelection()
+                setFixtureTeamSelection(teamSelection)
+              } catch (error) {
+                console.error('Error loading fixture team selection:', error)
+                setFixtureTeamSelection(null)
+              } finally {
+                setLoadingFixtureTeam(false)
               }
             }
           } else {
@@ -249,6 +342,72 @@ export default function DashboardPage() {
     return (
       <Layout pageTitle="Player Dashboard">
         <div className="space-y-6">
+          {/* Fixture Selection Notification for Player */}
+          {playerFixtureSelection && playerFixtureSelection.isSelected && (
+            <div className="bg-white rounded-card p-6 border-2 border-primary shadow-soft">
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0">
+                  <div className="w-16 h-16 rounded-full bg-club-gradient flex items-center justify-center">
+                    <Trophy className="w-8 h-8 text-white" />
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-3">
+                    <h3 className="text-xl font-bold text-neutral-text">You&apos;re Selected for the Next Fixture!</h3>
+                    {playerFixtureSelection.selection.is_starting && !playerFixtureSelection.selection.is_substitute ? (
+                      <span className="px-3 py-1 bg-success/10 text-success rounded-full text-sm font-medium">
+                        Starting Lineup
+                      </span>
+                    ) : playerFixtureSelection.selection.is_substitute ? (
+                      <span className="px-3 py-1 bg-warning/10 text-warning rounded-full text-sm font-medium">
+                        Substitute
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="bg-neutral-light rounded-lg p-4 mb-3">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <p className="text-xs font-semibold text-neutral-medium uppercase mb-1">Match Date</p>
+                        <p className="text-sm font-semibold text-neutral-text">
+                          {new Date(playerFixtureSelection.match.match_date).toLocaleDateString('en-US', {
+                            weekday: 'long',
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                          })}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-neutral-medium uppercase mb-1">Opponent</p>
+                        <p className="text-sm font-semibold text-neutral-text">{playerFixtureSelection.match.opponent}</p>
+                      </div>
+                      {playerFixtureSelection.match.venue && (
+                        <div>
+                          <p className="text-xs font-semibold text-neutral-medium uppercase mb-1">Venue</p>
+                          <p className="text-sm font-semibold text-neutral-text">{playerFixtureSelection.match.venue}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4 flex-wrap">
+                    {playerFixtureSelection.selection.jersey_number && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-neutral-medium">Jersey #</span>
+                        <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm font-bold">{playerFixtureSelection.selection.jersey_number}</span>
+                      </div>
+                    )}
+                    {playerFixtureSelection.selection.position && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-neutral-medium">Position:</span>
+                        <span className="px-3 py-1 bg-info/10 text-info rounded-full text-sm font-medium capitalize">{playerFixtureSelection.selection.position.replace('_', ' ')}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Hero Section */}
           <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
             <div className="flex items-center justify-between">
@@ -751,6 +910,64 @@ export default function DashboardPage() {
               </div>
             )}
           </div>
+
+          {/* Active Injuries View (Read-Only) */}
+          {activeInjuriesView.length > 0 && (
+            <div className="bg-white rounded-card border border-neutral-light shadow-soft">
+              <div className="p-6 border-b border-neutral-light">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-bold text-neutral-text flex items-center gap-2">
+                    <AlertCircle className="w-5 h-5 text-secondary" />
+                    Active Player Injuries
+                  </h3>
+                  <span className="text-sm text-neutral-medium">{activeInjuriesView.length} active injury{activeInjuriesView.length !== 1 ? 'ies' : ''}</span>
+                </div>
+              </div>
+              <div className="p-6">
+                <div className="space-y-4">
+                  {activeInjuriesView.map((injury: any) => {
+                    const playerName = injury.player?.name || 'Unknown Player'
+                    const returnDate = injury.return_to_play_date || injury.return_to_training_date
+                    return (
+                      <div key={injury.id} className="border border-secondary/20 bg-secondary/5 rounded-lg p-4">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-neutral-text text-lg mb-1">{playerName}</h4>
+                            <p className="text-sm text-neutral-medium">Injured on {new Date(injury.injury_date).toLocaleDateString()}</p>
+                          </div>
+                          <span className="px-3 py-1 bg-secondary text-white rounded-full text-xs font-medium">
+                            ACTIVE
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div>
+                            <p className="text-xs font-semibold text-neutral-medium uppercase mb-1">Cause</p>
+                            <p className="text-sm text-neutral-text">{injury.cause}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs font-semibold text-neutral-medium uppercase mb-1">Diagnosis</p>
+                            <p className="text-sm text-neutral-text font-medium">{injury.diagnosis}</p>
+                          </div>
+                          {returnDate && (
+                            <div>
+                              <p className="text-xs font-semibold text-neutral-medium uppercase mb-1">Expected Return</p>
+                              <p className="text-sm text-neutral-text font-medium">
+                                {new Date(returnDate).toLocaleDateString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  year: 'numeric',
+                                })}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Top Performers Table */}
           <div className="bg-white rounded-card border border-neutral-light shadow-soft overflow-hidden">

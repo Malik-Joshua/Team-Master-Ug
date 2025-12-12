@@ -783,9 +783,9 @@ export default function TrainingPage() {
       case 'A':
         return 'bg-info text-white'
       case 'X':
-        return 'bg-secondary text-white'
+        return 'bg-black text-white'
       case 'I':
-        return 'bg-warning text-white'
+        return 'bg-secondary text-white'
       default:
         return 'bg-neutral-light text-neutral-medium'
     }
@@ -1292,7 +1292,7 @@ export default function TrainingPage() {
               </div>
             </div>
             <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-secondary rounded-lg flex items-center justify-center text-white font-bold">
+              <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center text-white font-bold">
                 X
               </div>
               <div>
@@ -1301,7 +1301,7 @@ export default function TrainingPage() {
               </div>
             </div>
             <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-warning rounded-lg flex items-center justify-center text-white font-bold">
+              <div className="w-8 h-8 bg-secondary rounded-lg flex items-center justify-center text-white font-bold">
                 I
               </div>
               <div>

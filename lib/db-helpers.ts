@@ -1080,4 +1080,190 @@ export const db = {
     if (error) throw error
     return count || 0
   },
+
+  // Fixture Team Selection Operations
+  async getUpcomingMatches() {
+    const supabase = createClient()
+    const today = new Date().toISOString().split('T')[0]
+    const { data, error } = await supabase
+      .from('matches')
+      .select('*')
+      .gte('match_date', today)
+      .order('match_date', { ascending: true })
+    
+    if (error) throw error
+    return data || []
+  },
+
+  async getMatchById(matchId: string) {
+    const supabase = createClient()
+    const { data, error } = await supabase
+      .from('matches')
+      .select('*')
+      .eq('id', matchId)
+      .single()
+    
+    if (error) throw error
+    return data
+  },
+
+  async getAvailablePlayers() {
+    const supabase = createClient()
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select(`
+        user_id,
+        name,
+        email,
+        status,
+        players!inner(position, category, jersey_number)
+      `)
+      .eq('role', 'player')
+      .eq('status', 'active')
+      .order('name', { ascending: true })
+    
+    if (error) throw error
+    return data || []
+  },
+
+  async getFixtureTeamSelection(matchId: string) {
+    const supabase = createClient()
+    const { data, error } = await supabase
+      .from('fixture_team_selections')
+      .select(`
+        *,
+        player:players!inner(
+          user_id,
+          position,
+          category,
+          jersey_number,
+          user_profile:user_profiles!inner(name, email, status)
+        )
+      `)
+      .eq('match_id', matchId)
+      .order('is_starting', { ascending: false })
+      .order('jersey_number', { ascending: true, nullsFirst: false })
+    
+    if (error) throw error
+    return data || []
+  },
+
+  async saveFixtureTeamSelection(matchId: string, selections: Array<{
+    player_id: string
+    position?: string
+    jersey_number?: number
+    is_starting?: boolean
+    is_substitute?: boolean
+    notes?: string
+  }>) {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    if (!user) throw new Error('User not authenticated')
+    
+    // Delete existing selections for this match
+    await supabase
+      .from('fixture_team_selections')
+      .delete()
+      .eq('match_id', matchId)
+    
+    // Insert new selections
+    const records = selections.map(selection => ({
+      match_id: matchId,
+      player_id: selection.player_id,
+      position: selection.position || null,
+      jersey_number: selection.jersey_number || null,
+      is_starting: selection.is_starting ?? true,
+      is_substitute: selection.is_substitute ?? false,
+      notes: selection.notes || null,
+      selected_by: user.id,
+    }))
+    
+    const { data, error } = await supabase
+      .from('fixture_team_selections')
+      .insert(records)
+      .select()
+    
+    if (error) throw error
+    return data
+  },
+
+  async getLatestFixtureTeamSelection() {
+    const supabase = createClient()
+    const today = new Date().toISOString().split('T')[0]
+    
+    // Get the next upcoming match
+    const { data: nextMatch, error: matchError } = await supabase
+      .from('matches')
+      .select('id, match_date, opponent, venue')
+      .gte('match_date', today)
+      .order('match_date', { ascending: true })
+      .limit(1)
+      .single()
+    
+    if (matchError || !nextMatch) return null
+    
+    // Get team selection for this match
+    const { data: selections, error: selectionError } = await supabase
+      .from('fixture_team_selections')
+      .select(`
+        *,
+        player:players!inner(
+          user_id,
+          position,
+          category,
+          jersey_number,
+          user_profile:user_profiles!inner(name, email, status)
+        )
+      `)
+      .eq('match_id', nextMatch.id)
+      .order('is_starting', { ascending: false })
+      .order('jersey_number', { ascending: true, nullsFirst: false })
+    
+    if (selectionError) throw selectionError
+    
+    return {
+      match: nextMatch,
+      selections: selections || [],
+    }
+  },
+
+  async getPlayerFixtureSelection(playerId: string) {
+    const supabase = createClient()
+    const today = new Date().toISOString().split('T')[0]
+    
+    // Get the next upcoming match
+    const { data: nextMatch, error: matchError } = await supabase
+      .from('matches')
+      .select('id, match_date, opponent, venue, tournament_type')
+      .gte('match_date', today)
+      .order('match_date', { ascending: true })
+      .limit(1)
+      .single()
+    
+    if (matchError || !nextMatch) return null
+    
+    // Check if player is selected for this match
+    const { data: selection, error: selectionError } = await supabase
+      .from('fixture_team_selections')
+      .select('*')
+      .eq('match_id', nextMatch.id)
+      .eq('player_id', playerId)
+      .single()
+    
+    if (selectionError) {
+      // Player not selected
+      return {
+        match: nextMatch,
+        isSelected: false,
+        selection: null,
+      }
+    }
+    
+    return {
+      match: nextMatch,
+      isSelected: true,
+      selection: selection,
+    }
+  },
 }

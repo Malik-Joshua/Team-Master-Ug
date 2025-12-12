@@ -281,15 +281,15 @@ export default function DashboardPage() {
             // Load fixture team selection for all roles except finance_admin
             if (profile.role !== 'finance_admin') {
               try {
-                setLoadingFixtureTeam(true)
+                setLoadingPlayerFixture(true)
                 const { db } = await import('@/lib/db-helpers')
                 const teamSelection = await db.getLatestFixtureTeamSelection()
-                setFixtureTeamSelection(teamSelection)
+                setPlayerFixtureSelection(teamSelection)
               } catch (error) {
                 console.error('Error loading fixture team selection:', error)
-                setFixtureTeamSelection(null)
+                setPlayerFixtureSelection(null)
               } finally {
-                setLoadingFixtureTeam(false)
+                setLoadingPlayerFixture(false)
               }
             }
           } else {

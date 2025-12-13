@@ -21,7 +21,12 @@ export default function LoginPage() {
     
     if (!supabaseUrl || !supabaseKey) {
       console.warn('Supabase environment variables not found')
-      setError('Supabase is not configured. Please check your .env.local file.')
+      const isProduction = typeof window !== 'undefined' && !window.location.hostname.includes('localhost')
+      setError(
+        isProduction
+          ? 'Supabase is not configured. Please add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to your Vercel environment variables.'
+          : 'Supabase is not configured. Please check your .env.local file and restart the dev server.'
+      )
     } else {
       console.log('Supabase configured:', { url: supabaseUrl, hasKey: !!supabaseKey })
     }
@@ -47,7 +52,10 @@ export default function LoginPage() {
       })
       
       if (!supabaseUrl || !supabaseKey) {
-        const errorMsg = 'Supabase is not configured. Please check your .env.local file and restart the dev server.'
+        const isProduction = typeof window !== 'undefined' && !window.location.hostname.includes('localhost')
+        const errorMsg = isProduction
+          ? 'Supabase is not configured. Please add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to your Vercel environment variables in Settings → Environment Variables.'
+          : 'Supabase is not configured. Please check your .env.local file and restart the dev server.'
         setError(errorMsg)
         setLoading(false)
         console.error('Missing Supabase environment variables:', { supabaseUrl, supabaseKey })

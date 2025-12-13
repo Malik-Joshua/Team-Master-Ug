@@ -276,7 +276,7 @@ export default function LoginPage() {
               Use Development Mode Instead
             </Link>
             <div className="text-sm text-neutral-medium">
-              Don't have an account?{' '}
+              Don&apos;t have an account?{' '}
               <Link href="/signup" className="text-primary hover:underline font-medium">
                 Contact Administrator
               </Link>

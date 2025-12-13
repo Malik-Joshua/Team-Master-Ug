@@ -58,6 +58,26 @@ body {
     box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
     border-color: rgba(37, 99, 235, 0.2);
   }
+  
+  .rounded-card {
+    border-radius: 12px;
+  }
+  
+  .rounded-button {
+    border-radius: 8px;
+  }
+  
+  .shadow-soft {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+  
+  .shadow-medium {
+    box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+  }
+  
+  .shadow-large {
+    box-shadow: 0 20px 25px rgba(0, 0, 0, 0.15);
+  }
 }
 
 /* Ensure Tailwind custom values are available */

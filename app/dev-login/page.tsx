@@ -54,23 +54,27 @@ export default function DevLoginPage() {
       return
     }
 
-    const roleLabel = roles.find((r) => r.value === selectedRole)?.label || selectedRole
-    const devUserData = {
-      id: `dev-user-${selectedRole}-${Date.now()}`,
-      user_id: `dev-user-${selectedRole}-${Date.now()}`,
-      name: `Demo ${roleLabel}`,
-      email: `${selectedRole}@demo.com`,
-      role: selectedRole,
-      unique_id: `MNG-DEV-${selectedRole.toUpperCase()}-${Date.now()}`,
-      status: 'active',
-    }
+    try {
+      const roleLabel = roles.find((r) => r.value === selectedRole)?.label || selectedRole
+      const devUserData = {
+        id: `dev-user-${selectedRole}-${Date.now()}`,
+        user_id: `dev-user-${selectedRole}-${Date.now()}`,
+        name: `Demo ${roleLabel}`,
+        email: `${selectedRole}@demo.com`,
+        role: selectedRole,
+        unique_id: `MNG-DEV-${selectedRole.toUpperCase()}-${Date.now()}`,
+        status: 'active',
+      }
 
-    localStorage.setItem('dev_role', selectedRole)
-    localStorage.setItem('dev_user', JSON.stringify(devUserData))
+      localStorage.setItem('dev_role', selectedRole)
+      localStorage.setItem('dev_user', JSON.stringify(devUserData))
 
-    setTimeout(() => {
+      // Navigate to dashboard
       router.push('/dashboard')
-    }, 100)
+    } catch (error) {
+      console.error('Error during login:', error)
+      alert('An error occurred. Please try again.')
+    }
   }
 
   return (
@@ -89,8 +93,11 @@ export default function DevLoginPage() {
             return (
               <button
                 key={role.value}
-                onClick={() => setSelectedRole(role.value)}
-                className={`bg-white rounded-card p-6 text-left transition-all transform hover:scale-105 ${
+                type="button"
+                onClick={() => {
+                  setSelectedRole(role.value)
+                }}
+                className={`bg-white rounded-card p-6 text-left transition-all transform hover:scale-105 cursor-pointer ${
                   isSelected ? 'ring-4 ring-yellow-400 shadow-large' : 'shadow-soft hover:shadow-medium'
                 }`}
               >
@@ -118,9 +125,10 @@ export default function DevLoginPage() {
 
         <div className="mt-8 text-center">
           <button
+            type="button"
             onClick={handleLogin}
             disabled={!selectedRole}
-            className="bg-white text-primary px-8 py-4 rounded-button font-semibold text-lg hover:bg-blue-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center shadow-soft hover:shadow-medium"
+            className="bg-white text-primary px-8 py-4 rounded-button font-semibold text-lg hover:bg-blue-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed enabled:cursor-pointer inline-flex items-center shadow-soft hover:shadow-medium"
           >
             Access Dashboard
             <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">

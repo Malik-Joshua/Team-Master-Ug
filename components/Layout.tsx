@@ -21,28 +21,26 @@ function LayoutContent({ children, pageTitle }: LayoutProps) {
 
   useEffect(() => {
     const loadUser = async () => {
-      // Check for dev mode first
-      if (typeof window !== 'undefined') {
-        const devRole = localStorage.getItem('dev_role')
-        const devUser = localStorage.getItem('dev_user')
-
-        if (devRole && devUser) {
-          try {
-            const userData = JSON.parse(devUser)
-            setUser(userData)
-            setLoading(false)
-            return
-          } catch (e) {
-            console.error('Error parsing dev user data:', e)
-            localStorage.removeItem('dev_role')
-            localStorage.removeItem('dev_user')
-          }
-        }
-      }
-
-      // Real authentication
+      // Real authentication first (prioritize real auth over dev mode)
       try {
         if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+          // Fall back to dev mode if Supabase is not configured
+          if (typeof window !== 'undefined') {
+            const devRole = localStorage.getItem('dev_role')
+            const devUser = localStorage.getItem('dev_user')
+            if (devRole && devUser) {
+              try {
+                const userData = JSON.parse(devUser)
+                setUser(userData)
+                setLoading(false)
+                return
+              } catch (e) {
+                console.error('Error parsing dev user data:', e)
+                localStorage.removeItem('dev_role')
+                localStorage.removeItem('dev_user')
+              }
+            }
+          }
           router.push('/dev-login')
           return
         }
@@ -50,25 +48,55 @@ function LayoutContent({ children, pageTitle }: LayoutProps) {
         const supabase = createClient()
         const { data: { user: authUser } } = await supabase.auth.getUser()
 
-        if (!authUser) {
-          router.push('/dev-login')
-          return
+        if (authUser) {
+          // User is authenticated - get their profile
+          const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('*')
+            .eq('user_id', authUser.id)
+            .single()
+
+          if (profile) {
+            // Clear dev mode data when using real auth
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem('dev_role')
+              localStorage.removeItem('dev_user')
+            }
+            setUser(profile)
+            setLoading(false)
+            return
+          } else {
+            // User authenticated but no profile - sign out and redirect
+            await supabase.auth.signOut()
+            router.push('/login')
+            return
+          }
         }
 
-        const { data: profile } = await supabase
-          .from('user_profiles')
-          .select('*')
-          .eq('user_id', authUser.id)
-          .single()
+        // No authenticated user - check for dev mode as fallback
+        if (typeof window !== 'undefined') {
+          const devRole = localStorage.getItem('dev_role')
+          const devUser = localStorage.getItem('dev_user')
 
-        if (profile) {
-          setUser(profile)
-        } else {
-          router.push('/dev-login')
+          if (devRole && devUser) {
+            try {
+              const userData = JSON.parse(devUser)
+              setUser(userData)
+              setLoading(false)
+              return
+            } catch (e) {
+              console.error('Error parsing dev user data:', e)
+              localStorage.removeItem('dev_role')
+              localStorage.removeItem('dev_user')
+            }
+          }
         }
+
+        // No user found - redirect to login
+        router.push('/login')
       } catch (error) {
         console.error('Error loading user:', error)
-        router.push('/dev-login')
+        router.push('/login')
       } finally {
         setLoading(false)
       }
@@ -78,11 +106,13 @@ function LayoutContent({ children, pageTitle }: LayoutProps) {
   }, [router])
 
   const handleLogout = async () => {
+    // Clear dev mode data
     if (typeof window !== 'undefined') {
       localStorage.removeItem('dev_role')
       localStorage.removeItem('dev_user')
     }
 
+    // Sign out from Supabase
     try {
       const supabase = createClient()
       await supabase.auth.signOut()
@@ -90,7 +120,9 @@ function LayoutContent({ children, pageTitle }: LayoutProps) {
       console.error('Error signing out:', error)
     }
 
-    router.push('/dev-login')
+    // Redirect to login page
+    router.push('/login')
+    router.refresh()
   }
 
   if (loading) {

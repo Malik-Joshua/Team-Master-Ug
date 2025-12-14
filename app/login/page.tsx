@@ -19,12 +19,49 @@ export default function LoginPage() {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     
+    // Debug logging
+    console.log('Environment check:', {
+      hasUrl: !!supabaseUrl,
+      hasKey: !!supabaseKey,
+      urlLength: supabaseUrl?.length || 0,
+      keyLength: supabaseKey?.length || 0,
+      hostname: typeof window !== 'undefined' ? window.location.hostname : 'server',
+      allEnvKeys: Object.keys(process.env).filter(k => k.includes('SUPABASE'))
+    })
+    
+    // Send debug log
+    if (typeof window !== 'undefined') {
+      fetch('http://127.0.0.1:7242/ingest/b5c4434c-fcfb-4ec4-a949-8e713967c143', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          location: 'app/login/page.tsx:18',
+          message: 'Environment variables check',
+          data: {
+            hasUrl: !!supabaseUrl,
+            hasKey: !!supabaseKey,
+            urlLength: supabaseUrl?.length || 0,
+            keyLength: supabaseKey?.length || 0,
+            hostname: window.location.hostname,
+            isLocalhost: window.location.hostname.includes('localhost')
+          },
+          timestamp: Date.now(),
+          sessionId: 'debug-session',
+          runId: 'env-check',
+          hypothesisId: 'A'
+        })
+      }).catch(() => {})
+    }
+    
     if (!supabaseUrl || !supabaseKey) {
-      console.warn('Supabase environment variables not found')
+      console.warn('Supabase environment variables not found', {
+        url: supabaseUrl,
+        key: supabaseKey ? 'present' : 'missing'
+      })
       const isProduction = typeof window !== 'undefined' && !window.location.hostname.includes('localhost')
       setError(
         isProduction
-          ? 'Supabase is not configured. Please add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to your Vercel environment variables.'
+          ? 'Supabase is not configured. Please add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to your Vercel environment variables and redeploy.'
           : 'Supabase is not configured. Please check your .env.local file and restart the dev server.'
       )
     } else {

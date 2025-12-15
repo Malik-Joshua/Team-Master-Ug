@@ -43,3 +43,4 @@ After adding environment variables in Vercel, you **MUST** redeploy your applica
    - **anon public** key → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - **service_role** key → `SUPABASE_SERVICE_ROLE_KEY`
 
+

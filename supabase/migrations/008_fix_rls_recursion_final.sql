@@ -82,3 +82,4 @@ CREATE POLICY "Users can create own profile"
   ON user_profiles FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
+

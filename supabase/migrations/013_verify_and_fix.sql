@@ -26,3 +26,4 @@ ORDER BY routine_name;
 -- Now run the fix from migration 012
 -- This will disable RLS, drop everything, and recreate only simple policies
 
+

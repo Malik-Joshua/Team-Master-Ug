@@ -10,7 +10,7 @@
 6. You'll see three important values:
    - **Project URL** - This is your `NEXT_PUBLIC_SUPABASE_URL`
    - **anon public** key - This is your `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   - **service_role** key - This is your `SUPABASE_SERVICE_ROLE_KEY` (keep this secret!)
+   - **service_role** key - This is your `SUPABASE_SERVICE_ROLE_KEY` (⚠️ **Keep this secret!** This key has elevated privileges and bypasses Row Level Security. Only use in Production.)
 
 7. **Copy each value** - You'll need them in the next steps
 
@@ -63,14 +63,16 @@
 
 ## Step 5: Add Third Environment Variable (SUPABASE_SERVICE_ROLE_KEY)
 
+**⚠️ Security Note:** The service role key has elevated privileges and bypasses Row Level Security (RLS). It should **ONLY** be added to Production environment for security reasons. Preview and Development environments should not have access to this sensitive credential.
+
 1. Click **Add New** or the **+** button to add another variable
 2. For the third variable:
    - **Key**: Type exactly: `SUPABASE_SERVICE_ROLE_KEY`
    - **Value**: Paste the **service_role** key you copied from Supabase (a long string starting with `eyJ...`)
-   - **Environment**: Check all three boxes:
+   - **Environment**: Check **ONLY** the Production box:
      - ☑ Production
-     - ☑ Preview
-     - ☑ Development
+     - ☐ Preview (do NOT check)
+     - ☐ Development (do NOT check)
 
 3. Click the **Save** button
 
@@ -85,7 +87,8 @@ You should now see three environment variables listed:
 
 **Important:** Make sure:
 - ✅ All three variables are present
-- ✅ All three have checkmarks for Production, Preview, and Development
+- ✅ `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` have checkmarks for Production, Preview, and Development
+- ✅ `SUPABASE_SERVICE_ROLE_KEY` has checkmark **ONLY** for Production (not Preview or Development)
 - ✅ Variable names are spelled exactly as shown (case-sensitive!)
 
 ---
@@ -139,7 +142,8 @@ You should now see three environment variables listed:
 ### Problem: Variables still not working after redeploy
 **Solution:**
 - Double-check variable names are exactly: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
-- Make sure you checked all three environment types
+- For public keys (`NEXT_PUBLIC_*`), make sure you checked all three environment types (Production, Preview, Development)
+- For `SUPABASE_SERVICE_ROLE_KEY`, make sure you checked **ONLY** Production (for security)
 - Try deleting and re-adding the variables
 - Check the Vercel build logs for any errors
 
@@ -161,7 +165,9 @@ You should now see three environment variables listed:
 
 Before considering it done, verify:
 - [ ] All three environment variables are added
-- [ ] All variables have Production, Preview, and Development checked
+- [ ] `NEXT_PUBLIC_SUPABASE_URL` has Production, Preview, and Development checked
+- [ ] `NEXT_PUBLIC_SUPABASE_ANON_KEY` has Production, Preview, and Development checked
+- [ ] `SUPABASE_SERVICE_ROLE_KEY` has **ONLY** Production checked (not Preview or Development)
 - [ ] Variable names are spelled exactly as shown (case-sensitive)
 - [ ] You've redeployed the application
 - [ ] Deployment completed successfully

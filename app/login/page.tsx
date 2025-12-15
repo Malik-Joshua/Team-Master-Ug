@@ -16,8 +16,60 @@ export default function LoginPage() {
 
   // Check Supabase configuration on mount
   useEffect(() => {
+    // #region agent log
+    // Only send debug logs in localhost (development)
+    if (typeof window !== 'undefined' && window.location.hostname.includes('localhost')) {
+      fetch('http://127.0.0.1:7242/ingest/b5c4434c-fcfb-4ec4-a949-8e713967c143', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          location: 'app/login/page.tsx:18',
+          message: 'Environment check - BEFORE reading env vars',
+          data: {
+            hostname: window.location.hostname,
+            isVercel: window.location.hostname.includes('vercel.app'),
+            isLocalhost: window.location.hostname.includes('localhost'),
+            allProcessEnvKeys: typeof process !== 'undefined' && process.env ? Object.keys(process.env).filter(k => k.includes('SUPABASE') || k.includes('NEXT_PUBLIC')) : []
+          },
+          timestamp: Date.now(),
+          sessionId: 'debug-session',
+          runId: 'env-check-1',
+          hypothesisId: 'A'
+        })
+      }).catch(() => {})
+    }
+    // #endregion
+    
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    
+    // #region agent log
+    // Only send debug logs in localhost (development)
+    if (typeof window !== 'undefined' && window.location.hostname.includes('localhost')) {
+      fetch('http://127.0.0.1:7242/ingest/b5c4434c-fcfb-4ec4-a949-8e713967c143', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          location: 'app/login/page.tsx:25',
+          message: 'Environment check - AFTER reading env vars',
+          data: {
+            hasUrl: !!supabaseUrl,
+            hasKey: !!supabaseKey,
+            urlValue: supabaseUrl || 'undefined',
+            keyValue: supabaseKey ? `${supabaseKey.substring(0, 10)}...` : 'undefined',
+            urlLength: supabaseUrl?.length || 0,
+            keyLength: supabaseKey?.length || 0,
+            urlStartsWith: supabaseUrl?.substring(0, 8) || 'N/A',
+            keyStartsWith: supabaseKey?.substring(0, 10) || 'N/A'
+          },
+          timestamp: Date.now(),
+          sessionId: 'debug-session',
+          runId: 'env-check-2',
+          hypothesisId: 'B'
+        })
+      }).catch(() => {})
+    }
+    // #endregion
     
     // Debug logging
     console.log('Environment check:', {
@@ -26,34 +78,37 @@ export default function LoginPage() {
       urlLength: supabaseUrl?.length || 0,
       keyLength: supabaseKey?.length || 0,
       hostname: typeof window !== 'undefined' ? window.location.hostname : 'server',
-      allEnvKeys: Object.keys(process.env).filter(k => k.includes('SUPABASE'))
+      allEnvKeys: typeof process !== 'undefined' && process.env ? Object.keys(process.env).filter(k => k.includes('SUPABASE')) : [],
+      urlPreview: supabaseUrl ? `${supabaseUrl.substring(0, 20)}...` : 'missing',
+      keyPreview: supabaseKey ? `${supabaseKey.substring(0, 20)}...` : 'missing'
     })
     
-    // Send debug log
-    if (typeof window !== 'undefined') {
-      fetch('http://127.0.0.1:7242/ingest/b5c4434c-fcfb-4ec4-a949-8e713967c143', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: 'app/login/page.tsx:18',
-          message: 'Environment variables check',
-          data: {
-            hasUrl: !!supabaseUrl,
-            hasKey: !!supabaseKey,
-            urlLength: supabaseUrl?.length || 0,
-            keyLength: supabaseKey?.length || 0,
-            hostname: window.location.hostname,
-            isLocalhost: window.location.hostname.includes('localhost')
-          },
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          runId: 'env-check',
-          hypothesisId: 'A'
-        })
-      }).catch(() => {})
-    }
-    
     if (!supabaseUrl || !supabaseKey) {
+      // #region agent log
+      // Only send debug logs in localhost (development)
+      if (typeof window !== 'undefined' && window.location.hostname.includes('localhost')) {
+        fetch('http://127.0.0.1:7242/ingest/b5c4434c-fcfb-4ec4-a949-8e713967c143', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            location: 'app/login/page.tsx:56',
+            message: 'Environment variables MISSING',
+            data: {
+              missingUrl: !supabaseUrl,
+              missingKey: !supabaseKey,
+              hostname: window.location.hostname,
+              isVercel: window.location.hostname.includes('vercel.app'),
+              buildTimeIssue: 'NEXT_PUBLIC_ vars must be set BEFORE build'
+            },
+            timestamp: Date.now(),
+            sessionId: 'debug-session',
+            runId: 'env-check-3',
+            hypothesisId: 'C'
+          })
+        }).catch(() => {})
+      }
+      // #endregion
+      
       console.warn('Supabase environment variables not found', {
         url: supabaseUrl,
         key: supabaseKey ? 'present' : 'missing'
@@ -61,10 +116,34 @@ export default function LoginPage() {
       const isProduction = typeof window !== 'undefined' && !window.location.hostname.includes('localhost')
       setError(
         isProduction
-          ? 'Supabase is not configured. Please add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to your Vercel environment variables and redeploy.'
+          ? 'Supabase is not configured. NEXT_PUBLIC_* variables are embedded at BUILD TIME. Make sure variables are set in Vercel BEFORE building, then force a fresh rebuild (uncheck "Use existing Build Cache" when redeploying). See VERCEL_ENV_TROUBLESHOOTING.md for details.'
           : 'Supabase is not configured. Please check your .env.local file and restart the dev server.'
       )
     } else {
+      // #region agent log
+      // Only send debug logs in localhost (development)
+      if (typeof window !== 'undefined' && window.location.hostname.includes('localhost')) {
+        fetch('http://127.0.0.1:7242/ingest/b5c4434c-fcfb-4ec4-a949-8e713967c143', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            location: 'app/login/page.tsx:70',
+            message: 'Environment variables FOUND',
+            data: {
+              urlLength: supabaseUrl.length,
+              keyLength: supabaseKey.length,
+              urlValid: supabaseUrl.startsWith('https://'),
+              keyValid: supabaseKey.startsWith('eyJ')
+            },
+            timestamp: Date.now(),
+            sessionId: 'debug-session',
+            runId: 'env-check-4',
+            hypothesisId: 'D'
+          })
+        }).catch(() => {})
+      }
+      // #endregion
+      
       console.log('Supabase configured:', { url: supabaseUrl, hasKey: !!supabaseKey })
     }
   }, [])
@@ -89,9 +168,33 @@ export default function LoginPage() {
       })
       
       if (!supabaseUrl || !supabaseKey) {
+        // #region agent log
+        // Only send debug logs in localhost (development)
+        if (typeof window !== 'undefined' && window.location.hostname.includes('localhost')) {
+          fetch('http://127.0.0.1:7242/ingest/b5c4434c-fcfb-4ec4-a949-8e713967c143', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              location: 'app/login/page.tsx:handleLogin',
+              message: 'Login attempt with missing env vars',
+              data: {
+                missingUrl: !supabaseUrl,
+                missingKey: !supabaseKey,
+                hostname: window.location.hostname,
+                isVercel: window.location.hostname.includes('vercel.app')
+              },
+              timestamp: Date.now(),
+              sessionId: 'debug-session',
+              runId: 'login-env-check',
+              hypothesisId: 'E'
+            })
+          }).catch(() => {})
+        }
+        // #endregion
+        
         const isProduction = typeof window !== 'undefined' && !window.location.hostname.includes('localhost')
         const errorMsg = isProduction
-          ? 'Supabase is not configured. Please add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to your Vercel environment variables in Settings → Environment Variables.'
+          ? 'Supabase is not configured. NEXT_PUBLIC_* variables are embedded at BUILD TIME. Make sure variables are set in Vercel BEFORE building, then force a fresh rebuild (uncheck "Use existing Build Cache" when redeploying). See VERCEL_ENV_TROUBLESHOOTING.md for details.'
           : 'Supabase is not configured. Please check your .env.local file and restart the dev server.'
         setError(errorMsg)
         setLoading(false)

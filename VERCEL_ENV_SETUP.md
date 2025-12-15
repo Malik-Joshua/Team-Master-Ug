@@ -9,10 +9,9 @@ After adding environment variables in Vercel, you **MUST** redeploy your applica
 1. **Add Environment Variables:**
    - Go to Vercel Dashboard → Your Project → Settings → Environment Variables
    - Add these variables:
-     - `NEXT_PUBLIC_SUPABASE_URL`
-     - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-     - `SUPABASE_SERVICE_ROLE_KEY`
-   - Make sure to select **all environments** (Production, Preview, Development)
+     - `NEXT_PUBLIC_SUPABASE_URL` - Select **all environments** (Production, Preview, Development)
+     - `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Select **all environments** (Production, Preview, Development)
+     - `SUPABASE_SERVICE_ROLE_KEY` - Select **ONLY Production** (⚠️ Security: This key has elevated privileges and should not be in Preview/Development)
 
 2. **Redeploy:**
    - Go to Deployments tab
@@ -31,7 +30,7 @@ After adding environment variables in Vercel, you **MUST** redeploy your applica
 - **Still getting errors:** Check that variable names are exactly:
   - `NEXT_PUBLIC_SUPABASE_URL` (not `SUPABASE_URL`)
   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` (not `SUPABASE_ANON_KEY`)
-- **Build fails:** Make sure all three variables are set for all environments
+- **Build fails:** Make sure public variables (`NEXT_PUBLIC_*`) are set for all environments, and `SUPABASE_SERVICE_ROLE_KEY` is set only for Production
 
 ## Getting Your Supabase Credentials:
 

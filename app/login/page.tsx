@@ -16,6 +16,19 @@ export default function LoginPage() {
 
   // Check Supabase configuration on mount
   useEffect(() => {
+    // Also check server-side via API route
+    fetch('/api/check-env')
+      .then(res => res.json())
+      .then(data => {
+        console.log('Server-side environment check:', data)
+        if (!data.hasUrl || !data.hasKey) {
+          console.error('Server-side check confirms: Environment variables are missing!')
+          console.log('Available env keys:', data.allEnvKeys)
+          console.log('Vercel environment:', data.vercelEnv)
+        }
+      })
+      .catch(err => console.error('Failed to check server env:', err))
+    
     // #region agent log
     // Only send debug logs in localhost (development)
     if (typeof window !== 'undefined' && window.location.hostname.includes('localhost')) {

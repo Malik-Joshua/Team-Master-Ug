@@ -1,13 +1,14 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { LogIn, Mail, Lock, AlertCircle, ArrowLeft } from 'lucide-react'
 
 export default function LoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -22,9 +23,27 @@ export default function LoginPage() {
       .then(data => {
         console.log('Server-side environment check:', data)
         if (!data.hasUrl || !data.hasKey) {
-          console.error('Server-side check confirms: Environment variables are missing!')
-          console.log('Available env keys:', data.allEnvKeys)
+          console.error('❌ Server-side check confirms: Environment variables are missing!')
+          console.log('Missing variables:', data.missingVariables || [])
+          console.log('Supabase keys found:', data.supabaseKeys || [])
           console.log('Vercel environment:', data.vercelEnv)
+          console.log('Message:', data.message)
+          
+          // Set error message with helpful instructions
+          const isProduction = typeof window !== 'undefined' && !window.location.hostname.includes('localhost')
+          if (isProduction) {
+            setError(
+              `❌ Supabase is not configured on Vercel.\n\n` +
+              `Missing: ${data.missingVariables?.join(', ') || 'NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY'}\n\n` +
+              `To fix:\n` +
+              `1. Go to Vercel Dashboard → Settings → Environment Variables\n` +
+              `2. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY\n` +
+              `3. Redeploy your application (uncheck "Use existing Build Cache")\n\n` +
+              `See QUICK_VERCEL_SETUP.md for detailed instructions.`
+            )
+          }
+        } else {
+          console.log('✅ Server-side check: Supabase is configured')
         }
       })
       .catch(err => console.error('Failed to check server env:', err))
@@ -317,10 +336,11 @@ export default function LoginPage() {
         return
       }
 
-      console.log('Login successful, redirecting to dashboard...')
+      console.log('Login successful, redirecting...')
       
-      // Success - redirect to dashboard
-      router.push('/dashboard')
+      // Success - redirect to original destination or dashboard
+      const redirectTo = searchParams.get('redirect') || '/dashboard'
+      router.push(redirectTo)
       router.refresh()
     } catch (err: any) {
       console.error('Login error:', err)
@@ -464,3 +484,4 @@ export default function LoginPage() {
 
 // Force rebuild Mon Dec 15 16:01:08 EAT 2025
 // Rebuild Mon Dec 15 16:18:25 EAT 2025
+// Force rebuild Tue Dec 16 18:48:45 EAT 2025

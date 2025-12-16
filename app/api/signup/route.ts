@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
       .from('user_profiles')
       .insert({
         user_id: authData.user.id,
-        unique_id,
+        unique_id: uniqueId,
         name: name.trim(),
         email: email.trim().toLowerCase(),
         phone: phone?.trim() || null,

@@ -44,6 +44,18 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Service role key is REQUIRED for profile creation (bypasses RLS)
+    if (!supabaseServiceKey) {
+      console.error('SUPABASE_SERVICE_ROLE_KEY is not set in environment variables')
+      return NextResponse.json(
+        { 
+          error: 'Server configuration error: Service role key is missing. Please contact administrator.',
+          details: 'SUPABASE_SERVICE_ROLE_KEY must be set in Vercel environment variables for Production environment.'
+        },
+        { status: 500 }
+      )
+    }
+
     // Create client for auth (using anon key)
     const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
@@ -80,14 +92,15 @@ export async function POST(request: NextRequest) {
 
     // Create user profile using service role key to bypass RLS
     // This is necessary because the user's session might not be immediately available
-    const supabaseAdmin = supabaseServiceKey
-      ? createClient(supabaseUrl, supabaseServiceKey, {
-          auth: {
-            autoRefreshToken: false,
-            persistSession: false
-          }
-        })
-      : supabaseAuth
+    // Service role key bypasses all RLS policies
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
+
+    console.log('Creating profile with service role key for user:', authData.user.id)
 
     const { data: profileData, error: profileError } = await supabaseAdmin
       .from('user_profiles')
@@ -105,18 +118,27 @@ export async function POST(request: NextRequest) {
 
     if (profileError) {
       // If profile creation fails, try to clean up the auth user
-      if (supabaseServiceKey) {
-        try {
-          await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
-        } catch (deleteError) {
-          console.error('Failed to clean up auth user:', deleteError)
-        }
+      try {
+        await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
+        console.log('Cleaned up auth user after profile creation failure')
+      } catch (deleteError) {
+        console.error('Failed to clean up auth user:', deleteError)
       }
-      console.error('Profile creation error:', profileError)
+      
+      console.error('Profile creation error:', {
+        message: profileError.message,
+        code: profileError.code,
+        details: profileError.details,
+        hint: profileError.hint
+      })
+      
       return NextResponse.json(
         { 
           error: `Failed to create profile: ${profileError.message}`,
-          details: profileError.code === '23505' ? 'An account with this email already exists' : profileError.message
+          details: profileError.code === '23505' 
+            ? 'An account with this email already exists' 
+            : profileError.message,
+          code: profileError.code
         },
         { status: 400 }
       )

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@supabase/supabase-js'
 
 export async function POST(request: NextRequest) {
   try {
@@ -32,11 +32,28 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create Supabase client
-    const supabase = await createClient()
+    // Check for service role key
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      return NextResponse.json(
+        { error: 'Supabase is not configured' },
+        { status: 500 }
+      )
+    }
+
+    // Create client for auth (using anon key)
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
 
     // Sign up the user
-    const { data: authData, error: authError } = await supabase.auth.signUp({
+    const { data: authData, error: authError } = await supabaseAuth.auth.signUp({
       email: email.trim().toLowerCase(),
       password,
       options: {
@@ -61,8 +78,18 @@ export async function POST(request: NextRequest) {
     // Generate unique_id
     const uniqueId = `USR${Date.now()}${Math.random().toString(36).substring(2, 6).toUpperCase()}`
 
-    // Create user profile
-    const { data: profileData, error: profileError } = await supabase
+    // Create user profile using service role key to bypass RLS
+    // This is necessary because the user's session might not be immediately available
+    const supabaseAdmin = supabaseServiceKey
+      ? createClient(supabaseUrl, supabaseServiceKey, {
+          auth: {
+            autoRefreshToken: false,
+            persistSession: false
+          }
+        })
+      : supabaseAuth
+
+    const { data: profileData, error: profileError } = await supabaseAdmin
       .from('user_profiles')
       .insert({
         user_id: authData.user.id,
@@ -78,7 +105,13 @@ export async function POST(request: NextRequest) {
 
     if (profileError) {
       // If profile creation fails, try to clean up the auth user
-      // Note: We can't delete the auth user from client-side, but it will be handled by RLS
+      if (supabaseServiceKey) {
+        try {
+          await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
+        } catch (deleteError) {
+          console.error('Failed to clean up auth user:', deleteError)
+        }
+      }
       console.error('Profile creation error:', profileError)
       return NextResponse.json(
         { 
@@ -101,7 +134,7 @@ export async function POST(request: NextRequest) {
           ? 'forwards'
           : 'backs'
 
-        const { error: playerError } = await supabase
+        const { error: playerError } = await supabaseAdmin
           .from('players')
           .insert({
             user_id: authData.user.id,

@@ -4,7 +4,7 @@ import React, { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { LogIn, Mail, Lock, AlertCircle, ArrowLeft } from 'lucide-react'
+import { LogIn, Mail, Lock, AlertCircle, ArrowLeft, CheckCircle } from 'lucide-react'
 
 function LoginForm() {
   const router = useRouter()
@@ -13,7 +13,18 @@ function LoginForm() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [showPassword, setShowPassword] = useState(false)
+
+  // Check for success message from signup
+  useEffect(() => {
+    const message = searchParams.get('message')
+    if (message) {
+      setSuccessMessage(message)
+      // Clear the message from URL
+      router.replace('/login', { scroll: false })
+    }
+  }, [searchParams, router])
 
   // Check Supabase configuration on mount
   useEffect(() => {
@@ -362,6 +373,14 @@ function LoginForm() {
             <p className="text-neutral-medium">Sign in to access your dashboard</p>
           </div>
 
+          {/* Success Message */}
+          {successMessage && (
+            <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-start space-x-3">
+              <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-green-600">{successMessage}</p>
+            </div>
+          )}
+
           {/* Error Message */}
           {error && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start space-x-3">
@@ -459,7 +478,7 @@ function LoginForm() {
             <div className="text-sm text-neutral-medium">
               Don&apos;t have an account?{' '}
               <Link href="/signup" className="text-primary hover:underline font-medium">
-                Contact Administrator
+                Create Account
               </Link>
             </div>
           </div>

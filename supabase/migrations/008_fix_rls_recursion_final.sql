@@ -83,3 +83,5 @@ CREATE POLICY "Users can create own profile"
   WITH CHECK (auth.uid() = user_id);
 
 
+
+

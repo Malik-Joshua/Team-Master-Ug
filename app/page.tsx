@@ -14,17 +14,17 @@ export default function Home() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
-              href="/dev-login"
+              href="/signup"
               className="bg-white text-primary px-8 py-4 rounded-button font-semibold text-lg hover:bg-blue-50 transition-colors inline-flex items-center justify-center shadow-soft hover:shadow-medium"
             >
-              Access Dashboard (Dev Mode)
+              Create Account
               <ArrowRight className="ml-2 w-5 h-5" />
             </Link>
             <Link
               href="/login"
               className="bg-blue-800 text-white px-8 py-4 rounded-button font-semibold text-lg hover:bg-blue-900 transition-colors inline-flex items-center justify-center border-2 border-white"
             >
-              Real Authentication
+              Sign In
             </Link>
           </div>
         </div>

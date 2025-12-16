@@ -1,12 +1,12 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { LogIn, Mail, Lock, AlertCircle, ArrowLeft } from 'lucide-react'
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
@@ -480,8 +480,21 @@ export default function LoginPage() {
   )
 }
 
-// Force rebuild Mon Dec 15 15:02:11 EAT 2025
-
-// Force rebuild Mon Dec 15 16:01:08 EAT 2025
-// Rebuild Mon Dec 15 16:18:25 EAT 2025
+// Wrap in Suspense to handle useSearchParams during static generation
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-club-gradient flex items-center justify-center p-4">
+        <div className="max-w-md w-full">
+          <div className="bg-white rounded-card shadow-large p-8 text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-neutral-medium">Loading...</p>
+          </div>
+        </div>
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
+  )
+}
 // Force rebuild Tue Dec 16 18:48:45 EAT 2025

@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Use service role key to query user_profiles (bypasses RLS)
-      // This is necessary because RLS policies might block coaches from viewing all players
+      // This is necessary because RLS only allows users to see their own profile
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
       const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
@@ -71,8 +71,8 @@ export async function POST(request: NextRequest) {
         .from('user_profiles')
         .select('user_id')
         .eq('role', recipientRole)
-        .neq('user_id', authUser.id) // Don't send to self
         .eq('status', 'active') // Only send to active users
+        .neq('user_id', authUser.id) // Don't send to self
 
       if (recipientsError) {
         console.error('Error fetching recipients:', recipientsError)
@@ -107,29 +107,13 @@ export async function POST(request: NextRequest) {
 
       if (errors.length > 0) {
         console.error('Some messages failed to send:', errors)
-        const firstError = errors[0]?.error
-        const errorMessage = firstError?.message || 'Some messages failed to send'
-        
-        // If all messages failed, return error
-        if (errors.length === recipients.length) {
-          return NextResponse.json(
-            {
-              error: `Failed to send messages: ${errorMessage}`,
-              details: `All ${recipients.length} messages failed to send`,
-            },
-            { status: 500 }
-          )
-        }
-        
-        // If some succeeded, return partial success
         return NextResponse.json(
           {
             success: true,
             message: `Message sent to ${recipients.length - errors.length} of ${recipients.length} recipients`,
-            warning: `${errors.length} message(s) failed to send`,
-            count: recipients.length - errors.length,
+            errors: errors.length > 0 ? 'Some messages failed to send' : undefined,
           },
-          { status: 200 }
+          { status: errors.length === recipients.length ? 500 : 200 }
         )
       }
 

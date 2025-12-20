@@ -2,6 +2,112 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
 
+// GET endpoint to fetch messages with proper sender/recipient information
+export async function GET(request: NextRequest) {
+  try {
+    const supabase = await createClient()
+    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !authUser) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      )
+    }
+
+    // Get user profile to check role
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('role')
+      .eq('user_id', authUser.id)
+      .single()
+
+    // Fetch messages - user can see messages they sent or received
+    const { data: messages, error: messagesError } = await supabase
+      .from('messages')
+      .select('*')
+      .or(`sender_id.eq.${authUser.id},recipient_id.eq.${authUser.id}${profile?.role ? `,recipient_role.eq.${profile.role}` : ''}`)
+      .order('created_at', { ascending: false })
+
+    if (messagesError) {
+      console.error('Error fetching messages:', messagesError)
+      return NextResponse.json(
+        { error: 'Failed to fetch messages' },
+        { status: 500 }
+      )
+    }
+
+    if (!messages || messages.length === 0) {
+      return NextResponse.json({ messages: [] })
+    }
+
+    // Use service role key to fetch sender/recipient profiles (bypasses RLS)
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      // Fallback: return messages without sender info if service key not available
+      return NextResponse.json({
+        messages: messages.map((msg: any) => ({
+          ...msg,
+          sender: null,
+          recipient: null,
+        }))
+      })
+    }
+
+    const supabaseAdmin = createServiceClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
+
+    // Get unique sender and recipient IDs
+    const senderIds = [...new Set(messages.map((m: any) => m.sender_id).filter(Boolean))]
+    const recipientIds = [...new Set(messages.map((m: any) => m.recipient_id).filter(Boolean))]
+    const allUserIds = [...new Set([...senderIds, ...recipientIds])]
+
+    // Fetch all user profiles at once (bypasses RLS)
+    const { data: userProfiles, error: profilesError } = await supabaseAdmin
+      .from('user_profiles')
+      .select('user_id, name, role')
+      .in('user_id', allUserIds)
+
+    if (profilesError) {
+      console.error('Error fetching user profiles:', profilesError)
+      // Return messages without sender info if profile fetch fails
+      return NextResponse.json({
+        messages: messages.map((msg: any) => ({
+          ...msg,
+          sender: null,
+          recipient: null,
+        }))
+      })
+    }
+
+    // Create a map for quick lookup
+    const profileMap = new Map(
+      (userProfiles || []).map((p: any) => [p.user_id, { name: p.name, role: p.role }])
+    )
+
+    // Combine messages with sender/recipient info
+    const messagesWithProfiles = messages.map((msg: any) => ({
+      ...msg,
+      sender: profileMap.get(msg.sender_id) || null,
+      recipient: msg.recipient_id ? (profileMap.get(msg.recipient_id) || null) : null,
+    }))
+
+    return NextResponse.json({ messages: messagesWithProfiles })
+  } catch (error: any) {
+    console.error('Messages GET API error:', error)
+    return NextResponse.json(
+      { error: error.message || 'An unexpected error occurred' },
+      { status: 500 }
+    )
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -107,13 +213,29 @@ export async function POST(request: NextRequest) {
 
       if (errors.length > 0) {
         console.error('Some messages failed to send:', errors)
+        const firstError = errors[0]?.error
+        const errorMessage = firstError?.message || 'Some messages failed to send'
+        
+        // If all messages failed, return error
+        if (errors.length === recipients.length) {
+          return NextResponse.json(
+            {
+              error: `Failed to send messages: ${errorMessage}`,
+              details: `All ${recipients.length} messages failed to send`,
+            },
+            { status: 500 }
+          )
+        }
+        
+        // If some succeeded, return partial success
         return NextResponse.json(
           {
             success: true,
             message: `Message sent to ${recipients.length - errors.length} of ${recipients.length} recipients`,
-            errors: errors.length > 0 ? 'Some messages failed to send' : undefined,
+            warning: `${errors.length} message(s) failed to send`,
+            count: recipients.length - errors.length,
           },
-          { status: errors.length === recipients.length ? 500 : 200 }
+          { status: 200 }
         )
       }
 
@@ -218,4 +340,3 @@ export async function POST(request: NextRequest) {
     )
   }
 }
-

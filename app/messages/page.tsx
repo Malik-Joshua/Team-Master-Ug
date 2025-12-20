@@ -101,28 +101,42 @@ export default function MessagesPage() {
         if (profile) {
           setUser(profile)
           
-          // Fetch messages
-          const { data: fetchedMessages } = await supabase
-            .from('messages')
-            .select(`
-              *,
-              sender:user_profiles!messages_sender_id_fkey(name, role),
-              recipient:user_profiles!messages_recipient_id_fkey(name, role)
-            `)
-            .or(`sender_id.eq.${authUser.id},recipient_id.eq.${authUser.id},recipient_role.eq.${profile.role}`)
-            .order('created_at', { ascending: false })
+          // Fetch messages via API route to get proper sender/recipient info
+          const messagesResponse = await fetch('/api/messages')
+          if (messagesResponse.ok) {
+            const messagesData = await messagesResponse.json()
+            if (messagesData.messages) {
+              const formattedMessages: Message[] = messagesData.messages.map((msg: any) => ({
+                id: msg.id,
+                sender_name: msg.sender?.name || 'Unknown',
+                sender_role: msg.sender?.role || 'unknown',
+                subject: msg.subject || '',
+                message: msg.message,
+                read: msg.read || false,
+                created_at: msg.created_at,
+              }))
+              setMessages(formattedMessages)
+            }
+          } else {
+            // Fallback to direct query if API fails
+            const { data: fetchedMessages } = await supabase
+              .from('messages')
+              .select('*')
+              .or(`sender_id.eq.${authUser.id},recipient_id.eq.${authUser.id},recipient_role.eq.${profile.role}`)
+              .order('created_at', { ascending: false })
 
-          if (fetchedMessages) {
-            const formattedMessages: Message[] = fetchedMessages.map((msg: any) => ({
-              id: msg.id,
-              sender_name: msg.sender?.name || 'Unknown',
-              sender_role: msg.sender?.role || 'unknown',
-              subject: msg.subject || '',
-              message: msg.message,
-              read: msg.read || false,
-              created_at: msg.created_at,
-            }))
-            setMessages(formattedMessages)
+            if (fetchedMessages) {
+              const formattedMessages: Message[] = fetchedMessages.map((msg: any) => ({
+                id: msg.id,
+                sender_name: 'Unknown',
+                sender_role: 'unknown',
+                subject: msg.subject || '',
+                message: msg.message,
+                read: msg.read || false,
+                created_at: msg.created_at,
+              }))
+              setMessages(formattedMessages)
+            }
           }
 
           // If user is a coach, fetch players and admins for messaging
@@ -214,9 +228,7 @@ export default function MessagesPage() {
       const data = await response.json()
 
       if (!response.ok) {
-        const errorMessage = data.error || data.message || 'Failed to send message'
-        console.error('Message API error:', data)
-        throw new Error(errorMessage)
+        throw new Error(data.error || 'Failed to send message')
       }
 
       // Show success message
@@ -227,22 +239,11 @@ export default function MessagesPage() {
       }
 
       // Reload messages to show the new one
-      const supabase = createClient()
-      const { data: { user: authUser } } = await supabase.auth.getUser()
-      
-      if (authUser) {
-        const { data: fetchedMessages } = await supabase
-          .from('messages')
-          .select(`
-            *,
-            sender:user_profiles!messages_sender_id_fkey(name, role),
-            recipient:user_profiles!messages_recipient_id_fkey(name, role)
-          `)
-          .or(`sender_id.eq.${authUser.id},recipient_id.eq.${authUser.id},recipient_role.eq.${user?.role}`)
-          .order('created_at', { ascending: false })
-
-        if (fetchedMessages) {
-          const formattedMessages: Message[] = fetchedMessages.map((msg: any) => ({
+      const messagesResponse = await fetch('/api/messages')
+      if (messagesResponse.ok) {
+        const messagesData = await messagesResponse.json()
+        if (messagesData.messages) {
+          const formattedMessages: Message[] = messagesData.messages.map((msg: any) => ({
             id: msg.id,
             sender_name: msg.sender?.name || 'Unknown',
             sender_role: msg.sender?.role || 'unknown',
@@ -259,8 +260,7 @@ export default function MessagesPage() {
       setShowCompose(false)
     } catch (error: any) {
       console.error('Error sending message:', error)
-      const errorMessage = error.message || 'An unexpected error occurred. Please try again.'
-      alert(`Error sending message: ${errorMessage}`)
+      alert(`Error sending message: ${error.message}`)
     }
   }
 

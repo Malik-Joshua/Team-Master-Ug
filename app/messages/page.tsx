@@ -159,14 +159,6 @@ export default function MessagesPage() {
 
   const handleSendMessage = async () => {
     try {
-      const supabase = createClient()
-      const { data: { user: authUser } } = await supabase.auth.getUser()
-
-      if (!authUser) {
-        alert('Please log in to send messages')
-        return
-      }
-
       if (!composeData.subject || !composeData.message) {
         alert('Please fill in subject and message')
         return
@@ -200,66 +192,65 @@ export default function MessagesPage() {
         }
       }
 
-      // If sending to a role (all players or all admins), we need to send individual messages
-      if (recipientRole && (recipientRole === 'player' || recipientRole === 'admin')) {
-        // Get all users with that role
-        const roleToQuery = recipientRole === 'player' ? 'player' : recipientRole
-        const { data: recipients } = await supabase
-          .from('user_profiles')
-          .select('user_id')
-          .eq('role', roleToQuery)
+      if (!recipientId && !recipientRole) {
+        alert('Please select a recipient')
+        return
+      }
 
-        if (recipients && recipients.length > 0) {
-          // Send message to each recipient
-          const messagePromises = recipients.map((recipient) =>
-            supabase
-              .from('messages')
-              .insert({
-                sender_id: authUser.id,
-                recipient_id: recipient.user_id,
-                subject: composeData.subject,
-                message: composeData.message,
-              })
-          )
+      // Send message via API route
+      const response = await fetch('/api/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          recipientId,
+          recipientRole,
+          subject: composeData.subject,
+          message: composeData.message,
+        }),
+      })
 
-          await Promise.all(messagePromises)
-          alert(`Message sent successfully to ${recipients.length} ${recipientRole === 'player' ? 'players' : 'admins'}!`)
-        } else {
-          alert(`No ${recipientRole === 'player' ? 'players' : 'admins'} found`)
-          return
-        }
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to send message')
+      }
+
+      // Show success message
+      if (data.count) {
+        alert(`Message sent successfully to ${data.count} ${recipientRole}${data.count > 1 ? 's' : ''}!`)
       } else {
-        // Send to individual recipient
-        const { data: newMessage, error } = await supabase
+        alert('Message sent successfully!')
+      }
+
+      // Reload messages to show the new one
+      const supabase = createClient()
+      const { data: { user: authUser } } = await supabase.auth.getUser()
+      
+      if (authUser) {
+        const { data: fetchedMessages } = await supabase
           .from('messages')
-          .insert({
-            sender_id: authUser.id,
-            recipient_id: recipientId,
-            recipient_role: recipientRole,
-            subject: composeData.subject,
-            message: composeData.message,
-          })
           .select(`
             *,
-            sender:user_profiles!messages_sender_id_fkey(name, role)
+            sender:user_profiles!messages_sender_id_fkey(name, role),
+            recipient:user_profiles!messages_recipient_id_fkey(name, role)
           `)
-          .single()
+          .or(`sender_id.eq.${authUser.id},recipient_id.eq.${authUser.id},recipient_role.eq.${user?.role}`)
+          .order('created_at', { ascending: false })
 
-        if (error) throw error
-
-        // Add to local state
-        const formattedMessage: Message = {
-          id: newMessage.id,
-          sender_name: newMessage.sender?.name || user.name,
-          sender_role: newMessage.sender?.role || user.role,
-          subject: newMessage.subject || '',
-          message: newMessage.message,
-          read: false,
-          created_at: newMessage.created_at,
+        if (fetchedMessages) {
+          const formattedMessages: Message[] = fetchedMessages.map((msg: any) => ({
+            id: msg.id,
+            sender_name: msg.sender?.name || 'Unknown',
+            sender_role: msg.sender?.role || 'unknown',
+            subject: msg.subject || '',
+            message: msg.message,
+            read: msg.read || false,
+            created_at: msg.created_at,
+          }))
+          setMessages(formattedMessages)
         }
-
-        setMessages([formattedMessage, ...messages])
-        alert('Message sent successfully!')
       }
 
       setComposeData({ recipientType: 'role', recipient: '', recipientId: '', subject: '', message: '' })

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createServiceClient } from '@supabase/supabase-js'
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,7 +23,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create Supabase client
+    // Create Supabase client for authentication
     const supabase = await createClient()
 
     // Get authenticated user
@@ -46,29 +47,49 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      // Get all users with the specified role
-      const { data: recipients, error: recipientsError } = await supabase
+      // Use service role key to query user_profiles (bypasses RLS)
+      // This is necessary because RLS policies might block coaches from viewing all players
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+      const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+      if (!supabaseUrl || !supabaseServiceKey) {
+        return NextResponse.json(
+          { error: 'Server configuration error: Service role key is missing' },
+          { status: 500 }
+        )
+      }
+
+      const supabaseAdmin = createServiceClient(supabaseUrl, supabaseServiceKey, {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      })
+
+      // Get all users with the specified role using service role (bypasses RLS)
+      const { data: recipients, error: recipientsError } = await supabaseAdmin
         .from('user_profiles')
         .select('user_id')
         .eq('role', recipientRole)
         .neq('user_id', authUser.id) // Don't send to self
+        .eq('status', 'active') // Only send to active users
 
       if (recipientsError) {
         console.error('Error fetching recipients:', recipientsError)
         return NextResponse.json(
-          { error: 'Failed to fetch recipients' },
+          { error: `Failed to fetch recipients: ${recipientsError.message}` },
           { status: 500 }
         )
       }
 
       if (!recipients || recipients.length === 0) {
         return NextResponse.json(
-          { error: `No users found with role: ${recipientRole}` },
+          { error: `No active users found with role: ${recipientRole}` },
           { status: 404 }
         )
       }
 
-      // Send message to each recipient
+      // Send message to each recipient using the authenticated client (respects RLS for message insertion)
       const messagePromises = recipients.map((recipient) =>
         supabase
           .from('messages')
@@ -86,13 +107,29 @@ export async function POST(request: NextRequest) {
 
       if (errors.length > 0) {
         console.error('Some messages failed to send:', errors)
+        const firstError = errors[0]?.error
+        const errorMessage = firstError?.message || 'Some messages failed to send'
+        
+        // If all messages failed, return error
+        if (errors.length === recipients.length) {
+          return NextResponse.json(
+            {
+              error: `Failed to send messages: ${errorMessage}`,
+              details: `All ${recipients.length} messages failed to send`,
+            },
+            { status: 500 }
+          )
+        }
+        
+        // If some succeeded, return partial success
         return NextResponse.json(
           {
             success: true,
             message: `Message sent to ${recipients.length - errors.length} of ${recipients.length} recipients`,
-            errors: errors.length > 0 ? 'Some messages failed to send' : undefined,
+            warning: `${errors.length} message(s) failed to send`,
+            count: recipients.length - errors.length,
           },
-          { status: errors.length === recipients.length ? 500 : 200 }
+          { status: 200 }
         )
       }
 
@@ -110,12 +147,38 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      // Verify recipient exists
-      const { data: recipient, error: recipientError } = await supabase
-        .from('user_profiles')
-        .select('user_id, name')
-        .eq('user_id', recipientId)
-        .single()
+      // Verify recipient exists - use service role to bypass RLS if needed
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+      const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+      
+      let recipient
+      let recipientError
+      
+      if (supabaseUrl && supabaseServiceKey) {
+        // Try with service role first (bypasses RLS)
+        const supabaseAdmin = createServiceClient(supabaseUrl, supabaseServiceKey, {
+          auth: {
+            autoRefreshToken: false,
+            persistSession: false
+          }
+        })
+        const result = await supabaseAdmin
+          .from('user_profiles')
+          .select('user_id, name')
+          .eq('user_id', recipientId)
+          .single()
+        recipient = result.data
+        recipientError = result.error
+      } else {
+        // Fallback to regular client
+        const result = await supabase
+          .from('user_profiles')
+          .select('user_id, name')
+          .eq('user_id', recipientId)
+          .single()
+        recipient = result.data
+        recipientError = result.error
+      }
 
       if (recipientError || !recipient) {
         return NextResponse.json(

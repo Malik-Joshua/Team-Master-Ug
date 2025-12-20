@@ -214,7 +214,9 @@ export default function MessagesPage() {
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to send message')
+        const errorMessage = data.error || data.message || 'Failed to send message'
+        console.error('Message API error:', data)
+        throw new Error(errorMessage)
       }
 
       // Show success message
@@ -257,7 +259,8 @@ export default function MessagesPage() {
       setShowCompose(false)
     } catch (error: any) {
       console.error('Error sending message:', error)
-      alert(`Error sending message: ${error.message}`)
+      const errorMessage = error.message || 'An unexpected error occurred. Please try again.'
+      alert(`Error sending message: ${errorMessage}`)
     }
   }
 

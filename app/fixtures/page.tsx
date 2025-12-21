@@ -6,6 +6,7 @@ import Layout from '@/components/Layout'
 import { Users, Check, X, Save, Calendar, MapPin, Trophy } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { db } from '@/lib/db-helpers'
+import Link from 'next/link'
 
 interface Player {
   user_id: string
@@ -121,7 +122,8 @@ export default function FixturesPage() {
           .eq('user_id', authUser.id)
           .single()
 
-        if (!profile || (profile.role !== 'coach' && profile.role !== 'admin')) {
+        // Allow coach, admin, and data_admin (team manager) to access
+        if (!profile || (profile.role !== 'coach' && profile.role !== 'admin' && profile.role !== 'data_admin')) {
           router.push('/dashboard')
           return
         }
@@ -319,7 +321,8 @@ export default function FixturesPage() {
     )
   }
 
-  if (!user || (user.role !== 'coach' && user.role !== 'admin')) {
+  // Allow coach, admin, and data_admin (team manager) to access
+  if (!user || (user.role !== 'coach' && user.role !== 'admin' && user.role !== 'data_admin')) {
     return null
   }
 
@@ -336,39 +339,105 @@ export default function FixturesPage() {
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-2xl font-bold text-neutral-text flex items-center gap-2">
               <Trophy className="w-6 h-6 text-primary" />
-              Select Team for Fixture
+              {user.role === 'data_admin' ? 'Fixtures Management' : 'Select Team for Fixture'}
             </h2>
-            <button
-              onClick={handleSave}
-              disabled={saving || teamSelections.size === 0}
-              className="bg-club-gradient text-white px-6 py-2 rounded-button font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              <Save className="w-4 h-4" />
-              {saving ? 'Saving...' : 'Save Team Selection'}
-            </button>
+            <div className="flex items-center gap-3">
+              {user.role === 'data_admin' && (
+                <Link
+                  href="/fixtures/create"
+                  className="bg-primary text-white px-6 py-2 rounded-button font-semibold hover:opacity-90 transition-opacity flex items-center gap-2"
+                >
+                  <Trophy className="w-4 h-4" />
+                  Create Fixture
+                </Link>
+              )}
+              {(user.role === 'coach' || user.role === 'admin') && (
+                <button
+                  onClick={handleSave}
+                  disabled={saving || teamSelections.size === 0}
+                  className="bg-club-gradient text-white px-6 py-2 rounded-button font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  <Save className="w-4 h-4" />
+                  {saving ? 'Saving...' : 'Save Team Selection'}
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* Match Selector */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-neutral-text mb-2">
-              Select Match
-            </label>
-            <select
-              value={selectedMatchId}
-              onChange={(e) => {
-                setSelectedMatchId(e.target.value)
-                setTeamSelections(new Map())
-              }}
-              className="w-full md:w-auto px-4 py-2 border border-neutral-light rounded-button focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="">-- Select a match --</option>
-              {matches.map((match) => (
-                <option key={match.id} value={match.id}>
-                  {new Date(match.match_date).toLocaleDateString()} vs {match.opponent}
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* Match Selector - Only show for coaches and admins */}
+          {(user.role === 'coach' || user.role === 'admin') && (
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-neutral-text mb-2">
+                Select Match
+              </label>
+              <select
+                value={selectedMatchId}
+                onChange={(e) => {
+                  setSelectedMatchId(e.target.value)
+                  setTeamSelections(new Map())
+                }}
+                className="w-full md:w-auto px-4 py-2 border border-neutral-light rounded-button focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="">-- Select a match --</option>
+                {matches.map((match) => (
+                  <option key={match.id} value={match.id}>
+                    {new Date(match.match_date).toLocaleDateString()} vs {match.opponent}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Fixtures List for Team Managers */}
+          {user.role === 'data_admin' && (
+            <div className="mb-6">
+              <h3 className="text-lg font-bold text-neutral-text mb-4">Upcoming Fixtures</h3>
+              {matches.length === 0 ? (
+                <div className="text-center py-8 bg-neutral-light rounded-lg">
+                  <Trophy className="w-12 h-12 mx-auto mb-4 text-neutral-medium opacity-50" />
+                  <p className="text-neutral-medium">No upcoming fixtures</p>
+                  <p className="text-sm text-neutral-medium mt-2">Create a new fixture to get started</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {matches.map((match) => (
+                    <div
+                      key={match.id}
+                      className="bg-neutral-light rounded-lg p-4 border border-neutral-light hover:border-primary/50 transition-colors"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="font-semibold text-neutral-text">
+                            vs {match.opponent}
+                          </h4>
+                          <div className="flex items-center gap-4 mt-2 text-sm text-neutral-medium">
+                            <div className="flex items-center gap-1">
+                              <Calendar className="w-4 h-4" />
+                              {new Date(match.match_date).toLocaleDateString('en-US', {
+                                weekday: 'long',
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric',
+                              })}
+                            </div>
+                            {match.venue && (
+                              <div className="flex items-center gap-1">
+                                <MapPin className="w-4 h-4" />
+                                {match.venue}
+                              </div>
+                            )}
+                            <span className="capitalize bg-primary/10 text-primary px-2 py-1 rounded-full text-xs font-medium">
+                              {match.tournament_type.replace('_', ' ')}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Match Info */}
           {selectedMatch && (
@@ -407,7 +476,8 @@ export default function FixturesPage() {
           )}
         </div>
 
-        {selectedMatchId && (
+        {/* Show team selection only for coaches and admins */}
+        {selectedMatchId && (user.role === 'coach' || user.role === 'admin') && (
           <>
             {/* Selection Summary */}
             <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">

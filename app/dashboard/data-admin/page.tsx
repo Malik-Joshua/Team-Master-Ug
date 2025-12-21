@@ -5,6 +5,7 @@ import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
 import { Users, Activity, BarChart3, Calendar, Trophy, Plus, X, Save, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import Link from 'next/link'
 
 interface Player {
   user_id: string
@@ -620,7 +621,10 @@ export default function DataAdminDashboard() {
 
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft hover-lift">
+          <Link
+            href="/players"
+            className="bg-white rounded-card p-6 border border-neutral-light shadow-soft hover-lift cursor-pointer"
+          >
             <div className="flex items-center space-x-4">
               <div className="bg-primary w-12 h-12 rounded-xl flex items-center justify-center">
                 <Users className="w-6 h-6 text-white" />
@@ -630,8 +634,11 @@ export default function DataAdminDashboard() {
                 <p className="text-sm text-neutral-medium">View and edit player information</p>
               </div>
             </div>
-          </div>
-          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft hover-lift">
+          </Link>
+          <Link
+            href="/training"
+            className="bg-white rounded-card p-6 border border-neutral-light shadow-soft hover-lift cursor-pointer"
+          >
             <div className="flex items-center space-x-4">
               <div className="bg-success w-12 h-12 rounded-xl flex items-center justify-center">
                 <Calendar className="w-6 h-6 text-white" />
@@ -641,18 +648,21 @@ export default function DataAdminDashboard() {
                 <p className="text-sm text-neutral-medium">Record and track training sessions</p>
               </div>
             </div>
-          </div>
-          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft hover-lift">
+          </Link>
+          <Link
+            href="/fixtures"
+            className="bg-white rounded-card p-6 border border-neutral-light shadow-soft hover-lift cursor-pointer"
+          >
             <div className="flex items-center space-x-4">
               <div className="bg-warning w-12 h-12 rounded-xl flex items-center justify-center">
-                <BarChart3 className="w-6 h-6 text-white" />
+                <Trophy className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-neutral-text">Match Statistics</h3>
-                <p className="text-sm text-neutral-medium">Log match performance data</p>
+                <h3 className="text-lg font-bold text-neutral-text">Fixtures & Matches</h3>
+                <p className="text-sm text-neutral-medium">Create fixtures and manage matches</p>
               </div>
             </div>
-          </div>
+          </Link>
         </div>
       </div>
     </Layout>

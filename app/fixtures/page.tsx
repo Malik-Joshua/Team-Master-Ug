@@ -205,11 +205,11 @@ export default function FixturesPage() {
         selections.forEach((sel: any) => {
           selectionsMap.set(sel.player_id, {
             player_id: sel.player_id,
-            position: sel.position,
-            jersey_number: sel.jersey_number,
+            position: sel.position || undefined,
+            jersey_number: sel.jersey_number || undefined,
             is_starting: sel.is_starting,
             is_substitute: sel.is_substitute,
-            notes: sel.notes,
+            notes: sel.notes || undefined,
           })
         })
         setTeamSelections(selectionsMap)

@@ -56,6 +56,20 @@ export async function POST(request: NextRequest) {
 
     if (deleteError) {
       console.error('Error deleting existing selections:', deleteError)
+      
+      // Check if the error is because the table doesn't exist
+      if (deleteError.message?.includes('Could not find the table') || 
+          deleteError.message?.includes('does not exist')) {
+        return NextResponse.json(
+          { 
+            error: 'The fixture_team_selections table does not exist in the database. Please run the migration SQL in Supabase SQL Editor. See CREATE_FIXTURE_TABLE.md for instructions.',
+            details: deleteError.message,
+            requiresMigration: true
+          },
+          { status: 500 }
+        )
+      }
+      
       return NextResponse.json(
         { error: `Failed to clear existing selections: ${deleteError.message}` },
         { status: 500 }
@@ -81,6 +95,20 @@ export async function POST(request: NextRequest) {
 
     if (insertError) {
       console.error('Error inserting team selections:', insertError)
+      
+      // Check if the error is because the table doesn't exist
+      if (insertError.message?.includes('Could not find the table') || 
+          insertError.message?.includes('does not exist')) {
+        return NextResponse.json(
+          { 
+            error: 'The fixture_team_selections table does not exist in the database. Please run the migration SQL in Supabase SQL Editor. See CREATE_FIXTURE_TABLE.md for instructions.',
+            details: insertError.message,
+            requiresMigration: true
+          },
+          { status: 500 }
+        )
+      }
+      
       return NextResponse.json(
         { error: `Failed to save team selection: ${insertError.message}` },
         { status: 500 }

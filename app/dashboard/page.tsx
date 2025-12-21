@@ -372,7 +372,13 @@ export default function DashboardPage() {
       <Layout pageTitle="Player Dashboard">
         <div className="space-y-6">
           {/* Fixture Selection Notification for Player */}
-          {playerFixtureSelection && playerFixtureSelection.isSelected && (
+          {loadingPlayerFixture ? (
+            <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+              <div className="flex items-center justify-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              </div>
+            </div>
+          ) : playerFixtureSelection && playerFixtureSelection.isSelected ? (
             <div className="bg-white rounded-card p-6 border-2 border-primary shadow-soft">
               <div className="flex items-start gap-4">
                 <div className="flex-shrink-0">
@@ -432,6 +438,20 @@ export default function DashboardPage() {
                       </div>
                     )}
                   </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+              <div className="flex items-center gap-4">
+                <div className="flex-shrink-0">
+                  <div className="w-16 h-16 rounded-full bg-neutral-light flex items-center justify-center">
+                    <Trophy className="w-8 h-8 text-neutral-medium" />
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-neutral-text mb-1">No Selection Yet</h3>
+                  <p className="text-sm text-neutral-medium">You haven&apos;t been selected for the upcoming fixture. Check back later for updates.</p>
                 </div>
               </div>
             </div>

@@ -6,7 +6,7 @@ import { createClient as createServiceClient } from '@supabase/supabase-js'
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const matchId = searchParams.get('matchId')
+    let matchId = searchParams.get('matchId')
     const playerId = searchParams.get('playerId') // For players to check their selection
 
     const supabase = await createClient()

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
-import { Users, Activity, DollarSign, Package, Calendar, CheckCircle, XCircle, AlertCircle, FileText, X } from 'lucide-react'
+import { Users, Activity, DollarSign, Package, Calendar, CheckCircle, XCircle, AlertCircle, FileText, X, Trophy } from 'lucide-react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import {
@@ -53,6 +53,8 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true)
   const [activeInjuries, setActiveInjuries] = useState<any[]>([])
   const [loadingInjuries, setLoadingInjuries] = useState(false)
+  const [teamSelection, setTeamSelection] = useState<any>(null)
+  const [loadingTeamSelection, setLoadingTeamSelection] = useState(false)
 
   useEffect(() => {
     const loadData = async () => {
@@ -225,6 +227,27 @@ export default function AdminDashboard() {
               setPendingBudgets(budgets)
             } catch (error) {
               console.error('Error loading pending budgets:', error)
+            }
+
+            // Load team selection for upcoming fixture
+            try {
+              setLoadingTeamSelection(true)
+              const matchesResponse = await fetch('/api/fixtures')
+              if (matchesResponse.ok) {
+                const matchesData = await matchesResponse.json()
+                if (matchesData.fixtures && matchesData.fixtures.length > 0) {
+                  const latestMatch = matchesData.fixtures[0]
+                  const selectionResponse = await fetch(`/api/fixtures/team-selection?matchId=${latestMatch.id}`)
+                  if (selectionResponse.ok) {
+                    const selectionData = await selectionResponse.json()
+                    setTeamSelection(selectionData)
+                  }
+                }
+              }
+            } catch (error) {
+              console.error('Error loading team selection:', error)
+            } finally {
+              setLoadingTeamSelection(false)
             }
           }
         }
@@ -581,6 +604,88 @@ export default function AdminDashboard() {
                 <p className="text-sm text-neutral-medium">Overall Attendance Rate</p>
                 <p className="text-xl font-bold text-primary">{attendanceSummary.attendanceRate}%</p>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Upcoming Fixture Team Selection */}
+        {teamSelection && teamSelection.match && (
+          <div className="bg-white rounded-card border border-neutral-light shadow-soft">
+            <div className="p-6 border-b border-neutral-light">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-bold text-neutral-text flex items-center gap-2">
+                  <Trophy className="w-5 h-5 text-primary" />
+                  Upcoming Fixture Team Selection
+                </h3>
+                <Link
+                  href="/fixtures"
+                  className="text-primary hover:underline text-sm font-medium"
+                >
+                  View All Fixtures →
+                </Link>
+              </div>
+            </div>
+            <div className="p-6">
+              <div className="mb-4">
+                <h4 className="font-semibold text-neutral-text mb-2">
+                  {new Date(teamSelection.match.match_date).toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                  })} vs {teamSelection.match.opponent}
+                </h4>
+                {teamSelection.match.venue && (
+                  <p className="text-sm text-neutral-medium">Venue: {teamSelection.match.venue}</p>
+                )}
+              </div>
+              
+              {teamSelection.starting && teamSelection.starting.length > 0 && (
+                <div className="mb-4">
+                  <h5 className="font-semibold text-neutral-text mb-2">Starting Lineup ({teamSelection.starting.length})</h5>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {teamSelection.starting.map((selection: any) => (
+                      <div key={selection.id} className="bg-success/5 border border-success/20 rounded-lg p-3">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium text-neutral-text">{selection.player?.name || 'Unknown'}</span>
+                          {selection.jersey_number && (
+                            <span className="bg-success/20 text-success px-2 py-1 rounded text-xs font-bold">#{selection.jersey_number}</span>
+                          )}
+                        </div>
+                        {selection.position && (
+                          <p className="text-xs text-neutral-medium mt-1 capitalize">{selection.position.replace(/_/g, ' ')}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {teamSelection.substitutes && teamSelection.substitutes.length > 0 && (
+                <div>
+                  <h5 className="font-semibold text-neutral-text mb-2">Substitutes ({teamSelection.substitutes.length})</h5>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {teamSelection.substitutes.map((selection: any) => (
+                      <div key={selection.id} className="bg-warning/5 border border-warning/20 rounded-lg p-3">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium text-neutral-text">{selection.player?.name || 'Unknown'}</span>
+                          {selection.jersey_number && (
+                            <span className="bg-warning/20 text-warning px-2 py-1 rounded text-xs font-bold">#{selection.jersey_number}</span>
+                          )}
+                        </div>
+                        {selection.position && (
+                          <p className="text-xs text-neutral-medium mt-1 capitalize">{selection.position.replace(/_/g, ' ')}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {(!teamSelection.starting || teamSelection.starting.length === 0) && 
+               (!teamSelection.substitutes || teamSelection.substitutes.length === 0) && (
+                <p className="text-neutral-medium text-center py-4">No team selection made yet for this fixture.</p>
+              )}
             </div>
           </div>
         )}

@@ -7,6 +7,7 @@ import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
 import { Calendar, Activity, Trophy, Target, AlertCircle, Dumbbell, Edit, X, Save, HeartPulse, Pill, FileText, Clock, CheckCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import Link from 'next/link'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -234,11 +235,24 @@ export default function DashboardPage() {
                 setInjuries(playerInjuries || [])
                 setLoadingInjuries(false)
 
-                // Load player fixture selection
+                // Load player fixture selection via API
                 setLoadingPlayerFixture(true)
                 try {
-                  const fixtureSelection = await db.getPlayerFixtureSelection(authUser.id)
-                  setPlayerFixtureSelection(fixtureSelection)
+                  const response = await fetch(`/api/fixtures/team-selection?playerId=${authUser.id}`)
+                  if (response.ok) {
+                    const data = await response.json()
+                    if (data.isSelected) {
+                      setPlayerFixtureSelection({
+                        isSelected: true,
+                        selection: data.selection,
+                        match: data.match,
+                      })
+                    } else {
+                      setPlayerFixtureSelection(null)
+                    }
+                  } else {
+                    setPlayerFixtureSelection(null)
+                  }
                 } catch (error) {
                   console.error('Error loading player fixture selection:', error)
                   setPlayerFixtureSelection(null)
@@ -282,14 +296,24 @@ export default function DashboardPage() {
               }
             }
 
-            // Load fixture team selection for all roles except finance_admin
-            // Fixed: Using correct state variables setLoadingPlayerFixture and setPlayerFixtureSelection
-            if (profile.role !== 'finance_admin') {
+            // Load fixture team selection for coaches, admins, team managers, and physio
+            if (profile.role !== 'finance_admin' && profile.role !== 'player') {
               try {
                 setLoadingPlayerFixture(true)
-                const { db } = await import('@/lib/db-helpers')
-                const teamSelection = await db.getLatestFixtureTeamSelection()
-                setPlayerFixtureSelection(teamSelection)
+                // Get the latest upcoming match
+                const matchesResponse = await fetch('/api/fixtures')
+                if (matchesResponse.ok) {
+                  const matchesData = await matchesResponse.json()
+                  if (matchesData.fixtures && matchesData.fixtures.length > 0) {
+                    const latestMatch = matchesData.fixtures[0]
+                    // Get team selection for this match
+                    const selectionResponse = await fetch(`/api/fixtures/team-selection?matchId=${latestMatch.id}`)
+                    if (selectionResponse.ok) {
+                      const selectionData = await selectionResponse.json()
+                      setPlayerFixtureSelection(selectionData)
+                    }
+                  }
+                }
               } catch (error) {
                 console.error('Error loading fixture team selection:', error)
                 setPlayerFixtureSelection(null)
@@ -915,6 +939,88 @@ export default function DashboardPage() {
               </div>
             )}
           </div>
+
+          {/* Upcoming Fixture Team Selection */}
+          {playerFixtureSelection && playerFixtureSelection.match && (
+            <div className="bg-white rounded-card border border-neutral-light shadow-soft">
+              <div className="p-6 border-b border-neutral-light">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-bold text-neutral-text flex items-center gap-2">
+                    <Trophy className="w-5 h-5 text-primary" />
+                    Upcoming Fixture Team Selection
+                  </h3>
+                  <Link
+                    href="/fixtures"
+                    className="text-primary hover:underline text-sm font-medium"
+                  >
+                    Manage Team Selection →
+                  </Link>
+                </div>
+              </div>
+              <div className="p-6">
+                <div className="mb-4">
+                  <h4 className="font-semibold text-neutral-text mb-2">
+                    {new Date(playerFixtureSelection.match.match_date).toLocaleDateString('en-US', {
+                      weekday: 'long',
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                    })} vs {playerFixtureSelection.match.opponent}
+                  </h4>
+                  {playerFixtureSelection.match.venue && (
+                    <p className="text-sm text-neutral-medium">Venue: {playerFixtureSelection.match.venue}</p>
+                  )}
+                </div>
+                
+                {playerFixtureSelection.starting && playerFixtureSelection.starting.length > 0 && (
+                  <div className="mb-4">
+                    <h5 className="font-semibold text-neutral-text mb-2">Starting Lineup ({playerFixtureSelection.starting.length})</h5>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {playerFixtureSelection.starting.map((selection: any) => (
+                        <div key={selection.id} className="bg-success/5 border border-success/20 rounded-lg p-3">
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium text-neutral-text">{selection.player?.name || 'Unknown'}</span>
+                            {selection.jersey_number && (
+                              <span className="bg-success/20 text-success px-2 py-1 rounded text-xs font-bold">#{selection.jersey_number}</span>
+                            )}
+                          </div>
+                          {selection.position && (
+                            <p className="text-xs text-neutral-medium mt-1 capitalize">{selection.position.replace(/_/g, ' ')}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {playerFixtureSelection.substitutes && playerFixtureSelection.substitutes.length > 0 && (
+                  <div>
+                    <h5 className="font-semibold text-neutral-text mb-2">Substitutes ({playerFixtureSelection.substitutes.length})</h5>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {playerFixtureSelection.substitutes.map((selection: any) => (
+                        <div key={selection.id} className="bg-warning/5 border border-warning/20 rounded-lg p-3">
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium text-neutral-text">{selection.player?.name || 'Unknown'}</span>
+                            {selection.jersey_number && (
+                              <span className="bg-warning/20 text-warning px-2 py-1 rounded text-xs font-bold">#{selection.jersey_number}</span>
+                            )}
+                          </div>
+                          {selection.position && (
+                            <p className="text-xs text-neutral-medium mt-1 capitalize">{selection.position.replace(/_/g, ' ')}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {(!playerFixtureSelection.starting || playerFixtureSelection.starting.length === 0) && 
+                 (!playerFixtureSelection.substitutes || playerFixtureSelection.substitutes.length === 0) && (
+                  <p className="text-neutral-medium text-center py-4">No team selection made yet for this fixture.</p>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Active Injuries View (Read-Only) */}
           {activeInjuriesView.length > 0 && (

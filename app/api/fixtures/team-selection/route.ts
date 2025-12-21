@@ -2,6 +2,180 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
 
+// GET endpoint to fetch team selection for a match
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const matchId = searchParams.get('matchId')
+    const playerId = searchParams.get('playerId') // For players to check their selection
+
+    const supabase = await createClient()
+    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !authUser) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      )
+    }
+
+    // Get user profile
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('role, user_id')
+      .eq('user_id', authUser.id)
+      .single()
+
+    if (!profile) {
+      return NextResponse.json(
+        { error: 'User profile not found' },
+        { status: 404 }
+      )
+    }
+
+    // Use service role to bypass RLS for fetching selections
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      return NextResponse.json(
+        { error: 'Server configuration error' },
+        { status: 500 }
+      )
+    }
+
+    const supabaseAdmin = createServiceClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
+
+    // If playerId is provided, get that player's selection
+    if (playerId) {
+      if (profile.user_id !== playerId && profile.role !== 'coach' && profile.role !== 'admin' && profile.role !== 'data_admin' && profile.role !== 'physio') {
+        return NextResponse.json(
+          { error: 'Unauthorized' },
+          { status: 403 }
+        )
+      }
+
+      if (!matchId) {
+        // Get latest fixture selection for player
+        const { data: latestMatch } = await supabaseAdmin
+          .from('matches')
+          .select('id')
+          .gte('match_date', new Date().toISOString().split('T')[0])
+          .order('match_date', { ascending: true })
+          .limit(1)
+          .single()
+
+        if (!latestMatch) {
+          return NextResponse.json({
+            success: true,
+            isSelected: false,
+            selection: null,
+            match: null,
+          })
+        }
+
+        matchId = latestMatch.id
+      }
+
+      const { data: selection, error: selectionError } = await supabaseAdmin
+        .from('fixture_team_selections')
+        .select(`
+          *,
+          match:matches(id, match_date, opponent, venue, tournament_type)
+        `)
+        .eq('match_id', matchId)
+        .eq('player_id', playerId)
+        .single()
+
+      if (selectionError && selectionError.code !== 'PGRST116') { // PGRST116 = not found
+        console.error('Error fetching player selection:', selectionError)
+        return NextResponse.json(
+          { error: 'Failed to fetch selection' },
+          { status: 500 }
+        )
+      }
+
+      return NextResponse.json({
+        success: true,
+        isSelected: !!selection,
+        selection: selection || null,
+        match: selection?.match || null,
+      })
+    }
+
+    // Get full team selection for a match (for coaches, admins, team managers, physio)
+    if (!matchId) {
+      return NextResponse.json(
+        { error: 'Match ID is required' },
+        { status: 400 }
+      )
+    }
+
+    // Check if user has permission to view team selections
+    if (profile.role !== 'coach' && profile.role !== 'admin' && profile.role !== 'data_admin' && profile.role !== 'physio') {
+      return NextResponse.json(
+        { error: 'Unauthorized to view team selections' },
+        { status: 403 }
+      )
+    }
+
+    // Get match info
+    const { data: match, error: matchError } = await supabaseAdmin
+      .from('matches')
+      .select('*')
+      .eq('id', matchId)
+      .single()
+
+    if (matchError || !match) {
+      return NextResponse.json(
+        { error: 'Match not found' },
+        { status: 404 }
+      )
+    }
+
+    // Get all selections for this match
+    const { data: selections, error: selectionsError } = await supabaseAdmin
+      .from('fixture_team_selections')
+      .select(`
+        *,
+        player:user_profiles!fixture_team_selections_player_id_fkey(user_id, name, email),
+        selected_by_user:user_profiles!fixture_team_selections_selected_by_fkey(name)
+      `)
+      .eq('match_id', matchId)
+      .order('is_starting', { ascending: false })
+      .order('jersey_number', { ascending: true, nullsFirst: false })
+
+    if (selectionsError) {
+      console.error('Error fetching team selections:', selectionsError)
+      return NextResponse.json(
+        { error: 'Failed to fetch team selections' },
+        { status: 500 }
+      )
+    }
+
+    return NextResponse.json({
+      success: true,
+      match,
+      selections: selections || [],
+      starting: selections?.filter((s: any) => s.is_starting && !s.is_substitute) || [],
+      substitutes: selections?.filter((s: any) => s.is_substitute) || [],
+      count: selections?.length || 0,
+    })
+  } catch (error: any) {
+    console.error('Team selection GET API error:', error)
+    return NextResponse.json(
+      { error: error.message || 'An unexpected error occurred' },
+      { status: 500 }
+    )
+  }
+}
+
+// POST endpoint (existing - keep it)
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -149,4 +323,3 @@ export async function POST(request: NextRequest) {
     )
   }
 }
-

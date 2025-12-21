@@ -9,6 +9,10 @@ interface Message {
   id: string
   sender_name: string
   sender_role: string
+  recipient_name?: string
+  recipient_role?: string
+  recipient_id?: string
+  sender_id?: string
   subject: string
   message: string
   read: boolean
@@ -106,10 +110,17 @@ export default function MessagesPage() {
           if (messagesResponse.ok) {
             const messagesData = await messagesResponse.json()
             if (messagesData.messages) {
+              const supabase = createClient()
+              const { data: { user: authUser } } = await supabase.auth.getUser()
+              
               const formattedMessages: Message[] = messagesData.messages.map((msg: any) => ({
                 id: msg.id,
                 sender_name: msg.sender?.name || 'Unknown',
                 sender_role: msg.sender?.role || 'unknown',
+                recipient_name: msg.recipient?.name || null,
+                recipient_role: msg.recipient?.role || null,
+                recipient_id: msg.recipient_id || null,
+                sender_id: msg.sender_id || null,
                 subject: msg.subject || '',
                 message: msg.message,
                 read: msg.read || false,
@@ -481,12 +492,30 @@ export default function MessagesPage() {
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h3 className="font-bold text-neutral-text">{message.sender_name}</h3>
-                        <span className="text-xs font-medium text-neutral-medium bg-neutral-light px-2 py-0.5 rounded-full capitalize">
-                          {message.sender_role.replace('_', ' ')}
-                        </span>
-                        {!message.read && (
+                      <div className="flex items-center gap-2 mb-2 flex-wrap">
+                        {message.sender_id === user?.user_id ? (
+                          // Sent message - show recipient
+                          <>
+                            <span className="text-xs text-neutral-medium">To:</span>
+                            <h3 className="font-bold text-neutral-text">
+                              {message.recipient_name || 'Unknown Recipient'}
+                            </h3>
+                            {message.recipient_role && (
+                              <span className="text-xs font-medium text-neutral-medium bg-neutral-light px-2 py-0.5 rounded-full capitalize">
+                                {message.recipient_role.replace('_', ' ')}
+                              </span>
+                            )}
+                          </>
+                        ) : (
+                          // Received message - show sender
+                          <>
+                            <h3 className="font-bold text-neutral-text">{message.sender_name}</h3>
+                            <span className="text-xs font-medium text-neutral-medium bg-neutral-light px-2 py-0.5 rounded-full capitalize">
+                              {message.sender_role.replace('_', ' ')}
+                            </span>
+                          </>
+                        )}
+                        {!message.read && message.sender_id !== user?.user_id && (
                           <span className="bg-club-gradient text-white text-xs px-2.5 py-1 rounded-full font-semibold shadow-soft">
                             New
                           </span>
@@ -516,15 +545,35 @@ export default function MessagesPage() {
                 <div className="flex justify-between items-start">
                   <div>
                     <h2 className="text-2xl font-bold text-neutral-text mb-2">{selectedMessage.subject}</h2>
-                    <div className="flex items-center gap-4 text-sm text-neutral-medium">
-                      <div className="flex items-center">
-                        <User className="w-4 h-4 mr-1" />
-                        {selectedMessage.sender_name}
-                      </div>
-                      <div className="flex items-center">
-                        <Mail className="w-4 h-4 mr-1" />
-                        {selectedMessage.sender_role.replace('_', ' ')}
-                      </div>
+                    <div className="flex items-center gap-4 text-sm text-neutral-medium flex-wrap">
+                      {selectedMessage.sender_id === user?.user_id ? (
+                        // Sent message - show recipient
+                        <>
+                          <div className="flex items-center">
+                            <Mail className="w-4 h-4 mr-1" />
+                            <span className="font-medium">To:</span>
+                            <span className="ml-1">{selectedMessage.recipient_name || 'Unknown Recipient'}</span>
+                            {selectedMessage.recipient_role && (
+                              <span className="ml-2 text-xs bg-neutral-light px-2 py-0.5 rounded-full capitalize">
+                                {selectedMessage.recipient_role.replace('_', ' ')}
+                              </span>
+                            )}
+                          </div>
+                        </>
+                      ) : (
+                        // Received message - show sender
+                        <>
+                          <div className="flex items-center">
+                            <User className="w-4 h-4 mr-1" />
+                            <span className="font-medium">From:</span>
+                            <span className="ml-1">{selectedMessage.sender_name}</span>
+                          </div>
+                          <div className="flex items-center">
+                            <Mail className="w-4 h-4 mr-1" />
+                            {selectedMessage.sender_role.replace('_', ' ')}
+                          </div>
+                        </>
+                      )}
                       <div className="flex items-center">
                         <Clock className="w-4 h-4 mr-1" />
                         {new Date(selectedMessage.created_at).toLocaleString()}

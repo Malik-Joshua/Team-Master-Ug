@@ -136,28 +136,42 @@ export default function FixturesPage() {
         const playersResponse = await fetch('/api/players?role=player&status=active&includePlayerData=true')
         if (playersResponse.ok) {
           const playersData = await playersResponse.json()
-          if (playersData.players) {
+          if (playersData.players && playersData.players.length > 0) {
             // Transform players data to match Player interface
-            const transformedPlayers = playersData.players.map((p: any) => ({
-              user_id: p.user_id,
-              name: p.name,
-              email: p.email,
-              status: p.status,
-              players: Array.isArray(p.players) ? p.players[0] : p.players,
-            }))
+            const transformedPlayers = playersData.players
+              .filter((p: any) => p.players) // Only include players with position data
+              .map((p: any) => ({
+                user_id: p.user_id,
+                name: p.name,
+                email: p.email,
+                status: p.status,
+                players: Array.isArray(p.players) ? p.players[0] : p.players,
+              }))
             setAvailablePlayers(transformedPlayers as Player[])
+            console.log('Loaded players:', transformedPlayers.length)
+          } else {
+            console.warn('No players returned from API')
+            setAvailablePlayers([])
           }
         } else {
+          console.error('Failed to fetch players from API:', await playersResponse.text())
           // Fallback to direct query if API fails
-          const playersData = await db.getAvailablePlayers()
-          const transformedPlayers = (playersData || []).map((p: any) => ({
-            user_id: p.user_id,
-            name: p.name,
-            email: p.email,
-            status: p.status,
-            players: Array.isArray(p.players) ? p.players[0] : p.players,
-          }))
-          setAvailablePlayers(transformedPlayers as Player[])
+          try {
+            const playersData = await db.getAvailablePlayers()
+            const transformedPlayers = (playersData || [])
+              .filter((p: any) => p.players) // Only include players with position data
+              .map((p: any) => ({
+                user_id: p.user_id,
+                name: p.name,
+                email: p.email,
+                status: p.status,
+                players: Array.isArray(p.players) ? p.players[0] : p.players,
+              }))
+            setAvailablePlayers(transformedPlayers as Player[])
+          } catch (fallbackError) {
+            console.error('Fallback player fetch also failed:', fallbackError)
+            setAvailablePlayers([])
+          }
         }
 
         if (matchesData.length > 0) {
@@ -208,6 +222,12 @@ export default function FixturesPage() {
   }, [selectedMatchId])
 
   const togglePlayerSelection = (playerId: string, player: Player) => {
+    if (!player || !player.players) {
+      console.error('Invalid player data:', player)
+      alert('Player data is incomplete. Please refresh the page.')
+      return
+    }
+
     const newSelections = new Map(teamSelections)
     
     if (newSelections.has(playerId)) {
@@ -215,14 +235,15 @@ export default function FixturesPage() {
     } else {
       newSelections.set(playerId, {
         player_id: playerId,
-        position: player.players.position,
-        jersey_number: player.players.jersey_number,
+        position: player.players?.position || null,
+        jersey_number: player.players?.jersey_number || null,
         is_starting: true,
         is_substitute: false,
       })
     }
     
     setTeamSelections(newSelections)
+    console.log('Team selections updated:', newSelections.size, 'players selected')
   }
 
   const updatePlayerSelection = (playerId: string, updates: Partial<TeamSelection>) => {
@@ -415,8 +436,15 @@ export default function FixturesPage() {
                 </h3>
               </div>
               <div className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {availablePlayers.map((player) => {
+                {availablePlayers.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Users className="w-16 h-16 text-neutral-medium mx-auto mb-4 opacity-50" />
+                    <p className="text-neutral-medium font-medium">No players available</p>
+                    <p className="text-sm text-neutral-medium mt-2">Make sure players are active and have position data.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {availablePlayers.map((player) => {
                     const isSelected = teamSelections.has(player.user_id)
                     const selection = teamSelections.get(player.user_id)
                     
@@ -432,10 +460,12 @@ export default function FixturesPage() {
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex-1">
                             <h4 className="font-semibold text-neutral-text">{player.name}</h4>
-                            <p className="text-xs text-neutral-medium capitalize">
-                              {player.players.position.replace('_', ' ')} • {player.players.category}
-                            </p>
-                            {player.players.jersey_number && (
+                            {player.players?.position && (
+                              <p className="text-xs text-neutral-medium capitalize">
+                                {player.players.position.replace(/_/g, ' ')} {player.players.category ? `• ${player.players.category}` : ''}
+                              </p>
+                            )}
+                            {player.players?.jersey_number && (
                               <p className="text-xs text-neutral-medium">
                                 Jersey: #{player.players.jersey_number}
                               </p>
@@ -503,7 +533,8 @@ export default function FixturesPage() {
                       </div>
                     )
                   })}
-                </div>
+                  </div>
+                )}
               </div>
             </div>
           </>

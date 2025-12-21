@@ -235,8 +235,8 @@ export default function FixturesPage() {
     } else {
       newSelections.set(playerId, {
         player_id: playerId,
-        position: player.players?.position || null,
-        jersey_number: player.players?.jersey_number || null,
+        position: player.players?.position || undefined,
+        jersey_number: player.players?.jersey_number || undefined,
         is_starting: true,
         is_substitute: false,
       })

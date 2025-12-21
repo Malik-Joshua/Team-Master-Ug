@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createServiceClient } from '@supabase/supabase-js'
 
 export async function POST(request: NextRequest) {
   try {
@@ -48,8 +49,27 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Delete existing selections for this match
-    const { error: deleteError } = await supabase
+    // Use service role key to bypass RLS for fixture_team_selections
+    // We've already validated the user's role above, so this is safe
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      return NextResponse.json(
+        { error: 'Server configuration error: Service role key is missing' },
+        { status: 500 }
+      )
+    }
+
+    const supabaseAdmin = createServiceClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
+
+    // Delete existing selections for this match using service role (bypasses RLS)
+    const { error: deleteError } = await supabaseAdmin
       .from('fixture_team_selections')
       .delete()
       .eq('match_id', matchId)
@@ -76,7 +96,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Insert new selections
+    // Insert new selections using service role (bypasses RLS)
     const records = selections.map((selection: any) => ({
       match_id: matchId,
       player_id: selection.player_id,
@@ -88,7 +108,7 @@ export async function POST(request: NextRequest) {
       selected_by: authUser.id,
     }))
 
-    const { data: newSelections, error: insertError } = await supabase
+    const { data: newSelections, error: insertError } = await supabaseAdmin
       .from('fixture_team_selections')
       .insert(records)
       .select()

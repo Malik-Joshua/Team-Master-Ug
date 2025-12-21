@@ -128,22 +128,37 @@ export default function FixturesPage() {
 
         setUser(profile)
 
-        // Load matches and players
-        const [matchesData, playersData] = await Promise.all([
-          db.getUpcomingMatches(),
-          db.getAvailablePlayers(),
-        ])
-
+        // Load matches
+        const matchesData = await db.getUpcomingMatches()
         setMatches(matchesData)
-        // Transform players data to match Player interface
-        const transformedPlayers = (playersData || []).map((p: any) => ({
-          user_id: p.user_id,
-          name: p.name,
-          email: p.email,
-          status: p.status,
-          players: Array.isArray(p.players) ? p.players[0] : p.players,
-        }))
-        setAvailablePlayers(transformedPlayers as Player[])
+
+        // Load players via API route (bypasses RLS)
+        const playersResponse = await fetch('/api/players?role=player&status=active&includePlayerData=true')
+        if (playersResponse.ok) {
+          const playersData = await playersResponse.json()
+          if (playersData.players) {
+            // Transform players data to match Player interface
+            const transformedPlayers = playersData.players.map((p: any) => ({
+              user_id: p.user_id,
+              name: p.name,
+              email: p.email,
+              status: p.status,
+              players: Array.isArray(p.players) ? p.players[0] : p.players,
+            }))
+            setAvailablePlayers(transformedPlayers as Player[])
+          }
+        } else {
+          // Fallback to direct query if API fails
+          const playersData = await db.getAvailablePlayers()
+          const transformedPlayers = (playersData || []).map((p: any) => ({
+            user_id: p.user_id,
+            name: p.name,
+            email: p.email,
+            status: p.status,
+            players: Array.isArray(p.players) ? p.players[0] : p.players,
+          }))
+          setAvailablePlayers(transformedPlayers as Player[])
+        }
 
         if (matchesData.length > 0) {
           setSelectedMatchId(matchesData[0].id)
@@ -242,15 +257,32 @@ export default function FixturesPage() {
       }
 
       const selectionsArray = Array.from(teamSelections.values())
-      await db.saveFixtureTeamSelection(selectedMatchId, selectionsArray)
+      
+      // Save via API route
+      const response = await fetch('/api/fixtures/team-selection', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          matchId: selectedMatchId,
+          selections: selectionsArray,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to save team selection')
+      }
       
       alert('Team selection saved successfully!')
       // Reload existing selection
       const selections = await db.getFixtureTeamSelection(selectedMatchId)
       setExistingSelection(selections)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving team selection:', error)
-      alert('Error saving team selection. Please try again.')
+      alert(`Error saving team selection: ${error.message}`)
     } finally {
       setSaving(false)
     }

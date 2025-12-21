@@ -153,18 +153,31 @@ export default function TrainingPage() {
         if (profile) {
           setUser(profile)
           
-          // Fetch players
-          const { data: playersData } = await supabase
-            .from('user_profiles')
-            .select('*')
-            .eq('role', 'player')
+          // Fetch players via API route (bypasses RLS)
+          const playersResponse = await fetch('/api/players?role=player&status=active&includePlayerData=true')
+          if (playersResponse.ok) {
+            const playersData = await playersResponse.json()
+            if (playersData.players) {
+              setPlayers(playersData.players.map((p: any) => ({
+                id: p.user_id,
+                name: p.name,
+                position: p.players?.position || 'N/A',
+              })))
+            }
+          } else {
+            // Fallback to direct query if API fails
+            const { data: playersData } = await supabase
+              .from('user_profiles')
+              .select('*')
+              .eq('role', 'player')
 
-          if (playersData) {
-            setPlayers(playersData.map((p: any) => ({
-              id: p.user_id,
-              name: p.name,
-              position: p.position || 'N/A',
-            })))
+            if (playersData) {
+              setPlayers(playersData.map((p: any) => ({
+                id: p.user_id,
+                name: p.name,
+                position: 'N/A',
+              })))
+            }
           }
 
           // Fetch training sessions
@@ -605,64 +618,53 @@ export default function TrainingPage() {
 
   const handleCreateSchedule = async () => {
     try {
-      const supabase = createClient()
-      const { data: { user: authUser } } = await supabase.auth.getUser()
-      
-      if (!authUser) {
-        alert('Please log in to create training schedule')
-        return
-      }
-
       if (!scheduleForm.session_date) {
         alert('Please select a date for the training session')
         return
       }
 
-      // Get the next session number for this coach
-      const { data: existingSessions } = await supabase
-        .from('training_sessions')
-        .select('session_number')
-        .eq('coach_id', authUser.id)
-        .order('session_number', { ascending: false })
-        .limit(1)
-
-      const nextSessionNumber = existingSessions && existingSessions.length > 0 
-        ? existingSessions[0].session_number + 1 
-        : 1
-
-      // Create the training session
-      const { data: newSession, error } = await supabase
-        .from('training_sessions')
-        .insert({
-          session_number: nextSessionNumber,
+      // Create training session via API route
+      const response = await fetch('/api/training', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           session_date: scheduleForm.session_date,
           session_time: scheduleForm.session_time || null,
           location: scheduleForm.location || null,
           description: scheduleForm.description || null,
-          coach_id: authUser.id,
-        })
-        .select()
-        .single()
+        }),
+      })
 
-      if (error) throw error
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create training session')
+      }
 
       // Refresh sessions list
-      const { data: coachSessions } = await supabase
-        .from('training_sessions')
-        .select('*')
-        .eq('coach_id', authUser.id)
-        .order('session_date', { ascending: true })
+      const supabase = createClient()
+      const { data: { user: authUser } } = await supabase.auth.getUser()
+      
+      if (authUser) {
+        const { data: coachSessions } = await supabase
+          .from('training_sessions')
+          .select('*')
+          .eq('coach_id', authUser.id)
+          .order('session_date', { ascending: true })
 
-      if (coachSessions) {
-        const formattedSessions: TrainingSession[] = coachSessions.map((s: any) => ({
-          id: s.id,
-          date: s.session_date,
-          title: s.description || `Training Session ${s.session_number}`,
-          session_time: s.session_time,
-          location: s.location,
-          description: s.description,
-        }))
-        setSessions(formattedSessions)
+        if (coachSessions) {
+          const formattedSessions: TrainingSession[] = coachSessions.map((s: any) => ({
+            id: s.id,
+            date: s.session_date,
+            title: s.description || `Training Session ${s.session_number}`,
+            session_time: s.session_time,
+            location: s.location,
+            description: s.description,
+          }))
+          setSessions(formattedSessions)
+        }
       }
 
       setScheduleForm({ session_date: '', session_time: '', location: '', description: '' })

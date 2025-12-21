@@ -1,14 +1,85 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
-// This route requires service role for admin operations
-// In production, you should use environment variables for the service role key
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+// GET endpoint to fetch players (bypasses RLS using service role)
+export async function GET(request: NextRequest) {
+  try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
+    if (!supabaseUrl || !supabaseServiceKey) {
+      return NextResponse.json(
+        { error: 'Server configuration error: Service role key is missing' },
+        { status: 500 }
+      )
+    }
+
+    // Use service role key to bypass RLS
+    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
+
+    // Get query parameters
+    const { searchParams } = new URL(request.url)
+    const role = searchParams.get('role') || 'player'
+    const status = searchParams.get('status') || 'active'
+    const includePlayerData = searchParams.get('includePlayerData') === 'true'
+
+    // Build query
+    let query = supabase
+      .from('user_profiles')
+      .select(includePlayerData 
+        ? `user_id, name, email, phone, role, status, created_at, players(position, category, jersey_number)`
+        : `user_id, name, email, phone, role, status, created_at`
+      )
+
+    // Handle role filter - if role is 'admin', include all admin types
+    if (role === 'admin') {
+      query = query.in('role', ['admin', 'data_admin', 'finance_admin'])
+    } else {
+      query = query.eq('role', role)
+    }
+
+    if (status) {
+      query = query.eq('status', status)
+    }
+
+    query = query.order('name', { ascending: true })
+
+    const { data: players, error } = await query
+
+    if (error) {
+      console.error('Error fetching players:', error)
+      return NextResponse.json(
+        { error: `Failed to fetch players: ${error.message}` },
+        { status: 500 }
+      )
+    }
+
+    return NextResponse.json({
+      success: true,
+      players: players || [],
+      count: players?.length || 0,
+    })
+  } catch (error: any) {
+    console.error('Players API error:', error)
+    return NextResponse.json(
+      { error: error.message || 'An unexpected error occurred' },
+      { status: 500 }
+    )
+  }
+}
+
+// POST endpoint for creating players (existing - keep it)
 export async function POST(request: NextRequest) {
   try {
-    if (!supabaseServiceKey) {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+    if (!supabaseUrl || !supabaseServiceKey) {
       return NextResponse.json(
         { error: 'Service role key not configured' },
         { status: 500 }
@@ -121,14 +192,8 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('Error creating player:', error)
     return NextResponse.json(
-      { error: error.message || 'Internal server error' },
+      { error: error.message || 'An unexpected error occurred' },
       { status: 500 }
     )
   }
 }
-
-
-
-
-
-

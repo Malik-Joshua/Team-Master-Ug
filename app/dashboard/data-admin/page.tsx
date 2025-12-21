@@ -128,15 +128,27 @@ export default function DataAdminDashboard() {
             setLoadingInjuries(false)
           }
 
-          // Fetch players
-          const { data: playersData } = await supabase
-            .from('user_profiles')
-            .select('user_id, name')
-            .eq('role', 'player')
-            .order('name', { ascending: true })
+          // Fetch players via API route (bypasses RLS)
+          const playersResponse = await fetch('/api/players?role=player&status=active')
+          if (playersResponse.ok) {
+            const playersData = await playersResponse.json()
+            if (playersData.players) {
+              setPlayers(playersData.players.map((p: any) => ({
+                user_id: p.user_id,
+                name: p.name,
+              })) as Player[])
+            }
+          } else {
+            // Fallback to direct query if API fails
+            const { data: playersData } = await supabase
+              .from('user_profiles')
+              .select('user_id, name')
+              .eq('role', 'player')
+              .order('name', { ascending: true })
 
-          if (playersData) {
-            setPlayers(playersData as Player[])
+            if (playersData) {
+              setPlayers(playersData as Player[])
+            }
           }
         }
       }

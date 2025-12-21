@@ -82,8 +82,19 @@ export default function PlayersPage() {
         const { data: profile } = await supabase.from('user_profiles').select('*').eq('user_id', authUser.id).single()
         if (profile) {
           setUser(profile)
-          const { data: playersData } = await supabase.from('user_profiles').select('*').eq('role', 'player')
-          if (playersData) setPlayers(playersData as Player[])
+          
+          // Fetch players via API route (bypasses RLS)
+          const playersResponse = await fetch('/api/players?role=player&status=active')
+          if (playersResponse.ok) {
+            const playersData = await playersResponse.json()
+            if (playersData.players) {
+              setPlayers(playersData.players as Player[])
+            }
+          } else {
+            // Fallback to direct query if API fails
+            const { data: playersData } = await supabase.from('user_profiles').select('*').eq('role', 'player')
+            if (playersData) setPlayers(playersData as Player[])
+          }
         }
       }
       setLoading(false)

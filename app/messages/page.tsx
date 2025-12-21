@@ -141,26 +141,54 @@ export default function MessagesPage() {
 
           // If user is a coach, fetch players and admins for messaging
           if (profile.role === 'coach') {
-            // Fetch all players
-            const { data: playersData } = await supabase
-              .from('user_profiles')
-              .select('user_id, name, role, email')
-              .eq('role', 'player')
-              .order('name', { ascending: true })
+            // Fetch all players via API route (bypasses RLS)
+            const playersResponse = await fetch('/api/players?role=player&status=active')
+            if (playersResponse.ok) {
+              const playersData = await playersResponse.json()
+              if (playersData.players) {
+                setPlayers(playersData.players.map((p: any) => ({
+                  user_id: p.user_id,
+                  name: p.name,
+                  role: p.role,
+                  email: p.email,
+                })) as UserProfile[])
+              }
+            } else {
+              // Fallback to direct query if API fails
+              const { data: playersData } = await supabase
+                .from('user_profiles')
+                .select('user_id, name, role, email')
+                .eq('role', 'player')
+                .order('name', { ascending: true })
 
-            if (playersData) {
-              setPlayers(playersData as UserProfile[])
+              if (playersData) {
+                setPlayers(playersData as UserProfile[])
+              }
             }
 
-            // Fetch all admins
-            const { data: adminsData } = await supabase
-              .from('user_profiles')
-              .select('user_id, name, role, email')
-              .in('role', ['admin', 'data_admin', 'finance_admin'])
-              .order('name', { ascending: true })
+            // Fetch all admins via API route (role=admin includes all admin types)
+            const adminsResponse = await fetch('/api/players?role=admin&status=active')
+            if (adminsResponse.ok) {
+              const adminsData = await adminsResponse.json()
+              if (adminsData.players) {
+                setAdmins(adminsData.players.map((p: any) => ({
+                  user_id: p.user_id,
+                  name: p.name,
+                  role: p.role,
+                  email: p.email,
+                })) as UserProfile[])
+              }
+            } else {
+              // Fallback to direct query if API fails
+              const { data: adminsData } = await supabase
+                .from('user_profiles')
+                .select('user_id, name, role, email')
+                .in('role', ['admin', 'data_admin', 'finance_admin'])
+                .order('name', { ascending: true })
 
-            if (adminsData) {
-              setAdmins(adminsData as UserProfile[])
+              if (adminsData) {
+                setAdmins(adminsData as UserProfile[])
+              }
             }
           }
         }

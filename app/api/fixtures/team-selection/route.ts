@@ -141,11 +141,7 @@ export async function GET(request: NextRequest) {
     // Get all selections for this match
     const { data: selections, error: selectionsError } = await supabaseAdmin
       .from('fixture_team_selections')
-      .select(`
-        *,
-        player:user_profiles!fixture_team_selections_player_id_fkey(user_id, name, email),
-        selected_by_user:user_profiles!fixture_team_selections_selected_by_fkey(name)
-      `)
+      .select('*')
       .eq('match_id', matchId)
       .order('is_starting', { ascending: false })
       .order('jersey_number', { ascending: true, nullsFirst: false })
@@ -158,13 +154,34 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // Get player information for each selection
+    const playerIds = [...new Set((selections || []).map((s: any) => s.player_id))]
+    let playersMap = new Map()
+    
+    if (playerIds.length > 0) {
+      const { data: players } = await supabaseAdmin
+        .from('user_profiles')
+        .select('user_id, name, email')
+        .in('user_id', playerIds)
+      
+      if (players) {
+        playersMap = new Map(players.map((p: any) => [p.user_id, p]))
+      }
+    }
+
+    // Enrich selections with player data
+    const enrichedSelections = (selections || []).map((selection: any) => ({
+      ...selection,
+      player: playersMap.get(selection.player_id) || { user_id: selection.player_id, name: 'Unknown', email: '' },
+    }))
+
     return NextResponse.json({
       success: true,
       match,
-      selections: selections || [],
-      starting: selections?.filter((s: any) => s.is_starting && !s.is_substitute) || [],
-      substitutes: selections?.filter((s: any) => s.is_substitute) || [],
-      count: selections?.length || 0,
+      selections: enrichedSelections,
+      starting: enrichedSelections.filter((s: any) => s.is_starting && !s.is_substitute),
+      substitutes: enrichedSelections.filter((s: any) => s.is_substitute),
+      count: enrichedSelections.length,
     })
   } catch (error: any) {
     console.error('Team selection GET API error:', error)

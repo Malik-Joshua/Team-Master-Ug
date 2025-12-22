@@ -84,16 +84,43 @@ export default function PlayersPage() {
           setUser(profile)
           
           // Fetch players via API route (bypasses RLS)
-          const playersResponse = await fetch('/api/players?role=player&status=active')
+          const playersResponse = await fetch('/api/players?role=player&status=active&includePlayerData=true')
           if (playersResponse.ok) {
             const playersData = await playersResponse.json()
             if (playersData.players) {
-              setPlayers(playersData.players as Player[])
+              // Transform players data to match Player interface
+              const transformedPlayers = playersData.players.map((p: any) => ({
+                id: p.user_id || p.id,
+                user_id: p.user_id,
+                name: p.name,
+                position: p.players?.position || p.position || 'N/A',
+                status: p.status || 'active',
+                email: p.email,
+                phone: p.phone,
+                games_played: 0,
+                tries: 0,
+                tackles: 0,
+              }))
+              setPlayers(transformedPlayers as Player[])
             }
           } else {
             // Fallback to direct query if API fails
             const { data: playersData } = await supabase.from('user_profiles').select('*').eq('role', 'player')
-            if (playersData) setPlayers(playersData as Player[])
+            if (playersData) {
+              const transformedPlayers = playersData.map((p: any) => ({
+                id: p.user_id || p.id,
+                user_id: p.user_id,
+                name: p.name,
+                position: 'N/A',
+                status: p.status || 'active',
+                email: p.email,
+                phone: p.phone,
+                games_played: 0,
+                tries: 0,
+                tackles: 0,
+              }))
+              setPlayers(transformedPlayers as Player[])
+            }
           }
         }
       }
@@ -306,7 +333,7 @@ export default function PlayersPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-sm text-neutral-medium capitalize">{player.position.replace('_', ' ')}</td>
+                      <td className="px-6 py-4 text-sm text-neutral-medium capitalize">{player.position?.replace(/_/g, ' ') || 'N/A'}</td>
                       <td className="px-6 py-4">
                         <span className={`px-3 py-1 rounded-full text-xs font-medium ${player.status === 'active' ? 'bg-success/10 text-success' : player.status === 'injured' ? 'bg-secondary/10 text-secondary' : 'bg-warning/10 text-warning'}`}>
                           {player.status}
@@ -496,7 +523,7 @@ export default function PlayersPage() {
               <div className="grid grid-cols-2 gap-4 pt-4 border-t border-neutral-light">
                 <div>
                   <p className="text-sm text-neutral-medium">Position</p>
-                  <p className="font-semibold text-neutral-text capitalize">{selectedPlayer.position.replace('_', ' ')}</p>
+                  <p className="font-semibold text-neutral-text capitalize">{selectedPlayer.position?.replace(/_/g, ' ') || 'N/A'}</p>
                 </div>
                 <div>
                   <p className="text-sm text-neutral-medium">Status</p>

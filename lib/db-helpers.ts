@@ -403,20 +403,31 @@ export const db = {
   async getPlayerGymStats(playerId: string) {
     const supabase = createClient()
     const { data, error } = await supabase
-      .from('user_profiles')
+      .from('players')
       .select('gym_stats')
       .eq('user_id', playerId)
       .single()
     
-    if (error) throw error
+    if (error) {
+      // If player record doesn't exist, return null values
+      if (error.code === 'PGRST116') {
+        return {
+          benchPressPB: null,
+          squatPB: null,
+          deadliftPB: null,
+          pullUpPB: null,
+        }
+      }
+      throw error
+    }
     
     // Return gym stats with default values if not set
     const gymStats = data?.gym_stats || {}
     return {
-      benchPressPB: gymStats.bench_press_pb || gymStats.benchPressPB || null,
-      squatPB: gymStats.squat_pb || gymStats.squatPB || null,
-      deadliftPB: gymStats.deadlift_pb || gymStats.deadliftPB || null,
-      pullUpPB: gymStats.pull_up_pb || gymStats.pullUpPB || null,
+      benchPressPB: gymStats.bench_press_pb || gymStats.benchPressPB || gymStats.bench_press || null,
+      squatPB: gymStats.squat_pb || gymStats.squatPB || gymStats.squat || null,
+      deadliftPB: gymStats.deadlift_pb || gymStats.deadliftPB || gymStats.deadlift || null,
+      pullUpPB: gymStats.pull_up_pb || gymStats.pullUpPB || gymStats.pull_ups || gymStats.pullUps || null,
     }
   },
 
@@ -428,14 +439,16 @@ export const db = {
   }) {
     const supabase = createClient()
     
-    // Get current gym stats
+    // Get current gym stats from players table
     const { data: currentData, error: fetchError } = await supabase
-      .from('user_profiles')
+      .from('players')
       .select('gym_stats')
       .eq('user_id', playerId)
       .single()
     
-    if (fetchError) throw fetchError
+    if (fetchError && fetchError.code !== 'PGRST116') {
+      throw fetchError
+    }
     
     // Merge with existing stats
     const currentStats = currentData?.gym_stats || {}
@@ -447,9 +460,9 @@ export const db = {
       pull_up_pb: gymStats.pullUpPB !== undefined ? gymStats.pullUpPB : currentStats.pull_up_pb || currentStats.pullUpPB,
     }
     
-    // Update the gym_stats field
+    // Update the gym_stats field in players table
     const { data, error } = await supabase
-      .from('user_profiles')
+      .from('players')
       .update({ gym_stats: updatedStats })
       .eq('user_id', playerId)
       .select()

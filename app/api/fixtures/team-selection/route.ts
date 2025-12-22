@@ -61,16 +61,15 @@ export async function GET(request: NextRequest) {
       }
 
       if (!matchId) {
-        // Get latest fixture selection for player
-        const { data: latestMatch } = await supabaseAdmin
+        // Get latest upcoming fixture for player
+        const { data: latestMatches, error: matchError } = await supabaseAdmin
           .from('matches')
-          .select('id')
+          .select('id, match_date, opponent, venue, tournament_type')
           .gte('match_date', new Date().toISOString().split('T')[0])
           .order('match_date', { ascending: true })
           .limit(1)
-          .single()
 
-        if (!latestMatch) {
+        if (matchError || !latestMatches || latestMatches.length === 0) {
           return NextResponse.json({
             success: true,
             isSelected: false,
@@ -79,18 +78,22 @@ export async function GET(request: NextRequest) {
           })
         }
 
-        matchId = latestMatch.id
+        matchId = latestMatches[0].id
       }
+
+      // Get match info separately to ensure we have it
+      const { data: matchInfo } = await supabaseAdmin
+        .from('matches')
+        .select('id, match_date, opponent, venue, tournament_type')
+        .eq('id', matchId)
+        .single()
 
       const { data: selection, error: selectionError } = await supabaseAdmin
         .from('fixture_team_selections')
-        .select(`
-          *,
-          match:matches(id, match_date, opponent, venue, tournament_type)
-        `)
+        .select('*')
         .eq('match_id', matchId)
         .eq('player_id', playerId)
-        .single()
+        .maybeSingle()
 
       if (selectionError && selectionError.code !== 'PGRST116') { // PGRST116 = not found
         console.error('Error fetching player selection:', selectionError)
@@ -104,7 +107,7 @@ export async function GET(request: NextRequest) {
         success: true,
         isSelected: !!selection,
         selection: selection || null,
-        match: selection?.match || null,
+        match: matchInfo || null,
       })
     }
 

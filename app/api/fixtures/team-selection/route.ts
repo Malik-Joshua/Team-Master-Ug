@@ -330,6 +330,14 @@ export async function POST(request: NextRequest) {
       selected_by: authUser.id,
     }))
 
+    console.log('Saving team selections:', {
+      matchId,
+      selectedBy: authUser.id,
+      selectionsCount: records.length,
+      playerIds: records.map(r => r.player_id),
+      records: records.map(r => ({ player_id: r.player_id, is_starting: r.is_starting, is_substitute: r.is_substitute }))
+    })
+
     const { data: newSelections, error: insertError } = await supabaseAdmin
       .from('fixture_team_selections')
       .insert(records)

@@ -69,7 +69,12 @@ export async function GET(request: NextRequest) {
           .order('match_date', { ascending: true })
           .limit(1)
 
+        if (matchError) {
+          console.error('Error fetching latest match:', matchError)
+        }
+
         if (matchError || !latestMatches || latestMatches.length === 0) {
+          console.log('No upcoming matches found for player:', playerId)
           return NextResponse.json({
             success: true,
             isSelected: false,
@@ -79,15 +84,31 @@ export async function GET(request: NextRequest) {
         }
 
         matchId = latestMatches[0].id
+        console.log('Found latest match for player:', { playerId, matchId, matchDate: latestMatches[0].match_date })
       }
 
       // Get match info separately to ensure we have it
-      const { data: matchInfo } = await supabaseAdmin
+      const { data: matchInfo, error: matchInfoError } = await supabaseAdmin
         .from('matches')
         .select('id, match_date, opponent, venue, tournament_type')
         .eq('id', matchId)
         .single()
 
+      if (matchInfoError) {
+        console.error('Error fetching match info:', matchInfoError)
+      }
+
+      if (!matchInfo) {
+        console.log('Match not found:', matchId)
+        return NextResponse.json({
+          success: true,
+          isSelected: false,
+          selection: null,
+          match: null,
+        })
+      }
+
+      // Query for player selection
       const { data: selection, error: selectionError } = await supabaseAdmin
         .from('fixture_team_selections')
         .select('*')
@@ -102,6 +123,13 @@ export async function GET(request: NextRequest) {
           { status: 500 }
         )
       }
+
+      console.log('Player selection query result:', {
+        playerId,
+        matchId,
+        found: !!selection,
+        selection: selection ? { id: selection.id, is_starting: selection.is_starting, is_substitute: selection.is_substitute } : null
+      })
 
       return NextResponse.json({
         success: true,

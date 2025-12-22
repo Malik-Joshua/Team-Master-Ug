@@ -267,18 +267,36 @@ export default function DashboardPage() {
                 setLoadingPlayerFixture(true)
                 try {
                   const response = await fetch(`/api/fixtures/team-selection?playerId=${authUser.id}`)
-                  if (response.ok) {
-                    const data = await response.json()
-                    if (data.isSelected) {
+                  const data = await response.json()
+                  
+                  console.log('Player fixture selection API response:', {
+                    ok: response.ok,
+                    status: response.status,
+                    data: data
+                  })
+                  
+                  if (response.ok && data.success) {
+                    if (data.isSelected && data.selection && data.match) {
+                      console.log('Setting player fixture selection:', {
+                        isSelected: data.isSelected,
+                        hasSelection: !!data.selection,
+                        hasMatch: !!data.match
+                      })
                       setPlayerFixtureSelection({
                         isSelected: true,
                         selection: data.selection,
                         match: data.match,
                       })
                     } else {
+                      console.log('Player not selected or missing data:', {
+                        isSelected: data.isSelected,
+                        hasSelection: !!data.selection,
+                        hasMatch: !!data.match
+                      })
                       setPlayerFixtureSelection(null)
                     }
                   } else {
+                    console.error('API error:', data.error || 'Unknown error')
                     setPlayerFixtureSelection(null)
                   }
                 } catch (error) {

@@ -217,29 +217,29 @@ export default function DashboardPage() {
                 setTrainingSessionsData(sessions)
 
                 // Load player counts via API route (bypasses RLS)
-                const playersResponse = await fetch('/api/players?role=player&status=active')
-                if (playersResponse.ok) {
-                  const playersData = await playersResponse.json()
-                  const totalPlayers = playersData.count || 0
+                // Get all players first (for total count)
+                const allPlayersResponse = await fetch('/api/players?role=player')
+                if (allPlayersResponse.ok) {
+                  const allPlayersData = await allPlayersResponse.json()
+                  const totalPlayersCount = allPlayersData.count || 0
                   
-                  // Get all players (including inactive) for total count
-                  const allPlayersResponse = await fetch('/api/players?role=player')
-                  if (allPlayersResponse.ok) {
-                    const allPlayersData = await allPlayersResponse.json()
-                    const activePlayers = totalPlayers
-                    const totalPlayersCount = allPlayersData.count || totalPlayers
+                  // Get active players only
+                  const activePlayersResponse = await fetch('/api/players?role=player&status=active')
+                  if (activePlayersResponse.ok) {
+                    const activePlayersData = await activePlayersResponse.json()
+                    const activePlayersCount = activePlayersData.count || 0
                     
                     setStats(prev => ({
                       ...prev,
                       totalPlayers: totalPlayersCount,
-                      activePlayers: activePlayers,
+                      activePlayers: activePlayersCount,
                     }))
                   } else {
-                    // Fallback: use active players count for both
+                    // Fallback: use total players count for both
                     setStats(prev => ({
                       ...prev,
-                      totalPlayers: totalPlayers,
-                      activePlayers: totalPlayers,
+                      totalPlayers: totalPlayersCount,
+                      activePlayers: totalPlayersCount,
                     }))
                   }
                 }

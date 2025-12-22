@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     // Get query parameters
     const { searchParams } = new URL(request.url)
     const role = searchParams.get('role') || 'player'
-    const status = searchParams.get('status') || 'active'
+    const status = searchParams.get('status') || null // null means all statuses
     const includePlayerData = searchParams.get('includePlayerData') === 'true'
 
     // Build query
@@ -43,6 +43,7 @@ export async function GET(request: NextRequest) {
       query = query.eq('role', role)
     }
 
+    // Only filter by status if explicitly provided
     if (status) {
       query = query.eq('status', status)
     }

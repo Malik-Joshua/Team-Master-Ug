@@ -62,10 +62,17 @@ export async function GET(request: NextRequest) {
 
       if (!matchId) {
         // Get latest upcoming fixture for player
+        // Use start of today in UTC to avoid timezone issues
+        const today = new Date()
+        today.setUTCHours(0, 0, 0, 0)
+        const todayISO = today.toISOString().split('T')[0]
+        
+        console.log('Querying for latest match:', { playerId, todayISO })
+        
         const { data: latestMatches, error: matchError } = await supabaseAdmin
           .from('matches')
           .select('id, match_date, opponent, venue, tournament_type')
-          .gte('match_date', new Date().toISOString().split('T')[0])
+          .gte('match_date', todayISO)
           .order('match_date', { ascending: true })
           .limit(1)
 
@@ -74,7 +81,7 @@ export async function GET(request: NextRequest) {
         }
 
         if (matchError || !latestMatches || latestMatches.length === 0) {
-          console.log('No upcoming matches found for player:', playerId)
+          console.log('No upcoming matches found for player:', { playerId, todayISO })
           return NextResponse.json({
             success: true,
             isSelected: false,
@@ -84,7 +91,7 @@ export async function GET(request: NextRequest) {
         }
 
         matchId = latestMatches[0].id
-        console.log('Found latest match for player:', { playerId, matchId, matchDate: latestMatches[0].match_date })
+        console.log('Found latest match for player:', { playerId, matchId, matchDate: latestMatches[0].match_date, opponent: latestMatches[0].opponent })
       }
 
       // Get match info separately to ensure we have it

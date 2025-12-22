@@ -55,6 +55,8 @@ export default function AdminDashboard() {
   const [loadingInjuries, setLoadingInjuries] = useState(false)
   const [teamSelection, setTeamSelection] = useState<any>(null)
   const [loadingTeamSelection, setLoadingTeamSelection] = useState(false)
+  const [performanceSummary, setPerformanceSummary] = useState<any>(null)
+  const [loadingPerformance, setLoadingPerformance] = useState(false)
 
   useEffect(() => {
     const loadData = async () => {
@@ -248,6 +250,20 @@ export default function AdminDashboard() {
               console.error('Error loading team selection:', error)
             } finally {
               setLoadingTeamSelection(false)
+            }
+
+            // Load performance summaries for all roles
+            try {
+              setLoadingPerformance(true)
+              const perfResponse = await fetch('/api/admin/performance-summary')
+              if (perfResponse.ok) {
+                const perfData = await perfResponse.json()
+                setPerformanceSummary(perfData)
+              }
+            } catch (error) {
+              console.error('Error loading performance summary:', error)
+            } finally {
+              setLoadingPerformance(false)
             }
           }
         }
@@ -687,6 +703,227 @@ export default function AdminDashboard() {
                 <p className="text-neutral-medium text-center py-4">No team selection made yet for this fixture.</p>
               )}
             </div>
+          </div>
+        )}
+
+        {/* Performance Summaries */}
+        {loadingPerformance ? (
+          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+          </div>
+        ) : performanceSummary && (
+          <div className="space-y-6">
+            {/* Coaches Performance */}
+            {performanceSummary.coaches && performanceSummary.coaches.length > 0 && (
+              <div className="bg-white rounded-card border border-neutral-light shadow-soft">
+                <div className="p-6 border-b border-neutral-light">
+                  <h2 className="text-2xl font-bold text-neutral-text flex items-center gap-2">
+                    <Users className="w-6 h-6 text-primary" />
+                    Coaches Performance Summary
+                  </h2>
+                </div>
+                <div className="p-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {performanceSummary.coaches.map((coach: any) => (
+                      <div key={coach.user_id} className="bg-primary/5 border border-primary/20 rounded-lg p-4">
+                        <h4 className="font-semibold text-neutral-text mb-3">{coach.name}</h4>
+                        <div className="space-y-2">
+                          <div className="flex justify-between">
+                            <span className="text-sm text-neutral-medium">Training Sessions</span>
+                            <span className="font-bold text-primary">{coach.trainingSessionsConducted}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm text-neutral-medium">Team Selections</span>
+                            <span className="font-bold text-primary">{coach.teamSelectionsMade}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Physios Performance */}
+            {performanceSummary.physios && performanceSummary.physios.length > 0 && (
+              <div className="bg-white rounded-card border border-neutral-light shadow-soft">
+                <div className="p-6 border-b border-neutral-light">
+                  <h2 className="text-2xl font-bold text-neutral-text flex items-center gap-2">
+                    <Activity className="w-6 h-6 text-secondary" />
+                    Physios Performance Summary
+                  </h2>
+                </div>
+                <div className="p-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {performanceSummary.physios.map((physio: any) => (
+                      <div key={physio.user_id} className="bg-secondary/5 border border-secondary/20 rounded-lg p-4">
+                        <h4 className="font-semibold text-neutral-text mb-3">{physio.name}</h4>
+                        <div className="space-y-2">
+                          <div className="flex justify-between">
+                            <span className="text-sm text-neutral-medium">Total Injuries Handled</span>
+                            <span className="font-bold text-secondary">{physio.totalInjuriesHandled}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm text-neutral-medium">Active Injuries</span>
+                            <span className="font-bold text-warning">{physio.activeInjuries}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm text-neutral-medium">Resolved</span>
+                            <span className="font-bold text-success">{physio.resolvedInjuries}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Team Managers Performance */}
+            {performanceSummary.teamManagers && performanceSummary.teamManagers.length > 0 && (
+              <div className="bg-white rounded-card border border-neutral-light shadow-soft">
+                <div className="p-6 border-b border-neutral-light">
+                  <h2 className="text-2xl font-bold text-neutral-text flex items-center gap-2">
+                    <Calendar className="w-6 h-6 text-info" />
+                    Team Managers Performance Summary
+                  </h2>
+                </div>
+                <div className="p-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {performanceSummary.teamManagers.map((tm: any) => (
+                      <div key={tm.user_id} className="bg-info/5 border border-info/20 rounded-lg p-4">
+                        <h4 className="font-semibold text-neutral-text mb-3">{tm.name}</h4>
+                        <div className="space-y-2">
+                          <div className="flex justify-between">
+                            <span className="text-sm text-neutral-medium">Matches Logged</span>
+                            <span className="font-bold text-info">{tm.matchesLogged}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm text-neutral-medium">Upcoming Fixtures</span>
+                            <span className="font-bold text-info">{tm.upcomingFixturesCreated}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm text-neutral-medium">Attendance Records</span>
+                            <span className="font-bold text-info">{tm.attendanceRecords}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Finance Admins Performance */}
+            {performanceSummary.financeAdmins && performanceSummary.financeAdmins.length > 0 && (
+              <div className="bg-white rounded-card border border-neutral-light shadow-soft">
+                <div className="p-6 border-b border-neutral-light">
+                  <h2 className="text-2xl font-bold text-neutral-text flex items-center gap-2">
+                    <DollarSign className="w-6 h-6 text-success" />
+                    Finance Admins Performance Summary
+                  </h2>
+                </div>
+                <div className="p-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {performanceSummary.financeAdmins.map((finance: any) => (
+                      <div key={finance.user_id} className="bg-success/5 border border-success/20 rounded-lg p-4">
+                        <h4 className="font-semibold text-neutral-text mb-3">{finance.name}</h4>
+                        <div className="space-y-2">
+                          <div className="flex justify-between">
+                            <span className="text-sm text-neutral-medium">Transactions</span>
+                            <span className="font-bold text-success">{finance.transactionsProcessed}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm text-neutral-medium">Total Revenue</span>
+                            <span className="font-bold text-success">
+                              {formatCurrency(finance.totalRevenue)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm text-neutral-medium">Total Expenses</span>
+                            <span className="font-bold text-secondary">
+                              {formatCurrency(finance.totalExpenses)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm text-neutral-medium">Budgets Created</span>
+                            <span className="font-bold text-info">{finance.budgetsCreated}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm text-neutral-medium">Pending</span>
+                            <span className="font-bold text-warning">{finance.pendingBudgets}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm text-neutral-medium">Approved</span>
+                            <span className="font-bold text-success">{finance.approvedBudgets}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Players Performance Summary */}
+            {performanceSummary.players && performanceSummary.players.length > 0 && (
+              <div className="bg-white rounded-card border border-neutral-light shadow-soft">
+                <div className="p-6 border-b border-neutral-light">
+                  <h2 className="text-2xl font-bold text-neutral-text flex items-center gap-2">
+                    <Trophy className="w-6 h-6 text-warning" />
+                    Players Performance Summary
+                  </h2>
+                </div>
+                <div className="p-6">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-neutral-light">
+                          <th className="text-left py-3 px-4 font-semibold text-neutral-text">Player</th>
+                          <th className="text-center py-3 px-4 font-semibold text-neutral-text">Matches</th>
+                          <th className="text-center py-3 px-4 font-semibold text-neutral-text">Tries</th>
+                          <th className="text-center py-3 px-4 font-semibold text-neutral-text">Tackles</th>
+                          <th className="text-center py-3 px-4 font-semibold text-neutral-text">Avg Minutes</th>
+                          <th className="text-center py-3 px-4 font-semibold text-neutral-text">Attendance</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {performanceSummary.players.slice(0, 10).map((player: any) => (
+                          <tr key={player.user_id} className="border-b border-neutral-light hover:bg-neutral-light transition-colors">
+                            <td className="py-3 px-4 font-medium text-neutral-text">{player.name}</td>
+                            <td className="py-3 px-4 text-center text-neutral-medium">{player.totalMatches}</td>
+                            <td className="py-3 px-4 text-center text-neutral-medium">{player.totalTries}</td>
+                            <td className="py-3 px-4 text-center text-neutral-medium">{player.totalTackles}</td>
+                            <td className="py-3 px-4 text-center text-neutral-medium">{player.avgMinutes}</td>
+                            <td className="py-3 px-4 text-center">
+                              <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                player.attendanceRate >= 80 ? 'bg-success/20 text-success' :
+                                player.attendanceRate >= 60 ? 'bg-warning/20 text-warning' :
+                                'bg-secondary/20 text-secondary'
+                              }`}>
+                                {player.attendanceRate}%
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {performanceSummary.players.length > 10 && (
+                      <div className="mt-4 text-center">
+                        <Link
+                          href="/performance"
+                          className="text-primary hover:underline font-medium text-sm"
+                        >
+                          View All {performanceSummary.players.length} Players →
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

@@ -211,13 +211,51 @@ export default function ReportsPage() {
     }
   }
 
-  const handleDownload = (reportId: string) => {
-    // In dev mode, just show alert
-    if (typeof window !== 'undefined' && localStorage.getItem('dev_user')) {
-      alert('Report downloaded! (Dev Mode)')
-      return
+  const handleDownload = async (reportId: string) => {
+    try {
+      // In dev mode, just show alert
+      if (typeof window !== 'undefined' && localStorage.getItem('dev_user')) {
+        alert('Report downloaded! (Dev Mode)')
+        return
+      }
+
+      // Fetch the report file
+      const response = await fetch(`/api/reports/${reportId}/download`)
+      
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to download report')
+      }
+
+      // Get the file content
+      const blob = await response.blob()
+      
+      // Create a download link
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      
+      // Get filename from Content-Disposition header or use default
+      const contentDisposition = response.headers.get('Content-Disposition')
+      let filename = `report_${reportId.substring(0, 8)}.txt`
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="(.+)"/)
+        if (filenameMatch) {
+          filename = filenameMatch[1]
+        }
+      }
+      
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      
+      // Cleanup
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (error: any) {
+      console.error('Error downloading report:', error)
+      alert(`Error downloading report: ${error.message}`)
     }
-    alert('Report downloaded!')
   }
 
   const getReportTypeIcon = (type: string) => {

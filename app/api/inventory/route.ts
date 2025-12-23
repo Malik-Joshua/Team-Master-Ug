@@ -147,22 +147,54 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    // Build insert object, only including fields that exist
+    const insertData: any = {
+      item_name,
+      category,
+      quantity: parseInt(quantity) || 0,
+      unit: unit || 'pieces',
+      description: description || null,
+      created_by: authUser.id,
+    }
+
+    // Only include location if it's provided and not empty
+    // This handles cases where the column might not exist in the database
+    if (location !== undefined && location !== null && location !== '') {
+      insertData.location = location
+    }
+
     const { data: newItem, error: insertError } = await supabaseAdmin
       .from('inventory')
-      .insert({
-        item_name,
-        category,
-        quantity: parseInt(quantity) || 0,
-        unit: unit || 'pieces',
-        location: location || null,
-        description: description || null,
-        created_by: authUser.id,
-      })
+      .insert(insertData)
       .select()
       .single()
 
     if (insertError) {
       console.error('Error creating inventory item:', insertError)
+      
+      // If error is about location column, try without it
+      if (insertError.message?.includes('location')) {
+        delete insertData.location
+        const { data: retryItem, error: retryError } = await supabaseAdmin
+          .from('inventory')
+          .insert(insertData)
+          .select()
+          .single()
+        
+        if (retryError) {
+          return NextResponse.json(
+            { error: `Failed to create inventory item: ${retryError.message}` },
+            { status: 500 }
+          )
+        }
+        
+        return NextResponse.json({
+          success: true,
+          item: retryItem,
+          message: 'Inventory item created successfully (location field not available)',
+        })
+      }
+      
       return NextResponse.json(
         { error: `Failed to create inventory item: ${insertError.message}` },
         { status: 500 }
@@ -251,7 +283,10 @@ export async function PUT(request: NextRequest) {
     if (category !== undefined) updateData.category = category
     if (quantity !== undefined) updateData.quantity = parseInt(quantity) || 0
     if (unit !== undefined) updateData.unit = unit
-    if (location !== undefined) updateData.location = location
+    // Only include location if it's provided and not empty
+    if (location !== undefined && location !== null && location !== '') {
+      updateData.location = location
+    }
     if (description !== undefined) updateData.description = description
 
     const { data: updatedItem, error: updateError } = await supabaseAdmin
@@ -263,6 +298,31 @@ export async function PUT(request: NextRequest) {
 
     if (updateError) {
       console.error('Error updating inventory item:', updateError)
+      
+      // If error is about location column, try without it
+      if (updateError.message?.includes('location') && updateData.location !== undefined) {
+        delete updateData.location
+        const { data: retryItem, error: retryError } = await supabaseAdmin
+          .from('inventory')
+          .update(updateData)
+          .eq('id', id)
+          .select()
+          .single()
+        
+        if (retryError) {
+          return NextResponse.json(
+            { error: `Failed to update inventory item: ${retryError.message}` },
+            { status: 500 }
+          )
+        }
+        
+        return NextResponse.json({
+          success: true,
+          item: retryItem,
+          message: 'Inventory item updated successfully (location field not available)',
+        })
+      }
+      
       return NextResponse.json(
         { error: `Failed to update inventory item: ${updateError.message}` },
         { status: 500 }

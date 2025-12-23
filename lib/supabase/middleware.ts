@@ -110,37 +110,37 @@ export async function updateSession(request: NextRequest) {
     const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
       cookies: {
         get(name: string) {
-          try {
-            return request.cookies.get(name)?.value
-          } catch {
-            return undefined
-          }
+            try {
+          return request.cookies.get(name)?.value
+            } catch {
+              return undefined
+            }
         },
         set(name: string, value: string, options: CookieOptions) {
-          try {
+            try {
             request.cookies.set({ name, value, ...options })
-            response = NextResponse.next({
-              request: {
-                headers: request.headers,
-              },
-            })
+          response = NextResponse.next({
+            request: {
+              headers: request.headers,
+            },
+          })
             response.cookies.set({ name, value, ...options })
-          } catch (error) {
-            console.error('Error setting cookie:', error)
-          }
+            } catch (error) {
+              console.error('Error setting cookie:', error)
+            }
         },
         remove(name: string, options: CookieOptions) {
-          try {
+            try {
             request.cookies.set({ name, value: '', ...options })
-            response = NextResponse.next({
-              request: {
-                headers: request.headers,
-              },
-            })
+          response = NextResponse.next({
+            request: {
+              headers: request.headers,
+            },
+          })
             response.cookies.set({ name, value: '', ...options })
-          } catch (error) {
-            console.error('Error removing cookie:', error)
-          }
+            } catch (error) {
+              console.error('Error removing cookie:', error)
+            }
         },
       },
     })

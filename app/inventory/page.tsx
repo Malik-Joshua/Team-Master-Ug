@@ -125,7 +125,27 @@ export default function InventoryPage() {
 
         if (profile) {
           setUser(profile)
-          // Fetch real inventory items
+          // Fetch real inventory items via API
+          try {
+            const response = await fetch('/api/inventory')
+            if (response.ok) {
+              const data = await response.json()
+              const formattedItems: InventoryItem[] = (data.items || []).map((item: any) => ({
+                id: item.id,
+                name: item.item_name,
+                category: item.category || '',
+                quantity: item.quantity,
+                unit: item.unit || 'pieces',
+                location: item.location || '',
+                status: item.quantity > 10 ? 'in_stock' : item.quantity > 0 ? 'low_stock' : 'out_of_stock',
+                lastUpdated: item.updated_at || item.created_at,
+                description: item.description || '',
+              }))
+              setItems(formattedItems)
+            }
+          } catch (error) {
+            console.error('Error fetching inventory:', error)
+          }
         }
       }
       setLoading(false)
@@ -136,46 +156,43 @@ export default function InventoryPage() {
 
   const handleAddItem = async () => {
     try {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-
-      if (!user) {
-        alert('Please log in to add items')
-        return
-      }
-
       if (!formData.name || !formData.category) {
         alert('Please fill in required fields')
         return
       }
 
-      const { data: newItem, error } = await supabase
-        .from('inventory')
-        .insert({
+      const response = await fetch('/api/inventory', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           item_name: formData.name,
           category: formData.category,
-          quantity: parseInt(formData.quantity) || 0,
-          unit: formData.unit || 'pieces',
+          quantity: formData.quantity,
+          unit: formData.unit,
           location: formData.location,
           description: formData.description,
-          created_by: user.id,
-        })
-        .select()
-        .single()
+        }),
+      })
 
-      if (error) throw error
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to add item')
+      }
 
       // Add to local state
       const formattedItem: InventoryItem = {
-        id: newItem.id,
-        name: newItem.item_name,
-        category: newItem.category || '',
-        quantity: newItem.quantity,
-        unit: newItem.unit || 'pieces',
-        location: newItem.location || '',
-        status: newItem.quantity > 10 ? 'in_stock' : newItem.quantity > 0 ? 'low_stock' : 'out_of_stock',
-        lastUpdated: newItem.updated_at || newItem.created_at,
-        description: newItem.description || '',
+        id: data.item.id,
+        name: data.item.item_name,
+        category: data.item.category || '',
+        quantity: data.item.quantity,
+        unit: data.item.unit || 'pieces',
+        location: data.item.location || '',
+        status: data.item.quantity > 10 ? 'in_stock' : data.item.quantity > 0 ? 'low_stock' : 'out_of_stock',
+        lastUpdated: data.item.updated_at || data.item.created_at,
+        description: data.item.description || '',
       }
 
       setItems([formattedItem, ...items])
@@ -205,35 +222,39 @@ export default function InventoryPage() {
     if (!selectedItem) return
 
     try {
-      const supabase = createClient()
-
-      const { data: updatedItem, error } = await supabase
-        .from('inventory')
-        .update({
+      const response = await fetch('/api/inventory', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: selectedItem.id,
           item_name: formData.name,
           category: formData.category,
-          quantity: parseInt(formData.quantity) || 0,
-          unit: formData.unit || 'pieces',
+          quantity: formData.quantity,
+          unit: formData.unit,
           location: formData.location,
           description: formData.description,
-        })
-        .eq('id', selectedItem.id)
-        .select()
-        .single()
+        }),
+      })
 
-      if (error) throw error
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update item')
+      }
 
       // Update local state
       const formattedItem: InventoryItem = {
-        id: updatedItem.id,
-        name: updatedItem.item_name,
-        category: updatedItem.category || '',
-        quantity: updatedItem.quantity,
-        unit: updatedItem.unit || 'pieces',
-        location: updatedItem.location || '',
-        status: updatedItem.quantity > 10 ? 'in_stock' : updatedItem.quantity > 0 ? 'low_stock' : 'out_of_stock',
-        lastUpdated: updatedItem.updated_at || updatedItem.created_at,
-        description: updatedItem.description || '',
+        id: data.item.id,
+        name: data.item.item_name,
+        category: data.item.category || '',
+        quantity: data.item.quantity,
+        unit: data.item.unit || 'pieces',
+        location: data.item.location || '',
+        status: data.item.quantity > 10 ? 'in_stock' : data.item.quantity > 0 ? 'low_stock' : 'out_of_stock',
+        lastUpdated: data.item.updated_at || data.item.created_at,
+        description: data.item.description || '',
       }
 
       setItems(items.map(item => item.id === selectedItem.id ? formattedItem : item))
@@ -251,13 +272,15 @@ export default function InventoryPage() {
     if (!confirm('Are you sure you want to delete this item?')) return
 
     try {
-      const supabase = createClient()
-      const { error } = await supabase
-        .from('inventory')
-        .delete()
-        .eq('id', itemId)
+      const response = await fetch(`/api/inventory?id=${itemId}`, {
+        method: 'DELETE',
+      })
 
-      if (error) throw error
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete item')
+      }
 
       setItems(items.filter(item => item.id !== itemId))
       alert('Item deleted successfully!')
@@ -514,7 +537,7 @@ export default function InventoryPage() {
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-4 py-3 border-2 border-neutral-light rounded-button focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                    className="w-full px-4 py-3 bg-white border-2 border-neutral-light rounded-button focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                     placeholder="e.g., Rugby Balls"
                   />
                 </div>
@@ -540,7 +563,7 @@ export default function InventoryPage() {
                       type="number"
                       value={formData.quantity}
                       onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                      className="w-full px-4 py-3 border-2 border-neutral-light rounded-button focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                      className="w-full px-4 py-3 bg-white border-2 border-neutral-light rounded-button focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                       placeholder="0"
                     />
                   </div>
@@ -550,7 +573,7 @@ export default function InventoryPage() {
                       type="text"
                       value={formData.unit}
                       onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                      className="w-full px-4 py-3 border-2 border-neutral-light rounded-button focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                      className="w-full px-4 py-3 bg-white border-2 border-neutral-light rounded-button focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                       placeholder="e.g., pieces, kits"
                     />
                   </div>
@@ -561,7 +584,7 @@ export default function InventoryPage() {
                     type="text"
                     value={formData.location}
                     onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                    className="w-full px-4 py-3 border-2 border-neutral-light rounded-button focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                    className="w-full px-4 py-3 bg-white border-2 border-neutral-light rounded-button focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                     placeholder="e.g., Storage Room A"
                   />
                 </div>
@@ -571,7 +594,7 @@ export default function InventoryPage() {
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     rows={3}
-                    className="w-full px-4 py-3 border-2 border-neutral-light rounded-button focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                    className="w-full px-4 py-3 bg-white border-2 border-neutral-light rounded-button focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                     placeholder="Optional description..."
                   />
                 </div>
@@ -611,7 +634,7 @@ export default function InventoryPage() {
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-4 py-3 border-2 border-neutral-light rounded-button focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                    className="w-full px-4 py-3 bg-white border-2 border-neutral-light rounded-button focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                   />
                 </div>
                 <div>
@@ -619,7 +642,7 @@ export default function InventoryPage() {
                   <select
                     value={formData.category}
                     onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    className="w-full px-4 py-3 border-2 border-neutral-light rounded-button focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                    className="w-full px-4 py-3 bg-white border-2 border-neutral-light rounded-button focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                   >
                     <option value="">Select category...</option>
                     <option value="Equipment">Equipment</option>
@@ -636,7 +659,7 @@ export default function InventoryPage() {
                       type="number"
                       value={formData.quantity}
                       onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                      className="w-full px-4 py-3 border-2 border-neutral-light rounded-button focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                      className="w-full px-4 py-3 bg-white border-2 border-neutral-light rounded-button focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                     />
                   </div>
                   <div>
@@ -645,7 +668,7 @@ export default function InventoryPage() {
                       type="text"
                       value={formData.unit}
                       onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                      className="w-full px-4 py-3 border-2 border-neutral-light rounded-button focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                      className="w-full px-4 py-3 bg-white border-2 border-neutral-light rounded-button focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                     />
                   </div>
                 </div>
@@ -655,7 +678,7 @@ export default function InventoryPage() {
                     type="text"
                     value={formData.location}
                     onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                    className="w-full px-4 py-3 border-2 border-neutral-light rounded-button focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                    className="w-full px-4 py-3 bg-white border-2 border-neutral-light rounded-button focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                   />
                 </div>
                 <div>
@@ -664,7 +687,7 @@ export default function InventoryPage() {
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     rows={3}
-                    className="w-full px-4 py-3 border-2 border-neutral-light rounded-button focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                    className="w-full px-4 py-3 bg-white border-2 border-neutral-light rounded-button focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                   />
                 </div>
               </div>

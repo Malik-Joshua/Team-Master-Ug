@@ -91,7 +91,26 @@ export default function ReportsPage() {
 
         if (profile) {
           setUser(profile)
-          // Fetch real reports
+          // Fetch real reports via API
+          try {
+            const response = await fetch('/api/reports')
+            if (response.ok) {
+              const data = await response.json()
+              const formattedReports: Report[] = (data.reports || []).map((report: any) => ({
+                id: report.id,
+                title: report.title,
+                type: report.report_type as Report['type'],
+                dateRange: report.date_from && report.date_to
+                  ? `${new Date(report.date_from).toLocaleDateString()} - ${new Date(report.date_to).toLocaleDateString()}`
+                  : new Date(report.created_at).toLocaleDateString(),
+                generatedAt: report.created_at,
+                status: report.status as Report['status'],
+              }))
+              setReports(formattedReports)
+            }
+          } catch (error) {
+            console.error('Error fetching reports:', error)
+          }
         }
       }
       setLoading(false)
@@ -100,32 +119,96 @@ export default function ReportsPage() {
     loadData()
   }, [])
 
-  const handleGenerateReport = (type: string) => {
-    // In dev mode, just add to reports
-    if (typeof window !== 'undefined' && localStorage.getItem('dev_user')) {
-      const newReport: Report = {
-        id: Date.now().toString(),
-        title: `${type.charAt(0).toUpperCase() + type.slice(1)} Report - ${new Date().toLocaleDateString()}`,
-        type: type as Report['type'],
-        dateRange: filterData.dateFrom && filterData.dateTo
-          ? `${new Date(filterData.dateFrom).toLocaleDateString()} - ${new Date(filterData.dateTo).toLocaleDateString()}`
-          : new Date().toLocaleDateString(),
-        generatedAt: new Date().toISOString(),
-        status: 'generating',
+  const handleGenerateReport = async (type: string) => {
+    try {
+      // In dev mode, just add to reports
+      if (typeof window !== 'undefined' && localStorage.getItem('dev_user')) {
+        const newReport: Report = {
+          id: Date.now().toString(),
+          title: `${type.charAt(0).toUpperCase() + type.slice(1)} Report - ${new Date().toLocaleDateString()}`,
+          type: type as Report['type'],
+          dateRange: filterData.dateFrom && filterData.dateTo
+            ? `${new Date(filterData.dateFrom).toLocaleDateString()} - ${new Date(filterData.dateTo).toLocaleDateString()}`
+            : new Date().toLocaleDateString(),
+          generatedAt: new Date().toISOString(),
+          status: 'generating',
+        }
+        setReports([newReport, ...reports])
+        
+        // Simulate generation
+        setTimeout(() => {
+          setReports((prev) =>
+            prev.map((r) => (r.id === newReport.id ? { ...r, status: 'ready' as const } : r))
+          )
+        }, 2000)
+        
+        alert('Report generation started! (Dev Mode)')
+        return
       }
+
+      // Real API call
+      const response = await fetch('/api/reports', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          report_type: type,
+          date_from: filterData.dateFrom || null,
+          date_to: filterData.dateTo || null,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to generate report')
+      }
+
+      // Add new report to list
+      const newReport: Report = {
+        id: data.report.id,
+        title: data.report.title,
+        type: data.report.report_type as Report['type'],
+        dateRange: data.report.date_from && data.report.date_to
+          ? `${new Date(data.report.date_from).toLocaleDateString()} - ${new Date(data.report.date_to).toLocaleDateString()}`
+          : new Date(data.report.created_at).toLocaleDateString(),
+        generatedAt: data.report.created_at,
+        status: data.report.status as Report['status'],
+      }
+
       setReports([newReport, ...reports])
       
-      // Simulate generation
-      setTimeout(() => {
-        setReports((prev) =>
-          prev.map((r) => (r.id === newReport.id ? { ...r, status: 'ready' as const } : r))
-        )
+      // Poll for status update (in production, use WebSocket or server-sent events)
+      const pollInterval = setInterval(async () => {
+        try {
+          const statusResponse = await fetch('/api/reports')
+          if (statusResponse.ok) {
+            const statusData = await statusResponse.json()
+            const updatedReport = statusData.reports.find((r: any) => r.id === newReport.id)
+            if (updatedReport && updatedReport.status !== 'generating') {
+              clearInterval(pollInterval)
+              setReports((prev) =>
+                prev.map((r) => (r.id === newReport.id ? {
+                  ...r,
+                  status: updatedReport.status as Report['status']
+                } : r))
+              )
+            }
+          }
+        } catch (error) {
+          console.error('Error polling report status:', error)
+        }
       }, 2000)
-      
-      alert('Report generation started! (Dev Mode)')
-      return
+
+      // Stop polling after 30 seconds
+      setTimeout(() => clearInterval(pollInterval), 30000)
+
+      alert('Report generation started!')
+    } catch (error: any) {
+      console.error('Error generating report:', error)
+      alert(`Error generating report: ${error.message}`)
     }
-    alert('Report generation started!')
   }
 
   const handleDownload = (reportId: string) => {
@@ -214,7 +297,7 @@ export default function ReportsPage() {
                 <select
                   value={filterData.reportType}
                   onChange={(e) => setFilterData({ ...filterData, reportType: e.target.value })}
-                  className="w-full px-4 py-3 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                  className="w-full px-4 py-3 bg-white border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                 >
                   <option value="all">All Types</option>
                   <option value="player">Player Reports</option>
@@ -230,7 +313,7 @@ export default function ReportsPage() {
                   type="date"
                   value={filterData.dateFrom}
                   onChange={(e) => setFilterData({ ...filterData, dateFrom: e.target.value })}
-                  className="w-full px-4 py-3 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                  className="w-full px-4 py-3 bg-white border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                 />
               </div>
               <div>
@@ -239,7 +322,7 @@ export default function ReportsPage() {
                   type="date"
                   value={filterData.dateTo}
                   onChange={(e) => setFilterData({ ...filterData, dateTo: e.target.value })}
-                  className="w-full px-4 py-3 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                  className="w-full px-4 py-3 bg-white border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                 />
               </div>
             </div>

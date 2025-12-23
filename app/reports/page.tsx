@@ -237,7 +237,7 @@ export default function ReportsPage() {
       
       // Get filename from Content-Disposition header or use default
       const contentDisposition = response.headers.get('Content-Disposition')
-      let filename = `report_${reportId.substring(0, 8)}.txt`
+      let filename = `report_${reportId.substring(0, 8)}.pdf`
       if (contentDisposition) {
         const filenameMatch = contentDisposition.match(/filename="(.+)"/)
         if (filenameMatch) {

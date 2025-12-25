@@ -476,4 +476,39 @@ export const db = {
     if (error) throw error
     return data
   },
+
+  // Player-specific Operations
+  async getPlayerTrainingSessionsAttended(playerId: string) {
+    const supabase = createClient()
+    const { data, error } = await supabase
+      .from('training_attendance')
+      .select('*')
+      .eq('player_id', playerId)
+      .eq('attendance_status', 'P')
+    
+    if (error) throw error
+    return data?.length || 0
+  },
+
+  async getPlayerGymStats(playerId: string) {
+    // Gym stats might not be in the database yet, return default structure
+    // This can be extended when gym data is added to the database
+    return {
+      totalWorkouts: 0,
+      lastWorkoutDate: null,
+      favoriteExercise: null,
+    }
+  },
+
+  async getInjuries(playerId: string) {
+    const supabase = createClient()
+    const { data, error } = await supabase
+      .from('injuries')
+      .select('*')
+      .eq('player_id', playerId)
+      .order('injury_date', { ascending: false })
+    
+    if (error) throw error
+    return data || []
+  },
 }

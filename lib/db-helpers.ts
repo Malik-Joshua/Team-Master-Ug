@@ -606,4 +606,19 @@ export const db = {
     if (error) throw error
     return data || []
   },
+
+  // Fixture Team Selection Operations
+  async getFixtureTeamSelection(matchId: string) {
+    const supabase = createClient()
+    
+    const { data, error } = await supabase
+      .from('fixture_team_selections')
+      .select('*')
+      .eq('match_id', matchId)
+      .order('is_starting', { ascending: false })
+      .order('jersey_number', { ascending: true, nullsLast: true })
+    
+    if (error) throw error
+    return data || []
+  },
 }

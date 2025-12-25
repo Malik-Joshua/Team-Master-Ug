@@ -12,7 +12,6 @@
     "@hookform/resolvers": "^3.3.4",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.39.3",
-    "@types/pdfkit": "^0.17.4",
     "chart.js": "^4.4.2",
     "clsx": "^2.1.0",
     "date-fns": "^3.3.1",

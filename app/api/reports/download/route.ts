@@ -22,15 +22,13 @@ export async function POST(request: NextRequest) {
 
     // Create PDF with options that work in serverless environments
     // Using Courier font which is most reliably built-in and doesn't require external files
+    // Setting font in constructor to prevent PDFKit from trying to load default Helvetica font
     const doc = new PDFDocument({
       size: 'A4',
       margins: { top: 50, bottom: 50, left: 50, right: 50 },
       autoFirstPage: true,
+      font: 'Courier', // Set font in constructor to prevent loading external font files
     })
-    
-    // Explicitly set default font immediately to prevent PDFKit from trying to load external fonts
-    // Courier is the most reliable built-in font that doesn't require font metric files
-    doc.font('Courier')
 
     const chunks: Buffer[] = []
     let pageNumber = 1

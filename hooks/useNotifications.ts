@@ -17,6 +17,8 @@ export function useNotifications() {
   const [unreadCount, setUnreadCount] = useState(0)
 
   useEffect(() => {
+    let channel: any = null
+
     const loadNotifications = async () => {
       try {
         const supabase = createClient()
@@ -41,6 +43,61 @@ export function useNotifications() {
           setNotifications(data || [])
           setUnreadCount((data || []).filter((n) => !n.read).length)
         }
+
+        // Set up real-time subscription for new notifications
+        channel = supabase
+          .channel('notifications')
+          .on(
+            'postgres_changes',
+            {
+              event: 'INSERT',
+              schema: 'public',
+              table: 'notifications',
+              filter: `user_id=eq.${user.id}`,
+            },
+            (payload) => {
+              const newNotification = payload.new as Notification
+              setNotifications((prev) => [newNotification, ...prev])
+              setUnreadCount((prev) => prev + 1)
+              
+              // Show browser notification if permission granted
+              if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification(newNotification.title, {
+                  body: newNotification.message,
+                  icon: '/favicon.ico',
+                })
+              }
+            }
+          )
+          .on(
+            'postgres_changes',
+            {
+              event: 'UPDATE',
+              schema: 'public',
+              table: 'notifications',
+              filter: `user_id=eq.${user.id}`,
+            },
+            (payload) => {
+              const updatedNotification = payload.new as Notification
+              setNotifications((prev) =>
+                prev.map((n) => (n.id === updatedNotification.id ? updatedNotification : n))
+              )
+              setUnreadCount((prev) => {
+                if (updatedNotification.read && !payload.old.read) {
+                  return Math.max(0, prev - 1)
+                } else if (!updatedNotification.read && payload.old.read) {
+                  return prev + 1
+                }
+                return prev
+              })
+            }
+          )
+          .subscribe()
+
+        // Request notification permission
+        if ('Notification' in window && Notification.permission === 'default') {
+          Notification.requestPermission()
+        }
       } catch (error) {
         console.error('Error loading notifications:', error)
       } finally {
@@ -50,68 +107,11 @@ export function useNotifications() {
 
     loadNotifications()
 
-    // Set up real-time subscription for new notifications
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-
-    if (!user) return
-
-    const channel = supabase
-      .channel('notifications')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${user.id}`,
-        },
-        (payload) => {
-          const newNotification = payload.new as Notification
-          setNotifications((prev) => [newNotification, ...prev])
-          setUnreadCount((prev) => prev + 1)
-          
-          // Show browser notification if permission granted
-          if ('Notification' in window && Notification.permission === 'granted') {
-            new Notification(newNotification.title, {
-              body: newNotification.message,
-              icon: '/favicon.ico',
-            })
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${user.id}`,
-        },
-        (payload) => {
-          const updatedNotification = payload.new as Notification
-          setNotifications((prev) =>
-            prev.map((n) => (n.id === updatedNotification.id ? updatedNotification : n))
-          )
-          setUnreadCount((prev) => {
-            if (updatedNotification.read && !payload.old.read) {
-              return Math.max(0, prev - 1)
-            } else if (!updatedNotification.read && payload.old.read) {
-              return prev + 1
-            }
-            return prev
-          })
-        }
-      )
-      .subscribe()
-
-    // Request notification permission
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission()
-    }
-
     return () => {
-      supabase.removeChannel(channel)
+      if (channel) {
+        const supabase = createClient()
+        supabase.removeChannel(channel)
+      }
     }
   }, [])
 
@@ -160,4 +160,3 @@ export function useNotifications() {
     markAllAsRead,
   }
 }
-

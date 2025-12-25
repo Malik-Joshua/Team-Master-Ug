@@ -9,10 +9,6 @@ interface Message {
   id: string
   sender_name: string
   sender_role: string
-  recipient_name?: string
-  recipient_role?: string
-  recipient_id?: string
-  sender_id?: string
   subject: string
   message: string
   read: boolean
@@ -34,10 +30,16 @@ export default function MessagesPage() {
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null)
   const [players, setPlayers] = useState<UserProfile[]>([])
   const [admins, setAdmins] = useState<UserProfile[]>([])
+  const [coaches, setCoaches] = useState<UserProfile[]>([])
+  const [physios, setPhysios] = useState<UserProfile[]>([])
+  const [teamManagers, setTeamManagers] = useState<UserProfile[]>([])
+  const [financeAdmins, setFinanceAdmins] = useState<UserProfile[]>([])
+  const [allUsers, setAllUsers] = useState<UserProfile[]>([])
   const [composeData, setComposeData] = useState({
     recipientType: 'role', // 'role' or 'individual'
     recipient: '',
     recipientId: '',
+    selectedRoles: [] as string[], // For multi-select when sending to roles
     subject: '',
     message: '',
   })
@@ -105,101 +107,72 @@ export default function MessagesPage() {
         if (profile) {
           setUser(profile)
           
-          // Fetch messages via API route to get proper sender/recipient info
-          const messagesResponse = await fetch('/api/messages')
-          if (messagesResponse.ok) {
-            const messagesData = await messagesResponse.json()
-            if (messagesData.messages) {
-              const supabase = createClient()
-              const { data: { user: authUser } } = await supabase.auth.getUser()
-              
-              const formattedMessages: Message[] = messagesData.messages.map((msg: any) => ({
-                id: msg.id,
-                sender_name: msg.sender?.name || 'Unknown',
-                sender_role: msg.sender?.role || 'unknown',
-                recipient_name: msg.recipient?.name || null,
-                recipient_role: msg.recipient?.role || null,
-                recipient_id: msg.recipient_id || null,
-                sender_id: msg.sender_id || null,
-                subject: msg.subject || '',
-                message: msg.message,
-                read: msg.read || false,
-                created_at: msg.created_at,
-              }))
-              setMessages(formattedMessages)
-            }
-          } else {
-            // Fallback to direct query if API fails
-            const { data: fetchedMessages } = await supabase
-              .from('messages')
-              .select('*')
-              .or(`sender_id.eq.${authUser.id},recipient_id.eq.${authUser.id},recipient_role.eq.${profile.role}`)
-              .order('created_at', { ascending: false })
+          // Fetch messages
+          const { data: fetchedMessages } = await supabase
+            .from('messages')
+            .select(`
+              *,
+              sender:user_profiles!messages_sender_id_fkey(name, role),
+              recipient:user_profiles!messages_recipient_id_fkey(name, role)
+            `)
+            .or(`sender_id.eq.${authUser.id},recipient_id.eq.${authUser.id},recipient_role.eq.${profile.role}`)
+            .order('created_at', { ascending: false })
 
-            if (fetchedMessages) {
-              const formattedMessages: Message[] = fetchedMessages.map((msg: any) => ({
-                id: msg.id,
-                sender_name: 'Unknown',
-                sender_role: 'unknown',
-                subject: msg.subject || '',
-                message: msg.message,
-                read: msg.read || false,
-                created_at: msg.created_at,
-              }))
-              setMessages(formattedMessages)
-            }
+          if (fetchedMessages) {
+            const formattedMessages: Message[] = fetchedMessages.map((msg: any) => ({
+              id: msg.id,
+              sender_name: msg.sender?.name || 'Unknown',
+              sender_role: msg.sender?.role || 'unknown',
+              subject: msg.subject || '',
+              message: msg.message,
+              read: msg.read || false,
+              created_at: msg.created_at,
+            }))
+            setMessages(formattedMessages)
           }
 
           // If user is a coach, fetch players and admins for messaging
           if (profile.role === 'coach') {
-            // Fetch all players via API route (bypasses RLS)
-            const playersResponse = await fetch('/api/players?role=player&status=active')
-            if (playersResponse.ok) {
-              const playersData = await playersResponse.json()
-              if (playersData.players) {
-                setPlayers(playersData.players.map((p: any) => ({
-                  user_id: p.user_id,
-                  name: p.name,
-                  role: p.role,
-                  email: p.email,
-                })) as UserProfile[])
-              }
-            } else {
-              // Fallback to direct query if API fails
-              const { data: playersData } = await supabase
-                .from('user_profiles')
-                .select('user_id, name, role, email')
-                .eq('role', 'player')
-                .order('name', { ascending: true })
+            // Fetch all players
+            const { data: playersData } = await supabase
+              .from('user_profiles')
+              .select('user_id, name, role, email')
+              .eq('role', 'player')
+              .order('name', { ascending: true })
 
-              if (playersData) {
-                setPlayers(playersData as UserProfile[])
-              }
+            if (playersData) {
+              setPlayers(playersData as UserProfile[])
             }
 
-            // Fetch all admins via API route (role=admin includes all admin types)
-            const adminsResponse = await fetch('/api/players?role=admin&status=active')
-            if (adminsResponse.ok) {
-              const adminsData = await adminsResponse.json()
-              if (adminsData.players) {
-                setAdmins(adminsData.players.map((p: any) => ({
-                  user_id: p.user_id,
-                  name: p.name,
-                  role: p.role,
-                  email: p.email,
-                })) as UserProfile[])
-              }
-            } else {
-              // Fallback to direct query if API fails
-              const { data: adminsData } = await supabase
-                .from('user_profiles')
-                .select('user_id, name, role, email')
-                .in('role', ['admin', 'data_admin', 'finance_admin'])
-                .order('name', { ascending: true })
+            // Fetch all admins
+            const { data: adminsData } = await supabase
+              .from('user_profiles')
+              .select('user_id, name, role, email')
+              .in('role', ['admin', 'data_admin', 'finance_admin'])
+              .order('name', { ascending: true })
 
-              if (adminsData) {
-                setAdmins(adminsData as UserProfile[])
-              }
+            if (adminsData) {
+              setAdmins(adminsData as UserProfile[])
+            }
+          }
+
+          // If user is an admin, fetch all users for messaging
+          if (profile.role === 'admin') {
+            // Fetch all users grouped by role
+            const { data: allUsersData } = await supabase
+              .from('user_profiles')
+              .select('user_id, name, role, email')
+              .neq('user_id', authUser.id) // Exclude self
+              .order('name', { ascending: true })
+
+            if (allUsersData) {
+              setAllUsers(allUsersData as UserProfile[])
+              setPlayers(allUsersData.filter((u: UserProfile) => u.role === 'player'))
+              setCoaches(allUsersData.filter((u: UserProfile) => u.role === 'coach'))
+              setPhysios(allUsersData.filter((u: UserProfile) => u.role === 'physio'))
+              setTeamManagers(allUsersData.filter((u: UserProfile) => u.role === 'data_admin'))
+              setFinanceAdmins(allUsersData.filter((u: UserProfile) => u.role === 'finance_admin'))
+              setAdmins(allUsersData.filter((u: UserProfile) => u.role === 'admin'))
             }
           }
         }
@@ -212,17 +185,101 @@ export default function MessagesPage() {
 
   const handleSendMessage = async () => {
     try {
+      const supabase = createClient()
+      const { data: { user: authUser } } = await supabase.auth.getUser()
+
+      if (!authUser) {
+        alert('Please log in to send messages')
+        return
+      }
+
       if (!composeData.subject || !composeData.message) {
         alert('Please fill in subject and message')
         return
       }
 
-      // Determine recipient
-      let recipientId: string | null = null
-      let recipientRole: string | null = null
+      // Handle admin messaging
+      if (user?.role === 'admin') {
+        if (composeData.recipientType === 'role') {
+          // Send to selected roles (can be multiple)
+          const rolesToSend = composeData.selectedRoles.length > 0 
+            ? composeData.selectedRoles 
+            : (composeData.recipient ? [composeData.recipient] : [])
 
-      if (user?.role === 'coach') {
+          if (rolesToSend.length === 0) {
+            alert('Please select at least one recipient role')
+            return
+          }
+
+          // Get all users with selected roles
+          const { data: recipients } = await supabase
+            .from('user_profiles')
+            .select('user_id')
+            .in('role', rolesToSend)
+            .neq('user_id', authUser.id) // Exclude self
+
+          if (recipients && recipients.length > 0) {
+            // Send message to each recipient
+            const messagePromises = recipients.map((recipient) =>
+              supabase
+                .from('messages')
+                .insert({
+                  sender_id: authUser.id,
+                  recipient_id: recipient.user_id,
+                  subject: composeData.subject,
+                  message: composeData.message,
+                })
+            )
+
+            await Promise.all(messagePromises)
+            const roleNames = rolesToSend.map(r => r === 'data_admin' ? 'team managers' : r.replace('_', ' ')).join(', ')
+            alert(`Message sent successfully to ${recipients.length} recipient(s) (${roleNames})!`)
+          } else {
+            alert('No recipients found for selected roles')
+            return
+          }
+        } else {
+          // Send to individual recipient
+          if (!composeData.recipientId) {
+            alert('Please select a recipient')
+            return
+          }
+
+          const { data: newMessage, error } = await supabase
+            .from('messages')
+            .insert({
+              sender_id: authUser.id,
+              recipient_id: composeData.recipientId,
+              subject: composeData.subject,
+              message: composeData.message,
+            })
+            .select(`
+              *,
+              sender:user_profiles!messages_sender_id_fkey(name, role)
+            `)
+            .single()
+
+          if (error) throw error
+
+          // Add to local state
+          const formattedMessage: Message = {
+            id: newMessage.id,
+            sender_name: newMessage.sender?.name || user.name,
+            sender_role: newMessage.sender?.role || user.role,
+            subject: newMessage.subject || '',
+            message: newMessage.message,
+            read: false,
+            created_at: newMessage.created_at,
+          }
+
+          setMessages([formattedMessage, ...messages])
+          alert('Message sent successfully!')
+        }
+      } else if (user?.role === 'coach') {
         // Coach can send to players or admins
+        let recipientId: string | null = null
+        let recipientRole: string | null = null
+
         if (composeData.recipientType === 'role') {
           // Send to all players or all admins
           if (composeData.recipient === 'all_players') {
@@ -234,8 +291,73 @@ export default function MessagesPage() {
           // Send to individual player or admin
           recipientId = composeData.recipientId
         }
+
+        // If sending to a role (all players or all admins), we need to send individual messages
+        if (recipientRole && (recipientRole === 'player' || recipientRole === 'admin')) {
+          // Get all users with that role
+          const roleToQuery = recipientRole === 'player' ? 'player' : recipientRole
+          const { data: recipients } = await supabase
+            .from('user_profiles')
+            .select('user_id')
+            .eq('role', roleToQuery)
+
+          if (recipients && recipients.length > 0) {
+            // Send message to each recipient
+            const messagePromises = recipients.map((recipient) =>
+              supabase
+                .from('messages')
+                .insert({
+                  sender_id: authUser.id,
+                  recipient_id: recipient.user_id,
+                  subject: composeData.subject,
+                  message: composeData.message,
+                })
+            )
+
+            await Promise.all(messagePromises)
+            alert(`Message sent successfully to ${recipients.length} ${recipientRole === 'player' ? 'players' : 'admins'}!`)
+          } else {
+            alert(`No ${recipientRole === 'player' ? 'players' : 'admins'} found`)
+            return
+          }
+        } else {
+          // Send to individual recipient
+          const { data: newMessage, error } = await supabase
+            .from('messages')
+            .insert({
+              sender_id: authUser.id,
+              recipient_id: recipientId,
+              recipient_role: recipientRole,
+              subject: composeData.subject,
+              message: composeData.message,
+            })
+            .select(`
+              *,
+              sender:user_profiles!messages_sender_id_fkey(name, role)
+            `)
+            .single()
+
+          if (error) throw error
+
+          // Add to local state
+          const formattedMessage: Message = {
+            id: newMessage.id,
+            sender_name: newMessage.sender?.name || user.name,
+            sender_role: newMessage.sender?.role || user.role,
+            subject: newMessage.subject || '',
+            message: newMessage.message,
+            read: false,
+            created_at: newMessage.created_at,
+          }
+
+          setMessages([formattedMessage, ...messages])
+          alert('Message sent successfully!')
+        }
       } else {
         // For other roles, use the old logic
+        let recipientId: string | null = null
+        let recipientRole: string | null = null
+
         if (composeData.recipient === 'admin') {
           recipientRole = 'admin'
         } else if (composeData.recipient === 'coach') {
@@ -243,59 +365,40 @@ export default function MessagesPage() {
         } else if (composeData.recipientId) {
           recipientId = composeData.recipientId
         }
-      }
 
-      if (!recipientId && !recipientRole) {
-        alert('Please select a recipient')
-        return
-      }
+        const { data: newMessage, error } = await supabase
+          .from('messages')
+          .insert({
+            sender_id: authUser.id,
+            recipient_id: recipientId,
+            recipient_role: recipientRole,
+            subject: composeData.subject,
+            message: composeData.message,
+          })
+          .select(`
+            *,
+            sender:user_profiles!messages_sender_id_fkey(name, role)
+          `)
+          .single()
 
-      // Send message via API route
-      const response = await fetch('/api/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          recipientId,
-          recipientRole,
-          subject: composeData.subject,
-          message: composeData.message,
-        }),
-      })
+        if (error) throw error
 
-      const data = await response.json()
+        // Add to local state
+        const formattedMessage: Message = {
+          id: newMessage.id,
+          sender_name: newMessage.sender?.name || user.name,
+          sender_role: newMessage.sender?.role || user.role,
+          subject: newMessage.subject || '',
+          message: newMessage.message,
+          read: false,
+          created_at: newMessage.created_at,
+        }
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to send message')
-      }
-
-      // Show success message
-      if (data.count) {
-        alert(`Message sent successfully to ${data.count} ${recipientRole}${data.count > 1 ? 's' : ''}!`)
-      } else {
+        setMessages([formattedMessage, ...messages])
         alert('Message sent successfully!')
       }
 
-      // Reload messages to show the new one
-      const messagesResponse = await fetch('/api/messages')
-      if (messagesResponse.ok) {
-        const messagesData = await messagesResponse.json()
-        if (messagesData.messages) {
-          const formattedMessages: Message[] = messagesData.messages.map((msg: any) => ({
-            id: msg.id,
-            sender_name: msg.sender?.name || 'Unknown',
-            sender_role: msg.sender?.role || 'unknown',
-            subject: msg.subject || '',
-            message: msg.message,
-            read: msg.read || false,
-            created_at: msg.created_at,
-          }))
-          setMessages(formattedMessages)
-        }
-      }
-
-      setComposeData({ recipientType: 'role', recipient: '', recipientId: '', subject: '', message: '' })
+      setComposeData({ recipientType: 'role', recipient: '', recipientId: '', selectedRoles: [], subject: '', message: '' })
       setShowCompose(false)
     } catch (error: any) {
       console.error('Error sending message:', error)
@@ -324,7 +427,9 @@ export default function MessagesPage() {
           <div className="mb-2">
             <h1 className="text-4xl font-extrabold text-club-gradient mb-2">Messages</h1>
             <p className="text-lg text-neutral-medium font-medium">
-              {user?.role === 'coach' 
+              {user?.role === 'admin'
+                ? 'Send messages to all team members and staff'
+                : user?.role === 'coach' 
                 ? 'Communicate with players and administrators' 
                 : 'Communicate with coaches and administrators'}
             </p>
@@ -343,7 +448,128 @@ export default function MessagesPage() {
           <div className="bg-white rounded-card shadow-soft border border-neutral-light p-6">
             <h2 className="text-xl font-semibold text-neutral-text mb-4">Compose Message</h2>
             <div className="space-y-4">
-              {user?.role === 'coach' ? (
+              {user?.role === 'admin' ? (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-medium mb-2">
+                      Send To
+                    </label>
+                    <select
+                      value={composeData.recipientType}
+                      onChange={(e) => setComposeData({ ...composeData, recipientType: e.target.value, recipient: '', recipientId: '', selectedRoles: [] })}
+                      className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                    >
+                      <option value="role">By Role (General/Broadcast)</option>
+                      <option value="individual">Individual User</option>
+                    </select>
+                  </div>
+                  {composeData.recipientType === 'role' ? (
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-medium mb-2">
+                        Select Recipient Role(s) - You can select multiple
+                      </label>
+                      <div className="space-y-2">
+                        {[
+                          { value: 'player', label: 'All Players' },
+                          { value: 'coach', label: 'All Coaches' },
+                          { value: 'physio', label: 'All Physiotherapists' },
+                          { value: 'data_admin', label: 'All Team Managers' },
+                          { value: 'finance_admin', label: 'All Finance Admins' },
+                        ].map((role) => (
+                          <label key={role.value} className="flex items-center space-x-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={composeData.selectedRoles.includes(role.value)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setComposeData({
+                                    ...composeData,
+                                    selectedRoles: [...composeData.selectedRoles, role.value],
+                                  })
+                                } else {
+                                  setComposeData({
+                                    ...composeData,
+                                    selectedRoles: composeData.selectedRoles.filter((r) => r !== role.value),
+                                  })
+                                }
+                              }}
+                              className="w-4 h-4 text-primary border-neutral-light rounded focus:ring-primary"
+                            />
+                            <span className="text-sm text-neutral-text">{role.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-medium mb-2">
+                        Select Individual Recipient
+                      </label>
+                      <select
+                        value={composeData.recipientId}
+                        onChange={(e) => setComposeData({ ...composeData, recipientId: e.target.value, recipient: '' })}
+                        className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                      >
+                        <option value="">Select recipient...</option>
+                        {players.length > 0 && (
+                          <optgroup label="Players">
+                            {players.map((player) => (
+                              <option key={player.user_id} value={player.user_id}>
+                                {player.name} (Player)
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                        {coaches.length > 0 && (
+                          <optgroup label="Coaches">
+                            {coaches.map((coach) => (
+                              <option key={coach.user_id} value={coach.user_id}>
+                                {coach.name} (Coach)
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                        {physios.length > 0 && (
+                          <optgroup label="Physiotherapists">
+                            {physios.map((physio) => (
+                              <option key={physio.user_id} value={physio.user_id}>
+                                {physio.name} (Physio)
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                        {teamManagers.length > 0 && (
+                          <optgroup label="Team Managers">
+                            {teamManagers.map((manager) => (
+                              <option key={manager.user_id} value={manager.user_id}>
+                                {manager.name} (Team Manager)
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                        {financeAdmins.length > 0 && (
+                          <optgroup label="Finance Admins">
+                            {financeAdmins.map((finance) => (
+                              <option key={finance.user_id} value={finance.user_id}>
+                                {finance.name} (Finance Admin)
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                        {admins.length > 0 && (
+                          <optgroup label="Administrators">
+                            {admins.map((admin) => (
+                              <option key={admin.user_id} value={admin.user_id}>
+                                {admin.name} (Admin)
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                      </select>
+                    </div>
+                  )}
+                </>
+              ) : user?.role === 'coach' ? (
                 <>
                   <div>
                     <label className="block text-sm font-medium text-neutral-medium mb-2">
@@ -448,7 +674,7 @@ export default function MessagesPage() {
                 <button
                   onClick={() => {
                     setShowCompose(false)
-                    setComposeData({ recipientType: 'role', recipient: '', recipientId: '', subject: '', message: '' })
+                    setComposeData({ recipientType: 'role', recipient: '', recipientId: '', selectedRoles: [], subject: '', message: '' })
                   }}
                   className="px-6 py-3 bg-neutral-light text-neutral-text rounded-button hover:bg-neutral-medium transition-all duration-300 font-semibold"
                 >
@@ -492,30 +718,12 @@ export default function MessagesPage() {
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2 flex-wrap">
-                        {message.sender_id === user?.user_id ? (
-                          // Sent message - show recipient
-                          <>
-                            <span className="text-xs text-neutral-medium">To:</span>
-                            <h3 className="font-bold text-neutral-text">
-                              {message.recipient_name || 'Unknown Recipient'}
-                            </h3>
-                            {message.recipient_role && (
-                              <span className="text-xs font-medium text-neutral-medium bg-neutral-light px-2 py-0.5 rounded-full capitalize">
-                                {message.recipient_role.replace('_', ' ')}
-                              </span>
-                            )}
-                          </>
-                        ) : (
-                          // Received message - show sender
-                          <>
-                            <h3 className="font-bold text-neutral-text">{message.sender_name}</h3>
-                            <span className="text-xs font-medium text-neutral-medium bg-neutral-light px-2 py-0.5 rounded-full capitalize">
-                              {message.sender_role.replace('_', ' ')}
-                            </span>
-                          </>
-                        )}
-                        {!message.read && message.sender_id !== user?.user_id && (
+                      <div className="flex items-center gap-2 mb-2">
+                        <h3 className="font-bold text-neutral-text">{message.sender_name}</h3>
+                        <span className="text-xs font-medium text-neutral-medium bg-neutral-light px-2 py-0.5 rounded-full capitalize">
+                          {message.sender_role.replace('_', ' ')}
+                        </span>
+                        {!message.read && (
                           <span className="bg-club-gradient text-white text-xs px-2.5 py-1 rounded-full font-semibold shadow-soft">
                             New
                           </span>
@@ -545,35 +753,15 @@ export default function MessagesPage() {
                 <div className="flex justify-between items-start">
                   <div>
                     <h2 className="text-2xl font-bold text-neutral-text mb-2">{selectedMessage.subject}</h2>
-                    <div className="flex items-center gap-4 text-sm text-neutral-medium flex-wrap">
-                      {selectedMessage.sender_id === user?.user_id ? (
-                        // Sent message - show recipient
-                        <>
-                          <div className="flex items-center">
-                            <Mail className="w-4 h-4 mr-1" />
-                            <span className="font-medium">To:</span>
-                            <span className="ml-1">{selectedMessage.recipient_name || 'Unknown Recipient'}</span>
-                            {selectedMessage.recipient_role && (
-                              <span className="ml-2 text-xs bg-neutral-light px-2 py-0.5 rounded-full capitalize">
-                                {selectedMessage.recipient_role.replace('_', ' ')}
-                              </span>
-                            )}
-                          </div>
-                        </>
-                      ) : (
-                        // Received message - show sender
-                        <>
-                          <div className="flex items-center">
-                            <User className="w-4 h-4 mr-1" />
-                            <span className="font-medium">From:</span>
-                            <span className="ml-1">{selectedMessage.sender_name}</span>
-                          </div>
-                          <div className="flex items-center">
-                            <Mail className="w-4 h-4 mr-1" />
-                            {selectedMessage.sender_role.replace('_', ' ')}
-                          </div>
-                        </>
-                      )}
+                    <div className="flex items-center gap-4 text-sm text-neutral-medium">
+                      <div className="flex items-center">
+                        <User className="w-4 h-4 mr-1" />
+                        {selectedMessage.sender_name}
+                      </div>
+                      <div className="flex items-center">
+                        <Mail className="w-4 h-4 mr-1" />
+                        {selectedMessage.sender_role.replace('_', ' ')}
+                      </div>
                       <div className="flex items-center">
                         <Clock className="w-4 h-4 mr-1" />
                         {new Date(selectedMessage.created_at).toLocaleString()}

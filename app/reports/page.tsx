@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react'
 import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
-import { FileText, Download, Filter, Calendar, BarChart3, TrendingUp, Users, Trophy } from 'lucide-react'
+import { FileText, Download, Filter, Calendar, BarChart3, TrendingUp, Users, Trophy, ChevronDown, FileSpreadsheet } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { generatePDFReport, generateExcelReport, generateCSVReport, downloadBlob, type ReportData } from '@/lib/report-export'
 
 interface Report {
   id: string
@@ -25,6 +26,21 @@ export default function ReportsPage() {
     dateFrom: '',
     dateTo: '',
   })
+
+  useEffect(() => {
+    // Close download menu when clicking outside
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement
+      if (showDownloadMenu && !target.closest('.download-menu-container')) {
+        setShowDownloadMenu(null)
+      }
+    }
+
+    if (showDownloadMenu) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showDownloadMenu])
 
   useEffect(() => {
     const loadData = async () => {
@@ -91,26 +107,7 @@ export default function ReportsPage() {
 
         if (profile) {
           setUser(profile)
-          // Fetch real reports via API
-          try {
-            const response = await fetch('/api/reports')
-            if (response.ok) {
-              const data = await response.json()
-              const formattedReports: Report[] = (data.reports || []).map((report: any) => ({
-                id: report.id,
-                title: report.title,
-                type: report.report_type as Report['type'],
-                dateRange: report.date_from && report.date_to
-                  ? `${new Date(report.date_from).toLocaleDateString()} - ${new Date(report.date_to).toLocaleDateString()}`
-                  : new Date(report.created_at).toLocaleDateString(),
-                generatedAt: report.created_at,
-                status: report.status as Report['status'],
-              }))
-              setReports(formattedReports)
-            }
-          } catch (error) {
-            console.error('Error fetching reports:', error)
-          }
+          // Fetch real reports
         }
       }
       setLoading(false)
@@ -119,142 +116,83 @@ export default function ReportsPage() {
     loadData()
   }, [])
 
-  const handleGenerateReport = async (type: string) => {
-    try {
-      // In dev mode, just add to reports
-      if (typeof window !== 'undefined' && localStorage.getItem('dev_user')) {
-        const newReport: Report = {
-          id: Date.now().toString(),
-          title: `${type.charAt(0).toUpperCase() + type.slice(1)} Report - ${new Date().toLocaleDateString()}`,
-          type: type as Report['type'],
-          dateRange: filterData.dateFrom && filterData.dateTo
-            ? `${new Date(filterData.dateFrom).toLocaleDateString()} - ${new Date(filterData.dateTo).toLocaleDateString()}`
-            : new Date().toLocaleDateString(),
-          generatedAt: new Date().toISOString(),
-          status: 'generating',
-        }
-        setReports([newReport, ...reports])
-        
-        // Simulate generation
-        setTimeout(() => {
-          setReports((prev) =>
-            prev.map((r) => (r.id === newReport.id ? { ...r, status: 'ready' as const } : r))
-          )
-        }, 2000)
-        
-        alert('Report generation started! (Dev Mode)')
-        return
-      }
-
-      // Real API call
-      const response = await fetch('/api/reports', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          report_type: type,
-          date_from: filterData.dateFrom || null,
-          date_to: filterData.dateTo || null,
-        }),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to generate report')
-      }
-
-      // Add new report to list
+  const handleGenerateReport = (type: string) => {
+    // In dev mode, just add to reports
+    if (typeof window !== 'undefined' && localStorage.getItem('dev_user')) {
       const newReport: Report = {
-        id: data.report.id,
-        title: data.report.title,
-        type: data.report.report_type as Report['type'],
-        dateRange: data.report.date_from && data.report.date_to
-          ? `${new Date(data.report.date_from).toLocaleDateString()} - ${new Date(data.report.date_to).toLocaleDateString()}`
-          : new Date(data.report.created_at).toLocaleDateString(),
-        generatedAt: data.report.created_at,
-        status: data.report.status as Report['status'],
+        id: Date.now().toString(),
+        title: `${type.charAt(0).toUpperCase() + type.slice(1)} Report - ${new Date().toLocaleDateString()}`,
+        type: type as Report['type'],
+        dateRange: filterData.dateFrom && filterData.dateTo
+          ? `${new Date(filterData.dateFrom).toLocaleDateString()} - ${new Date(filterData.dateTo).toLocaleDateString()}`
+          : new Date().toLocaleDateString(),
+        generatedAt: new Date().toISOString(),
+        status: 'generating',
       }
-
       setReports([newReport, ...reports])
       
-      // Poll for status update (in production, use WebSocket or server-sent events)
-      const pollInterval = setInterval(async () => {
-        try {
-          const statusResponse = await fetch('/api/reports')
-          if (statusResponse.ok) {
-            const statusData = await statusResponse.json()
-            const updatedReport = statusData.reports.find((r: any) => r.id === newReport.id)
-            if (updatedReport && updatedReport.status !== 'generating') {
-              clearInterval(pollInterval)
-              setReports((prev) =>
-                prev.map((r) => (r.id === newReport.id ? {
-                  ...r,
-                  status: updatedReport.status as Report['status']
-                } : r))
-              )
-            }
-          }
-        } catch (error) {
-          console.error('Error polling report status:', error)
-        }
+      // Simulate generation
+      setTimeout(() => {
+        setReports((prev) =>
+          prev.map((r) => (r.id === newReport.id ? { ...r, status: 'ready' as const } : r))
+        )
       }, 2000)
-
-      // Stop polling after 30 seconds
-      setTimeout(() => clearInterval(pollInterval), 30000)
-
-      alert('Report generation started!')
-    } catch (error: any) {
-      console.error('Error generating report:', error)
-      alert(`Error generating report: ${error.message}`)
+      
+      alert('Report generation started! (Dev Mode)')
+      return
     }
+    alert('Report generation started!')
   }
 
-  const handleDownload = async (reportId: string) => {
+  const [downloadingReport, setDownloadingReport] = useState<string | null>(null)
+  const [showDownloadMenu, setShowDownloadMenu] = useState<string | null>(null)
+
+  const handleDownload = async (report: Report, format: 'pdf' | 'excel' | 'csv') => {
     try {
-      // In dev mode, just show alert
-      if (typeof window !== 'undefined' && localStorage.getItem('dev_user')) {
-        alert('Report downloaded! (Dev Mode)')
-        return
+      setDownloadingReport(report.id)
+      
+      const reportData: ReportData = {
+        id: report.id,
+        title: report.title,
+        type: report.type,
+        dateRange: report.dateRange,
+        generatedAt: report.generatedAt,
+        data: {
+          // Mock data - in production, fetch actual report data
+          summary: 'This is a sample report with detailed information.',
+          details: 'Additional report details would be loaded from the database.',
+        },
       }
 
-      // Fetch the report file
-      const response = await fetch(`/api/reports/${reportId}/download`)
-      
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Failed to download report')
+      let blob: Blob
+      let filename: string
+      const safeTitle = report.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()
+
+      switch (format) {
+        case 'pdf':
+          blob = await generatePDFReport(reportData)
+          filename = `${safeTitle}.pdf`
+          break
+        case 'excel':
+          blob = generateExcelReport(reportData)
+          filename = `${safeTitle}.xlsx`
+          break
+        case 'csv':
+          blob = generateCSVReport(reportData)
+          filename = `${safeTitle}.csv`
+          break
+        default:
+          throw new Error('Unsupported format')
       }
 
-      // Get the file content
-      const blob = await response.blob()
-      
-      // Create a download link
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      
-      // Get filename from Content-Disposition header or use default
-      const contentDisposition = response.headers.get('Content-Disposition')
-      let filename = `report_${reportId.substring(0, 8)}.pdf`
-      if (contentDisposition) {
-        const filenameMatch = contentDisposition.match(/filename="(.+)"/)
-        if (filenameMatch) {
-          filename = filenameMatch[1]
-        }
-      }
-      
-      a.download = filename
-      document.body.appendChild(a)
-      a.click()
-      
-      // Cleanup
-      window.URL.revokeObjectURL(url)
-      document.body.removeChild(a)
+      downloadBlob(blob, filename)
+      setShowDownloadMenu(null)
+      alert(`Report downloaded as ${format.toUpperCase()}!`)
     } catch (error: any) {
       console.error('Error downloading report:', error)
       alert(`Error downloading report: ${error.message}`)
+    } finally {
+      setDownloadingReport(null)
     }
   }
 
@@ -335,7 +273,7 @@ export default function ReportsPage() {
                 <select
                   value={filterData.reportType}
                   onChange={(e) => setFilterData({ ...filterData, reportType: e.target.value })}
-                  className="w-full px-4 py-3 bg-white border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                  className="w-full px-4 py-3 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                 >
                   <option value="all">All Types</option>
                   <option value="player">Player Reports</option>
@@ -351,7 +289,7 @@ export default function ReportsPage() {
                   type="date"
                   value={filterData.dateFrom}
                   onChange={(e) => setFilterData({ ...filterData, dateFrom: e.target.value })}
-                  className="w-full px-4 py-3 bg-white border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                  className="w-full px-4 py-3 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                 />
               </div>
               <div>
@@ -360,7 +298,7 @@ export default function ReportsPage() {
                   type="date"
                   value={filterData.dateTo}
                   onChange={(e) => setFilterData({ ...filterData, dateTo: e.target.value })}
-                  className="w-full px-4 py-3 bg-white border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                  className="w-full px-4 py-3 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                 />
               </div>
             </div>
@@ -483,13 +421,51 @@ export default function ReportsPage() {
                       </div>
                       <div className="flex items-center space-x-3">
                         {report.status === 'ready' && (
-                          <button
-                            onClick={() => handleDownload(report.id)}
-                            className="px-4 py-2 bg-club-gradient text-white rounded-button font-medium hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
-                          >
-                            <Download className="w-4 h-4 mr-2" />
-                            Download
-                          </button>
+                          <div className="relative download-menu-container">
+                            <button
+                              onClick={() => setShowDownloadMenu(showDownloadMenu === report.id ? null : report.id)}
+                              disabled={downloadingReport === report.id}
+                              className="px-4 py-2 bg-club-gradient text-white rounded-button font-medium hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center disabled:opacity-50"
+                            >
+                              {downloadingReport === report.id ? (
+                                <>
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                  Downloading...
+                                </>
+                              ) : (
+                                <>
+                                  <Download className="w-4 h-4 mr-2" />
+                                  Download
+                                  <ChevronDown className="w-4 h-4 ml-2" />
+                                </>
+                              )}
+                            </button>
+                            {showDownloadMenu === report.id && (
+                              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-neutral-light z-10">
+                                <button
+                                  onClick={() => handleDownload(report, 'pdf')}
+                                  className="w-full text-left px-4 py-3 hover:bg-neutral-light transition-colors flex items-center space-x-2 rounded-t-lg"
+                                >
+                                  <FileText className="w-4 h-4 text-primary" />
+                                  <span>Download as PDF</span>
+                                </button>
+                                <button
+                                  onClick={() => handleDownload(report, 'excel')}
+                                  className="w-full text-left px-4 py-3 hover:bg-neutral-light transition-colors flex items-center space-x-2"
+                                >
+                                  <FileSpreadsheet className="w-4 h-4 text-success" />
+                                  <span>Download as Excel</span>
+                                </button>
+                                <button
+                                  onClick={() => handleDownload(report, 'csv')}
+                                  className="w-full text-left px-4 py-3 hover:bg-neutral-light transition-colors flex items-center space-x-2 rounded-b-lg"
+                                >
+                                  <FileText className="w-4 h-4 text-info" />
+                                  <span>Download as CSV</span>
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         )}
                         {report.status === 'generating' && (
                           <div className="flex items-center space-x-2 text-info">

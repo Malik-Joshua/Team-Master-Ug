@@ -109,7 +109,27 @@ export default function ReportsPage() {
 
         if (profile) {
           setUser(profile)
-          // Fetch real reports
+          
+          // Fetch real reports from database
+          const { data: reportsData, error: reportsError } = await supabase
+            .from('reports')
+            .select('*')
+            .eq('generated_by', authUser.id)
+            .order('created_at', { ascending: false })
+
+          if (reportsData && !reportsError) {
+            const formattedReports: Report[] = reportsData.map((r: any) => ({
+              id: r.id,
+              title: r.title,
+              type: r.report_type as Report['type'],
+              dateRange: r.date_from && r.date_to
+                ? `${new Date(r.date_from).toLocaleDateString()} - ${new Date(r.date_to).toLocaleDateString()}`
+                : new Date(r.created_at).toLocaleDateString(),
+              generatedAt: r.created_at,
+              status: r.status as Report['status'],
+            }))
+            setReports(formattedReports)
+          }
         }
       }
       setLoading(false)
@@ -118,38 +138,88 @@ export default function ReportsPage() {
     loadData()
   }, [])
 
-  const handleGenerateReport = (type: string) => {
-    // In dev mode, just add to reports
-    if (typeof window !== 'undefined' && localStorage.getItem('dev_user')) {
-      const newReport: Report = {
-        id: Date.now().toString(),
-        title: `${type.charAt(0).toUpperCase() + type.slice(1)} Report - ${new Date().toLocaleDateString()}`,
-        type: type as Report['type'],
-        dateRange: filterData.dateFrom && filterData.dateTo
-          ? `${new Date(filterData.dateFrom).toLocaleDateString()} - ${new Date(filterData.dateTo).toLocaleDateString()}`
+  const handleGenerateReport = async (type: string) => {
+    try {
+      const supabase = createClient()
+      const { data: { user: authUser } } = await supabase.auth.getUser()
+
+      if (!authUser) {
+        alert('Please log in to generate reports')
+        return
+      }
+
+      // Determine date range
+      const dateFrom = filterData.dateFrom ? new Date(filterData.dateFrom).toISOString().split('T')[0] : null
+      const dateTo = filterData.dateTo ? new Date(filterData.dateTo).toISOString().split('T')[0] : null
+
+      // Create report title
+      const reportTitle = `${type.charAt(0).toUpperCase() + type.slice(1)} Report - ${dateFrom && dateTo
+        ? `${new Date(dateFrom).toLocaleDateString()} to ${new Date(dateTo).toLocaleDateString()}`
+        : new Date().toLocaleDateString()}`
+
+      // Create report in database
+      const { data: newReport, error } = await supabase
+        .from('reports')
+        .insert({
+          title: reportTitle,
+          report_type: type,
+          date_from: dateFrom,
+          date_to: dateTo,
+          generated_by: authUser.id,
+          status: 'generating',
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+
+      // Add to local state
+      const formattedReport: Report = {
+        id: newReport.id,
+        title: newReport.title,
+        type: newReport.report_type as Report['type'],
+        dateRange: dateFrom && dateTo
+          ? `${new Date(dateFrom).toLocaleDateString()} - ${new Date(dateTo).toLocaleDateString()}`
           : new Date().toLocaleDateString(),
-        generatedAt: new Date().toISOString(),
+        generatedAt: newReport.created_at,
         status: 'generating',
       }
-      setReports([newReport, ...reports])
-      
-      // Simulate generation
-      setTimeout(() => {
-        setReports((prev) =>
-          prev.map((r) => (r.id === newReport.id ? { ...r, status: 'ready' as const } : r))
-        )
+
+      setReports([formattedReport, ...reports])
+
+      // Simulate report generation (in production, this would be a background job)
+      setTimeout(async () => {
+        const { error: updateError } = await supabase
+          .from('reports')
+          .update({ status: 'ready' })
+          .eq('id', newReport.id)
+
+        if (!updateError) {
+          setReports((prev) =>
+            prev.map((r) => (r.id === newReport.id ? { ...r, status: 'ready' as const } : r))
+          )
+        }
       }, 2000)
-      
-      alert('Report generation started! (Dev Mode)')
-      return
+
+      alert('Report generation started! It will be ready shortly.')
+    } catch (error: any) {
+      console.error('Error generating report:', error)
+      alert(`Error generating report: ${error.message}`)
     }
-    alert('Report generation started!')
   }
 
   const handleDownload = async (report: Report, format: 'pdf' | 'excel' | 'csv') => {
     try {
       setDownloadingReport(report.id)
       
+      // Fetch actual report data from database if needed
+      const supabase = createClient()
+      const { data: reportDetails } = await supabase
+        .from('reports')
+        .select('*')
+        .eq('id', report.id)
+        .single()
+
       const reportData: ReportData = {
         id: report.id,
         title: report.title,
@@ -157,9 +227,14 @@ export default function ReportsPage() {
         dateRange: report.dateRange,
         generatedAt: report.generatedAt,
         data: {
-          // Mock data - in production, fetch actual report data
-          summary: 'This is a sample report with detailed information.',
-          details: 'Additional report details would be loaded from the database.',
+          // Report metadata
+          reportId: report.id,
+          reportType: report.type,
+          dateFrom: reportDetails?.date_from || null,
+          dateTo: reportDetails?.date_to || null,
+          generatedBy: reportDetails?.generated_by || null,
+          summary: `This ${report.type} report contains detailed information for the selected period.`,
+          details: 'Additional report details would be loaded from the database based on report type.',
         },
       }
 

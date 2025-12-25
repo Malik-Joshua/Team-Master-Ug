@@ -22,7 +22,9 @@ export async function generatePDFReport(report: ReportData): Promise<Blob> {
   })
 
   if (!response.ok) {
-    throw new Error('Failed to generate PDF')
+    const errorData = await response.json().catch(() => ({}))
+    const errorMessage = errorData?.message || errorData?.error || 'Failed to generate PDF'
+    throw new Error(errorMessage)
   }
 
   return await response.blob()

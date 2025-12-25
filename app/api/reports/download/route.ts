@@ -6,6 +6,20 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { report } = body
 
+    if (!report) {
+      return NextResponse.json(
+        { error: 'Report data is required', message: 'No report data provided' },
+        { status: 400 }
+      )
+    }
+
+    if (!report.title || !report.type || !report.generatedAt) {
+      return NextResponse.json(
+        { error: 'Invalid report data', message: 'Missing required fields' },
+        { status: 400 }
+      )
+    }
+
     // Create PDF
     const doc = new PDFDocument({
       size: 'A4',
@@ -116,24 +130,52 @@ export async function POST(request: NextRequest) {
 
     // Generate PDF buffer
     return new Promise<NextResponse>((resolve, reject) => {
+      let hasResolved = false
+      
       doc.on('end', () => {
-        const pdfBuffer = Buffer.concat(chunks)
-        resolve(
-          new NextResponse(pdfBuffer, {
-            headers: {
-              'Content-Type': 'application/pdf',
-              'Content-Disposition': `attachment; filename="${report.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf"`,
-            },
-          })
-        )
+        if (hasResolved) return
+        hasResolved = true
+        
+        try {
+          const pdfBuffer = Buffer.concat(chunks)
+          resolve(
+            new NextResponse(pdfBuffer, {
+              headers: {
+                'Content-Type': 'application/pdf',
+                'Content-Disposition': `attachment; filename="${report.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf"`,
+              },
+            })
+          )
+        } catch (err: any) {
+          reject(new Error(`Failed to create PDF buffer: ${err.message}`))
+        }
       })
-      doc.on('error', reject)
-      doc.end()
+      
+      doc.on('error', (err: Error) => {
+        if (hasResolved) return
+        hasResolved = true
+        reject(new Error(`PDF generation error: ${err.message}`))
+      })
+      
+      try {
+        doc.end()
+      } catch (err: any) {
+        if (hasResolved) return
+        hasResolved = true
+        reject(new Error(`Failed to finalize PDF: ${err.message}`))
+      }
     })
   } catch (error: any) {
     console.error('Error generating PDF:', error)
+    const errorMessage = error?.message || 'Unknown error occurred'
+    const errorStack = error?.stack || ''
+    
     return NextResponse.json(
-      { error: 'Failed to generate PDF', message: error.message },
+      { 
+        error: 'Failed to generate PDF', 
+        message: errorMessage,
+        details: process.env.NODE_ENV === 'development' ? errorStack : undefined
+      },
       { status: 500 }
     )
   }

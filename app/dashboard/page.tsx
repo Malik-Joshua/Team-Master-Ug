@@ -215,34 +215,6 @@ export default function DashboardPage() {
                   trainingSessionsAttended: sessionCount,
                 }))
                 setTrainingSessionsData(sessions)
-
-                // Load player counts via API route (bypasses RLS)
-                // Get all players first (for total count)
-                const allPlayersResponse = await fetch('/api/players?role=player')
-                if (allPlayersResponse.ok) {
-                  const allPlayersData = await allPlayersResponse.json()
-                  const totalPlayersCount = allPlayersData.count || 0
-                  
-                  // Get active players only
-                  const activePlayersResponse = await fetch('/api/players?role=player&status=active')
-                  if (activePlayersResponse.ok) {
-                    const activePlayersData = await activePlayersResponse.json()
-                    const activePlayersCount = activePlayersData.count || 0
-                    
-                    setStats(prev => ({
-                      ...prev,
-                      totalPlayers: totalPlayersCount,
-                      activePlayers: activePlayersCount,
-                    }))
-                  } else {
-                    // Fallback: use total players count for both
-                    setStats(prev => ({
-                      ...prev,
-                      totalPlayers: totalPlayersCount,
-                      activePlayers: totalPlayersCount,
-                    }))
-                  }
-                }
               } catch (error) {
                 console.error('Error loading coach training sessions:', error)
               }
@@ -267,36 +239,18 @@ export default function DashboardPage() {
                 setLoadingPlayerFixture(true)
                 try {
                   const response = await fetch(`/api/fixtures/team-selection?playerId=${authUser.id}`)
-                  const data = await response.json()
-                  
-                  console.log('Player fixture selection API response:', {
-                    ok: response.ok,
-                    status: response.status,
-                    data: data
-                  })
-                  
-                  if (response.ok && data.success) {
-                    if (data.isSelected && data.selection && data.match) {
-                      console.log('Setting player fixture selection:', {
-                        isSelected: data.isSelected,
-                        hasSelection: !!data.selection,
-                        hasMatch: !!data.match
-                      })
+                  if (response.ok) {
+                    const data = await response.json()
+                    if (data.isSelected) {
                       setPlayerFixtureSelection({
                         isSelected: true,
                         selection: data.selection,
                         match: data.match,
                       })
                     } else {
-                      console.log('Player not selected or missing data:', {
-                        isSelected: data.isSelected,
-                        hasSelection: !!data.selection,
-                        hasMatch: !!data.match
-                      })
                       setPlayerFixtureSelection(null)
                     }
                   } else {
-                    console.error('API error:', data.error || 'Unknown error')
                     setPlayerFixtureSelection(null)
                   }
                 } catch (error) {

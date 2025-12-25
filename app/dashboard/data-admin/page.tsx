@@ -3,9 +3,9 @@
 import { useEffect, useState } from 'react'
 import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
-import { Users, Activity, BarChart3, Calendar, Trophy, Plus, X, Save, AlertCircle } from 'lucide-react'
+import { Users, Activity, BarChart3, Calendar, Trophy, Plus, X, Save } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import Link from 'next/link'
+import { notifications } from '@/lib/notifications'
 
 interface Player {
   user_id: string
@@ -38,8 +38,6 @@ export default function DataAdminDashboard() {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [players, setPlayers] = useState<Player[]>([])
-  const [teamSelection, setTeamSelection] = useState<any>(null)
-  const [loadingTeamSelection, setLoadingTeamSelection] = useState(false)
   const [showMatchForm, setShowMatchForm] = useState(false)
   const [matchForm, setMatchForm] = useState<MatchForm>({
     match_date: '',
@@ -53,8 +51,6 @@ export default function DataAdminDashboard() {
   })
   const [playerStats, setPlayerStats] = useState<Record<string, PlayerStats>>({})
   const [saving, setSaving] = useState(false)
-  const [activeInjuries, setActiveInjuries] = useState<any[]>([])
-  const [loadingInjuries, setLoadingInjuries] = useState(false)
 
   useEffect(() => {
     const loadData = async () => {
@@ -71,31 +67,6 @@ export default function DataAdminDashboard() {
               { user_id: '1', name: 'John Doe', position: 'Fly Half' },
               { user_id: '2', name: 'Jane Smith', position: 'Prop' },
               { user_id: '3', name: 'Mike Johnson', position: 'Wing' },
-            ])
-            // Mock active injuries for dev mode
-            setActiveInjuries([
-              {
-                id: '1',
-                player_id: 'player1',
-                player: { name: 'John Doe' },
-                injury_date: '2024-12-01',
-                cause: 'Training collision',
-                diagnosis: 'Sprained ankle',
-                return_to_play_date: '2024-12-20',
-                return_to_training_date: '2024-12-15',
-                status: 'active',
-              },
-              {
-                id: '2',
-                player_id: 'player2',
-                player: { name: 'Mike Johnson' },
-                injury_date: '2024-12-05',
-                cause: 'Match injury',
-                diagnosis: 'Shoulder strain',
-                return_to_play_date: '2024-12-25',
-                return_to_training_date: '2024-12-18',
-                status: 'active',
-              },
             ])
             setLoading(false)
             return
@@ -118,62 +89,16 @@ export default function DataAdminDashboard() {
         if (profile) {
           setUser(profile)
 
-          // Load active injuries
-          try {
-            setLoadingInjuries(true)
-            const { db } = await import('@/lib/db-helpers')
-            const injuries = await db.getActiveInjuries()
-            setActiveInjuries(injuries || [])
-          } catch (error) {
-            console.error('Error loading active injuries:', error)
-            setActiveInjuries([])
-          } finally {
-            setLoadingInjuries(false)
-          }
+          // Fetch players
+          const { data: playersData } = await supabase
+            .from('user_profiles')
+            .select('user_id, name')
+            .eq('role', 'player')
+            .order('name', { ascending: true })
 
-          // Fetch players via API route (bypasses RLS)
-          const playersResponse = await fetch('/api/players?role=player&status=active')
-          if (playersResponse.ok) {
-            const playersData = await playersResponse.json()
-            if (playersData.players) {
-              setPlayers(playersData.players.map((p: any) => ({
-                user_id: p.user_id,
-                name: p.name,
-              })) as Player[])
-            }
-          } else {
-            // Fallback to direct query if API fails
-            const { data: playersData } = await supabase
-              .from('user_profiles')
-              .select('user_id, name')
-              .eq('role', 'player')
-              .order('name', { ascending: true })
-
-            if (playersData) {
-              setPlayers(playersData as Player[])
-            }
+          if (playersData) {
+            setPlayers(playersData as Player[])
           }
-        }
-
-        // Load team selection for upcoming fixture
-        try {
-          setLoadingTeamSelection(true)
-          const matchesResponse = await fetch('/api/fixtures')
-          if (matchesResponse.ok) {
-            const matchesData = await matchesResponse.json()
-            if (matchesData.fixtures && matchesData.fixtures.length > 0) {
-              const latestMatch = matchesData.fixtures[0]
-              const selectionResponse = await fetch(`/api/fixtures/team-selection?matchId=${latestMatch.id}`)
-              if (selectionResponse.ok) {
-                const selectionData = await selectionResponse.json()
-                setTeamSelection(selectionData)
-              }
-            }
-          }
-        } catch (error) {
-          console.error('Error loading team selection:', error)
-        } finally {
-          setLoadingTeamSelection(false)
         }
       }
       setLoading(false)
@@ -247,6 +172,23 @@ export default function DataAdminDashboard() {
           .insert(statsToInsert)
 
         if (statsError) throw statsError
+
+        // Create notifications for players whose stats were updated
+        try {
+          const uniquePlayerIds = [...new Set(statsToInsert.map((s) => s.player_id))]
+          for (const playerId of uniquePlayerIds) {
+            await notifications.matchStatsUpdated(playerId, matchForm.match_date)
+          }
+        } catch (notifError) {
+          console.error('Error creating notifications:', notifError)
+        }
+      }
+
+      // Create notification for match creation
+      try {
+        await notifications.matchCreated(match.id, matchForm.opponent, matchForm.match_date)
+      } catch (notifError) {
+        console.error('Error creating match notification:', notifError)
       }
 
       alert('Match stats saved successfully!')
@@ -319,146 +261,6 @@ export default function DataAdminDashboard() {
           <StatCard title="Matches Logged" value={0} icon={Trophy} iconColor="bg-warning" />
           <StatCard title="Training Sessions" value={0} icon={Calendar} iconColor="bg-info" />
         </div>
-
-        {/* Upcoming Fixture Team Selection */}
-        {teamSelection && teamSelection.match && (
-          <div className="bg-white rounded-card border border-neutral-light shadow-soft">
-            <div className="p-6 border-b border-neutral-light">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xl font-bold text-neutral-text flex items-center gap-2">
-                  <Trophy className="w-5 h-5 text-primary" />
-                  Upcoming Fixture Team Selection
-                </h3>
-                <Link
-                  href="/fixtures"
-                  className="text-primary hover:underline text-sm font-medium"
-                >
-                  View All Fixtures →
-                </Link>
-              </div>
-            </div>
-            <div className="p-6">
-              <div className="mb-4">
-                <h4 className="font-semibold text-neutral-text mb-2">
-                  {new Date(teamSelection.match.match_date).toLocaleDateString('en-US', {
-                    weekday: 'long',
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                  })} vs {teamSelection.match.opponent}
-                </h4>
-                {teamSelection.match.venue && (
-                  <p className="text-sm text-neutral-medium">Venue: {teamSelection.match.venue}</p>
-                )}
-              </div>
-              
-              {teamSelection.starting && teamSelection.starting.length > 0 && (
-                <div className="mb-4">
-                  <h5 className="font-semibold text-neutral-text mb-2">Starting Lineup ({teamSelection.starting.length})</h5>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {teamSelection.starting.map((selection: any) => (
-                      <div key={selection.id} className="bg-success/5 border border-success/20 rounded-lg p-3">
-                        <div className="flex items-center justify-between">
-                          <span className="font-medium text-neutral-text">{selection.player?.name || 'Unknown'}</span>
-                          {selection.jersey_number && (
-                            <span className="bg-success/20 text-success px-2 py-1 rounded text-xs font-bold">#{selection.jersey_number}</span>
-                          )}
-                        </div>
-                        {selection.position && (
-                          <p className="text-xs text-neutral-medium mt-1 capitalize">{selection.position.replace(/_/g, ' ')}</p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {teamSelection.substitutes && teamSelection.substitutes.length > 0 && (
-                <div>
-                  <h5 className="font-semibold text-neutral-text mb-2">Substitutes ({teamSelection.substitutes.length})</h5>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {teamSelection.substitutes.map((selection: any) => (
-                      <div key={selection.id} className="bg-warning/5 border border-warning/20 rounded-lg p-3">
-                        <div className="flex items-center justify-between">
-                          <span className="font-medium text-neutral-text">{selection.player?.name || 'Unknown'}</span>
-                          {selection.jersey_number && (
-                            <span className="bg-warning/20 text-warning px-2 py-1 rounded text-xs font-bold">#{selection.jersey_number}</span>
-                          )}
-                        </div>
-                        {selection.position && (
-                          <p className="text-xs text-neutral-medium mt-1 capitalize">{selection.position.replace(/_/g, ' ')}</p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {(!teamSelection.starting || teamSelection.starting.length === 0) && 
-               (!teamSelection.substitutes || teamSelection.substitutes.length === 0) && (
-                <p className="text-neutral-medium text-center py-4">No team selection made yet for this fixture.</p>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Active Injuries View (Read-Only) */}
-        {activeInjuries.length > 0 && (
-          <div className="bg-white rounded-card border border-neutral-light shadow-soft">
-            <div className="p-6 border-b border-neutral-light">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xl font-bold text-neutral-text flex items-center gap-2">
-                  <AlertCircle className="w-5 h-5 text-secondary" />
-                  Active Player Injuries
-                </h3>
-                <span className="text-sm text-neutral-medium">{activeInjuries.length} active injury{activeInjuries.length !== 1 ? 'ies' : ''}</span>
-              </div>
-            </div>
-            <div className="p-6">
-              <div className="space-y-4">
-                {activeInjuries.map((injury: any) => {
-                  const playerName = injury.player?.name || 'Unknown Player'
-                  const returnDate = injury.return_to_play_date || injury.return_to_training_date
-                  return (
-                    <div key={injury.id} className="border border-secondary/20 bg-secondary/5 rounded-lg p-4">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-neutral-text text-lg mb-1">{playerName}</h4>
-                          <p className="text-sm text-neutral-medium">Injured on {new Date(injury.injury_date).toLocaleDateString()}</p>
-                        </div>
-                        <span className="px-3 py-1 bg-secondary text-white rounded-full text-xs font-medium">
-                          ACTIVE
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                          <p className="text-xs font-semibold text-neutral-medium uppercase mb-1">Cause</p>
-                          <p className="text-sm text-neutral-text">{injury.cause}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold text-neutral-medium uppercase mb-1">Diagnosis</p>
-                          <p className="text-sm text-neutral-text font-medium">{injury.diagnosis}</p>
-                        </div>
-                        {returnDate && (
-                          <div>
-                            <p className="text-xs font-semibold text-neutral-medium uppercase mb-1">Expected Return</p>
-                            <p className="text-sm text-neutral-text font-medium">
-                              {new Date(returnDate).toLocaleDateString('en-US', {
-                                month: 'short',
-                                day: 'numeric',
-                                year: 'numeric',
-                              })}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Match Stats Entry Form Modal */}
         {showMatchForm && (
@@ -726,10 +528,7 @@ export default function DataAdminDashboard() {
 
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Link
-            href="/players"
-            className="bg-white rounded-card p-6 border border-neutral-light shadow-soft hover-lift cursor-pointer"
-          >
+          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft hover-lift">
             <div className="flex items-center space-x-4">
               <div className="bg-primary w-12 h-12 rounded-xl flex items-center justify-center">
                 <Users className="w-6 h-6 text-white" />
@@ -739,11 +538,8 @@ export default function DataAdminDashboard() {
                 <p className="text-sm text-neutral-medium">View and edit player information</p>
               </div>
             </div>
-          </Link>
-          <Link
-            href="/training"
-            className="bg-white rounded-card p-6 border border-neutral-light shadow-soft hover-lift cursor-pointer"
-          >
+          </div>
+          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft hover-lift">
             <div className="flex items-center space-x-4">
               <div className="bg-success w-12 h-12 rounded-xl flex items-center justify-center">
                 <Calendar className="w-6 h-6 text-white" />
@@ -753,21 +549,18 @@ export default function DataAdminDashboard() {
                 <p className="text-sm text-neutral-medium">Record and track training sessions</p>
               </div>
             </div>
-          </Link>
-          <Link
-            href="/fixtures"
-            className="bg-white rounded-card p-6 border border-neutral-light shadow-soft hover-lift cursor-pointer"
-          >
+          </div>
+          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft hover-lift">
             <div className="flex items-center space-x-4">
               <div className="bg-warning w-12 h-12 rounded-xl flex items-center justify-center">
-                <Trophy className="w-6 h-6 text-white" />
+                <BarChart3 className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-neutral-text">Fixtures & Matches</h3>
-                <p className="text-sm text-neutral-medium">Create fixtures and manage matches</p>
+                <h3 className="text-lg font-bold text-neutral-text">Match Statistics</h3>
+                <p className="text-sm text-neutral-medium">Log match performance data</p>
               </div>
             </div>
-          </Link>
+          </div>
         </div>
       </div>
     </Layout>

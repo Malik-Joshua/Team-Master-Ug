@@ -6,6 +6,7 @@ import StatCard from '@/components/StatCard'
 import { FileText, Download, Filter, Calendar, BarChart3, TrendingUp, Users, Trophy, ChevronDown, FileSpreadsheet } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { generatePDFReport, generateExcelReport, generateCSVReport, downloadBlob, type ReportData } from '@/lib/report-export'
+import { notifications } from '@/lib/notifications'
 
 interface Report {
   id: string
@@ -198,6 +199,13 @@ export default function ReportsPage() {
           setReports((prev) =>
             prev.map((r) => (r.id === newReport.id ? { ...r, status: 'ready' as const } : r))
           )
+          
+          // Create notification for report ready
+          try {
+            await notifications.reportReady(newReport.id, newReport.title, authUser.id)
+          } catch (notifError) {
+            console.error('Error creating notification:', notifError)
+          }
         }
       }, 2000)
 

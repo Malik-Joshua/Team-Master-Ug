@@ -1,13 +1,16 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Bell, MessageSquare, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { createClient } from '@/lib/supabase/client'
+import { formatDistanceToNow } from 'date-fns'
 
 interface Notification {
   id: string
+  title: string
   message: string
-  timestamp: string
+  created_at: string
   read: boolean
   type: 'info' | 'success' | 'warning' | 'error'
 }
@@ -21,29 +24,122 @@ interface TopBarProps {
 
 export default function TopBar({ title, userName, userRole, userAvatar }: TopBarProps) {
   const [notificationsOpen, setNotificationsOpen] = useState(false)
-  const [notifications] = useState<Notification[]>([
-    {
-      id: '1',
-      message: 'New training session scheduled for tomorrow',
-      timestamp: '2 hours ago',
-      read: false,
-      type: 'info',
-    },
-    {
-      id: '2',
-      message: 'Match stats updated successfully',
-      timestamp: '5 hours ago',
-      read: false,
-      type: 'success',
-    },
-    {
-      id: '3',
-      message: 'Payment received: UGX 500,000',
-      timestamp: '1 day ago',
-      read: true,
-      type: 'success',
-    },
-  ])
+  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const loadNotifications = async () => {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+
+      if (!user) {
+        setLoading(false)
+        return
+      }
+
+      // Fetch notifications
+      const { data: notificationsData, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(50)
+
+      if (error) {
+        console.error('Error fetching notifications:', error)
+        setLoading(false)
+        return
+      }
+
+      if (notificationsData) {
+        setNotifications(notificationsData as Notification[])
+      }
+
+      setLoading(false)
+
+      // Set up real-time subscription for new notifications
+      const channel = supabase
+        .channel('notifications')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'notifications',
+            filter: `user_id=eq.${user.id}`,
+          },
+          (payload) => {
+            const newNotification = payload.new as Notification
+            setNotifications((prev) => [newNotification, ...prev])
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'notifications',
+            filter: `user_id=eq.${user.id}`,
+          },
+          (payload) => {
+            const updatedNotification = payload.new as Notification
+            setNotifications((prev) =>
+              prev.map((n) => (n.id === updatedNotification.id ? updatedNotification : n))
+            )
+          }
+        )
+        .subscribe()
+
+      return () => {
+        supabase.removeChannel(channel)
+      }
+    }
+
+    loadNotifications()
+  }, [])
+
+  const handleMarkAsRead = async (notificationId: string) => {
+    const supabase = createClient()
+    const { error } = await supabase
+      .from('notifications')
+      .update({ read: true })
+      .eq('id', notificationId)
+
+    if (error) {
+      console.error('Error marking notification as read:', error)
+    } else {
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === notificationId ? { ...n, read: true } : n))
+      )
+    }
+  }
+
+  const handleMarkAllAsRead = async () => {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) return
+
+    const { error } = await supabase
+      .from('notifications')
+      .update({ read: true })
+      .eq('user_id', user.id)
+      .eq('read', false)
+
+    if (error) {
+      console.error('Error marking all notifications as read:', error)
+    } else {
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+    }
+  }
+
+  const formatTimestamp = (dateString: string) => {
+    try {
+      return formatDistanceToNow(new Date(dateString), { addSuffix: true })
+    } catch {
+      return 'Recently'
+    }
+  }
 
   const unreadCount = notifications.filter((n) => !n.read).length
 
@@ -90,45 +186,71 @@ export default function TopBar({ title, userName, userRole, userAvatar }: TopBar
                   />
                   <div className="absolute right-0 mt-2 w-80 bg-white rounded-card shadow-large border border-neutral-light z-20 max-h-96 overflow-y-auto">
                     <div className="p-4 border-b border-neutral-light flex items-center justify-between">
-                      <h3 className="font-bold text-neutral-text">Notifications</h3>
+                      <div className="flex items-center justify-between w-full">
+                        <h3 className="font-bold text-neutral-text">Notifications</h3>
+                        {unreadCount > 0 && (
+                          <button
+                            onClick={handleMarkAllAsRead}
+                            className="text-xs text-primary hover:underline"
+                          >
+                            Mark all as read
+                          </button>
+                        )}
+                      </div>
                       <button
                         onClick={() => setNotificationsOpen(false)}
-                        className="p-1 hover:bg-neutral-light rounded"
+                        className="p-1 hover:bg-neutral-light rounded ml-2"
                       >
                         <X className="w-4 h-4" />
                       </button>
                     </div>
-                    <div className="divide-y divide-neutral-light">
-                      {notifications.map((notification) => (
-                        <div
-                          key={notification.id}
-                          className={cn(
-                            'p-4 hover:bg-neutral-light transition-colors cursor-pointer',
-                            !notification.read && 'bg-blue-50/50'
-                          )}
-                        >
-                          <div className="flex items-start space-x-3">
-                            <div
-                              className={cn(
-                                'w-2 h-2 rounded-full mt-2 flex-shrink-0',
-                                notification.type === 'info' && 'bg-primary',
-                                notification.type === 'success' && 'bg-success',
-                                notification.type === 'warning' && 'bg-warning',
-                                notification.type === 'error' && 'bg-secondary'
-                              )}
-                            />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm text-neutral-text">{notification.message}</p>
-                              <p className="text-xs text-neutral-medium mt-1">
-                                {notification.timestamp}
-                              </p>
-                            </div>
-                            {!notification.read && (
-                              <div className="w-2 h-2 bg-primary rounded-full flex-shrink-0 mt-2" />
-                            )}
-                          </div>
+                    <div className="divide-y divide-neutral-light max-h-96 overflow-y-auto">
+                      {loading ? (
+                        <div className="p-8 text-center text-neutral-medium">
+                          Loading notifications...
                         </div>
-                      ))}
+                      ) : notifications.length === 0 ? (
+                        <div className="p-8 text-center text-neutral-medium">
+                          No notifications
+                        </div>
+                      ) : (
+                        notifications.map((notification) => (
+                          <div
+                            key={notification.id}
+                            onClick={() => !notification.read && handleMarkAsRead(notification.id)}
+                            className={cn(
+                              'p-4 hover:bg-neutral-light transition-colors cursor-pointer',
+                              !notification.read && 'bg-blue-50/50'
+                            )}
+                          >
+                            <div className="flex items-start space-x-3">
+                              <div
+                                className={cn(
+                                  'w-2 h-2 rounded-full mt-2 flex-shrink-0',
+                                  notification.type === 'info' && 'bg-primary',
+                                  notification.type === 'success' && 'bg-success',
+                                  notification.type === 'warning' && 'bg-warning',
+                                  notification.type === 'error' && 'bg-secondary'
+                                )}
+                              />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold text-neutral-text">
+                                  {notification.title}
+                                </p>
+                                <p className="text-sm text-neutral-text mt-1">
+                                  {notification.message}
+                                </p>
+                                <p className="text-xs text-neutral-medium mt-1">
+                                  {formatTimestamp(notification.created_at)}
+                                </p>
+                              </div>
+                              {!notification.read && (
+                                <div className="w-2 h-2 bg-primary rounded-full flex-shrink-0 mt-2" />
+                              )}
+                            </div>
+                          </div>
+                        ))
+                      )}
                     </div>
                   </div>
                 </>

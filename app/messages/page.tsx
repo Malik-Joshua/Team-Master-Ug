@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Layout from '@/components/Layout'
 import { MessageSquare, Send, User, Mail, Clock, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { notifications } from '@/lib/notifications'
 
 interface Message {
   id: string
@@ -232,6 +233,23 @@ export default function MessagesPage() {
             )
 
             await Promise.all(messagePromises)
+            
+            // Create notifications for recipients
+            try {
+              const { data: senderProfile } = await supabase
+                .from('user_profiles')
+                .select('name')
+                .eq('user_id', authUser.id)
+                .single()
+              
+              const senderName = senderProfile?.name || 'Admin'
+              for (const recipient of recipients) {
+                await notifications.newMessage(recipient.user_id, senderName, composeData.subject)
+              }
+            } catch (notifError) {
+              console.error('Error creating notifications:', notifError)
+            }
+            
             const roleNames = rolesToSend.map(r => r === 'data_admin' ? 'team managers' : r.replace('_', ' ')).join(', ')
             alert(`Message sent successfully to ${recipients.length} recipient(s) (${roleNames})!`)
           } else {
@@ -315,6 +333,23 @@ export default function MessagesPage() {
             )
 
             await Promise.all(messagePromises)
+            
+            // Create notifications for recipients
+            try {
+              const { data: senderProfile } = await supabase
+                .from('user_profiles')
+                .select('name')
+                .eq('user_id', authUser.id)
+                .single()
+              
+              const senderName = senderProfile?.name || 'Coach'
+              for (const recipient of recipients) {
+                await notifications.newMessage(recipient.user_id, senderName, composeData.subject)
+              }
+            } catch (notifError) {
+              console.error('Error creating notifications:', notifError)
+            }
+            
             alert(`Message sent successfully to ${recipients.length} ${recipientRole === 'player' ? 'players' : 'admins'}!`)
           } else {
             alert(`No ${recipientRole === 'player' ? 'players' : 'admins'} found`)
@@ -338,6 +373,16 @@ export default function MessagesPage() {
             .single()
 
           if (error) throw error
+
+          // Create notification for recipient
+          if (recipientId) {
+            try {
+              const senderName = newMessage.sender?.name || user.name
+              await notifications.newMessage(recipientId, senderName, composeData.subject)
+            } catch (notifError) {
+              console.error('Error creating notification:', notifError)
+            }
+          }
 
           // Add to local state
           const formattedMessage: Message = {
@@ -382,6 +427,16 @@ export default function MessagesPage() {
           .single()
 
         if (error) throw error
+
+        // Create notification for recipient if individual
+        if (recipientId) {
+          try {
+            const senderName = newMessage.sender?.name || user.name
+            await notifications.newMessage(recipientId, senderName, composeData.subject)
+          } catch (notifError) {
+            console.error('Error creating notification:', notifError)
+          }
+        }
 
         // Add to local state
         const formattedMessage: Message = {

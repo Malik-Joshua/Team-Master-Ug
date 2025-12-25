@@ -6,7 +6,6 @@ import Layout from '@/components/Layout'
 import { Users, Check, X, Save, Calendar, MapPin, Trophy } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { db } from '@/lib/db-helpers'
-import Link from 'next/link'
 
 interface Player {
   user_id: string
@@ -122,59 +121,29 @@ export default function FixturesPage() {
           .eq('user_id', authUser.id)
           .single()
 
-        // Allow coach, admin, and data_admin (team manager) to access
-        if (!profile || (profile.role !== 'coach' && profile.role !== 'admin' && profile.role !== 'data_admin')) {
+        if (!profile || (profile.role !== 'coach' && profile.role !== 'admin')) {
           router.push('/dashboard')
           return
         }
 
         setUser(profile)
 
-        // Load matches
-        const matchesData = await db.getUpcomingMatches()
-        setMatches(matchesData)
+        // Load matches and players
+        const [matchesData, playersData] = await Promise.all([
+          db.getUpcomingMatches(),
+          db.getAvailablePlayers(),
+        ])
 
-        // Load players via API route (bypasses RLS)
-        const playersResponse = await fetch('/api/players?role=player&status=active&includePlayerData=true')
-        if (playersResponse.ok) {
-          const playersData = await playersResponse.json()
-          if (playersData.players && playersData.players.length > 0) {
-            // Transform players data to match Player interface
-            const transformedPlayers = playersData.players
-              .filter((p: any) => p.players) // Only include players with position data
-              .map((p: any) => ({
-                user_id: p.user_id,
-                name: p.name,
-                email: p.email,
-                status: p.status,
-                players: Array.isArray(p.players) ? p.players[0] : p.players,
-              }))
-            setAvailablePlayers(transformedPlayers as Player[])
-            console.log('Loaded players:', transformedPlayers.length)
-          } else {
-            console.warn('No players returned from API')
-            setAvailablePlayers([])
-          }
-        } else {
-          console.error('Failed to fetch players from API:', await playersResponse.text())
-          // Fallback to direct query if API fails
-          try {
-            const playersData = await db.getAvailablePlayers()
-            const transformedPlayers = (playersData || [])
-              .filter((p: any) => p.players) // Only include players with position data
-              .map((p: any) => ({
-                user_id: p.user_id,
-                name: p.name,
-                email: p.email,
-                status: p.status,
-                players: Array.isArray(p.players) ? p.players[0] : p.players,
-              }))
-            setAvailablePlayers(transformedPlayers as Player[])
-          } catch (fallbackError) {
-            console.error('Fallback player fetch also failed:', fallbackError)
-            setAvailablePlayers([])
-          }
-        }
+        setMatches(matchesData)
+        // Transform players data to match Player interface
+        const transformedPlayers = (playersData || []).map((p: any) => ({
+          user_id: p.user_id,
+          name: p.name,
+          email: p.email,
+          status: p.status,
+          players: Array.isArray(p.players) ? p.players[0] : p.players,
+        }))
+        setAvailablePlayers(transformedPlayers as Player[])
 
         if (matchesData.length > 0) {
           setSelectedMatchId(matchesData[0].id)
@@ -199,65 +168,31 @@ export default function FixturesPage() {
           return
         }
 
-        // Use API route to get team selection with player data
-        const response = await fetch(`/api/fixtures/team-selection?matchId=${selectedMatchId}`)
-        if (response.ok) {
-          const data = await response.json()
-          if (data.success && data.selections) {
-            setExistingSelection(data.selections)
-            
-            // Populate teamSelections map for coach editing
-            if (user?.role === 'coach') {
-              const selectionsMap = new Map<string, TeamSelection>()
-              data.selections.forEach((sel: any) => {
-                selectionsMap.set(sel.player_id, {
-                  player_id: sel.player_id,
-                  position: sel.position || undefined,
-                  jersey_number: sel.jersey_number || undefined,
-                  is_starting: sel.is_starting,
-                  is_substitute: sel.is_substitute,
-                  notes: sel.notes || undefined,
-                })
-              })
-              setTeamSelections(selectionsMap)
-            }
-          }
-        } else {
-          // Fallback to db helper
-          const selections = await db.getFixtureTeamSelection(selectedMatchId)
-          setExistingSelection(selections)
-          
-          // Populate teamSelections map for coach editing
-          if (user?.role === 'coach') {
-            const selectionsMap = new Map<string, TeamSelection>()
-            selections.forEach((sel: any) => {
-              selectionsMap.set(sel.player_id, {
-                player_id: sel.player_id,
-                position: sel.position || undefined,
-                jersey_number: sel.jersey_number || undefined,
-                is_starting: sel.is_starting,
-                is_substitute: sel.is_substitute,
-                notes: sel.notes || undefined,
-              })
-            })
-            setTeamSelections(selectionsMap)
-          }
-        }
+        const selections = await db.getFixtureTeamSelection(selectedMatchId)
+        setExistingSelection(selections)
+        
+        // Populate teamSelections map
+        const selectionsMap = new Map<string, TeamSelection>()
+        selections.forEach((sel: any) => {
+          selectionsMap.set(sel.player_id, {
+            player_id: sel.player_id,
+            position: sel.position,
+            jersey_number: sel.jersey_number,
+            is_starting: sel.is_starting,
+            is_substitute: sel.is_substitute,
+            notes: sel.notes,
+          })
+        })
+        setTeamSelections(selectionsMap)
       } catch (error) {
         console.error('Error loading existing selection:', error)
       }
     }
 
     loadExistingSelection()
-  }, [selectedMatchId, user?.role])
+  }, [selectedMatchId])
 
   const togglePlayerSelection = (playerId: string, player: Player) => {
-    if (!player || !player.players) {
-      console.error('Invalid player data:', player)
-      alert('Player data is incomplete. Please refresh the page.')
-      return
-    }
-
     const newSelections = new Map(teamSelections)
     
     if (newSelections.has(playerId)) {
@@ -265,15 +200,14 @@ export default function FixturesPage() {
     } else {
       newSelections.set(playerId, {
         player_id: playerId,
-        position: player.players?.position || undefined,
-        jersey_number: player.players?.jersey_number || undefined,
+        position: player.players.position,
+        jersey_number: player.players.jersey_number,
         is_starting: true,
         is_substitute: false,
       })
     }
     
     setTeamSelections(newSelections)
-    console.log('Team selections updated:', newSelections.size, 'players selected')
   }
 
   const updatePlayerSelection = (playerId: string, updates: Partial<TeamSelection>) => {
@@ -308,32 +242,15 @@ export default function FixturesPage() {
       }
 
       const selectionsArray = Array.from(teamSelections.values())
-      
-      // Save via API route
-      const response = await fetch('/api/fixtures/team-selection', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          matchId: selectedMatchId,
-          selections: selectionsArray,
-        }),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to save team selection')
-      }
+      await db.saveFixtureTeamSelection(selectedMatchId, selectionsArray)
       
       alert('Team selection saved successfully!')
       // Reload existing selection
       const selections = await db.getFixtureTeamSelection(selectedMatchId)
       setExistingSelection(selections)
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error saving team selection:', error)
-      alert(`Error saving team selection: ${error.message}`)
+      alert('Error saving team selection. Please try again.')
     } finally {
       setSaving(false)
     }
@@ -349,8 +266,7 @@ export default function FixturesPage() {
     )
   }
 
-  // Allow coach, admin, and data_admin (team manager) to access
-  if (!user || (user.role !== 'coach' && user.role !== 'admin' && user.role !== 'data_admin')) {
+  if (!user || (user.role !== 'coach' && user.role !== 'admin')) {
     return null
   }
 
@@ -367,105 +283,39 @@ export default function FixturesPage() {
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-2xl font-bold text-neutral-text flex items-center gap-2">
               <Trophy className="w-6 h-6 text-primary" />
-              {user.role === 'data_admin' ? 'Fixtures Management' : 'Select Team for Fixture'}
+              Select Team for Fixture
             </h2>
-            <div className="flex items-center gap-3">
-              {user.role === 'data_admin' && (
-                <Link
-                  href="/fixtures/create"
-                  className="bg-primary text-white px-6 py-2 rounded-button font-semibold hover:opacity-90 transition-opacity flex items-center gap-2"
-                >
-                  <Trophy className="w-4 h-4" />
-                  Create Fixture
-                </Link>
-              )}
-              {user.role === 'coach' && (
-                <button
-                  onClick={handleSave}
-                  disabled={saving || teamSelections.size === 0}
-                  className="bg-club-gradient text-white px-6 py-2 rounded-button font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                >
-                  <Save className="w-4 h-4" />
-                  {saving ? 'Saving...' : 'Save Team Selection'}
-                </button>
-              )}
-            </div>
+            <button
+              onClick={handleSave}
+              disabled={saving || teamSelections.size === 0}
+              className="bg-club-gradient text-white px-6 py-2 rounded-button font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              <Save className="w-4 h-4" />
+              {saving ? 'Saving...' : 'Save Team Selection'}
+            </button>
           </div>
 
-          {/* Match Selector - Show for coaches and admins */}
-          {(user.role === 'coach' || user.role === 'admin') && (
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-neutral-text mb-2">
-                {user.role === 'admin' ? 'View Team Selection for Match' : 'Select Match'}
-              </label>
-              <select
-                value={selectedMatchId}
-                onChange={(e) => {
-                  setSelectedMatchId(e.target.value)
-                  setTeamSelections(new Map())
-                }}
-                className="w-full md:w-auto px-4 py-2 bg-white text-neutral-text border border-neutral-light rounded-button focus:outline-none focus:ring-2 focus:ring-primary"
-              >
-                <option value="">-- Select a match --</option>
-                {matches.map((match) => (
-                  <option key={match.id} value={match.id}>
-                    {new Date(match.match_date).toLocaleDateString()} vs {match.opponent}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {/* Fixtures List for Team Managers */}
-          {user.role === 'data_admin' && (
-            <div className="mb-6">
-              <h3 className="text-lg font-bold text-neutral-text mb-4">Upcoming Fixtures</h3>
-              {matches.length === 0 ? (
-                <div className="text-center py-8 bg-neutral-light rounded-lg">
-                  <Trophy className="w-12 h-12 mx-auto mb-4 text-neutral-medium opacity-50" />
-                  <p className="text-neutral-medium">No upcoming fixtures</p>
-                  <p className="text-sm text-neutral-medium mt-2">Create a new fixture to get started</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {matches.map((match) => (
-                    <div
-                      key={match.id}
-                      className="bg-neutral-light rounded-lg p-4 border border-neutral-light hover:border-primary/50 transition-colors"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="font-semibold text-neutral-text">
-                            vs {match.opponent}
-                          </h4>
-                          <div className="flex items-center gap-4 mt-2 text-sm text-neutral-medium">
-                            <div className="flex items-center gap-1">
-                              <Calendar className="w-4 h-4" />
-                              {new Date(match.match_date).toLocaleDateString('en-US', {
-                                weekday: 'long',
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric',
-                              })}
-                            </div>
-                            {match.venue && (
-                              <div className="flex items-center gap-1">
-                                <MapPin className="w-4 h-4" />
-                                {match.venue}
-                              </div>
-                            )}
-                            <span className="capitalize bg-primary/10 text-primary px-2 py-1 rounded-full text-xs font-medium">
-                              {match.tournament_type.replace('_', ' ')}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+          {/* Match Selector */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-neutral-text mb-2">
+              Select Match
+            </label>
+            <select
+              value={selectedMatchId}
+              onChange={(e) => {
+                setSelectedMatchId(e.target.value)
+                setTeamSelections(new Map())
+              }}
+              className="w-full md:w-auto px-4 py-2 border border-neutral-light rounded-button focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="">-- Select a match --</option>
+              {matches.map((match) => (
+                <option key={match.id} value={match.id}>
+                  {new Date(match.match_date).toLocaleDateString()} vs {match.opponent}
+                </option>
+              ))}
+            </select>
+          </div>
 
           {/* Match Info */}
           {selectedMatch && (
@@ -504,112 +354,27 @@ export default function FixturesPage() {
           )}
         </div>
 
-        {/* Show team selection for coaches and admins */}
-        {selectedMatchId && (user.role === 'coach' || user.role === 'admin') && (
+        {selectedMatchId && (
           <>
             {/* Selection Summary */}
             <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="text-center p-4 bg-primary/10 rounded-lg">
-                  <p className="text-2xl font-bold text-primary">
-                    {user.role === 'admin' 
-                      ? existingSelection.filter((s: any) => s.is_starting && !s.is_substitute).length
-                      : startingPlayers.length}
-                  </p>
+                  <p className="text-2xl font-bold text-primary">{startingPlayers.length}</p>
                   <p className="text-sm text-neutral-medium">Starting Players</p>
                 </div>
                 <div className="text-center p-4 bg-secondary/10 rounded-lg">
-                  <p className="text-2xl font-bold text-secondary">
-                    {user.role === 'admin'
-                      ? existingSelection.filter((s: any) => s.is_substitute).length
-                      : substitutes.length}
-                  </p>
+                  <p className="text-2xl font-bold text-secondary">{substitutes.length}</p>
                   <p className="text-sm text-neutral-medium">Substitutes</p>
                 </div>
                 <div className="text-center p-4 bg-success/10 rounded-lg">
-                  <p className="text-2xl font-bold text-success">
-                    {user.role === 'admin' ? existingSelection.length : teamSelections.size}
-                  </p>
+                  <p className="text-2xl font-bold text-success">{teamSelections.size}</p>
                   <p className="text-sm text-neutral-medium">Total Selected</p>
                 </div>
               </div>
             </div>
 
-            {/* Admin View: Show saved team selection (read-only) */}
-            {user.role === 'admin' && existingSelection.length > 0 && (
-              <div className="bg-white rounded-card border border-neutral-light shadow-soft">
-                <div className="p-6 border-b border-neutral-light">
-                  <h3 className="text-xl font-bold text-neutral-text flex items-center gap-2">
-                    <Trophy className="w-5 h-5" />
-                    Selected Team (Read-Only)
-                  </h3>
-                </div>
-                <div className="p-6">
-                  {existingSelection.filter((s: any) => s.is_starting && !s.is_substitute).length > 0 && (
-                    <div className="mb-6">
-                      <h5 className="font-semibold text-neutral-text mb-3">Starting Lineup</h5>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {existingSelection
-                          .filter((s: any) => s.is_starting && !s.is_substitute)
-                          .map((selection: any) => (
-                            <div key={selection.id} className="bg-success/5 border border-success/20 rounded-lg p-3">
-                              <div className="flex items-center justify-between">
-                                <span className="font-medium text-neutral-text">
-                                  {selection.player?.name || 'Unknown Player'}
-                                </span>
-                                {selection.jersey_number && (
-                                  <span className="bg-success/20 text-success px-2 py-1 rounded text-xs font-bold">
-                                    #{selection.jersey_number}
-                                  </span>
-                                )}
-                              </div>
-                              {selection.position && (
-                                <p className="text-xs text-neutral-medium mt-1 capitalize">
-                                  {selection.position.replace(/_/g, ' ')}
-                                </p>
-                              )}
-                            </div>
-                          ))}
-                      </div>
-                    </div>
-                  )}
-                  {existingSelection.filter((s: any) => s.is_substitute).length > 0 && (
-                    <div>
-                      <h5 className="font-semibold text-neutral-text mb-3">Substitutes</h5>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {existingSelection
-                          .filter((s: any) => s.is_substitute)
-                          .map((selection: any) => (
-                            <div key={selection.id} className="bg-warning/5 border border-warning/20 rounded-lg p-3">
-                              <div className="flex items-center justify-between">
-                                <span className="font-medium text-neutral-text">
-                                  {selection.player?.name || 'Unknown Player'}
-                                </span>
-                                {selection.jersey_number && (
-                                  <span className="bg-warning/20 text-warning px-2 py-1 rounded text-xs font-bold">
-                                    #{selection.jersey_number}
-                                  </span>
-                                )}
-                              </div>
-                              {selection.position && (
-                                <p className="text-xs text-neutral-medium mt-1 capitalize">
-                                  {selection.position.replace(/_/g, ' ')}
-                                </p>
-                              )}
-                            </div>
-                          ))}
-                      </div>
-                    </div>
-                  )}
-                  {existingSelection.length === 0 && (
-                    <p className="text-neutral-medium text-center py-4">No team selection made yet for this fixture.</p>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Coach View: Players List for Selection */}
-            {user.role === 'coach' && (
+            {/* Players List */}
             <div className="bg-white rounded-card border border-neutral-light shadow-soft overflow-hidden">
               <div className="p-6 border-b border-neutral-light">
                 <h3 className="text-xl font-bold text-neutral-text flex items-center gap-2">
@@ -618,15 +383,8 @@ export default function FixturesPage() {
                 </h3>
               </div>
               <div className="p-6">
-                {availablePlayers.length === 0 ? (
-                  <div className="text-center py-12">
-                    <Users className="w-16 h-16 text-neutral-medium mx-auto mb-4 opacity-50" />
-                    <p className="text-neutral-medium font-medium">No players available</p>
-                    <p className="text-sm text-neutral-medium mt-2">Make sure players are active and have position data.</p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {availablePlayers.map((player) => {
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {availablePlayers.map((player) => {
                     const isSelected = teamSelections.has(player.user_id)
                     const selection = teamSelections.get(player.user_id)
                     
@@ -642,12 +400,10 @@ export default function FixturesPage() {
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex-1">
                             <h4 className="font-semibold text-neutral-text">{player.name}</h4>
-                            {player.players?.position && (
-                              <p className="text-xs text-neutral-medium capitalize">
-                                {player.players.position.replace(/_/g, ' ')} {player.players.category ? `• ${player.players.category}` : ''}
-                              </p>
-                            )}
-                            {player.players?.jersey_number && (
+                            <p className="text-xs text-neutral-medium capitalize">
+                              {player.players.position.replace('_', ' ')} • {player.players.category}
+                            </p>
+                            {player.players.jersey_number && (
                               <p className="text-xs text-neutral-medium">
                                 Jersey: #{player.players.jersey_number}
                               </p>
@@ -715,120 +471,7 @@ export default function FixturesPage() {
                       </div>
                     )
                   })}
-                  </div>
-                )}
-              </div>
-            </div>
-            )}
-
-            {/* Old Players List - Remove this section */}
-            <div className="bg-white rounded-card border border-neutral-light shadow-soft overflow-hidden">
-              <div className="p-6 border-b border-neutral-light">
-                <h3 className="text-xl font-bold text-neutral-text flex items-center gap-2">
-                  <Users className="w-5 h-5" />
-                  Available Players
-                </h3>
-              </div>
-              <div className="p-6">
-                {availablePlayers.length === 0 ? (
-                  <div className="text-center py-12">
-                    <Users className="w-16 h-16 text-neutral-medium mx-auto mb-4 opacity-50" />
-                    <p className="text-neutral-medium font-medium">No players available</p>
-                    <p className="text-sm text-neutral-medium mt-2">Make sure players are active and have position data.</p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {availablePlayers.map((player) => {
-                    const isSelected = teamSelections.has(player.user_id)
-                    const selection = teamSelections.get(player.user_id)
-                    
-                    return (
-                      <div
-                        key={player.user_id}
-                        className={`border-2 rounded-lg p-4 transition-all ${
-                          isSelected
-                            ? 'border-primary bg-primary/5 shadow-medium'
-                            : 'border-neutral-light hover:border-primary/50'
-                        }`}
-                      >
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="flex-1">
-                            <h4 className="font-semibold text-neutral-text">{player.name}</h4>
-                            {player.players?.position && (
-                              <p className="text-xs text-neutral-medium capitalize">
-                                {player.players.position.replace(/_/g, ' ')} {player.players.category ? `• ${player.players.category}` : ''}
-                              </p>
-                            )}
-                            {player.players?.jersey_number && (
-                              <p className="text-xs text-neutral-medium">
-                                Jersey: #{player.players.jersey_number}
-                              </p>
-                            )}
-                          </div>
-                          <button
-                            onClick={() => togglePlayerSelection(player.user_id, player)}
-                            className={`p-2 rounded-lg transition-colors ${
-                              isSelected
-                                ? 'bg-primary text-white'
-                                : 'bg-neutral-light text-neutral-medium hover:bg-primary/10'
-                            }`}
-                          >
-                            {isSelected ? (
-                              <Check className="w-5 h-5" />
-                            ) : (
-                              <X className="w-5 h-5" />
-                            )}
-                          </button>
-                        </div>
-
-                        {isSelected && (
-                          <div className="space-y-2 mt-3 pt-3 border-t border-neutral-light">
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="checkbox"
-                                checked={selection?.is_starting && !selection?.is_substitute}
-                                onChange={(e) => {
-                                  updatePlayerSelection(player.user_id, {
-                                    is_starting: e.target.checked,
-                                    is_substitute: !e.target.checked,
-                                  })
-                                }}
-                                className="rounded"
-                              />
-                              <label className="text-sm text-neutral-text">Starting Player</label>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="checkbox"
-                                checked={selection?.is_substitute || false}
-                                onChange={(e) => {
-                                  updatePlayerSelection(player.user_id, {
-                                    is_substitute: e.target.checked,
-                                    is_starting: !e.target.checked,
-                                  })
-                                }}
-                                className="rounded"
-                              />
-                              <label className="text-sm text-neutral-text">Substitute</label>
-                            </div>
-                            <input
-                              type="number"
-                              placeholder="Jersey #"
-                              value={selection?.jersey_number || ''}
-                              onChange={(e) => {
-                                updatePlayerSelection(player.user_id, {
-                                  jersey_number: e.target.value ? parseInt(e.target.value) : undefined,
-                                })
-                              }}
-                              className="w-full px-2 py-1 text-sm border border-neutral-light rounded focus:outline-none focus:ring-1 focus:ring-primary"
-                            />
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
-                  </div>
-                )}
+                </div>
               </div>
             </div>
           </>

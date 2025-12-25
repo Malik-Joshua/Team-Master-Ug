@@ -1,13 +1,10 @@
 # 🚨 URGENT: Set Environment Variables in Vercel
 
 ## Current Issue
-Your app is deployed but **Supabase environment variables are NOT SET**. The console shows:
+Your app is deployed but environment variables are **NOT SET**. The console shows:
 - `hasUrl: false`
 - `hasKey: false`
-- `supabaseKeys: []` (empty array)
-- `missingVariables: ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY"]`
-
-**Note:** You have 18 Vercel environment variables, but the Supabase ones are missing!
+- `allEnvKeys: []`
 
 ## ⚡ Quick Fix (5 minutes)
 

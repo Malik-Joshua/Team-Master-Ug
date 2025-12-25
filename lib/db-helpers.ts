@@ -621,4 +621,46 @@ export const db = {
     if (error) throw error
     return data || []
   },
+
+  async saveFixtureTeamSelection(matchId: string, selections: Array<{
+    player_id: string
+    position?: string | null
+    jersey_number?: number | null
+    is_starting?: boolean
+    is_substitute?: boolean
+    notes?: string | null
+  }>) {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    if (!user) throw new Error('User not authenticated')
+
+    // Delete existing selections for this match
+    const { error: deleteError } = await supabase
+      .from('fixture_team_selections')
+      .delete()
+      .eq('match_id', matchId)
+
+    if (deleteError) throw deleteError
+
+    // Insert new selections
+    const records = selections.map((selection) => ({
+      match_id: matchId,
+      player_id: selection.player_id,
+      position: selection.position || null,
+      jersey_number: selection.jersey_number || null,
+      is_starting: selection.is_starting ?? true,
+      is_substitute: selection.is_substitute ?? false,
+      notes: selection.notes || null,
+      selected_by: user.id,
+    }))
+
+    const { data, error: insertError } = await supabase
+      .from('fixture_team_selections')
+      .insert(records)
+      .select()
+
+    if (insertError) throw insertError
+    return data
+  },
 }

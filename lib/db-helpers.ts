@@ -120,6 +120,20 @@ export const db = {
     return data || []
   },
 
+  async getPlayerTrainingSessionsAttended(playerId: string) {
+    const supabase = createClient()
+    
+    // Count training sessions where player was marked as present ('P')
+    const { count, error } = await supabase
+      .from('training_attendance')
+      .select('*', { count: 'exact', head: true })
+      .eq('player_id', playerId)
+      .eq('attendance_status', 'P')
+    
+    if (error) throw error
+    return count || 0
+  },
+
   // Messages Operations
   async sendMessage(messageData: {
     recipient_id?: string
@@ -591,6 +605,19 @@ export const db = {
       player_name: injury.player?.name || 'Unknown Player',
       player_id: injury.player?.user_id || injury.player_id,
     }))
+  },
+
+  async getInjuries(playerId: string) {
+    const supabase = createClient()
+    
+    const { data, error } = await supabase
+      .from('injuries')
+      .select('*')
+      .eq('player_id', playerId)
+      .order('injury_date', { ascending: false })
+    
+    if (error) throw error
+    return data || []
   },
 
   // Gym Metrics Operations

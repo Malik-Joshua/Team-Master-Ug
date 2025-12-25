@@ -402,4 +402,78 @@ export const db = {
     if (error) throw error
     return data || []
   },
+
+  // Budget Operations
+  async getPendingBudgets() {
+    const supabase = createClient()
+    const { data, error } = await supabase
+      .from('budgets')
+      .select(`
+        *,
+        created_by_profile:user_profiles!budgets_created_by_fkey(name, email)
+      `)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false })
+    
+    if (error) throw error
+    return data || []
+  },
+
+  async getBudgets(userId: string, role: string) {
+    const supabase = createClient()
+    let query = supabase
+      .from('budgets')
+      .select(`
+        *,
+        created_by_profile:user_profiles!budgets_created_by_fkey(name, email),
+        approved_by_profile:user_profiles!budgets_approved_by_fkey(name, email),
+        items:budget_items(*)
+      `)
+      .order('created_at', { ascending: false })
+
+    // Finance admins can only see their own budgets, admins can see all
+    if (role === 'finance_admin') {
+      query = query.eq('created_by', userId)
+    }
+
+    const { data, error } = await query
+    
+    if (error) throw error
+    return data || []
+  },
+
+  async approveBudget(budgetId: string, approvedBy: string) {
+    const supabase = createClient()
+    const { data, error } = await supabase
+      .from('budgets')
+      .update({
+        status: 'approved',
+        approved_by: approvedBy,
+        approved_at: new Date().toISOString(),
+      })
+      .eq('id', budgetId)
+      .select()
+      .single()
+    
+    if (error) throw error
+    return data
+  },
+
+  async rejectBudget(budgetId: string, rejectedBy: string, reason: string) {
+    const supabase = createClient()
+    const { data, error } = await supabase
+      .from('budgets')
+      .update({
+        status: 'rejected',
+        approved_by: rejectedBy,
+        approved_at: new Date().toISOString(),
+        rejection_reason: reason,
+      })
+      .eq('id', budgetId)
+      .select()
+      .single()
+    
+    if (error) throw error
+    return data
+  },
 }

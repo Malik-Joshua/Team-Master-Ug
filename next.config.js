@@ -21,6 +21,13 @@ const nextConfig = {
         path: false,
         crypto: false,
       }
+    } else {
+      // Server-side: Ensure PDFKit doesn't try to load external font files
+      config.resolve.alias = {
+        ...config.resolve.alias,
+      }
+      // Prevent PDFKit from trying to access font files
+      config.externals = config.externals || []
     }
     return config
   },

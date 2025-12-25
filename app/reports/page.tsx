@@ -26,6 +26,8 @@ export default function ReportsPage() {
     dateFrom: '',
     dateTo: '',
   })
+  const [downloadingReport, setDownloadingReport] = useState<string | null>(null)
+  const [showDownloadMenu, setShowDownloadMenu] = useState<string | null>(null)
 
   useEffect(() => {
     // Close download menu when clicking outside
@@ -143,9 +145,6 @@ export default function ReportsPage() {
     }
     alert('Report generation started!')
   }
-
-  const [downloadingReport, setDownloadingReport] = useState<string | null>(null)
-  const [showDownloadMenu, setShowDownloadMenu] = useState<string | null>(null)
 
   const handleDownload = async (report: Report, format: 'pdf' | 'excel' | 'csv') => {
     try {

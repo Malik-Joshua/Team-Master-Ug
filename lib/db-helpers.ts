@@ -494,9 +494,10 @@ export const db = {
     // Gym stats might not be in the database yet, return default structure
     // This can be extended when gym data is added to the database
     return {
-      totalWorkouts: 0,
-      lastWorkoutDate: null,
-      favoriteExercise: null,
+      benchPressPB: null as number | null,
+      squatPB: null as number | null,
+      deadliftPB: null as number | null,
+      pullUpPB: null as number | null,
     }
   },
 

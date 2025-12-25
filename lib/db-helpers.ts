@@ -569,4 +569,41 @@ export const db = {
     if (error) throw error
     return count || 0
   },
+
+  // Match Operations
+  async getUpcomingMatches() {
+    const supabase = createClient()
+    const today = new Date().toISOString().split('T')[0]
+    
+    const { data, error } = await supabase
+      .from('matches')
+      .select('*')
+      .gte('match_date', today)
+      .order('match_date', { ascending: true })
+    
+    if (error) throw error
+    return data || []
+  },
+
+  // Player Operations
+  async getAvailablePlayers() {
+    const supabase = createClient()
+    
+    // Get all active players with their profile and player details
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select(`
+        user_id,
+        name,
+        email,
+        status,
+        players:players!players_user_id_fkey(position, category, jersey_number)
+      `)
+      .eq('role', 'player')
+      .eq('status', 'active')
+      .order('name', { ascending: true })
+    
+    if (error) throw error
+    return data || []
+  },
 }

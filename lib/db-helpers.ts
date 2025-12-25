@@ -570,4 +570,103 @@ export const db = {
     
     return data
   },
+
+  // Injury Operations
+  async getActiveInjuries() {
+    const supabase = createClient()
+    
+    const { data, error } = await supabase
+      .from('injuries')
+      .select(`
+        *,
+        player:user_profiles!injuries_player_id_fkey(name, user_id)
+      `)
+      .eq('status', 'active')
+      .order('injury_date', { ascending: false })
+    
+    if (error) throw error
+    
+    return (data || []).map((injury: any) => ({
+      ...injury,
+      player_name: injury.player?.name || 'Unknown Player',
+      player_id: injury.player?.user_id || injury.player_id,
+    }))
+  },
+
+  // Gym Metrics Operations
+  async getBestGymMetricsOfWeek() {
+    const supabase = createClient()
+    
+    // Get all players with their gym stats
+    const { data: players, error: playersError } = await supabase
+      .from('players')
+      .select(`
+        user_id,
+        gym_stats,
+        player_profile:user_profiles!players_user_id_fkey(name)
+      `)
+    
+    if (playersError) throw playersError
+    
+    if (!players || players.length === 0) {
+      return null
+    }
+    
+    // Find best metrics across all players
+    let bestBenchPress = { value: 0, player: '', playerName: '' }
+    let bestSquat = { value: 0, player: '', playerName: '' }
+    let bestDeadlift = { value: 0, player: '', playerName: '' }
+    let bestPullUp = { value: 0, player: '', playerName: '' }
+    
+    players.forEach((player: any) => {
+      const gymStats = player.gym_stats || {}
+      const playerName = player.player_profile?.name || 'Unknown'
+      
+      const benchPress = parseFloat(gymStats.bench_press_pb || gymStats.benchPressPB || '0')
+      const squat = parseFloat(gymStats.squat_pb || gymStats.squatPB || '0')
+      const deadlift = parseFloat(gymStats.deadlift_pb || gymStats.deadliftPB || '0')
+      const pullUp = parseFloat(gymStats.pull_up_pb || gymStats.pullUpPB || '0')
+      
+      if (benchPress > bestBenchPress.value) {
+        bestBenchPress = { value: benchPress, player: player.user_id, playerName }
+      }
+      if (squat > bestSquat.value) {
+        bestSquat = { value: squat, player: player.user_id, playerName }
+      }
+      if (deadlift > bestDeadlift.value) {
+        bestDeadlift = { value: deadlift, player: player.user_id, playerName }
+      }
+      if (pullUp > bestPullUp.value) {
+        bestPullUp = { value: pullUp, player: player.user_id, playerName }
+      }
+    })
+    
+    return {
+      benchPress: bestBenchPress.value > 0 ? bestBenchPress : null,
+      squat: bestSquat.value > 0 ? bestSquat : null,
+      deadlift: bestDeadlift.value > 0 ? bestDeadlift : null,
+      pullUp: bestPullUp.value > 0 ? bestPullUp : null,
+    }
+  },
+
+  async getPlayerGymStats(playerId: string) {
+    const supabase = createClient()
+    
+    const { data, error } = await supabase
+      .from('players')
+      .select('gym_stats')
+      .eq('user_id', playerId)
+      .single()
+    
+    if (error) throw error
+    
+    const gymStats = data?.gym_stats || {}
+    
+    return {
+      benchPressPB: gymStats.bench_press_pb || gymStats.benchPressPB || null,
+      squatPB: gymStats.squat_pb || gymStats.squatPB || null,
+      deadliftPB: gymStats.deadlift_pb || gymStats.deadliftPB || null,
+      pullUpPB: gymStats.pull_up_pb || gymStats.pullUpPB || null,
+    }
+  },
 }

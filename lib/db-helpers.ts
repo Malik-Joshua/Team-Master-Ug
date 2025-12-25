@@ -512,4 +512,61 @@ export const db = {
     if (error) throw error
     return data || []
   },
+
+  // Gym Metrics Operations
+  async getBestGymMetricsOfWeek() {
+    // Gym metrics might not be in the database yet, return default structure
+    // This can be extended when gym data is added to the database
+    return {
+      bestBenchPress: {
+        value: 0,
+        playerName: 'N/A',
+      },
+      bestSquat: {
+        value: 0,
+        playerName: 'N/A',
+      },
+      bestDeadlift: {
+        value: 0,
+        playerName: 'N/A',
+      },
+      bestPullUps: {
+        value: 0,
+        playerName: 'N/A',
+      },
+    }
+  },
+
+  async updatePlayerGymStats(playerId: string, stats: {
+    benchPressPB?: number | null
+    squatPB?: number | null
+    deadliftPB?: number | null
+    pullUpPB?: number | null
+  }) {
+    // Gym stats might not be in the database yet
+    // This can be extended when gym data table is added to the database
+    // For now, just return success
+    return { success: true }
+  },
+
+  // Statistics Operations
+  async getTotalTrainingSessions() {
+    const supabase = createClient()
+    const { count, error } = await supabase
+      .from('training_sessions')
+      .select('*', { count: 'exact', head: true })
+    
+    if (error) throw error
+    return count || 0
+  },
+
+  async getTotalMatches() {
+    const supabase = createClient()
+    const { count, error } = await supabase
+      .from('matches')
+      .select('*', { count: 'exact', head: true })
+    
+    if (error) throw error
+    return count || 0
+  },
 }

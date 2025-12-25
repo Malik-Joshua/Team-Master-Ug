@@ -386,4 +386,20 @@ export const db = {
       }
     })
   },
+
+  // Injury Operations
+  async getActiveInjuries() {
+    const supabase = createClient()
+    const { data, error } = await supabase
+      .from('injuries')
+      .select(`
+        *,
+        player:user_profiles!injuries_player_id_fkey(name, jersey_number, position)
+      `)
+      .eq('status', 'active')
+      .order('injury_date', { ascending: false })
+    
+    if (error) throw error
+    return data || []
+  },
 }

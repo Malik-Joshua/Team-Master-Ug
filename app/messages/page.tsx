@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import Layout from '@/components/Layout'
 import { MessageSquare, Send, User, Mail, Clock, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { notifications } from '@/lib/notifications'
 
 interface Message {
   id: string
@@ -235,20 +234,15 @@ export default function MessagesPage() {
             await Promise.all(messagePromises)
             
             // Create notifications for recipients
-            try {
-              const { data: senderProfile } = await supabase
-                .from('user_profiles')
-                .select('name')
-                .eq('user_id', authUser.id)
-                .single()
-              
-              const senderName = senderProfile?.name || 'Admin'
-              for (const recipient of recipients) {
-                await notifications.newMessage(recipient.user_id, senderName, composeData.subject)
+            const { db } = await import('@/lib/db-helpers')
+            await db.createNotificationForUsers(
+              recipients.map(r => r.user_id),
+              {
+                title: 'New Message',
+                message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
+                type: 'info',
               }
-            } catch (notifError) {
-              console.error('Error creating notifications:', notifError)
-            }
+            )
             
             const roleNames = rolesToSend.map(r => r === 'data_admin' ? 'team managers' : r.replace('_', ' ')).join(', ')
             alert(`Message sent successfully to ${recipients.length} recipient(s) (${roleNames})!`)
@@ -278,6 +272,15 @@ export default function MessagesPage() {
             .single()
 
           if (error) throw error
+
+          // Create notification for recipient
+          const { db } = await import('@/lib/db-helpers')
+          await db.createNotification({
+            user_id: composeData.recipientId,
+            title: 'New Message',
+            message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
+            type: 'info',
+          })
 
           // Add to local state
           const formattedMessage: Message = {
@@ -335,20 +338,15 @@ export default function MessagesPage() {
             await Promise.all(messagePromises)
             
             // Create notifications for recipients
-            try {
-              const { data: senderProfile } = await supabase
-                .from('user_profiles')
-                .select('name')
-                .eq('user_id', authUser.id)
-                .single()
-              
-              const senderName = senderProfile?.name || 'Coach'
-              for (const recipient of recipients) {
-                await notifications.newMessage(recipient.user_id, senderName, composeData.subject)
+            const { db } = await import('@/lib/db-helpers')
+            await db.createNotificationForUsers(
+              recipients.map(r => r.user_id),
+              {
+                title: 'New Message',
+                message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
+                type: 'info',
               }
-            } catch (notifError) {
-              console.error('Error creating notifications:', notifError)
-            }
+            )
             
             alert(`Message sent successfully to ${recipients.length} ${recipientRole === 'player' ? 'players' : 'admins'}!`)
           } else {
@@ -376,12 +374,13 @@ export default function MessagesPage() {
 
           // Create notification for recipient
           if (recipientId) {
-            try {
-              const senderName = newMessage.sender?.name || user.name
-              await notifications.newMessage(recipientId, senderName, composeData.subject)
-            } catch (notifError) {
-              console.error('Error creating notification:', notifError)
-            }
+            const { db } = await import('@/lib/db-helpers')
+            await db.createNotification({
+              user_id: recipientId,
+              title: 'New Message',
+              message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
+              type: 'info',
+            })
           }
 
           // Add to local state
@@ -430,12 +429,13 @@ export default function MessagesPage() {
 
         // Create notification for recipient if individual
         if (recipientId) {
-          try {
-            const senderName = newMessage.sender?.name || user.name
-            await notifications.newMessage(recipientId, senderName, composeData.subject)
-          } catch (notifError) {
-            console.error('Error creating notification:', notifError)
-          }
+          const { db } = await import('@/lib/db-helpers')
+          await db.createNotification({
+            user_id: recipientId,
+            title: 'New Message',
+            message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
+            type: 'info',
+          })
         }
 
         // Add to local state

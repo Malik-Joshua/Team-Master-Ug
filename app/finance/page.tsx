@@ -5,7 +5,6 @@ import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
 import { DollarSign, TrendingUp, TrendingDown, Plus, Filter, Calendar, Download, FileText, Send, X, CheckCircle, XCircle, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { notifications } from '@/lib/notifications'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -349,23 +348,16 @@ export default function FinancePage() {
         if (itemsError) throw itemsError
       }
 
-      // Create notification for budget submission
-      try {
-        const { data: userProfile } = await supabase
-          .from('user_profiles')
-          .select('name')
-          .eq('user_id', authUser.id)
-          .single()
-        
-        const userName = userProfile?.name || 'Finance Admin'
-        await notifications.budgetSubmitted(budget.id, budgetForm.event_name, userName)
-      } catch (notifError) {
-        console.error('Error creating notification:', notifError)
-      }
-
       const { db } = await import('@/lib/db-helpers')
       const budgetsData = await db.getBudgets(authUser.id, user?.role || '')
       setBudgets(budgetsData as Budget[])
+
+      // Notify admins about new budget submission
+      await db.createNotificationForRole('admin', {
+        title: 'New Budget Pending Approval',
+        message: `A new budget "${budgetForm.event_name}" (${budgetForm.event_type}) has been submitted for approval.`,
+        type: 'info',
+      })
 
       setShowBudgetModal(false)
       setBudgetForm({
@@ -402,28 +394,7 @@ export default function FinancePage() {
       const { db } = await import('@/lib/db-helpers')
       await db.approveBudget(budgetId, authUser.id)
       
-      // Get budget details for notification
-      const { data: budgetData } = await supabase
-        .from('budgets')
-        .select('event_name, created_by')
-        .eq('id', budgetId)
-        .single()
-      
-      // Create notification for budget approval
-      if (budgetData) {
-        try {
-          const { data: submitterProfile } = await supabase
-            .from('user_profiles')
-            .select('name')
-            .eq('user_id', budgetData.created_by)
-            .single()
-          
-          const submitterName = submitterProfile?.name || 'User'
-          await notifications.budgetApproved(budgetId, budgetData.event_name, submitterName)
-        } catch (notifError) {
-          console.error('Error creating notification:', notifError)
-        }
-      }
+      // Notification is created in approveBudget function
       
       const budgetsData = await db.getBudgets(authUser.id, user?.role || '')
       setBudgets(budgetsData)
@@ -457,21 +428,7 @@ export default function FinancePage() {
       const { db } = await import('@/lib/db-helpers')
       await db.rejectBudget(budgetId, authUser.id, reason)
       
-      // Get budget details for notification
-      const { data: budgetData } = await supabase
-        .from('budgets')
-        .select('event_name, created_by')
-        .eq('id', budgetId)
-        .single()
-      
-      // Create notification for budget rejection
-      if (budgetData) {
-        try {
-          await notifications.budgetRejected(budgetId, budgetData.event_name, reason)
-        } catch (notifError) {
-          console.error('Error creating notification:', notifError)
-        }
-      }
+      // Notification is created in rejectBudget function
       
       const budgetsData = await db.getBudgets(authUser.id, user?.role || '')
       setBudgets(budgetsData)

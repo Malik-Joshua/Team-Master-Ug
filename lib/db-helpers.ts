@@ -387,31 +387,112 @@ export const db = {
     })
   },
 
-  // Injury Operations
-  async getActiveInjuries() {
+  // Notification Operations
+  async createNotification(notificationData: {
+    user_id: string
+    title: string
+    message: string
+    type?: 'info' | 'success' | 'warning' | 'error'
+  }) {
     const supabase = createClient()
+    
     const { data, error } = await supabase
-      .from('injuries')
-      .select(`
-        *,
-        player:user_profiles!injuries_player_id_fkey(name, jersey_number, position)
-      `)
-      .eq('status', 'active')
-      .order('injury_date', { ascending: false })
+      .from('notifications')
+      .insert({
+        ...notificationData,
+        type: notificationData.type || 'info',
+      })
+      .select()
+      .single()
+    
+    if (error) throw error
+    return data
+  },
+
+  async createNotificationForUsers(userIds: string[], notificationData: {
+    title: string
+    message: string
+    type?: 'info' | 'success' | 'warning' | 'error'
+  }) {
+    const supabase = createClient()
+    
+    const notifications = userIds.map((userId) => ({
+      user_id: userId,
+      title: notificationData.title,
+      message: notificationData.message,
+      type: notificationData.type || 'info',
+    }))
+    
+    const { data, error } = await supabase
+      .from('notifications')
+      .insert(notifications)
+      .select()
+    
+    if (error) throw error
+    return data
+  },
+
+  async createNotificationForRole(role: string, notificationData: {
+    title: string
+    message: string
+    type?: 'info' | 'success' | 'warning' | 'error'
+  }) {
+    const supabase = createClient()
+    
+    // Get all users with the specified role
+    const { data: users, error: usersError } = await supabase
+      .from('user_profiles')
+      .select('user_id')
+      .eq('role', role)
+    
+    if (usersError) throw usersError
+    
+    if (!users || users.length === 0) {
+      return []
+    }
+    
+    const notifications = users.map((user) => ({
+      user_id: user.user_id,
+      title: notificationData.title,
+      message: notificationData.message,
+      type: notificationData.type || 'info',
+    }))
+    
+    const { data, error } = await supabase
+      .from('notifications')
+      .insert(notifications)
+      .select()
+    
+    if (error) throw error
+    return data
+  },
+
+  // Budget Operations
+  async getBudgets(userId: string, userRole: string) {
+    const supabase = createClient()
+    
+    let query = supabase
+      .from('budgets')
+      .select('*')
+      .order('created_at', { ascending: false })
+    
+    // Finance admins can see all budgets, others only their own
+    if (userRole !== 'admin' && userRole !== 'finance_admin') {
+      query = query.eq('created_by', userId)
+    }
+    
+    const { data, error } = await query
     
     if (error) throw error
     return data || []
   },
 
-  // Budget Operations
   async getPendingBudgets() {
     const supabase = createClient()
+    
     const { data, error } = await supabase
       .from('budgets')
-      .select(`
-        *,
-        created_by_profile:user_profiles!budgets_created_by_fkey(name, email)
-      `)
+      .select('*')
       .eq('status', 'pending')
       .order('created_at', { ascending: false })
     
@@ -419,31 +500,16 @@ export const db = {
     return data || []
   },
 
-  async getBudgets(userId: string, role: string) {
-    const supabase = createClient()
-    let query = supabase
-      .from('budgets')
-      .select(`
-        *,
-        created_by_profile:user_profiles!budgets_created_by_fkey(name, email),
-        approved_by_profile:user_profiles!budgets_approved_by_fkey(name, email),
-        items:budget_items(*)
-      `)
-      .order('created_at', { ascending: false })
-
-    // Finance admins can only see their own budgets, admins can see all
-    if (role === 'finance_admin') {
-      query = query.eq('created_by', userId)
-    }
-
-    const { data, error } = await query
-    
-    if (error) throw error
-    return data || []
-  },
-
   async approveBudget(budgetId: string, approvedBy: string) {
     const supabase = createClient()
+    
+    // Get budget to find creator
+    const { data: budget } = await supabase
+      .from('budgets')
+      .select('created_by, event_name')
+      .eq('id', budgetId)
+      .single()
+    
     const { data, error } = await supabase
       .from('budgets')
       .update({
@@ -456,17 +522,34 @@ export const db = {
       .single()
     
     if (error) throw error
+    
+    // Create notification for budget creator
+    if (budget && budget.created_by) {
+      await this.createNotification({
+        user_id: budget.created_by,
+        title: 'Budget Approved',
+        message: `Your budget "${budget.event_name}" has been approved.`,
+        type: 'success',
+      })
+    }
+    
     return data
   },
 
   async rejectBudget(budgetId: string, rejectedBy: string, reason: string) {
     const supabase = createClient()
+    
+    // Get budget to find creator
+    const { data: budget } = await supabase
+      .from('budgets')
+      .select('created_by, event_name')
+      .eq('id', budgetId)
+      .single()
+    
     const { data, error } = await supabase
       .from('budgets')
       .update({
         status: 'rejected',
-        approved_by: rejectedBy,
-        approved_at: new Date().toISOString(),
         rejection_reason: reason,
       })
       .eq('id', budgetId)
@@ -474,193 +557,17 @@ export const db = {
       .single()
     
     if (error) throw error
-    return data
-  },
-
-  // Player-specific Operations
-  async getPlayerTrainingSessionsAttended(playerId: string) {
-    const supabase = createClient()
-    const { data, error } = await supabase
-      .from('training_attendance')
-      .select('*')
-      .eq('player_id', playerId)
-      .eq('attendance_status', 'P')
     
-    if (error) throw error
-    return data?.length || 0
-  },
-
-  async getPlayerGymStats(playerId: string) {
-    // Gym stats might not be in the database yet, return default structure
-    // This can be extended when gym data is added to the database
-    return {
-      benchPressPB: null as number | null,
-      squatPB: null as number | null,
-      deadliftPB: null as number | null,
-      pullUpPB: null as number | null,
+    // Create notification for budget creator
+    if (budget && budget.created_by) {
+      await this.createNotification({
+        user_id: budget.created_by,
+        title: 'Budget Rejected',
+        message: `Your budget "${budget.event_name}" has been rejected. Reason: ${reason}`,
+        type: 'warning',
+      })
     }
-  },
-
-  async getInjuries(playerId: string) {
-    const supabase = createClient()
-    const { data, error } = await supabase
-      .from('injuries')
-      .select('*')
-      .eq('player_id', playerId)
-      .order('injury_date', { ascending: false })
     
-    if (error) throw error
-    return data || []
-  },
-
-  // Gym Metrics Operations
-  async getBestGymMetricsOfWeek() {
-    // Gym metrics might not be in the database yet, return default structure
-    // This can be extended when gym data is added to the database
-    return {
-      bestBenchPress: {
-        value: 0,
-        playerName: 'N/A',
-      },
-      bestSquat: {
-        value: 0,
-        playerName: 'N/A',
-      },
-      bestDeadlift: {
-        value: 0,
-        playerName: 'N/A',
-      },
-      bestPullUps: {
-        value: 0,
-        playerName: 'N/A',
-      },
-    }
-  },
-
-  async updatePlayerGymStats(playerId: string, stats: {
-    benchPressPB?: number | null
-    squatPB?: number | null
-    deadliftPB?: number | null
-    pullUpPB?: number | null
-  }) {
-    // Gym stats might not be in the database yet
-    // This can be extended when gym data table is added to the database
-    // For now, just return success
-    return { success: true }
-  },
-
-  // Statistics Operations
-  async getTotalTrainingSessions() {
-    const supabase = createClient()
-    const { count, error } = await supabase
-      .from('training_sessions')
-      .select('*', { count: 'exact', head: true })
-    
-    if (error) throw error
-    return count || 0
-  },
-
-  async getTotalMatches() {
-    const supabase = createClient()
-    const { count, error } = await supabase
-      .from('matches')
-      .select('*', { count: 'exact', head: true })
-    
-    if (error) throw error
-    return count || 0
-  },
-
-  // Match Operations
-  async getUpcomingMatches() {
-    const supabase = createClient()
-    const today = new Date().toISOString().split('T')[0]
-    
-    const { data, error } = await supabase
-      .from('matches')
-      .select('*')
-      .gte('match_date', today)
-      .order('match_date', { ascending: true })
-    
-    if (error) throw error
-    return data || []
-  },
-
-  // Player Operations
-  async getAvailablePlayers() {
-    const supabase = createClient()
-    
-    // Get all active players with their profile and player details
-    const { data, error } = await supabase
-      .from('user_profiles')
-      .select(`
-        user_id,
-        name,
-        email,
-        status,
-        players:players!players_user_id_fkey(position, category, jersey_number)
-      `)
-      .eq('role', 'player')
-      .eq('status', 'active')
-      .order('name', { ascending: true })
-    
-    if (error) throw error
-    return data || []
-  },
-
-  // Fixture Team Selection Operations
-  async getFixtureTeamSelection(matchId: string) {
-    const supabase = createClient()
-    
-    const { data, error } = await supabase
-      .from('fixture_team_selections')
-      .select('*')
-      .eq('match_id', matchId)
-      .order('is_starting', { ascending: false })
-      .order('jersey_number', { ascending: true, nullsLast: true })
-    
-    if (error) throw error
-    return data || []
-  },
-
-  async saveFixtureTeamSelection(matchId: string, selections: Array<{
-    player_id: string
-    position?: string | null
-    jersey_number?: number | null
-    is_starting?: boolean
-    is_substitute?: boolean
-    notes?: string | null
-  }>) {
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    
-    if (!user) throw new Error('User not authenticated')
-
-    // Delete existing selections for this match
-    const { error: deleteError } = await supabase
-      .from('fixture_team_selections')
-      .delete()
-      .eq('match_id', matchId)
-
-    if (deleteError) throw deleteError
-
-    // Insert new selections
-    const records = selections.map((selection) => ({
-      match_id: matchId,
-      player_id: selection.player_id,
-      position: selection.position || null,
-      jersey_number: selection.jersey_number || null,
-      is_starting: selection.is_starting ?? true,
-      is_substitute: selection.is_substitute ?? false,
-      notes: selection.notes || null,
-      selected_by: user.id,
-    }))
-
-    const { data, error: insertError } = await supabase
-      .from('fixture_team_selections')
-      .insert(records)
-      .select()
-
-    if (insertError) throw insertError
     return data
   },
 }

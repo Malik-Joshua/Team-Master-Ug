@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
-import PDFDocument from 'pdfkit'
-import { Readable } from 'stream'
+import { jsPDF } from 'jspdf'
 
 export const dynamic = 'force-dynamic'
 
@@ -95,50 +94,70 @@ export async function GET(
       )
     }
 
-    // Generate PDF
+    // Generate PDF using jsPDF
     const fileName = `${report.report_type}_report_${report.id.substring(0, 8)}.pdf`
     
     // Create PDF document
-    const doc = new PDFDocument({
-      size: 'A4',
-      margins: { top: 50, bottom: 50, left: 50, right: 50 }
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4',
     })
 
-    // Collect PDF data
-    const chunks: Buffer[] = []
-    doc.on('data', (chunk) => chunks.push(chunk))
+    // Set margins
+    const margin = 20
+    const pageWidth = doc.internal.pageSize.getWidth()
+    const pageHeight = doc.internal.pageSize.getHeight()
+    const contentWidth = pageWidth - (margin * 2)
+
+    let yPos = margin
 
     // Add header
-    doc.fontSize(20).font('Helvetica-Bold').text(report.title, { align: 'center' })
-    doc.moveDown(1)
+    doc.setFontSize(20)
+    doc.setFont('helvetica', 'bold')
+    doc.text(report.title, pageWidth / 2, yPos, { align: 'center' })
+    yPos += 10
     
     // Add report metadata
-    doc.fontSize(12).font('Helvetica')
-    doc.text(`Report Type: ${report.report_type.charAt(0).toUpperCase() + report.report_type.slice(1)}`, { align: 'left' })
-    doc.text(`Generated: ${new Date(report.created_at).toLocaleString()}`, { align: 'left' })
+    doc.setFontSize(12)
+    doc.setFont('helvetica', 'normal')
+    doc.text(`Report Type: ${report.report_type.charAt(0).toUpperCase() + report.report_type.slice(1)}`, margin, yPos)
+    yPos += 7
+    
+    doc.text(`Generated: ${new Date(report.created_at).toLocaleString()}`, margin, yPos)
+    yPos += 7
     
     if (report.date_from && report.date_to) {
-      doc.text(`Date Range: ${new Date(report.date_from).toLocaleDateString()} - ${new Date(report.date_to).toLocaleDateString()}`, { align: 'left' })
+      doc.text(`Date Range: ${new Date(report.date_from).toLocaleDateString()} - ${new Date(report.date_to).toLocaleDateString()}`, margin, yPos)
+      yPos += 7
     }
     
-    doc.moveDown(1)
-    doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke()
-    doc.moveDown(1)
+    yPos += 5
+    doc.setDrawColor(200, 200, 200)
+    doc.setLineWidth(0.5)
+    doc.line(margin, yPos, pageWidth - margin, yPos)
+    yPos += 10
 
     // Add report-specific content based on type
-    doc.fontSize(14).font('Helvetica-Bold').text('Report Summary', { align: 'left' })
-    doc.moveDown(0.5)
-    doc.fontSize(11).font('Helvetica')
+    doc.setFontSize(14)
+    doc.setFont('helvetica', 'bold')
+    doc.text('Report Summary', margin, yPos)
+    yPos += 10
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'normal')
 
     switch (report.report_type) {
       case 'player':
-        doc.text('Player Performance Report', { align: 'left' })
-        doc.moveDown(0.5)
-        doc.text('This report contains player performance data including:', { align: 'left' })
-        doc.text('• Match statistics (tries, tackles, minutes played)', { align: 'left', indent: 20 })
-        doc.text('• Training attendance records', { align: 'left', indent: 20 })
-        doc.text('• Overall performance metrics', { align: 'left', indent: 20 })
-        doc.moveDown(1)
+        doc.text('Player Performance Report', margin, yPos)
+        yPos += 7
+        doc.text('This report contains player performance data including:', margin, yPos)
+        yPos += 7
+        doc.text('• Match statistics (tries, tackles, minutes played)', margin + 5, yPos)
+        yPos += 6
+        doc.text('• Training attendance records', margin + 5, yPos)
+        yPos += 6
+        doc.text('• Overall performance metrics', margin + 5, yPos)
+        yPos += 10
         
         // Fetch and add player data if available
         try {
@@ -149,11 +168,23 @@ export async function GET(
             .limit(10)
           
           if (players && players.length > 0) {
-            doc.fontSize(12).font('Helvetica-Bold').text('Active Players:', { align: 'left' })
-            doc.moveDown(0.3)
-            doc.fontSize(10).font('Helvetica')
+            if (yPos > pageHeight - 40) {
+              doc.addPage()
+              yPos = margin
+            }
+            doc.setFontSize(12)
+            doc.setFont('helvetica', 'bold')
+            doc.text('Active Players:', margin, yPos)
+            yPos += 7
+            doc.setFontSize(10)
+            doc.setFont('helvetica', 'normal')
             players.forEach((player: any) => {
-              doc.text(`• ${player.name} (${player.status})`, { align: 'left', indent: 20 })
+              if (yPos > pageHeight - 20) {
+                doc.addPage()
+                yPos = margin
+              }
+              doc.text(`• ${player.name} (${player.status})`, margin + 5, yPos)
+              yPos += 6
             })
           }
         } catch (error) {
@@ -162,31 +193,46 @@ export async function GET(
         break
 
       case 'match':
-        doc.text('Match Statistics Report', { align: 'left' })
-        doc.moveDown(0.5)
-        doc.text('This report contains match statistics and results including:', { align: 'left' })
-        doc.text('• Match results and scores', { align: 'left', indent: 20 })
-        doc.text('• Player performance in matches', { align: 'left', indent: 20 })
-        doc.text('• Team statistics and trends', { align: 'left', indent: 20 })
-        doc.moveDown(1)
+        doc.text('Match Statistics Report', margin, yPos)
+        yPos += 7
+        doc.text('This report contains match statistics and results including:', margin, yPos)
+        yPos += 7
+        doc.text('• Match results and scores', margin + 5, yPos)
+        yPos += 6
+        doc.text('• Player performance in matches', margin + 5, yPos)
+        yPos += 6
+        doc.text('• Team statistics and trends', margin + 5, yPos)
+        yPos += 10
         
         // Fetch and add match data if available
         try {
           const { data: matches } = await supabaseAdmin
             .from('matches')
-            .select('id, match_date, opponent, our_score, opponent_score')
+            .select('id, match_date, opponent, score_our_team, score_opponent')
             .order('match_date', { ascending: false })
             .limit(10)
           
           if (matches && matches.length > 0) {
-            doc.fontSize(12).font('Helvetica-Bold').text('Recent Matches:', { align: 'left' })
-            doc.moveDown(0.3)
-            doc.fontSize(10).font('Helvetica')
+            if (yPos > pageHeight - 40) {
+              doc.addPage()
+              yPos = margin
+            }
+            doc.setFontSize(12)
+            doc.setFont('helvetica', 'bold')
+            doc.text('Recent Matches:', margin, yPos)
+            yPos += 7
+            doc.setFontSize(10)
+            doc.setFont('helvetica', 'normal')
             matches.forEach((match: any) => {
-              const score = match.our_score !== null && match.opponent_score !== null
-                ? `${match.our_score} - ${match.opponent_score}`
+              if (yPos > pageHeight - 20) {
+                doc.addPage()
+                yPos = margin
+              }
+              const score = match.score_our_team !== null && match.score_opponent !== null
+                ? `${match.score_our_team} - ${match.score_opponent}`
                 : 'TBD'
-              doc.text(`• ${new Date(match.match_date).toLocaleDateString()} vs ${match.opponent} (${score})`, { align: 'left', indent: 20 })
+              doc.text(`• ${new Date(match.match_date).toLocaleDateString()} vs ${match.opponent} (${score})`, margin + 5, yPos)
+              yPos += 6
             })
           }
         } catch (error) {
@@ -195,13 +241,16 @@ export async function GET(
         break
 
       case 'training':
-        doc.text('Training Attendance Report', { align: 'left' })
-        doc.moveDown(0.5)
-        doc.text('This report contains training session attendance data including:', { align: 'left' })
-        doc.text('• Training session schedules', { align: 'left', indent: 20 })
-        doc.text('• Player attendance records', { align: 'left', indent: 20 })
-        doc.text('• Attendance trends and statistics', { align: 'left', indent: 20 })
-        doc.moveDown(1)
+        doc.text('Training Attendance Report', margin, yPos)
+        yPos += 7
+        doc.text('This report contains training session attendance data including:', margin, yPos)
+        yPos += 7
+        doc.text('• Training session schedules', margin + 5, yPos)
+        yPos += 6
+        doc.text('• Player attendance records', margin + 5, yPos)
+        yPos += 6
+        doc.text('• Attendance trends and statistics', margin + 5, yPos)
+        yPos += 10
         
         // Fetch and add training data if available
         try {
@@ -212,11 +261,23 @@ export async function GET(
             .limit(10)
           
           if (sessions && sessions.length > 0) {
-            doc.fontSize(12).font('Helvetica-Bold').text('Recent Training Sessions:', { align: 'left' })
-            doc.moveDown(0.3)
-            doc.fontSize(10).font('Helvetica')
+            if (yPos > pageHeight - 40) {
+              doc.addPage()
+              yPos = margin
+            }
+            doc.setFontSize(12)
+            doc.setFont('helvetica', 'bold')
+            doc.text('Recent Training Sessions:', margin, yPos)
+            yPos += 7
+            doc.setFontSize(10)
+            doc.setFont('helvetica', 'normal')
             sessions.forEach((session: any) => {
-              doc.text(`• ${new Date(session.session_date).toLocaleDateString()} - ${session.location || 'TBD'}`, { align: 'left', indent: 20 })
+              if (yPos > pageHeight - 20) {
+                doc.addPage()
+                yPos = margin
+              }
+              doc.text(`• ${new Date(session.session_date).toLocaleDateString()} - ${session.location || 'TBD'}`, margin + 5, yPos)
+              yPos += 6
             })
           }
         } catch (error) {
@@ -225,13 +286,16 @@ export async function GET(
         break
 
       case 'financial':
-        doc.text('Financial Report', { align: 'left' })
-        doc.moveDown(0.5)
-        doc.text('This report contains financial transactions and summaries including:', { align: 'left' })
-        doc.text('• Revenue and expense records', { align: 'left', indent: 20 })
-        doc.text('• Budget allocations and status', { align: 'left', indent: 20 })
-        doc.text('• Financial trends and summaries', { align: 'left', indent: 20 })
-        doc.moveDown(1)
+        doc.text('Financial Report', margin, yPos)
+        yPos += 7
+        doc.text('This report contains financial transactions and summaries including:', margin, yPos)
+        yPos += 7
+        doc.text('• Revenue and expense records', margin + 5, yPos)
+        yPos += 6
+        doc.text('• Budget allocations and status', margin + 5, yPos)
+        yPos += 6
+        doc.text('• Financial trends and summaries', margin + 5, yPos)
+        yPos += 10
         
         // Fetch and add financial data if available
         try {
@@ -242,6 +306,10 @@ export async function GET(
             .limit(10)
           
           if (transactions && transactions.length > 0) {
+            if (yPos > pageHeight - 40) {
+              doc.addPage()
+              yPos = margin
+            }
             const totalRevenue = transactions
               .filter((t: any) => t.type === 'revenue')
               .reduce((sum: number, t: any) => sum + parseFloat(t.amount.toString()), 0)
@@ -249,12 +317,17 @@ export async function GET(
               .filter((t: any) => t.type === 'expense')
               .reduce((sum: number, t: any) => sum + parseFloat(t.amount.toString()), 0)
             
-            doc.fontSize(12).font('Helvetica-Bold').text('Financial Summary:', { align: 'left' })
-            doc.moveDown(0.3)
-            doc.fontSize(10).font('Helvetica')
-            doc.text(`Total Revenue: $${totalRevenue.toFixed(2)}`, { align: 'left', indent: 20 })
-            doc.text(`Total Expenses: $${totalExpenses.toFixed(2)}`, { align: 'left', indent: 20 })
-            doc.text(`Net: $${(totalRevenue - totalExpenses).toFixed(2)}`, { align: 'left', indent: 20 })
+            doc.setFontSize(12)
+            doc.setFont('helvetica', 'bold')
+            doc.text('Financial Summary:', margin, yPos)
+            yPos += 7
+            doc.setFontSize(10)
+            doc.setFont('helvetica', 'normal')
+            doc.text(`Total Revenue: $${totalRevenue.toFixed(2)}`, margin + 5, yPos)
+            yPos += 6
+            doc.text(`Total Expenses: $${totalExpenses.toFixed(2)}`, margin + 5, yPos)
+            yPos += 6
+            doc.text(`Net: $${(totalRevenue - totalExpenses).toFixed(2)}`, margin + 5, yPos)
           }
         } catch (error) {
           console.error('Error fetching financial data:', error)
@@ -262,42 +335,38 @@ export async function GET(
         break
 
       case 'summary':
-        doc.text('Summary Report', { align: 'left' })
-        doc.moveDown(0.5)
-        doc.text('This report contains overall club summary data including:', { align: 'left' })
-        doc.text('• Overall club statistics', { align: 'left', indent: 20 })
-        doc.text('• Performance summaries across all areas', { align: 'left', indent: 20 })
-        doc.text('• Key metrics and trends', { align: 'left', indent: 20 })
+        doc.text('Summary Report', margin, yPos)
+        yPos += 7
+        doc.text('This report contains overall club summary data including:', margin, yPos)
+        yPos += 7
+        doc.text('• Overall club statistics', margin + 5, yPos)
+        yPos += 6
+        doc.text('• Performance summaries across all areas', margin + 5, yPos)
+        yPos += 6
+        doc.text('• Key metrics and trends', margin + 5, yPos)
         break
 
       default:
-        doc.text('General Report', { align: 'left' })
+        doc.text('General Report', margin, yPos)
     }
     
-    doc.moveDown(2)
-    doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke()
-    doc.moveDown(1)
-    
-    // Add footer
-    doc.fontSize(9).font('Helvetica').fillColor('gray')
-    doc.text(`Report ID: ${report.id}`, { align: 'left' })
-    doc.text(`Status: ${report.status}`, { align: 'left' })
-    doc.text(`Generated by: Mongers Rugby Club Management System`, { align: 'center' })
+    // Add footer to all pages
+    const pageCount = doc.getNumberOfPages()
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i)
+      doc.setFontSize(9)
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(128, 128, 128)
+      doc.text(`Report ID: ${report.id}`, margin, pageHeight - 15)
+      doc.text(`Status: ${report.status}`, margin, pageHeight - 10)
+      doc.text('Generated by: Mongers Rugby Club Management System', pageWidth / 2, pageHeight - 5, { align: 'center' })
+    }
 
-    // Finalize PDF and wait for completion
-    const pdfBuffer = await new Promise<Buffer>((resolve, reject) => {
-      doc.on('end', () => {
-        resolve(Buffer.concat(chunks))
-      })
-      doc.on('error', (error) => {
-        reject(error)
-      })
-      doc.end()
-    })
+    // Generate PDF buffer
+    const pdfBuffer = Buffer.from(doc.output('arraybuffer'))
 
     // Return PDF as downloadable file
-    // Convert Buffer to Uint8Array for NextResponse
-    return new NextResponse(new Uint8Array(pdfBuffer), {
+    return new NextResponse(pdfBuffer, {
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': `attachment; filename="${fileName}"`,
@@ -311,4 +380,3 @@ export async function GET(
     )
   }
 }
-

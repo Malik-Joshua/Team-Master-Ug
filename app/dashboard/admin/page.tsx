@@ -240,12 +240,13 @@ export default function AdminDashboard() {
 
           const { data: players } = await supabase
             .from('user_profiles')
-            .select('user_id')
+            .select('user_id, status')
             .eq('role', 'player')
 
           if (sessions && attendance && players) {
             const totalSessions = sessions.length
             const totalPlayers = players.length
+            const activePlayers = players.filter((p: any) => p.status === 'active').length
             let presentCount = 0
             let absentCount = 0
             let justifiedAbsenceCount = 0
@@ -287,6 +288,7 @@ export default function AdminDashboard() {
             setAttendanceSummary({
               totalSessions,
               totalPlayers,
+              activePlayers: activePlayers || totalPlayers,
               presentCount,
               absentCount,
               justifiedAbsenceCount,

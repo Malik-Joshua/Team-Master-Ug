@@ -204,6 +204,76 @@ export default function DashboardPage() {
 
           if (profile) {
             setUser(profile)
+            
+            // Load general statistics for all roles
+            try {
+              // Get total players count
+              const { count: totalPlayersCount } = await supabase
+                .from('user_profiles')
+                .select('*', { count: 'exact', head: true })
+                .eq('role', 'player')
+              
+              // Get active players count
+              const { count: activePlayersCount } = await supabase
+                .from('user_profiles')
+                .select('*', { count: 'exact', head: true })
+                .eq('role', 'player')
+                .eq('status', 'active')
+              
+              // Get total matches count
+              const { count: totalMatchesCount } = await supabase
+                .from('matches')
+                .select('*', { count: 'exact', head: true })
+              
+              // Get match stats for tries and tackles
+              const { data: matchStats } = await supabase
+                .from('match_stats')
+                .select('tries_scored, tackles_made, minutes_played')
+              
+              const totalTries = matchStats?.reduce((sum, stat) => sum + (stat.tries_scored || 0), 0) || 0
+              const totalTackles = matchStats?.reduce((sum, stat) => sum + (stat.tackles_made || 0), 0) || 0
+              const totalMinutes = matchStats?.reduce((sum, stat) => sum + (stat.minutes_played || 0), 0) || 0
+              const avgMinutes = totalMatchesCount && totalMatchesCount > 0 ? Math.round(totalMinutes / totalMatchesCount) : 0
+              
+              // Get match results for win rate
+              const { data: matches } = await supabase
+                .from('matches')
+                .select('result')
+              
+              const wins = matches?.filter(m => m.result === 'win').length || 0
+              const totalPlayed = matches?.filter(m => m.result).length || 0
+              const winRate = totalPlayed > 0 ? Math.round((wins / totalPlayed) * 100) : 0
+              
+              // Get financial data
+              const { data: revenueTransactions } = await supabase
+                .from('financial_transactions')
+                .select('amount')
+                .eq('type', 'revenue')
+              
+              const { data: expenseTransactions } = await supabase
+                .from('financial_transactions')
+                .select('amount')
+                .eq('type', 'expense')
+              
+              const totalRevenue = revenueTransactions?.reduce((sum, t) => sum + parseFloat(t.amount || 0), 0) || 0
+              const totalExpenses = expenseTransactions?.reduce((sum, t) => sum + parseFloat(t.amount || 0), 0) || 0
+              
+              setStats(prev => ({
+                ...prev,
+                totalPlayers: totalPlayersCount || 0,
+                activePlayers: activePlayersCount || 0,
+                totalMatches: totalMatchesCount || 0,
+                totalTries,
+                totalTackles,
+                avgMinutes,
+                winRate,
+                totalRevenue: Math.round(totalRevenue),
+                totalExpenses: Math.round(totalExpenses),
+              }))
+            } catch (error) {
+              console.error('Error loading general statistics:', error)
+            }
+            
             // Load real stats based on role
             if (profile.role === 'coach') {
               try {

@@ -77,6 +77,7 @@ export default function FinancePage() {
     event_type: 'game_day',
     event_date: '',
     description: '',
+    total_amount: '',
     items: [{ item_name: '', category: '', quantity: '1', unit_price: '', total_amount: '', notes: '' }],
   })
   const [savingBudget, setSavingBudget] = useState(false)
@@ -270,12 +271,18 @@ export default function FinancePage() {
       return
     }
 
-    const totalAmount = budgetForm.items.reduce((sum, item) => {
-      return sum + (parseFloat(item.total_amount) || 0)
-    }, 0)
+    // Use manually entered total_amount if provided, otherwise calculate from items
+    let totalAmount = parseFloat(budgetForm.total_amount) || 0
+    
+    if (totalAmount === 0) {
+      // Fallback to calculating from items if total_amount is not provided
+      totalAmount = budgetForm.items.reduce((sum, item) => {
+        return sum + (parseFloat(item.total_amount) || 0)
+      }, 0)
+    }
 
     if (totalAmount === 0) {
-      alert('Please add at least one budget item with a valid amount')
+      alert('Please enter a total budget amount or add budget items with valid amounts')
       return
     }
 
@@ -300,6 +307,7 @@ export default function FinancePage() {
           event_type: 'game_day',
           event_date: '',
           description: '',
+          total_amount: '',
           items: [{ item_name: '', category: '', quantity: '1', unit_price: '', total_amount: '', notes: '' }],
         })
         alert('Budget submitted for approval! (Dev Mode)')
@@ -322,7 +330,7 @@ export default function FinancePage() {
           event_type: budgetForm.event_type,
           event_date: budgetForm.event_date,
           description: budgetForm.description,
-          total_amount: totalAmount,
+          total_amount: totalAmount, // Use calculated or manually entered total
           status: 'pending',
           created_by: authUser.id,
         })
@@ -733,8 +741,20 @@ export default function FinancePage() {
                   <input type="date" value={budgetForm.event_date} onChange={(e) => setBudgetForm({ ...budgetForm, event_date: e.target.value })} className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" required />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-neutral-text mb-2">Total Budget</label>
-                  <input type="text" value={formatCurrency(budgetForm.items.reduce((sum, item) => sum + (parseFloat(item.total_amount) || 0), 0))} disabled className="w-full px-4 py-2 border border-neutral-light rounded-lg bg-neutral-light" />
+                  <label className="block text-sm font-semibold text-neutral-text mb-2">Total Budget (UGX) *</label>
+                  <input 
+                    type="number" 
+                    min="0" 
+                    step="0.01"
+                    value={budgetForm.total_amount} 
+                    onChange={(e) => setBudgetForm({ ...budgetForm, total_amount: e.target.value })} 
+                    className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" 
+                    placeholder="Enter total budget amount"
+                    required
+                  />
+                  <p className="text-xs text-neutral-medium mt-1">
+                    Calculated from items: {formatCurrency(budgetForm.items.reduce((sum, item) => sum + (parseFloat(item.total_amount) || 0), 0))}
+                  </p>
                 </div>
               </div>
               <div>

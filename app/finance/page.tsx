@@ -237,32 +237,6 @@ export default function FinancePage() {
     setSavingBudget(true)
     try {
       if (typeof window !== 'undefined' && localStorage.getItem('dev_user')) {
-        const newBudget: Budget = {
-          id: Date.now().toString(),
-          event_name: budgetForm.event_name,
-          event_type: budgetForm.event_type,
-          event_date: budgetForm.event_date,
-          description: budgetForm.description,
-          total_amount: totalAmount,
-          status: 'pending',
-          created_by: user?.id || '1',
-          items: budgetForm.items,
-        }
-        setBudgets([newBudget, ...budgets])
-        setShowBudgetModal(false)
-        setBudgetForm({
-          event_name: '',
-          event_type: 'game_day',
-          event_date: '',
-          description: '',
-          total_amount: '',
-          items: [{ item_name: '', category: '', quantity: '1', unit_price: '', total_amount: '', notes: '' }],
-        })
-        alert('Budget submitted for approval! (Dev Mode)')
-        setSavingBudget(false)
-        return
-      }
-
       const supabase = createClient()
       const { data: { user: authUser } } = await supabase.auth.getUser()
       if (!authUser) {

@@ -119,25 +119,6 @@ export default function PlayersPage() {
   const handleAddPlayer = async () => {
     setSaving(true)
     try {
-      if (typeof window !== 'undefined' && localStorage.getItem('dev_user')) {
-        const newPlayer: Player = {
-          id: Date.now().toString(),
-          name: playerForm.name,
-          email: playerForm.email,
-          phone: playerForm.phone,
-          position: playerForm.position,
-          status: playerForm.status,
-          games_played: 0,
-          tries: 0,
-          tackles: 0,
-        }
-        setPlayers([...players, newPlayer])
-        setShowAddModal(false)
-        alert('Player added successfully! (Dev Mode)')
-        setSaving(false)
-        return
-      }
-
       const response = await fetch('/api/players', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

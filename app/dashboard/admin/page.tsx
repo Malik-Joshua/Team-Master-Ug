@@ -58,6 +58,7 @@ export default function AdminDashboard() {
   const [loadingTeamSelection, setLoadingTeamSelection] = useState(false)
   const [stats, setStats] = useState({
     totalUsers: 0,
+    totalPlayers: 0,
     activePlayers: 0,
     totalRevenue: 0,
     inventoryItems: 0,
@@ -179,6 +180,7 @@ export default function AdminDashboard() {
             
             setStats({
               totalUsers: totalUsersCount || 0,
+              totalPlayers: totalPlayersCount || 0,
               activePlayers: activePlayersCount || 0,
               totalRevenue: Math.round(totalRevenue),
               inventoryItems: inventoryCount || 0,
@@ -457,8 +459,9 @@ export default function AdminDashboard() {
   return (
     <Layout pageTitle="Admin Control Panel">
       <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
           <StatCard title="Total Users" value={stats.totalUsers} icon={Users} iconColor="bg-primary" />
+          <StatCard title="Total Players" value={stats.totalPlayers} icon={Users} iconColor="bg-primary" />
           <StatCard title="Active Players" value={stats.activePlayers} icon={Activity} iconColor="bg-success" />
           <StatCard title="Total Revenue" value={formatCurrency(stats.totalRevenue)} icon={DollarSign} iconColor="bg-success" />
           <StatCard title="Inventory Items" value={stats.inventoryItems} icon={Package} iconColor="bg-info" />

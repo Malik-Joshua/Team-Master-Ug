@@ -56,27 +56,81 @@ export default function InventoryPage() {
       if (profile) {
         setUser(profile)
         
-        // Fetch real inventory items
-        const { data: itemsData, error } = await supabase
-          .from('inventory')
-          .select('*')
-          .order('name', { ascending: true })
+        // Fetch inventory items - use API route for admin/data_admin to bypass RLS
+        if (profile.role === 'admin' || profile.role === 'data_admin') {
+          try {
+            const response = await fetch('/api/admin/inventory')
+            if (response.ok) {
+              const data = await response.json()
+              setItems(data.items || [])
+            } else {
+              const error = await response.json()
+              console.error('Error fetching inventory:', error)
+              // Fallback to direct query
+              const { data: itemsData, error: queryError } = await supabase
+                .from('inventory')
+                .select('*')
+                .order('name', { ascending: true })
+              if (!queryError && itemsData) {
+                const formattedItems: InventoryItem[] = itemsData.map((item: any) => ({
+                  id: item.id,
+                  name: item.name,
+                  category: item.category || 'Equipment',
+                  quantity: item.quantity || 0,
+                  unit: item.unit || 'pieces',
+                  location: item.location || '',
+                  status: item.quantity === 0 ? 'out_of_stock' : item.quantity < 10 ? 'low_stock' : 'in_stock',
+                  lastUpdated: item.updated_at || item.created_at || new Date().toISOString(),
+                  description: item.description || '',
+                }))
+                setItems(formattedItems)
+              }
+            }
+          } catch (error) {
+            console.error('Error fetching inventory from API:', error)
+            // Fallback to direct query
+            const { data: itemsData, error: queryError } = await supabase
+              .from('inventory')
+              .select('*')
+              .order('name', { ascending: true })
+            if (!queryError && itemsData) {
+              const formattedItems: InventoryItem[] = itemsData.map((item: any) => ({
+                id: item.id,
+                name: item.name,
+                category: item.category || 'Equipment',
+                quantity: item.quantity || 0,
+                unit: item.unit || 'pieces',
+                location: item.location || '',
+                status: item.quantity === 0 ? 'out_of_stock' : item.quantity < 10 ? 'low_stock' : 'in_stock',
+                lastUpdated: item.updated_at || item.created_at || new Date().toISOString(),
+                description: item.description || '',
+              }))
+              setItems(formattedItems)
+            }
+          }
+        } else {
+          // For other roles, use direct query (they can only see their own data)
+          const { data: itemsData, error } = await supabase
+            .from('inventory')
+            .select('*')
+            .order('name', { ascending: true })
 
-        if (error) {
-          console.error('Error fetching inventory:', error)
-        } else if (itemsData) {
-          const formattedItems: InventoryItem[] = itemsData.map((item: any) => ({
-            id: item.id,
-            name: item.name,
-            category: item.category || 'Equipment',
-            quantity: item.quantity || 0,
-            unit: item.unit || 'pieces',
-            location: item.location || '',
-            status: item.quantity === 0 ? 'out_of_stock' : item.quantity < 10 ? 'low_stock' : 'in_stock',
-            lastUpdated: item.updated_at || item.created_at || new Date().toISOString(),
-            description: item.description || '',
-          }))
-          setItems(formattedItems)
+          if (error) {
+            console.error('Error fetching inventory:', error)
+          } else if (itemsData) {
+            const formattedItems: InventoryItem[] = itemsData.map((item: any) => ({
+              id: item.id,
+              name: item.name,
+              category: item.category || 'Equipment',
+              quantity: item.quantity || 0,
+              unit: item.unit || 'pieces',
+              location: item.location || '',
+              status: item.quantity === 0 ? 'out_of_stock' : item.quantity < 10 ? 'low_stock' : 'in_stock',
+              lastUpdated: item.updated_at || item.created_at || new Date().toISOString(),
+              description: item.description || '',
+            }))
+            setItems(formattedItems)
+          }
         }
       }
       setLoading(false)

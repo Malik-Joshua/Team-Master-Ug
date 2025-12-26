@@ -450,13 +450,6 @@ export default function AdminDashboard() {
     )
   }
 
-  const formatCurrency = (amount: number) => {
-    if (amount >= 1000000) {
-      return `UGX ${(amount / 1000000).toFixed(1)}M`
-    }
-    return `UGX ${amount.toLocaleString()}`
-  }
-
   return (
     <Layout pageTitle="Admin Control Panel">
       <div className="space-y-6">

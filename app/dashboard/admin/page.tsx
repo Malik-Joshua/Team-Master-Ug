@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
-import { Users, Activity, DollarSign, Package, Calendar, CheckCircle, XCircle, AlertCircle, FileText, X, Trophy } from 'lucide-react'
+import { Users, Activity, DollarSign, Package, Calendar, CheckCircle, XCircle, AlertCircle, FileText, X, Trophy, BarChart3 } from 'lucide-react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import {
@@ -411,6 +411,7 @@ export default function AdminDashboard() {
 
   const managementCards = [
     { name: 'Player Data', icon: Activity, href: '/players', color: 'bg-primary' },
+    { name: 'Performance', icon: BarChart3, href: '/performance', color: 'bg-warning' },
     { name: 'Financial Records', icon: DollarSign, href: '/finance', color: 'bg-success' },
     { name: 'Inventory', icon: Package, href: '/inventory', color: 'bg-info' },
   ]

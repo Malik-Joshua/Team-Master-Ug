@@ -313,6 +313,58 @@ export const db = {
     return count || 0
   },
 
+  async getUpcomingMatches() {
+    const supabase = createClient()
+    const today = new Date().toISOString().split('T')[0]
+    
+    const { data, error } = await supabase
+      .from('matches')
+      .select('*')
+      .gte('match_date', today)
+      .order('match_date', { ascending: true })
+    
+    if (error) throw error
+    return data || []
+  },
+
+  async getAvailablePlayers() {
+    const supabase = createClient()
+    
+    // Get all active players
+    const { data: players, error: playersError } = await supabase
+      .from('user_profiles')
+      .select(`
+        user_id,
+        name,
+        email,
+        status,
+        players:players!players_user_id_fkey(
+          position,
+          category,
+          jersey_number
+        )
+      `)
+      .eq('role', 'player')
+      .eq('status', 'active')
+    
+    if (playersError) throw playersError
+    
+    // Get players with active injuries
+    const { data: activeInjuries, error: injuriesError } = await supabase
+      .from('injuries')
+      .select('player_id')
+      .eq('status', 'active')
+    
+    if (injuriesError) throw injuriesError
+    
+    const injuredPlayerIds = new Set((activeInjuries || []).map((i: any) => i.player_id))
+    
+    // Filter out injured players
+    const availablePlayers = (players || []).filter((p: any) => !injuredPlayerIds.has(p.user_id))
+    
+    return availablePlayers
+  },
+
   async getTeamPerformanceStats() {
     const supabase = createClient()
     const { data, error } = await supabase

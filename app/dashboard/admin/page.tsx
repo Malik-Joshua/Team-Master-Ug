@@ -158,6 +158,12 @@ export default function AdminDashboard() {
               .from('user_profiles')
               .select('*', { count: 'exact', head: true })
             
+            // Get total players count (all players regardless of status)
+            const { count: totalPlayersCount } = await supabase
+              .from('user_profiles')
+              .select('*', { count: 'exact', head: true })
+              .eq('role', 'player')
+            
             // Get active players count
             const { count: activePlayersCount } = await supabase
               .from('user_profiles')

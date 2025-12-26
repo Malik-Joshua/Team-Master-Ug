@@ -55,6 +55,14 @@ export default function AdminDashboard() {
   const [loadingInjuries, setLoadingInjuries] = useState(false)
   const [teamSelection, setTeamSelection] = useState<any>(null)
   const [loadingTeamSelection, setLoadingTeamSelection] = useState(false)
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    activePlayers: 0,
+    totalRevenue: 0,
+    inventoryItems: 0,
+  })
+  const [upcomingMatches, setUpcomingMatches] = useState<any[]>([])
+  const [recentApprovals, setRecentApprovals] = useState<any[]>([])
 
   useEffect(() => {
     const loadData = async () => {
@@ -141,6 +149,43 @@ export default function AdminDashboard() {
         if (profile) {
           setUser(profile)
 
+          // Load statistics
+          try {
+            // Get total users count
+            const { count: totalUsersCount } = await supabase
+              .from('user_profiles')
+              .select('*', { count: 'exact', head: true })
+            
+            // Get active players count
+            const { count: activePlayersCount } = await supabase
+              .from('user_profiles')
+              .select('*', { count: 'exact', head: true })
+              .eq('role', 'player')
+              .eq('status', 'active')
+            
+            // Get total revenue
+            const { data: transactions } = await supabase
+              .from('financial_transactions')
+              .select('amount, type')
+              .eq('type', 'revenue')
+            
+            const totalRevenue = transactions?.reduce((sum, t) => sum + parseFloat(t.amount || 0), 0) || 0
+            
+            // Get inventory items count
+            const { count: inventoryCount } = await supabase
+              .from('inventory')
+              .select('*', { count: 'exact', head: true })
+            
+            setStats({
+              totalUsers: totalUsersCount || 0,
+              activePlayers: activePlayersCount || 0,
+              totalRevenue: Math.round(totalRevenue),
+              inventoryItems: inventoryCount || 0,
+            })
+          } catch (error) {
+            console.error('Error loading statistics:', error)
+          }
+
           // Load active injuries
           try {
             setLoadingInjuries(true)
@@ -152,6 +197,35 @@ export default function AdminDashboard() {
             setActiveInjuries([])
           } finally {
             setLoadingInjuries(false)
+          }
+
+          // Load upcoming matches
+          try {
+            const { db } = await import('@/lib/db-helpers')
+            const matches = await db.getUpcomingMatches()
+            setUpcomingMatches(matches.slice(0, 3)) // Show next 3 upcoming matches
+          } catch (error) {
+            console.error('Error loading upcoming matches:', error)
+            setUpcomingMatches([])
+          }
+
+          // Load recent budget approvals
+          try {
+            const { data: approvedBudgets } = await supabase
+              .from('budgets')
+              .select(`
+                *,
+                created_by_profile:user_profiles!budgets_created_by_fkey(name),
+                approved_by_profile:user_profiles!budgets_approved_by_fkey(name)
+              `)
+              .eq('status', 'approved')
+              .order('approved_at', { ascending: false })
+              .limit(5)
+            
+            setRecentApprovals(approvedBudgets || [])
+          } catch (error) {
+            console.error('Error loading recent approvals:', error)
+            setRecentApprovals([])
           }
 
           const { data: sessions } = await supabase
@@ -376,15 +450,122 @@ export default function AdminDashboard() {
     )
   }
 
+  const formatCurrency = (amount: number) => {
+    if (amount >= 1000000) {
+      return `UGX ${(amount / 1000000).toFixed(1)}M`
+    }
+    return `UGX ${amount.toLocaleString()}`
+  }
+
   return (
     <Layout pageTitle="Admin Control Panel">
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <StatCard title="Users" value={124} icon={Users} iconColor="bg-primary" />
-          <StatCard title="Active Players" value={72} icon={Activity} iconColor="bg-success" />
-          <StatCard title="Revenue" value="UGX 45M" icon={DollarSign} iconColor="bg-success" />
-          <StatCard title="Inventory" value="45 items" icon={Package} iconColor="bg-info" />
+          <StatCard title="Total Users" value={stats.totalUsers} icon={Users} iconColor="bg-primary" />
+          <StatCard title="Active Players" value={stats.activePlayers} icon={Activity} iconColor="bg-success" />
+          <StatCard title="Total Revenue" value={formatCurrency(stats.totalRevenue)} icon={DollarSign} iconColor="bg-success" />
+          <StatCard title="Inventory Items" value={stats.inventoryItems} icon={Package} iconColor="bg-info" />
         </div>
+
+        {/* Upcoming Fixtures */}
+        {upcomingMatches.length > 0 && (
+          <div className="bg-white rounded-card border border-neutral-light shadow-soft">
+            <div className="p-6 border-b border-neutral-light">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-bold text-neutral-text flex items-center gap-2">
+                  <Trophy className="w-5 h-5 text-primary" />
+                  Upcoming Fixtures
+                </h3>
+                <Link
+                  href="/fixtures"
+                  className="text-primary hover:underline text-sm font-medium"
+                >
+                  View All →
+                </Link>
+              </div>
+            </div>
+            <div className="p-6">
+              <div className="space-y-4">
+                {upcomingMatches.map((match) => (
+                  <div key={match.id} className="p-4 bg-primary/5 rounded-lg border border-primary/20 hover:bg-primary/10 transition-colors">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h4 className="font-bold text-neutral-text text-lg mb-1">
+                          vs {match.opponent}
+                        </h4>
+                        <p className="text-sm text-neutral-medium mb-2">
+                          {new Date(match.match_date).toLocaleDateString('en-US', {
+                            weekday: 'long',
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                          })}
+                        </p>
+                        {match.venue && (
+                          <p className="text-sm text-neutral-medium">📍 {match.venue}</p>
+                        )}
+                        <p className="text-xs text-neutral-medium mt-2">
+                          {match.tournament_type.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
+                        </p>
+                      </div>
+                      <Calendar className="w-5 h-5 text-primary" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Recent Budget Approvals */}
+        {recentApprovals.length > 0 && (
+          <div className="bg-white rounded-card border border-neutral-light shadow-soft">
+            <div className="p-6 border-b border-neutral-light">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-bold text-neutral-text flex items-center gap-2">
+                  <CheckCircle className="w-5 h-5 text-success" />
+                  Recent Budget Approvals
+                </h3>
+                <Link
+                  href="/finance"
+                  className="text-primary hover:underline text-sm font-medium"
+                >
+                  View All →
+                </Link>
+              </div>
+            </div>
+            <div className="p-6">
+              <div className="space-y-4">
+                {recentApprovals.map((budget) => (
+                  <div key={budget.id} className="p-4 bg-success/5 rounded-lg border border-success/20">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <h4 className="font-bold text-neutral-text">{budget.event_name}</h4>
+                          <span className="px-2 py-1 rounded-full text-xs font-medium bg-success/20 text-success">
+                            Approved
+                          </span>
+                        </div>
+                        <p className="text-sm text-neutral-medium mb-1">
+                          {budget.event_type.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())} • {new Date(budget.event_date).toLocaleDateString()}
+                        </p>
+                        <p className="text-lg font-bold text-success mt-2">
+                          {formatCurrency(parseFloat(budget.total_amount.toString()))}
+                        </p>
+                        {budget.approved_at && (
+                          <p className="text-xs text-neutral-medium mt-1">
+                            Approved on {new Date(budget.approved_at).toLocaleDateString()} by {budget.approved_by_profile?.name || 'Admin'}
+                          </p>
+                        )}
+                      </div>
+                      <CheckCircle className="w-5 h-5 text-success" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Active Injuries View (Read-Only) */}
         {activeInjuries.length > 0 && (

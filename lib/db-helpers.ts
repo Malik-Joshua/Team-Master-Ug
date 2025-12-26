@@ -496,6 +496,60 @@ export const db = {
   }) {
     const supabase = createClient()
     
+    // Check if current user is admin/finance_admin/data_admin, if so use regular client
+    // Otherwise, try to use service role for system operations
+    const { data: { user: authUser } } = await supabase.auth.getUser()
+    
+    if (authUser) {
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('role')
+        .eq('user_id', authUser.id)
+        .single()
+      
+      // If user is admin/finance_admin/data_admin, they can create notifications
+      if (profile && ['admin', 'finance_admin', 'data_admin'].includes(profile.role)) {
+        const { data, error } = await supabase
+          .from('notifications')
+          .insert({
+            ...notificationData,
+            type: notificationData.type || 'info',
+          })
+          .select()
+          .single()
+        
+        if (error) throw error
+        return data
+      }
+    }
+    
+    // For other cases, try using service role (if available)
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    
+    if (supabaseUrl && supabaseServiceKey) {
+      const { createClient: createServiceClient } = await import('@supabase/supabase-js')
+      const supabaseAdmin = createServiceClient(supabaseUrl, supabaseServiceKey, {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      })
+      
+      const { data, error } = await supabaseAdmin
+        .from('notifications')
+        .insert({
+          ...notificationData,
+          type: notificationData.type || 'info',
+        })
+        .select()
+        .single()
+      
+      if (error) throw error
+      return data
+    }
+    
+    // Fallback: try regular insert (might work if user is creating for themselves)
     const { data, error } = await supabase
       .from('notifications')
       .insert({
@@ -558,6 +612,51 @@ export const db = {
       type: notificationData.type || 'info',
     }))
     
+    // Check if current user is admin/finance_admin/data_admin
+    const { data: { user: authUser } } = await supabase.auth.getUser()
+    
+    if (authUser) {
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('role')
+        .eq('user_id', authUser.id)
+        .single()
+      
+      // If user is admin/finance_admin/data_admin, they can create notifications
+      if (profile && ['admin', 'finance_admin', 'data_admin'].includes(profile.role)) {
+        const { data, error } = await supabase
+          .from('notifications')
+          .insert(notifications)
+          .select()
+        
+        if (error) throw error
+        return data
+      }
+    }
+    
+    // For other cases, use service role (if available)
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    
+    if (supabaseUrl && supabaseServiceKey) {
+      const { createClient: createServiceClient } = await import('@supabase/supabase-js')
+      const supabaseAdmin = createServiceClient(supabaseUrl, supabaseServiceKey, {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      })
+      
+      const { data, error } = await supabaseAdmin
+        .from('notifications')
+        .insert(notifications)
+        .select()
+      
+      if (error) throw error
+      return data
+    }
+    
+    // Fallback: try regular insert
     const { data, error } = await supabase
       .from('notifications')
       .insert(notifications)

@@ -55,6 +55,16 @@ export const db = {
     return data || []
   },
 
+  async getTotalTrainingSessions() {
+    const supabase = createClient()
+    const { count, error } = await supabase
+      .from('training_sessions')
+      .select('*', { count: 'exact', head: true })
+    
+    if (error) throw error
+    return count || 0
+  },
+
   async createTrainingSession(sessionData: {
     session_number: number
     session_date: string
@@ -291,6 +301,16 @@ export const db = {
     
     if (error) throw error
     return data || []
+  },
+
+  async getTotalMatches() {
+    const supabase = createClient()
+    const { count, error } = await supabase
+      .from('matches')
+      .select('*', { count: 'exact', head: true })
+    
+    if (error) throw error
+    return count || 0
   },
 
   async getTeamPerformanceStats() {

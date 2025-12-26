@@ -81,29 +81,6 @@ export default function PhysioDashboard() {
       if (!authUser) {
         setLoading(false)
         return
-      },
-                player_name: 'Jane Smith',
-                injury_date: '2024-11-15',
-                cause: 'Match injury',
-                diagnosis: 'Shoulder dislocation',
-                action_taken: 'Immediate reduction, sling applied',
-                further_treatment: 'Rest and rehabilitation',
-                medication: 'Paracetamol 500mg as needed',
-                return_to_training_date: '2024-12-10',
-                return_to_play_date: '2024-12-20',
-                status: 'cleared',
-                cleared_at: '2024-12-20T10:00:00Z',
-                notes: 'Full recovery achieved',
-                created_at: '2024-11-15T14:00:00Z',
-                healing_duration: 35,
-              },
-            ])
-      const supabase = createClient()
-      const { data: { user: authUser } } = await supabase.auth.getUser()
-
-      if (!authUser) {
-        setLoading(false)
-        return
       }
 
       const { data: profile } = await supabase

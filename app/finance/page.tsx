@@ -124,23 +124,6 @@ export default function FinancePage() {
 
   const handleAddRevenue = async () => {
     try {
-      if (typeof window !== 'undefined' && localStorage.getItem('dev_user')) {
-        const newTransaction: Transaction = {
-          id: Date.now().toString(),
-          type: 'revenue',
-          category: revenueForm.type,
-          amount: parseFloat(revenueForm.amount),
-          date: revenueForm.date || new Date().toISOString(),
-          notes: revenueForm.notes,
-          createdBy: 'Finance Admin',
-        }
-        setTransactions([newTransaction, ...transactions])
-        setShowRevenueModal(false)
-        setRevenueForm({ type: '', amount: '', date: '', notes: '' })
-        alert('Revenue added! (Dev Mode)')
-        return
-      }
-
       const supabase = createClient()
       const { data: { user: authUser } } = await supabase.auth.getUser()
       if (!authUser) {

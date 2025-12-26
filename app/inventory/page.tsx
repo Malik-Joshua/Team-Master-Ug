@@ -59,9 +59,17 @@ export default function InventoryPage() {
         // Fetch inventory items - use API route for admin/data_admin to bypass RLS
         if (profile.role === 'admin' || profile.role === 'data_admin') {
           try {
-            const response = await fetch('/api/admin/inventory')
+            console.log('Fetching inventory from API route for admin user...', profile.role)
+            const response = await fetch('/api/admin/inventory', {
+              cache: 'no-store', // Ensure fresh data
+            })
+            console.log('API response status:', response.status)
             if (response.ok) {
               const data = await response.json()
+              console.log('Inventory items fetched:', data.items?.length || 0, 'items')
+              if (data.items && data.items.length > 0) {
+                console.log('Sample item:', data.items[0])
+              }
               setItems(data.items || [])
             } else {
               const error = await response.json()
@@ -70,11 +78,11 @@ export default function InventoryPage() {
               const { data: itemsData, error: queryError } = await supabase
                 .from('inventory')
                 .select('*')
-                .order('name', { ascending: true })
+                .order('item_name', { ascending: true })
               if (!queryError && itemsData) {
                 const formattedItems: InventoryItem[] = itemsData.map((item: any) => ({
                   id: item.id,
-                  name: item.name,
+                  name: item.item_name || item.name, // Use item_name from database
                   category: item.category || 'Equipment',
                   quantity: item.quantity || 0,
                   unit: item.unit || 'pieces',
@@ -92,11 +100,11 @@ export default function InventoryPage() {
             const { data: itemsData, error: queryError } = await supabase
               .from('inventory')
               .select('*')
-              .order('name', { ascending: true })
+              .order('item_name', { ascending: true })
             if (!queryError && itemsData) {
               const formattedItems: InventoryItem[] = itemsData.map((item: any) => ({
                 id: item.id,
-                name: item.name,
+                name: item.item_name || item.name, // Use item_name from database
                 category: item.category || 'Equipment',
                 quantity: item.quantity || 0,
                 unit: item.unit || 'pieces',
@@ -113,14 +121,14 @@ export default function InventoryPage() {
           const { data: itemsData, error } = await supabase
             .from('inventory')
             .select('*')
-            .order('name', { ascending: true })
+            .order('item_name', { ascending: true })
 
           if (error) {
             console.error('Error fetching inventory:', error)
           } else if (itemsData) {
             const formattedItems: InventoryItem[] = itemsData.map((item: any) => ({
               id: item.id,
-              name: item.name,
+              name: item.item_name || item.name, // Use item_name from database
               category: item.category || 'Equipment',
               quantity: item.quantity || 0,
               unit: item.unit || 'pieces',
@@ -138,6 +146,74 @@ export default function InventoryPage() {
 
     loadData()
   }, [])
+
+  // Refresh function to reload inventory data
+  const refreshInventory = async () => {
+    if (!user) return
+    
+    setLoading(true)
+    try {
+      if (user.role === 'admin' || user.role === 'data_admin') {
+        console.log('Refreshing inventory via API route...')
+        const response = await fetch('/api/admin/inventory', {
+          cache: 'no-store',
+        })
+        console.log('Refresh API response status:', response.status)
+        if (response.ok) {
+          const data = await response.json()
+          console.log('Refreshed inventory items:', data.items?.length || 0)
+          setItems(data.items || [])
+        } else {
+          const errorData = await response.json()
+          console.error('Error from refresh API:', errorData)
+          // Fallback to direct query
+          const supabase = createClient()
+          const { data: itemsData, error: queryError } = await supabase
+            .from('inventory')
+            .select('*')
+            .order('item_name', { ascending: true })
+          if (!queryError && itemsData) {
+            const formattedItems: InventoryItem[] = itemsData.map((item: any) => ({
+              id: item.id,
+              name: item.item_name || item.name,
+              category: item.category || 'Equipment',
+              quantity: item.quantity || 0,
+              unit: item.unit || 'pieces',
+              location: item.location || '',
+              status: item.quantity === 0 ? 'out_of_stock' : item.quantity < 10 ? 'low_stock' : 'in_stock',
+              lastUpdated: item.updated_at || item.created_at || new Date().toISOString(),
+              description: item.description || '',
+            }))
+            setItems(formattedItems)
+          }
+        }
+      } else {
+        const supabase = createClient()
+        const { data: itemsData, error } = await supabase
+          .from('inventory')
+          .select('*')
+          .order('item_name', { ascending: true })
+        if (!error && itemsData) {
+          const formattedItems: InventoryItem[] = itemsData.map((item: any) => ({
+            id: item.id,
+            name: item.item_name || item.name,
+            category: item.category || 'Equipment',
+            quantity: item.quantity || 0,
+            unit: item.unit || 'pieces',
+            location: item.location || '',
+            status: item.quantity === 0 ? 'out_of_stock' : item.quantity < 10 ? 'low_stock' : 'in_stock',
+            lastUpdated: item.updated_at || item.created_at || new Date().toISOString(),
+            description: item.description || '',
+          }))
+          setItems(formattedItems)
+        }
+      }
+    } catch (error) {
+      console.error('Error refreshing inventory:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleAddItem = async () => {
     try {
@@ -257,21 +333,7 @@ export default function InventoryPage() {
       }
 
       // Refetch inventory items to ensure we have the latest data (especially for admin users)
-      if (user?.role === 'admin' || user?.role === 'data_admin') {
-        try {
-          const response = await fetch('/api/admin/inventory')
-          if (response.ok) {
-            const data = await response.json()
-            setItems(data.items || [])
-          }
-        } catch (error) {
-          console.error('Error refetching inventory:', error)
-          // Fallback: update local state
-          setItems(items.map(item => item.id === selectedItem.id ? formattedItem : item))
-        }
-      } else {
-        setItems(items.map(item => item.id === selectedItem.id ? formattedItem : item))
-      }
+      await refreshInventory()
       setShowEditModal(false)
       setSelectedItem(null)
       setFormData({ name: '', category: '', quantity: '', unit: '', location: '', description: '' })
@@ -295,21 +357,7 @@ export default function InventoryPage() {
       if (error) throw error
 
       // Refetch inventory items to ensure we have the latest data (especially for admin users)
-      if (user?.role === 'admin' || user?.role === 'data_admin') {
-        try {
-          const response = await fetch('/api/admin/inventory')
-          if (response.ok) {
-            const data = await response.json()
-            setItems(data.items || [])
-          }
-        } catch (error) {
-          console.error('Error refetching inventory:', error)
-          // Fallback: update local state
-          setItems(items.filter(item => item.id !== itemId))
-        }
-      } else {
-        setItems(items.filter(item => item.id !== itemId))
-      }
+      await refreshInventory()
       alert('Item deleted successfully!')
     } catch (error: any) {
       console.error('Error deleting item:', error)
@@ -380,13 +428,23 @@ export default function InventoryPage() {
             <h1 className="text-4xl font-extrabold text-club-gradient mb-2">Inventory Management</h1>
             <p className="text-lg text-neutral-medium font-medium">Track and manage club equipment and supplies</p>
           </div>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="bg-primary-gradient text-white px-6 py-3 rounded-button font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
-          >
-            <Plus className="w-5 h-5 mr-2" />
-            Add Item
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={refreshInventory}
+              className="bg-neutral-light text-neutral-text px-6 py-3 rounded-button font-semibold hover:bg-neutral-medium transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
+              title="Refresh inventory data"
+            >
+              <Package className="w-5 h-5 mr-2" />
+              Refresh
+            </button>
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="bg-primary-gradient text-white px-6 py-3 rounded-button font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
+            >
+              <Plus className="w-5 h-5 mr-2" />
+              Add Item
+            </button>
+          </div>
         </div>
 
         {/* Stats Cards */}

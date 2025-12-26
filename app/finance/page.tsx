@@ -236,7 +236,6 @@ export default function FinancePage() {
 
     setSavingBudget(true)
     try {
-      if (typeof window !== 'undefined' && localStorage.getItem('dev_user')) {
       const supabase = createClient()
       const { data: { user: authUser } } = await supabase.auth.getUser()
       if (!authUser) {

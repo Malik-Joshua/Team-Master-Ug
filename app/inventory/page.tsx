@@ -74,6 +74,12 @@ export default function InventoryPage() {
             } else {
               const error = await response.json()
               console.error('Error fetching inventory:', error)
+              // Show user-friendly error message
+              if (error.error?.includes('SUPABASE_SERVICE_ROLE_KEY')) {
+                alert('Configuration Error: The SUPABASE_SERVICE_ROLE_KEY environment variable is not set in Vercel. Please check your deployment settings.')
+              } else if (error.error) {
+                console.error('API Error Details:', error)
+              }
               // Fallback to direct query
               const { data: itemsData, error: queryError } = await supabase
                 .from('inventory')

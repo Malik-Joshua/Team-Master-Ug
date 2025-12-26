@@ -79,18 +79,37 @@ export default function PlayersPage() {
         // Fetch players - use API route for admin to bypass RLS, otherwise direct query
         if (profile.role === 'admin' || profile.role === 'coach' || profile.role === 'data_admin') {
           try {
+            console.log('Fetching players from API route for admin user...', profile.role)
             // For admin/coach, try API route first
-            const response = await fetch('/api/admin/players')
+            const response = await fetch('/api/admin/players', {
+              cache: 'no-store', // Ensure fresh data
+            })
+            console.log('Players API response status:', response.status)
             if (response.ok) {
               const data = await response.json()
+              console.log('Players fetched:', data.players?.length || 0, 'players')
+              if (data.players && data.players.length > 0) {
+                console.log('Sample player:', data.players[0])
+              }
               setPlayers(data.players || [])
             } else {
+              const errorData = await response.json()
+              console.error('Error from players API:', errorData)
+              // Show user-friendly error message
+              if (errorData.error?.includes('SUPABASE_SERVICE_ROLE_KEY')) {
+                alert('Configuration Error: The SUPABASE_SERVICE_ROLE_KEY environment variable is not set in Vercel. Please check your deployment settings.')
+              } else if (errorData.error) {
+                console.error('API Error Details:', errorData)
+              }
               // Fallback to direct query
               const { data: playersData } = await supabase
                 .from('user_profiles')
                 .select('*')
                 .eq('role', 'player')
-              if (playersData) setPlayers(playersData as Player[])
+              if (playersData) {
+                console.log('Using fallback query, got', playersData.length, 'players')
+                setPlayers(playersData as Player[])
+              }
             }
           } catch (error) {
             console.error('Error fetching players:', error)
@@ -99,7 +118,10 @@ export default function PlayersPage() {
               .from('user_profiles')
               .select('*')
               .eq('role', 'player')
-            if (playersData) setPlayers(playersData as Player[])
+            if (playersData) {
+              console.log('Using fallback query after error, got', playersData.length, 'players')
+              setPlayers(playersData as Player[])
+            }
           }
         } else {
           // For other roles, use direct query (they can only see their own data)

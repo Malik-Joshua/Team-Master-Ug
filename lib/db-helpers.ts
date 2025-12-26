@@ -948,12 +948,29 @@ export const db = {
     
     if (error) throw error
     
+    // Get budget statistics
+    const { data: budgets, error: budgetsError } = await supabase
+      .from('budgets')
+      .select('status')
+    
+    if (budgetsError) throw budgetsError
+    
+    const budgetStats = {
+      pending: (budgets || []).filter((b: any) => b.status === 'pending').length,
+      approved: (budgets || []).filter((b: any) => b.status === 'approved').length,
+      rejected: (budgets || []).filter((b: any) => b.status === 'rejected').length,
+      total: (budgets || []).length,
+    }
+    
     if (!transactions || transactions.length === 0) {
       return {
         totalRevenue: 0,
         totalExpenses: 0,
         netIncome: 0,
+        netBalance: 0, // Alias for netIncome for UI compatibility
         transactionCount: 0,
+        budgetStats,
+        recentTransactions: [],
       }
     }
     
@@ -965,11 +982,19 @@ export const db = {
       .filter(t => t.type === 'expense')
       .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0)
     
+    const netIncome = Math.round((totalRevenue - totalExpenses) * 100) / 100
+    
+    // Get recent transactions (last 10)
+    const recentTransactions = (transactions || []).slice(0, 10)
+    
     return {
       totalRevenue: Math.round(totalRevenue * 100) / 100,
       totalExpenses: Math.round(totalExpenses * 100) / 100,
-      netIncome: Math.round((totalRevenue - totalExpenses) * 100) / 100,
+      netIncome,
+      netBalance: netIncome, // Alias for UI compatibility
       transactionCount: transactions.length,
+      budgetStats,
+      recentTransactions,
     }
   },
 

@@ -53,30 +53,13 @@ export default function DataAdminDashboard() {
 
   useEffect(() => {
     const loadData = async () => {
-      // Check for dev mode
-      if (typeof window !== 'undefined') {
-        const devUser = localStorage.getItem('dev_user')
-        if (devUser) {
-          try {
-            const userData = JSON.parse(devUser)
-            setUser(userData)
-            
-            // Mock players for dev mode
-            setPlayers([
-              { user_id: '1', name: 'John Doe', position: 'Fly Half' },
-              { user_id: '2', name: 'Jane Smith', position: 'Prop' },
-              { user_id: '3', name: 'Mike Johnson', position: 'Wing' },
-            ])
-            setLoading(false)
-            return
-          } catch (e) {
-            // Fall through
-          }
-        }
-      }
-
       const supabase = createClient()
       const { data: { user: authUser } } = await supabase.auth.getUser()
+      
+      if (!authUser) {
+        setLoading(false)
+        return
+      }
 
       if (authUser) {
         const { data: profile } = await supabase

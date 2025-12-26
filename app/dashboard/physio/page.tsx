@@ -75,43 +75,13 @@ export default function PhysioDashboard() {
 
   useEffect(() => {
     const loadData = async () => {
-      // Check for dev mode
-      if (typeof window !== 'undefined') {
-        const devUser = localStorage.getItem('dev_user')
-        if (devUser) {
-          try {
-            const userData = JSON.parse(devUser)
-            setUser(userData)
-            
-            // Mock players for dev mode
-            setPlayers([
-              { user_id: '1', name: 'John Doe', position: 'Fly Half', jersey_number: 10 },
-              { user_id: '2', name: 'Jane Smith', position: 'Prop', jersey_number: 1 },
-              { user_id: '3', name: 'Mike Johnson', position: 'Wing', jersey_number: 14 },
-            ])
-            
-            // Mock injuries for dev mode
-            setInjuries([
-              {
-                id: '1',
-                player_id: '1',
-                player_name: 'John Doe',
-                injury_date: '2024-12-01',
-                cause: 'Training collision',
-                diagnosis: 'Sprained ankle',
-                action_taken: 'RICE treatment, compression bandage',
-                further_treatment: 'Physiotherapy sessions 3x/week',
-                medication: 'Ibuprofen 400mg twice daily',
-                return_to_training_date: '2024-12-15',
-                return_to_play_date: '2024-12-22',
-                status: 'active',
-                notes: 'Player responding well to treatment',
-                created_at: '2024-12-01T10:00:00Z',
-                healing_duration: 21,
-              },
-              {
-                id: '2',
-                player_id: '2',
+      const supabase = createClient()
+      const { data: { user: authUser } } = await supabase.auth.getUser()
+      
+      if (!authUser) {
+        setLoading(false)
+        return
+      },
                 player_name: 'Jane Smith',
                 injury_date: '2024-11-15',
                 cause: 'Match injury',
@@ -128,36 +98,29 @@ export default function PhysioDashboard() {
                 healing_duration: 35,
               },
             ])
-            // Mock stats for dev mode
-            setTrainingSessionsAttended(18)
-            setGamesAttended(12)
-            setLoading(false)
-            return
-          } catch (e) {
-            // Fall through
-          }
-        }
-      }
-
       const supabase = createClient()
       const { data: { user: authUser } } = await supabase.auth.getUser()
 
-      if (authUser) {
-        const { data: profile } = await supabase
+      if (!authUser) {
+        setLoading(false)
+        return
+      }
+
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('user_id', authUser.id)
+        .single()
+
+      if (profile) {
+        setUser(profile)
+
+        // Fetch players
+        const { data: playersData } = await supabase
           .from('user_profiles')
-          .select('*')
-          .eq('user_id', authUser.id)
-          .single()
-
-        if (profile) {
-          setUser(profile)
-
-          // Fetch players
-          const { data: playersData } = await supabase
-            .from('user_profiles')
-            .select('user_id, name')
-            .eq('role', 'player')
-            .order('name', { ascending: true })
+          .select('user_id, name, position, jersey_number')
+          .eq('role', 'player')
+          .order('name', { ascending: true })
 
           if (playersData) {
             // Fetch player details

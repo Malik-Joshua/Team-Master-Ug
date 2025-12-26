@@ -287,13 +287,30 @@ export default function PerformancePage() {
               console.error('Error loading club performance data:', error)
             }
           } else if (profile.role === 'admin') {
-            // Load Club Performance data for Admin
+            // Load Club Performance data for Admin using API route (bypasses RLS)
             try {
-              const { db } = await import('@/lib/db-helpers')
-              const performance = await db.getClubPerformance()
-              setAdminClubPerformance(performance)
+              const response = await fetch('/api/admin/performance')
+              if (response.ok) {
+                const performance = await response.json()
+                setAdminClubPerformance(performance)
+              } else {
+                const error = await response.json()
+                console.error('Error loading club performance data:', error)
+                // Fallback to db helper if API fails
+                const { db } = await import('@/lib/db-helpers')
+                const performance = await db.getClubPerformance()
+                setAdminClubPerformance(performance)
+              }
             } catch (error) {
               console.error('Error loading club performance data:', error)
+              // Fallback to db helper if API fails
+              try {
+                const { db } = await import('@/lib/db-helpers')
+                const performance = await db.getClubPerformance()
+                setAdminClubPerformance(performance)
+              } catch (fallbackError) {
+                console.error('Fallback also failed:', fallbackError)
+              }
             }
           } else if (profile.role === 'physio') {
             // Load Physio-specific data

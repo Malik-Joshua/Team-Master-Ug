@@ -130,28 +130,28 @@ export default function PhysioDashboard() {
           .eq('role', 'player')
           .order('name', { ascending: true })
 
-          if (playersData) {
-            // Fetch player details
-            const playersWithDetails = await Promise.all(
-              playersData.map(async (p) => {
-                const { data: playerData } = await supabase
-                  .from('players')
-                  .select('position, jersey_number')
-                  .eq('user_id', p.user_id)
-                  .single()
-                
-                return {
-                  ...p,
-                  position: playerData?.position,
-                  jersey_number: playerData?.jersey_number,
-                } as Player
-              })
-            )
-            setPlayers(playersWithDetails)
-          }
+        if (playersData) {
+          // Fetch player details
+          const playersWithDetails = await Promise.all(
+            playersData.map(async (p) => {
+              const { data: playerData } = await supabase
+                .from('players')
+                .select('position, jersey_number')
+                .eq('user_id', p.user_id)
+                .single()
+              
+              return {
+                ...p,
+                position: playerData?.position,
+                jersey_number: playerData?.jersey_number,
+              } as Player
+            })
+          )
+          setPlayers(playersWithDetails)
+        }
 
-          // Fetch injuries
-          await loadInjuries()
+        // Fetch injuries
+        await loadInjuries()
 
           // Load training sessions and games attended
           try {

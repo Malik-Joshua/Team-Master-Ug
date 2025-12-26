@@ -373,6 +373,7 @@ export default function FinancePage() {
         event_type: 'game_day',
         event_date: '',
         description: '',
+        total_amount: '',
         items: [{ item_name: '', category: '', quantity: '1', unit_price: '', total_amount: '', notes: '' }],
       })
       alert('Budget submitted for approval!')

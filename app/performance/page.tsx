@@ -955,7 +955,7 @@ export default function PerformancePage() {
               </div>
 
               {/* Team Performance Section */}
-              {adminClubPerformance.teamPerformance && (
+              {adminClubPerformance.teamStats && (
                 <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
                   <h2 className="text-2xl font-bold text-neutral-text mb-6 flex items-center">
                     <Trophy className="w-6 h-6 mr-2 text-primary" />
@@ -964,19 +964,19 @@ export default function PerformancePage() {
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                     <div className="p-4 bg-primary/10 rounded-lg border border-primary/20">
                       <p className="text-sm text-neutral-medium mb-1">Total Tries</p>
-                      <p className="text-3xl font-bold text-primary">{adminClubPerformance.teamPerformance.totalTries}</p>
+                      <p className="text-3xl font-bold text-primary">{adminClubPerformance.teamStats.totalTries}</p>
                     </div>
                     <div className="p-4 bg-success/10 rounded-lg border border-success/20">
                       <p className="text-sm text-neutral-medium mb-1">Total Tackles</p>
-                      <p className="text-3xl font-bold text-success">{adminClubPerformance.teamPerformance.totalTackles}</p>
+                      <p className="text-3xl font-bold text-success">{adminClubPerformance.teamStats.totalTackles}</p>
                     </div>
                     <div className="p-4 bg-info/10 rounded-lg border border-info/20">
                       <p className="text-sm text-neutral-medium mb-1">Tackle Success Rate</p>
-                      <p className="text-3xl font-bold text-info">{adminClubPerformance.teamPerformance.tackleSuccessRate}%</p>
+                      <p className="text-3xl font-bold text-info">{adminClubPerformance.teamStats.tackleSuccessRate}%</p>
                     </div>
                     <div className="p-4 bg-warning/10 rounded-lg border border-warning/20">
                       <p className="text-sm text-neutral-medium mb-1">Avg Tries/Match</p>
-                      <p className="text-3xl font-bold text-warning">{adminClubPerformance.teamPerformance.avgTriesPerMatch}</p>
+                      <p className="text-3xl font-bold text-warning">{adminClubPerformance.teamStats.avgTriesPerMatch}</p>
                     </div>
                   </div>
                 </div>
@@ -1035,7 +1035,7 @@ export default function PerformancePage() {
               )}
 
               {/* Players Performance Summary */}
-              {adminClubPerformance.playersSummary && adminClubPerformance.playersSummary.length > 0 && (
+              {adminClubPerformance.playersPerf && adminClubPerformance.playersPerf.length > 0 && (
                 <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
                   <h2 className="text-2xl font-bold text-neutral-text mb-6 flex items-center">
                     <Users className="w-6 h-6 mr-2 text-primary" />

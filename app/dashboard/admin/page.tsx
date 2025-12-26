@@ -151,46 +151,23 @@ export default function AdminDashboard() {
         if (profile) {
           setUser(profile)
 
-          // Load statistics
+          // Load statistics using API route (bypasses RLS)
           try {
-            // Get total users count
-            const { count: totalUsersCount } = await supabase
-              .from('user_profiles')
-              .select('*', { count: 'exact', head: true })
-            
-            // Get total players count (all players regardless of status)
-            const { count: totalPlayersCount } = await supabase
-              .from('user_profiles')
-              .select('*', { count: 'exact', head: true })
-              .eq('role', 'player')
-            
-            // Get active players count
-            const { count: activePlayersCount } = await supabase
-              .from('user_profiles')
-              .select('*', { count: 'exact', head: true })
-              .eq('role', 'player')
-              .eq('status', 'active')
-            
-            // Get total revenue
-            const { data: transactions } = await supabase
-              .from('financial_transactions')
-              .select('amount, type')
-              .eq('type', 'revenue')
-            
-            const totalRevenue = transactions?.reduce((sum, t) => sum + parseFloat(t.amount || 0), 0) || 0
-            
-            // Get inventory items count
-            const { count: inventoryCount } = await supabase
-              .from('inventory')
-              .select('*', { count: 'exact', head: true })
-            
-            setStats({
-              totalUsers: totalUsersCount || 0,
-              totalPlayers: totalPlayersCount || 0,
-              activePlayers: activePlayersCount || 0,
-              totalRevenue: Math.round(totalRevenue),
-              inventoryItems: inventoryCount || 0,
-            })
+            const response = await fetch('/api/admin/statistics')
+            if (response.ok) {
+              const data = await response.json()
+              setStats({
+                totalUsers: data.totalUsers || 0,
+                totalPlayers: data.totalPlayers || 0,
+                activePlayers: data.activePlayers || 0,
+                totalRevenue: data.totalRevenue || 0,
+                inventoryItems: data.inventoryItems || 0,
+              })
+              console.log('Loaded stats from API:', data)
+            } else {
+              const error = await response.json()
+              console.error('Error fetching statistics:', error)
+            }
           } catch (error) {
             console.error('Error loading statistics:', error)
           }

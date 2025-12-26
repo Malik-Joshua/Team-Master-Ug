@@ -1112,6 +1112,12 @@ export const db = {
     // Get total training sessions
     const totalTrainingSessions = await this.getTotalTrainingSessions()
     
+    // Get total players count
+    const { count: totalPlayersCount } = await supabase
+      .from('user_profiles')
+      .select('*', { count: 'exact', head: true })
+      .eq('role', 'player')
+    
     // Get active players count
     const { count: activePlayersCount } = await supabase
       .from('user_profiles')
@@ -1125,13 +1131,47 @@ export const db = {
       .select('*', { count: 'exact', head: true })
       .eq('status', 'active')
     
+    // Get financial performance
+    const financial = await this.getClubFinancialPerformance()
+    
+    // Get match results for win rate
+    const { data: matches } = await supabase
+      .from('matches')
+      .select('result')
+    
+    const wins = matches?.filter(m => m.result === 'win').length || 0
+    const losses = matches?.filter(m => m.result === 'loss').length || 0
+    const draws = matches?.filter(m => m.result === 'draw').length || 0
+    const totalPlayed = matches?.filter(m => m.result).length || 0
+    const winRate = totalPlayed > 0 ? Math.round((wins / totalPlayed) * 100) : 0
+    
     return {
       teamStats,
-      playersPerf,
+      teamPerformance: teamStats, // Alias for compatibility with performance page
+      playersPerf: playersPerf || [],
+      playersSummary: playersPerf || [], // Alias for compatibility with performance page
       totalMatches: totalMatches || 0,
       totalTrainingSessions: totalTrainingSessions || 0,
       activePlayers: activePlayersCount || 0,
       activeInjuries: activeInjuriesCount || 0,
+      financial: financial || {
+        totalRevenue: 0,
+        totalExpenses: 0,
+        netBalance: 0,
+        budgetStats: { pending: 0, approved: 0, rejected: 0, total: 0 },
+        recentTransactions: [],
+      },
+      clubStats: {
+        totalPlayers: totalPlayersCount || 0,
+        activePlayers: activePlayersCount || 0,
+        injuredPlayers: activeInjuriesCount || 0,
+        totalMatches: totalMatches || 0,
+        wins,
+        losses,
+        draws,
+        winRate,
+        totalTrainingSessions: totalTrainingSessions || 0,
+      },
     }
   },
 }

@@ -35,8 +35,12 @@ export async function GET(request: NextRequest) {
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
     if (!supabaseUrl || !supabaseServiceKey) {
+      console.error('Missing environment variables:', {
+        hasUrl: !!supabaseUrl,
+        hasKey: !!supabaseServiceKey
+      })
       return NextResponse.json(
-        { error: 'Server configuration error' },
+        { error: 'Server configuration error: Missing SUPABASE_SERVICE_ROLE_KEY environment variable' },
         { status: 500 }
       )
     }
@@ -48,55 +52,90 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Get all players with their details
-    const { data: players, error } = await supabaseAdmin
+    // Get all players from user_profiles
+    const { data: players, error: playersError } = await supabaseAdmin
       .from('user_profiles')
-      .select(`
-        *,
-        player_details (
-          position,
-          category,
-          jersey_number,
-          date_of_birth,
-          height_cm,
-          weight_kg
-        )
-      `)
+      .select('*')
       .eq('role', 'player')
       .order('name', { ascending: true })
 
-    if (error) {
-      console.error('Error fetching players:', error)
+    if (playersError) {
+      console.error('Error fetching players from Supabase:', playersError)
+      console.error('Error details:', JSON.stringify(playersError, null, 2))
       return NextResponse.json(
-        { error: 'Failed to fetch players' },
+        { 
+          error: `Failed to fetch players: ${playersError.message}`,
+          details: process.env.NODE_ENV === 'development' ? playersError : undefined,
+          code: playersError.code,
+          hint: playersError.hint
+        },
         { status: 500 }
       )
     }
 
-    // Format players data
-    const formattedPlayers = players?.map((player: any) => ({
-      id: player.user_id || player.id,
-      user_id: player.user_id,
-      name: player.name,
-      email: player.email,
-      phone: player.phone,
-      position: player.player_details?.[0]?.position || '',
-      category: player.player_details?.[0]?.category || '',
-      jersey_number: player.player_details?.[0]?.jersey_number || null,
-      date_of_birth: player.player_details?.[0]?.date_of_birth || '',
-      height_cm: player.player_details?.[0]?.height_cm || null,
-      weight_kg: player.player_details?.[0]?.weight_kg || null,
-      status: player.status || 'active',
-      games_played: 0, // Can be calculated from match_stats if needed
-      tries: 0, // Can be calculated from match_stats if needed
-      tackles: 0, // Can be calculated from match_stats if needed
-    })) || []
+    console.log(`Fetched ${players?.length || 0} players from database`)
+    if (players && players.length > 0) {
+      console.log('Sample player:', players[0])
+    }
 
-    return NextResponse.json({ players: formattedPlayers })
+    // Get player details from players table if it exists
+    let playerDetailsMap: Record<string, any> = {}
+    try {
+      const { data: playerDetails, error: detailsError } = await supabaseAdmin
+        .from('players')
+        .select('*')
+      
+      if (!detailsError && playerDetails) {
+        playerDetails.forEach((detail: any) => {
+          playerDetailsMap[detail.user_id] = detail
+        })
+      }
+    } catch (err) {
+      // players table might not exist, that's okay
+      console.log('Note: players table not found or error accessing it:', err)
+    }
+
+    // Format players data
+    const formattedPlayers = players?.map((player: any) => {
+      const details = playerDetailsMap[player.user_id] || {}
+      return {
+        id: player.user_id || player.id,
+        user_id: player.user_id,
+        name: player.name,
+        email: player.email,
+        phone: player.phone,
+        position: details.position || player.position || '',
+        category: details.category || '',
+        jersey_number: details.jersey_number || null,
+        date_of_birth: details.date_of_birth || '',
+        height_cm: details.height_cm || null,
+        weight_kg: details.weight_kg || null,
+        status: player.status || 'active',
+        games_played: 0, // Can be calculated from match_stats if needed
+        tries: 0, // Can be calculated from match_stats if needed
+        tackles: 0, // Can be calculated from match_stats if needed
+      }
+    }) || []
+
+    console.log(`Fetched ${formattedPlayers.length} players from database`)
+
+    return NextResponse.json({ 
+      players: formattedPlayers,
+      count: formattedPlayers.length 
+    })
   } catch (error: any) {
     console.error('Error fetching players:', error)
+    console.error('Error stack:', error.stack)
     return NextResponse.json(
-      { error: error.message || 'Failed to fetch players' },
+      { 
+        error: error.message || 'Failed to fetch players',
+        type: error.constructor?.name,
+        details: process.env.NODE_ENV === 'development' ? {
+          message: error.message,
+          stack: error.stack,
+          name: error.name
+        } : undefined
+      },
       { status: 500 }
     )
   }

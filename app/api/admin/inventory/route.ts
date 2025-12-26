@@ -35,8 +35,12 @@ export async function GET(request: NextRequest) {
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
     if (!supabaseUrl || !supabaseServiceKey) {
+      console.error('Missing environment variables:', {
+        hasUrl: !!supabaseUrl,
+        hasKey: !!supabaseServiceKey
+      })
       return NextResponse.json(
-        { error: 'Server configuration error' },
+        { error: 'Server configuration error: Missing SUPABASE_SERVICE_ROLE_KEY environment variable' },
         { status: 500 }
       )
     }
@@ -48,24 +52,35 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Get all inventory items
+    // Get all inventory items - use item_name column
     const { data: items, error } = await supabaseAdmin
       .from('inventory')
       .select('*')
-      .order('name', { ascending: true })
+      .order('item_name', { ascending: true })
 
     if (error) {
-      console.error('Error fetching inventory:', error)
+      console.error('Error fetching inventory from Supabase:', error)
+      console.error('Error details:', JSON.stringify(error, null, 2))
       return NextResponse.json(
-        { error: 'Failed to fetch inventory items' },
+        { 
+          error: `Failed to fetch inventory items: ${error.message}`,
+          details: process.env.NODE_ENV === 'development' ? error : undefined,
+          code: error.code,
+          hint: error.hint
+        },
         { status: 500 }
       )
     }
 
-    // Format items
+    console.log(`Fetched ${items?.length || 0} inventory items from database`)
+    if (items && items.length > 0) {
+      console.log('Sample inventory item:', items[0])
+    }
+
+    // Format items - use item_name from database
     const formattedItems = items?.map((item: any) => ({
       id: item.id,
-      name: item.name,
+      name: item.item_name || item.name, // Support both column names
       category: item.category || 'Equipment',
       quantity: item.quantity || 0,
       unit: item.unit || 'pieces',
@@ -78,8 +93,17 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ items: formattedItems })
   } catch (error: any) {
     console.error('Error fetching inventory:', error)
+    console.error('Error stack:', error.stack)
     return NextResponse.json(
-      { error: error.message || 'Failed to fetch inventory items' },
+      { 
+        error: error.message || 'Failed to fetch inventory items',
+        type: error.constructor?.name,
+        details: process.env.NODE_ENV === 'development' ? {
+          message: error.message,
+          stack: error.stack,
+          name: error.name
+        } : undefined
+      },
       { status: 500 }
     )
   }

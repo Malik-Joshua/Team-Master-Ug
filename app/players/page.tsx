@@ -166,17 +166,6 @@ export default function PlayersPage() {
     if (!selectedPlayer) return
     setSaving(true)
     try {
-      if (typeof window !== 'undefined' && localStorage.getItem('dev_user')) {
-        setPlayers(players.map(p => 
-          p.id === selectedPlayer.id 
-            ? { ...p, name: playerForm.name, email: playerForm.email, phone: playerForm.phone, status: playerForm.status }
-            : p
-        ))
-        setShowEditModal(false)
-        alert('Player updated successfully! (Dev Mode)')
-        setSaving(false)
-        return
-      }
 
       const playerId = selectedPlayer.user_id || selectedPlayer.id
       const { db } = await import('@/lib/db-helpers')
@@ -627,13 +616,6 @@ export default function PlayersPage() {
                   try {
                     const playerId = selectedPlayerForGym.user_id || selectedPlayerForGym.id
                     
-                    if (typeof window !== 'undefined' && localStorage.getItem('dev_user')) {
-                      alert('Gym metrics updated! (Dev Mode)')
-                      setShowGymMetricsModal(false)
-                      setSelectedPlayerForGym(null)
-                      setSavingGymMetrics(false)
-                      return
-                    }
 
                     const { db } = await import('@/lib/db-helpers')
                     await db.updatePlayerGymStats(playerId, {

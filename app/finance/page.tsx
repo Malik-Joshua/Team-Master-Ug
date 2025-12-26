@@ -156,23 +156,6 @@ export default function FinancePage() {
 
   const handleAddExpense = async () => {
     try {
-      if (typeof window !== 'undefined' && localStorage.getItem('dev_user')) {
-        const newTransaction: Transaction = {
-          id: Date.now().toString(),
-          type: 'expense',
-          category: expenseForm.type,
-          amount: parseFloat(expenseForm.amount),
-          date: expenseForm.date || new Date().toISOString(),
-          notes: expenseForm.notes,
-          createdBy: 'Finance Admin',
-        }
-        setTransactions([newTransaction, ...transactions])
-        setShowExpenseModal(false)
-        setExpenseForm({ type: '', amount: '', date: '', notes: '' })
-        alert('Expense added! (Dev Mode)')
-        return
-      }
-
       const supabase = createClient()
       const { data: { user: authUser } } = await supabase.auth.getUser()
       if (!authUser) {
@@ -352,12 +335,6 @@ export default function FinancePage() {
 
   const handleApproveBudget = async (budgetId: string) => {
     try {
-      if (typeof window !== 'undefined' && localStorage.getItem('dev_user')) {
-        setBudgets(budgets.map(b => b.id === budgetId ? { ...b, status: 'approved' } : b))
-        alert('Budget approved! (Dev Mode)')
-        return
-      }
-
       const supabase = createClient()
       const { data: { user: authUser } } = await supabase.auth.getUser()
       if (!authUser) {
@@ -386,12 +363,6 @@ export default function FinancePage() {
     }
 
     try {
-      if (typeof window !== 'undefined' && localStorage.getItem('dev_user')) {
-        setBudgets(budgets.map(b => b.id === budgetId ? { ...b, status: 'rejected', rejection_reason: reason } : b))
-        alert('Budget rejected! (Dev Mode)')
-        return
-      }
-
       const supabase = createClient()
       const { data: { user: authUser } } = await supabase.auth.getUser()
       if (!authUser) {

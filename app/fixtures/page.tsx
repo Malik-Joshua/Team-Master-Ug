@@ -106,10 +106,6 @@ export default function FixturesPage() {
       if (!selectedMatchId) return
 
       try {
-        if (typeof window !== 'undefined' && localStorage.getItem('dev_user')) {
-          // Dev mode - skip
-          return
-        }
 
         const selections = await db.getFixtureTeamSelection(selectedMatchId)
         setExistingSelection(selections)
@@ -177,12 +173,6 @@ export default function FixturesPage() {
     setSaving(true)
 
     try {
-      if (typeof window !== 'undefined' && localStorage.getItem('dev_user')) {
-        // Dev mode - just show success
-        alert('Team selection saved successfully! (Dev mode)')
-        setSaving(false)
-        return
-      }
 
       const selectionsArray = Array.from(teamSelections.values())
       await db.saveFixtureTeamSelection(selectedMatchId, selectionsArray)

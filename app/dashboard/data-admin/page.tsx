@@ -5,7 +5,6 @@ import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
 import { Users, Activity, BarChart3, Calendar, Trophy, Plus, X, Save } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { notifications } from '@/lib/notifications'
 
 interface Player {
   user_id: string
@@ -172,23 +171,6 @@ export default function DataAdminDashboard() {
           .insert(statsToInsert)
 
         if (statsError) throw statsError
-
-        // Create notifications for players whose stats were updated
-        try {
-          const uniquePlayerIds = [...new Set(statsToInsert.map((s) => s.player_id))]
-          for (const playerId of uniquePlayerIds) {
-            await notifications.matchStatsUpdated(playerId, matchForm.match_date)
-          }
-        } catch (notifError) {
-          console.error('Error creating notifications:', notifError)
-        }
-      }
-
-      // Create notification for match creation
-      try {
-        await notifications.matchCreated(match.id, matchForm.opponent, matchForm.match_date)
-      } catch (notifError) {
-        console.error('Error creating match notification:', notifError)
       }
 
       alert('Match stats saved successfully!')

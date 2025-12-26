@@ -49,63 +49,6 @@ export default function FixturesPage() {
 
   useEffect(() => {
     const loadData = async () => {
-      if (typeof window !== 'undefined') {
-        const devUser = localStorage.getItem('dev_user')
-        if (devUser) {
-          try {
-            const userData = JSON.parse(devUser)
-            setUser(userData)
-            
-            // Mock data for dev mode
-            setMatches([
-              {
-                id: '1',
-                match_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-                opponent: 'Kampala RFC',
-                venue: 'Home Ground',
-                tournament_type: 'league',
-              },
-              {
-                id: '2',
-                match_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-                opponent: 'Heathens RFC',
-                venue: 'Away',
-                tournament_type: 'uganda_cup',
-              },
-            ])
-            
-            setAvailablePlayers([
-              {
-                user_id: 'player1',
-                name: 'John Doe',
-                email: 'john@example.com',
-                status: 'active',
-                players: { position: 'fly_half', category: 'backs', jersey_number: 10 },
-              },
-              {
-                user_id: 'player2',
-                name: 'Jane Smith',
-                email: 'jane@example.com',
-                status: 'active',
-                players: { position: 'prop', category: 'forwards', jersey_number: 1 },
-              },
-              {
-                user_id: 'player3',
-                name: 'Mike Johnson',
-                email: 'mike@example.com',
-                status: 'active',
-                players: { position: 'winger', category: 'backs', jersey_number: 11 },
-              },
-            ])
-            
-            setLoading(false)
-            return
-          } catch (e) {
-            console.error('Error parsing dev user data:', e)
-          }
-        }
-      }
-
       try {
         const supabase = createClient()
         const { data: { user: authUser } } = await supabase.auth.getUser()

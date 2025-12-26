@@ -10,8 +10,11 @@ const nextConfig = {
       },
     ],
   },
-  // NEXT_PUBLIC_* variables are automatically available in the browser
-  // No need to explicitly define them here
+  env: {
+    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    XAI_API_KEY: process.env.XAI_API_KEY,
+  },
   webpack: (config, { isServer }) => {
     if (!isServer) {
       // Fix for pdfjs-dist in browser

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { notifications } from '@/lib/notifications'
 
 // This route requires service role for admin operations
 // In production, you should use environment variables for the service role key
@@ -110,23 +109,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-      // Create notification for player registration
-      try {
-        await notifications.playerRegistered(name, authData.user.id)
-      } catch (notifError) {
-        console.error('Error creating notification:', notifError)
-        // Don't fail the request if notification fails
+    return NextResponse.json({
+      success: true,
+      message: 'Player created successfully',
+      data: {
+        profile: profileData,
+        player: playerRecord,
+        tempPassword, // In production, send this via email instead
       }
-
-      return NextResponse.json({
-        success: true,
-        message: 'Player created successfully',
-        data: {
-          profile: profileData,
-          player: playerRecord,
-          tempPassword, // In production, send this via email instead
-        }
-      })
+    })
   } catch (error: any) {
     console.error('Error creating player:', error)
     return NextResponse.json(

@@ -5,7 +5,6 @@ import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
 import { Activity, AlertCircle, CheckCircle, Clock, Plus, X, Save, Edit, Calendar, Pill, FileText, User, CalendarDays, Trophy } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { notifications } from '@/lib/notifications'
 import Link from 'next/link'
 
 interface Player {
@@ -316,20 +315,11 @@ export default function PhysioDashboard() {
 
           if (error) throw error
         } else {
-          const { data: newInjury, error } = await supabase
+          const { error } = await supabase
             .from('injuries')
             .insert(injuryData)
-            .select()
-            .single()
 
           if (error) throw error
-
-          // Create notification for injury report
-          try {
-            await notifications.injuryReported(injuryForm.player_id, injuryForm.diagnosis)
-          } catch (notifError) {
-            console.error('Error creating notification:', notifError)
-          }
         }
 
         await loadInjuries()
@@ -379,13 +369,6 @@ export default function PhysioDashboard() {
           return
         }
 
-        // Get injury details before updating
-        const { data: injuryData } = await supabase
-          .from('injuries')
-          .select('player_id')
-          .eq('id', injuryId)
-          .single()
-
         const { error } = await supabase
           .from('injuries')
           .update({
@@ -396,15 +379,6 @@ export default function PhysioDashboard() {
           .eq('id', injuryId)
 
         if (error) throw error
-
-        // Create notification for injury cleared
-        if (injuryData?.player_id) {
-          try {
-            await notifications.injuryCleared(injuryData.player_id)
-          } catch (notifError) {
-            console.error('Error creating notification:', notifError)
-          }
-        }
 
         await loadInjuries()
         alert('Injury cleared successfully!')

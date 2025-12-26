@@ -6,7 +6,6 @@ import StatCard from '@/components/StatCard'
 import { FileText, Download, Filter, Calendar, BarChart3, TrendingUp, Users, Trophy, ChevronDown, FileSpreadsheet } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { generatePDFReport, generateExcelReport, generateCSVReport, downloadBlob, type ReportData } from '@/lib/report-export'
-import { notifications } from '@/lib/notifications'
 
 interface Report {
   id: string
@@ -47,59 +46,13 @@ export default function ReportsPage() {
 
   useEffect(() => {
     const loadData = async () => {
-      // Check for dev mode
-      if (typeof window !== 'undefined') {
-        const devUser = localStorage.getItem('dev_user')
-        if (devUser) {
-          try {
-            const userData = JSON.parse(devUser)
-            setUser(userData)
-            // Mock reports data for dev mode
-            const mockReports: Report[] = [
-              {
-                id: '1',
-                title: 'Player Performance Summary - Q4 2024',
-                type: 'player',
-                dateRange: 'Oct 1 - Dec 31, 2024',
-                generatedAt: new Date().toISOString(),
-                status: 'ready',
-              },
-              {
-                id: '2',
-                title: 'Match Statistics Report - November',
-                type: 'match',
-                dateRange: 'Nov 1 - Nov 30, 2024',
-                generatedAt: new Date(Date.now() - 86400000).toISOString(),
-                status: 'ready',
-              },
-              {
-                id: '3',
-                title: 'Training Attendance Analysis',
-                type: 'training',
-                dateRange: 'Oct 1 - Nov 8, 2024',
-                generatedAt: new Date(Date.now() - 172800000).toISOString(),
-                status: 'ready',
-              },
-              {
-                id: '4',
-                title: 'Monthly Summary Report',
-                type: 'summary',
-                dateRange: 'Nov 1 - Nov 30, 2024',
-                generatedAt: new Date(Date.now() - 3600000).toISOString(),
-                status: 'generating',
-              },
-            ]
-            setReports(mockReports)
-            setLoading(false)
-            return
-          } catch (e) {
-            // Fall through
-          }
-        }
-      }
-
       const supabase = createClient()
       const { data: { user: authUser } } = await supabase.auth.getUser()
+      
+      if (!authUser) {
+        setLoading(false)
+        return
+      }
 
       if (authUser) {
         const { data: profile } = await supabase
@@ -199,13 +152,6 @@ export default function ReportsPage() {
           setReports((prev) =>
             prev.map((r) => (r.id === newReport.id ? { ...r, status: 'ready' as const } : r))
           )
-          
-          // Create notification for report ready
-          try {
-            await notifications.reportReady(newReport.id, newReport.title, authUser.id)
-          } catch (notifError) {
-            console.error('Error creating notification:', notifError)
-          }
         }
       }, 2000)
 

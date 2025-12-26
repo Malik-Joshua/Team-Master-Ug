@@ -84,31 +84,13 @@ export default function FinancePage() {
 
   useEffect(() => {
     const loadData = async () => {
-      if (typeof window !== 'undefined') {
-        const devUser = localStorage.getItem('dev_user')
-        if (devUser) {
-          try {
-            const userData = JSON.parse(devUser)
-            setUser(userData)
-            const mockTransactions: Transaction[] = [
-              { id: '1', type: 'revenue', category: 'Sponsorship', amount: 5000000, date: new Date().toISOString(), notes: 'Annual sponsorship', createdBy: 'Admin' },
-              { id: '2', type: 'expense', category: 'Equipment', amount: 1500000, date: new Date(Date.now() - 86400000).toISOString(), notes: 'Rugby balls', createdBy: 'Admin' },
-            ]
-            setTransactions(mockTransactions)
-            if (userData.role === 'finance_admin' || userData.role === 'admin') {
-              setBudgets([
-                { id: '1', event_name: 'Uganda Cup Final', event_type: 'game_day', event_date: '2024-12-15', description: 'Match day expenses', total_amount: 5000000, status: 'pending', created_by: userData.id },
-                { id: '2', event_name: 'Monthly Training', event_type: 'training_session', event_date: '2024-12-10', description: 'Training session budget', total_amount: 2000000, status: 'approved', created_by: userData.id },
-              ])
-            }
-            setLoading(false)
-            return
-          } catch (e) {}
-        }
-      }
-
       const supabase = createClient()
       const { data: { user: authUser } } = await supabase.auth.getUser()
+      
+      if (!authUser) {
+        setLoading(false)
+        return
+      }
 
       if (authUser) {
         const { data: profile } = await supabase.from('user_profiles').select('*').eq('user_id', authUser.id).single()

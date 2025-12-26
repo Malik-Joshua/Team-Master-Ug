@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import Layout from '@/components/Layout'
 import { Calendar, Users, Save, Download, Plus, Clock, MapPin, FileText, X, Upload } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { notifications } from '@/lib/notifications'
 
 interface Player {
   id: string
@@ -70,79 +69,13 @@ export default function TrainingPage() {
 
   useEffect(() => {
     const loadData = async () => {
-      // Check for dev mode
-      if (typeof window !== 'undefined') {
-        const devUser = localStorage.getItem('dev_user')
-        if (devUser) {
-          try {
-            const userData = JSON.parse(devUser)
-            setUser(userData)
-            
-            // Mock players data
-            const mockPlayers: Player[] = [
-              { id: '1', name: 'John Doe', position: 'Fly Half' },
-              { id: '2', name: 'Jane Smith', position: 'Prop' },
-              { id: '3', name: 'Mike Johnson', position: 'Wing' },
-              { id: '4', name: 'Sarah Williams', position: 'Scrum Half' },
-              { id: '5', name: 'David Brown', position: 'Lock' },
-              { id: '6', name: 'Emma Davis', position: 'Hooker' },
-              { id: '7', name: 'Chris Wilson', position: 'Number 8' },
-              { id: '8', name: 'Lisa Anderson', position: 'Flanker' },
-              { id: '9', name: 'Tom Taylor', position: 'Centre' },
-              { id: '10', name: 'Amy Martinez', position: 'Fullback' },
-            ]
-
-            // Mock training sessions (20 sessions)
-            const mockSessions: TrainingSession[] = Array.from({ length: 20 }, (_, i) => ({
-              id: `session-${i + 1}`,
-              date: new Date(2024, 10, 1 + i * 7).toISOString().split('T')[0],
-              title: `Training Session ${i + 1}`,
-              session_time: '18:00',
-              location: 'Training Ground',
-              description: `Focus on ${i % 3 === 0 ? 'scrummaging and lineout drills' : i % 3 === 1 ? 'backline moves and kicking' : 'fitness and conditioning'}`,
-              coach_name: 'Coach Smith',
-            }))
-
-            // Initialize empty attendance record
-            const mockAttendance: Record<string, AttendanceCode> = {}
-            
-            setPlayers(mockPlayers)
-            setSessions(mockSessions)
-            setAttendance(mockAttendance)
-
-            // Mock session summaries for admin
-            if (userData.role === 'admin') {
-              const mockSummaries = Array.from({ length: 10 }, (_, i) => ({
-                sessionId: `session-${i + 1}`,
-                sessionDate: new Date(2024, 10, 1 + i * 7).toISOString().split('T')[0],
-                sessionTime: '18:00',
-                location: 'Training Ground',
-                description: `Training Session ${i + 1}`,
-                drills: i % 3 === 0 
-                  ? 'Scrummaging drills, Lineout practice, Maul defense'
-                  : i % 3 === 1 
-                  ? 'Backline moves, Kicking practice, Attack patterns'
-                  : 'Fitness circuits, Speed training, Endurance drills',
-                present: 22 + (i % 5),
-                absent: 5 - (i % 3),
-                justified: 2 + (i % 2),
-                injured: 1,
-                total: 30,
-                attendanceRate: Math.round(((22 + (i % 5)) / 30) * 100 * 10) / 10,
-              }))
-              setSessionSummaries(mockSummaries)
-            }
-            
-            setLoading(false)
-            return
-          } catch (e) {
-            // Fall through
-          }
-        }
-      }
-
       const supabase = createClient()
       const { data: { user: authUser } } = await supabase.auth.getUser()
+      
+      if (!authUser) {
+        setLoading(false)
+        return
+      }
 
       if (authUser) {
         const { data: profile } = await supabase

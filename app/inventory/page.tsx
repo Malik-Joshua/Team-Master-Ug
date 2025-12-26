@@ -5,7 +5,6 @@ import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
 import { Package, Plus, Search, Filter, Edit, Trash2, AlertCircle, CheckCircle, XCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { notifications } from '@/lib/notifications'
 
 interface InventoryItem {
   id: string
@@ -40,93 +39,44 @@ export default function InventoryPage() {
 
   useEffect(() => {
     const loadData = async () => {
-      // Check for dev mode
-      if (typeof window !== 'undefined') {
-        const devUser = localStorage.getItem('dev_user')
-        if (devUser) {
-          try {
-            const userData = JSON.parse(devUser)
-            setUser(userData)
-            // Mock inventory items for dev mode
-            const mockItems: InventoryItem[] = [
-              {
-                id: '1',
-                name: 'Rugby Balls',
-                category: 'Equipment',
-                quantity: 25,
-                unit: 'pieces',
-                location: 'Storage Room A',
-                status: 'in_stock',
-                lastUpdated: new Date().toISOString(),
-                description: 'Official match rugby balls',
-              },
-              {
-                id: '2',
-                name: 'Jerseys',
-                category: 'Apparel',
-                quantity: 5,
-                unit: 'pieces',
-                location: 'Storage Room B',
-                status: 'low_stock',
-                lastUpdated: new Date(Date.now() - 86400000).toISOString(),
-                description: 'Team jerseys size M-XL',
-              },
-              {
-                id: '3',
-                name: 'Cones',
-                category: 'Training',
-                quantity: 0,
-                unit: 'pieces',
-                location: 'Training Ground',
-                status: 'out_of_stock',
-                lastUpdated: new Date(Date.now() - 172800000).toISOString(),
-                description: 'Training cones for drills',
-              },
-              {
-                id: '4',
-                name: 'First Aid Kit',
-                category: 'Medical',
-                quantity: 3,
-                unit: 'kits',
-                location: 'Medical Room',
-                status: 'in_stock',
-                lastUpdated: new Date(Date.now() - 3600000).toISOString(),
-                description: 'Complete first aid supplies',
-              },
-              {
-                id: '5',
-                name: 'Water Bottles',
-                category: 'Equipment',
-                quantity: 8,
-                unit: 'pieces',
-                location: 'Storage Room A',
-                status: 'low_stock',
-                lastUpdated: new Date(Date.now() - 259200000).toISOString(),
-                description: 'Reusable water bottles',
-              },
-            ]
-            setItems(mockItems)
-            setLoading(false)
-            return
-          } catch (e) {
-            // Fall through
-          }
-        }
-      }
-
       const supabase = createClient()
       const { data: { user: authUser } } = await supabase.auth.getUser()
 
-      if (authUser) {
-        const { data: profile } = await supabase
-          .from('user_profiles')
-          .select('*')
-          .eq('user_id', authUser.id)
-          .single()
+      if (!authUser) {
+        setLoading(false)
+        return
+      }
 
-        if (profile) {
-          setUser(profile)
-          // Fetch real inventory items
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('user_id', authUser.id)
+        .single()
+
+      if (profile) {
+        setUser(profile)
+        
+        // Fetch real inventory items
+        const { data: itemsData, error } = await supabase
+          .from('inventory')
+          .select('*')
+          .order('name', { ascending: true })
+
+        if (error) {
+          console.error('Error fetching inventory:', error)
+        } else if (itemsData) {
+          const formattedItems: InventoryItem[] = itemsData.map((item: any) => ({
+            id: item.id,
+            name: item.name,
+            category: item.category || 'Equipment',
+            quantity: item.quantity || 0,
+            unit: item.unit || 'pieces',
+            location: item.location || '',
+            status: item.quantity === 0 ? 'out_of_stock' : item.quantity < 10 ? 'low_stock' : 'in_stock',
+            lastUpdated: item.updated_at || item.created_at || new Date().toISOString(),
+            description: item.description || '',
+          }))
+          setItems(formattedItems)
         }
       }
       setLoading(false)
@@ -182,30 +132,6 @@ export default function InventoryPage() {
       setItems([formattedItem, ...items])
       setFormData({ name: '', category: '', quantity: '', unit: '', location: '', description: '' })
       setShowAddModal(false)
-      
-      // Create notification for inventory item added
-      try {
-        const { data: userProfile } = await supabase
-          .from('user_profiles')
-          .select('name')
-          .eq('user_id', user.id)
-          .single()
-        
-        const userName = userProfile?.name || 'User'
-        await notifications.inventoryItemAdded(formData.name, userName)
-      } catch (notifError) {
-        console.error('Error creating notification:', notifError)
-      }
-      
-      // Check for low stock and create notification
-      if (newItem.quantity <= 10 && newItem.quantity > 0) {
-        try {
-          await notifications.inventoryLowStock(formData.name, newItem.quantity)
-        } catch (notifError) {
-          console.error('Error creating low stock notification:', notifError)
-        }
-      }
-      
       alert('Item added successfully!')
     } catch (error: any) {
       console.error('Error adding item:', error)

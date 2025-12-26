@@ -46,56 +46,13 @@ export default function MessagesPage() {
 
   useEffect(() => {
     const loadData = async () => {
-      // Check for dev mode
-      if (typeof window !== 'undefined') {
-        const devUser = localStorage.getItem('dev_user')
-        if (devUser) {
-          try {
-            const userData = JSON.parse(devUser)
-            setUser(userData)
-            // Mock messages for dev mode
-            setMessages([
-              {
-                id: 'msg-1',
-                sender_name: 'Coach John',
-                sender_role: 'coach',
-                subject: 'Training Schedule Update',
-                message: 'Hi team, just a reminder that training on Tuesday will be at 6 PM instead of 5 PM due to pitch availability. Please confirm your attendance. Thanks!',
-                read: false,
-                created_at: new Date(Date.now() - 3600000).toISOString(),
-              },
-              {
-                id: 'msg-2',
-                sender_name: 'Admin Sarah',
-                sender_role: 'admin',
-                subject: 'Important: Kit Collection',
-                message: 'Dear players, new club kits are available for collection at the clubhouse this Saturday from 10 AM to 2 PM. Please ensure you pick up your kit before the next match.',
-                read: true,
-                created_at: new Date(Date.now() - 86400000).toISOString(),
-              },
-            ])
-            
-            // Mock players and admins for coach in dev mode
-            if (userData.role === 'coach') {
-              setPlayers([
-                { user_id: '1', name: 'John Doe', role: 'player', email: 'john@example.com' },
-                { user_id: '2', name: 'Jane Smith', role: 'player', email: 'jane@example.com' },
-              ])
-              setAdmins([
-                { user_id: '3', name: 'Admin Sarah', role: 'admin', email: 'admin@example.com' },
-              ])
-            }
-            
-            setLoading(false)
-            return
-          } catch (e) {
-            // Fall through
-          }
-        }
-      }
-
       const supabase = createClient()
       const { data: { user: authUser } } = await supabase.auth.getUser()
+      
+      if (!authUser) {
+        setLoading(false)
+        return
+      }
 
       if (authUser) {
         const { data: profile } = await supabase

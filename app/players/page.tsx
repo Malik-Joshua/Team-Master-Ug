@@ -58,34 +58,59 @@ export default function PlayersPage() {
 
   useEffect(() => {
     const loadData = async () => {
-      if (typeof window !== 'undefined') {
-        const devUser = localStorage.getItem('dev_user')
-        if (devUser) {
-          try {
-            const userData = JSON.parse(devUser)
-            setUser(userData)
-            setPlayers([
-              { id: '1', name: 'John Doe', position: 'fly_half', status: 'active', email: 'john@example.com', phone: '+256 700 000 000', games_played: 15, tries: 8, tackles: 45 },
-              { id: '2', name: 'Jane Smith', position: 'prop', status: 'active', email: 'jane@example.com', phone: '+256 700 000 001', games_played: 12, tries: 2, tackles: 38 },
-              { id: '3', name: 'Mike Johnson', position: 'winger', status: 'injured', email: 'mike@example.com', phone: '+256 700 000 002', games_played: 10, tries: 5, tackles: 20 },
-              { id: '4', name: 'Sarah Williams', position: 'scrum_half', status: 'active', email: 'sarah@example.com', phone: '+256 700 000 003', games_played: 18, tries: 3, tackles: 52 },
-            ])
-            setLoading(false)
-            return
-          } catch (e) {}
-        }
-      }
-
       const supabase = createClient()
       const { data: { user: authUser } } = await supabase.auth.getUser()
-      if (authUser) {
-        const { data: profile } = await supabase.from('user_profiles').select('*').eq('user_id', authUser.id).single()
-        if (profile) {
-          setUser(profile)
-          const { data: playersData } = await supabase.from('user_profiles').select('*').eq('role', 'player')
+      
+      if (!authUser) {
+        setLoading(false)
+        return
+      }
+
+      // Get user profile
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('user_id', authUser.id)
+        .single()
+      
+      if (profile) {
+        setUser(profile)
+        
+        // Fetch players - use API route for admin to bypass RLS, otherwise direct query
+        if (profile.role === 'admin' || profile.role === 'coach' || profile.role === 'data_admin') {
+          try {
+            // For admin/coach, try API route first
+            const response = await fetch('/api/admin/players')
+            if (response.ok) {
+              const data = await response.json()
+              setPlayers(data.players || [])
+            } else {
+              // Fallback to direct query
+              const { data: playersData } = await supabase
+                .from('user_profiles')
+                .select('*')
+                .eq('role', 'player')
+              if (playersData) setPlayers(playersData as Player[])
+            }
+          } catch (error) {
+            console.error('Error fetching players:', error)
+            // Fallback to direct query
+            const { data: playersData } = await supabase
+              .from('user_profiles')
+              .select('*')
+              .eq('role', 'player')
+            if (playersData) setPlayers(playersData as Player[])
+          }
+        } else {
+          // For other roles, use direct query (they can only see their own data)
+          const { data: playersData } = await supabase
+            .from('user_profiles')
+            .select('*')
+            .eq('role', 'player')
           if (playersData) setPlayers(playersData as Player[])
         }
       }
+      
       setLoading(false)
     }
     loadData()

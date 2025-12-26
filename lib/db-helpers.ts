@@ -782,4 +782,232 @@ export const db = {
       pullUpPB: gymStats.pull_up_pb || gymStats.pullUpPB || null,
     }
   },
+
+  async updatePlayer(playerId: string, data: any) {
+    const supabase = createClient()
+    
+    // Update user profile
+    const profileData: any = {}
+    if (data.name) profileData.name = data.name
+    if (data.email) profileData.email = data.email
+    if (data.phone) profileData.phone = data.phone
+    
+    if (Object.keys(profileData).length > 0) {
+      const { error: profileError } = await supabase
+        .from('user_profiles')
+        .update(profileData)
+        .eq('user_id', playerId)
+      
+      if (profileError) throw profileError
+    }
+    
+    // Update player details
+    const playerData: any = {}
+    if (data.position) playerData.position = data.position
+    if (data.category) playerData.category = data.category
+    if (data.jersey_number !== undefined) playerData.jersey_number = data.jersey_number
+    
+    if (Object.keys(playerData).length > 0) {
+      const { error: playerError } = await supabase
+        .from('players')
+        .update(playerData)
+        .eq('user_id', playerId)
+      
+      if (playerError) throw playerError
+    }
+    
+    return { success: true }
+  },
+
+  async updatePlayerGymStats(playerId: string, stats: {
+    benchPressPB?: number | null
+    squatPB?: number | null
+    deadliftPB?: number | null
+    pullUpPB?: number | null
+  }) {
+    const supabase = createClient()
+    
+    // Get current gym stats
+    const { data: player, error: fetchError } = await supabase
+      .from('players')
+      .select('gym_stats')
+      .eq('user_id', playerId)
+      .single()
+    
+    if (fetchError) throw fetchError
+    
+    const currentStats = player?.gym_stats || {}
+    
+    // Update gym stats
+    const updatedStats = {
+      ...currentStats,
+      bench_press_pb: stats.benchPressPB !== undefined ? stats.benchPressPB : currentStats.bench_press_pb || currentStats.benchPressPB,
+      squat_pb: stats.squatPB !== undefined ? stats.squatPB : currentStats.squat_pb || currentStats.squatPB,
+      deadlift_pb: stats.deadliftPB !== undefined ? stats.deadliftPB : currentStats.deadlift_pb || currentStats.deadliftPB,
+      pull_up_pb: stats.pullUpPB !== undefined ? stats.pullUpPB : currentStats.pull_up_pb || currentStats.pullUpPB,
+    }
+    
+    const { data, error } = await supabase
+      .from('players')
+      .update({ gym_stats: updatedStats })
+      .eq('user_id', playerId)
+      .select()
+      .single()
+    
+    if (error) throw error
+    return data
+  },
+
+  async saveFixtureTeamSelection(matchId: string, selections: any[]) {
+    // Use the API route to save team selection
+    const response = await fetch('/api/fixtures/team-selection', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        matchId,
+        selections,
+      }),
+    })
+    
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to save team selection')
+    }
+    
+    return await response.json()
+  },
+
+  async getTeamManagerGameDays(teamManagerId: string) {
+    const supabase = createClient()
+    
+    const { count, error } = await supabase
+      .from('matches')
+      .select('*', { count: 'exact', head: true })
+      .eq('created_by', teamManagerId)
+    
+    if (error) throw error
+    return count || 0
+  },
+
+  async getTeamManagerTrainingSessionsAttended(teamManagerId: string) {
+    const supabase = createClient()
+    
+    // Count training sessions where team manager recorded attendance
+    const { count, error } = await supabase
+      .from('training_attendance')
+      .select('*', { count: 'exact', head: true })
+      .eq('recorded_by', teamManagerId)
+    
+    if (error) throw error
+    return count || 0
+  },
+
+  async getInjuryReports() {
+    const supabase = createClient()
+    
+    const { data, error } = await supabase
+      .from('injuries')
+      .select(`
+        *,
+        player:user_profiles!injuries_player_id_fkey(name, user_id)
+      `)
+      .order('injury_date', { ascending: false })
+    
+    if (error) throw error
+    
+    return (data || []).map((injury: any) => ({
+      ...injury,
+      player_name: injury.player?.name || 'Unknown Player',
+      player_id: injury.player?.user_id || injury.player_id,
+    }))
+  },
+
+  async getTeamManagerMatches(teamManagerId: string) {
+    const supabase = createClient()
+    
+    const { data, error } = await supabase
+      .from('matches')
+      .select('*')
+      .eq('created_by', teamManagerId)
+      .order('match_date', { ascending: false })
+    
+    if (error) throw error
+    return data || []
+  },
+
+  async getClubFinancialPerformance() {
+    const supabase = createClient()
+    
+    // Get all financial transactions
+    const { data: transactions, error } = await supabase
+      .from('financial_transactions')
+      .select('*')
+      .order('transaction_date', { ascending: false })
+    
+    if (error) throw error
+    
+    if (!transactions || transactions.length === 0) {
+      return {
+        totalRevenue: 0,
+        totalExpenses: 0,
+        netIncome: 0,
+        transactionCount: 0,
+      }
+    }
+    
+    const totalRevenue = transactions
+      .filter(t => t.type === 'revenue')
+      .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0)
+    
+    const totalExpenses = transactions
+      .filter(t => t.type === 'expense')
+      .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0)
+    
+    return {
+      totalRevenue: Math.round(totalRevenue * 100) / 100,
+      totalExpenses: Math.round(totalExpenses * 100) / 100,
+      netIncome: Math.round((totalRevenue - totalExpenses) * 100) / 100,
+      transactionCount: transactions.length,
+    }
+  },
+
+  async getClubPerformance() {
+    const supabase = createClient()
+    
+    // Get team performance stats
+    const teamStats = await this.getTeamPerformanceStats()
+    
+    // Get players performance summary
+    const playersPerf = await this.getPlayersPerformanceSummary()
+    
+    // Get total matches
+    const totalMatches = await this.getTotalMatches()
+    
+    // Get total training sessions
+    const totalTrainingSessions = await this.getTotalTrainingSessions()
+    
+    // Get active players count
+    const { count: activePlayersCount } = await supabase
+      .from('user_profiles')
+      .select('*', { count: 'exact', head: true })
+      .eq('role', 'player')
+      .eq('status', 'active')
+    
+    // Get active injuries count
+    const { count: activeInjuriesCount } = await supabase
+      .from('injuries')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'active')
+    
+    return {
+      teamStats,
+      playersPerf,
+      totalMatches: totalMatches || 0,
+      totalTrainingSessions: totalTrainingSessions || 0,
+      activePlayers: activePlayersCount || 0,
+      activeInjuries: activeInjuriesCount || 0,
+    }
+  },
 }

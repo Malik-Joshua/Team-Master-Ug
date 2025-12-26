@@ -1111,7 +1111,7 @@ export default function PerformancePage() {
       return `UGX ${amount.toLocaleString()}`
     }
 
-    const clubPerformanceCards = clubPerformance ? [
+    const financialCards = clubPerformance ? [
       {
         title: 'Total Revenue',
         value: formatCurrency(clubPerformance.totalRevenue),
@@ -1133,107 +1133,177 @@ export default function PerformancePage() {
         color: 'bg-primary',
         description: 'Revenue minus expenses',
       },
+    ] : []
+
+    const budgetCards = clubPerformance ? [
       {
         title: 'Pending Budgets',
-        value: clubPerformance.budgetStats.pending,
+        value: clubPerformance.budgetStats?.pending || 0,
         icon: FileText,
         color: 'bg-warning',
         description: 'Budgets awaiting approval',
       },
       {
         title: 'Approved Budgets',
-        value: clubPerformance.budgetStats.approved,
+        value: clubPerformance.budgetStats?.approved || 0,
         icon: CheckCircle,
         color: 'bg-info',
         description: 'Approved budget requests',
+      },
+      {
+        title: 'Total Budgets',
+        value: clubPerformance.budgetStats?.total || 0,
+        icon: FileText,
+        color: 'bg-neutral-light',
+        description: 'All budget requests',
       },
     ] : []
 
     return (
       <Layout pageTitle="Club Performance">
-        <div className="space-y-6">
-          <div className="mb-2">
-            <h1 className="text-4xl font-extrabold text-club-gradient mb-2">Club Performance Dashboard</h1>
-            <p className="text-lg text-neutral-medium font-medium">Financial overview and club performance metrics</p>
+        <div className="space-y-8">
+          {/* Header */}
+          <div className="mb-6">
+            <h1 className="text-4xl font-extrabold text-club-gradient mb-2">Financial Performance Dashboard</h1>
+            <p className="text-lg text-neutral-medium font-medium">Comprehensive financial overview and budget management</p>
           </div>
 
-          {clubPerformance && (
+          {clubPerformance ? (
             <>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-                {clubPerformanceCards.map((card) => {
-                  const Icon = card.icon
-                  return (
-                    <StatCard
-                      key={card.title}
-                      title={card.title}
-                      value={card.value}
-                      icon={Icon}
-                      iconColor={card.color}
-                      description={card.description}
-                    />
-                  )
-                })}
-              </div>
-
-              <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
-                <h2 className="text-2xl font-bold text-neutral-text mb-6 flex items-center">
+              {/* Financial Metrics Section */}
+              <div>
+                <h2 className="text-2xl font-bold text-neutral-text mb-4 flex items-center">
                   <DollarSign className="w-6 h-6 mr-2 text-success" />
-                  Financial Overview
+                  Financial Metrics
                 </h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="p-4 bg-success/10 rounded-lg border border-success/20">
-                    <p className="text-sm text-neutral-medium mb-1">Total Revenue</p>
-                    <p className="text-3xl font-bold text-success">{formatCurrency(clubPerformance.totalRevenue)}</p>
-                  </div>
-                  <div className="p-4 bg-secondary/10 rounded-lg border border-secondary/20">
-                    <p className="text-sm text-neutral-medium mb-1">Total Expenses</p>
-                    <p className="text-3xl font-bold text-secondary">{formatCurrency(clubPerformance.totalExpenses)}</p>
-                  </div>
-                  <div className="p-4 bg-primary/10 rounded-lg border border-primary/20">
-                    <p className="text-sm text-neutral-medium mb-1">Net Balance</p>
-                    <p className="text-3xl font-bold text-primary">{formatCurrency(clubPerformance.netBalance)}</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                  {financialCards.map((card) => {
+                    const Icon = card.icon
+                    return (
+                      <StatCard
+                        key={card.title}
+                        title={card.title}
+                        value={card.value}
+                        icon={Icon}
+                        iconColor={card.color}
+                        description={card.description}
+                      />
+                    )
+                  })}
+                </div>
+                
+                {/* Financial Summary Cards */}
+                <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="p-6 bg-gradient-to-br from-success/10 to-success/5 rounded-lg border border-success/20">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-sm font-medium text-neutral-medium">Total Revenue</p>
+                        <TrendingUp className="w-5 h-5 text-success" />
+                      </div>
+                      <p className="text-3xl font-bold text-success mb-1">{formatCurrency(clubPerformance.totalRevenue)}</p>
+                      <p className="text-xs text-neutral-medium">All income sources</p>
+                    </div>
+                    <div className="p-6 bg-gradient-to-br from-secondary/10 to-secondary/5 rounded-lg border border-secondary/20">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-sm font-medium text-neutral-medium">Total Expenses</p>
+                        <TrendingDown className="w-5 h-5 text-secondary" />
+                      </div>
+                      <p className="text-3xl font-bold text-secondary mb-1">{formatCurrency(clubPerformance.totalExpenses)}</p>
+                      <p className="text-xs text-neutral-medium">All club expenditures</p>
+                    </div>
+                    <div className="p-6 bg-gradient-to-br from-primary/10 to-primary/5 rounded-lg border border-primary/20">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-sm font-medium text-neutral-medium">Net Balance</p>
+                        <DollarSign className="w-5 h-5 text-primary" />
+                      </div>
+                      <p className="text-3xl font-bold text-primary mb-1">{formatCurrency(clubPerformance.netBalance)}</p>
+                      <p className="text-xs text-neutral-medium">Current financial position</p>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {clubPerformance.recentTransactions && clubPerformance.recentTransactions.length > 0 && (
-                <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
-                  <h2 className="text-2xl font-bold text-neutral-text mb-6">Recent Financial Transactions</h2>
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b border-neutral-light">
-                          <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-text">Date</th>
-                          <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-text">Type</th>
-                          <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-text">Category</th>
-                          <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-text">Amount</th>
-                          <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-text">Description</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {clubPerformance.recentTransactions.map((transaction: any) => (
-                          <tr key={transaction.id} className="border-b border-neutral-light/50 hover:bg-neutral-light/30 transition-colors">
-                            <td className="py-3 px-4 text-sm text-neutral-medium">
-                              {new Date(transaction.transaction_date).toLocaleDateString()}
-                            </td>
-                            <td className="py-3 px-4">
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${transaction.type === 'revenue' ? 'bg-success/10 text-success' : 'bg-secondary/10 text-secondary'}`}>
-                                {transaction.type === 'revenue' ? 'Revenue' : 'Expense'}
-                              </span>
-                            </td>
-                            <td className="py-3 px-4 text-neutral-text">{transaction.category}</td>
-                            <td className={`py-3 px-4 font-bold ${transaction.type === 'revenue' ? 'text-success' : 'text-secondary'}`}>
-                              {transaction.type === 'revenue' ? '+' : '-'}{formatCurrency(parseFloat(transaction.amount.toString()))}
-                            </td>
-                            <td className="py-3 px-4 text-sm text-neutral-medium">{transaction.description}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+              {/* Budget Management Section */}
+              {clubPerformance.budgetStats && (
+                <div>
+                  <h2 className="text-2xl font-bold text-neutral-text mb-4 flex items-center">
+                    <FileText className="w-6 h-6 mr-2 text-warning" />
+                    Budget Management
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {budgetCards.map((card) => {
+                      const Icon = card.icon
+                      return (
+                        <StatCard
+                          key={card.title}
+                          title={card.title}
+                          value={card.value}
+                          icon={Icon}
+                          iconColor={card.color}
+                          description={card.description}
+                        />
+                      )
+                    })}
                   </div>
                 </div>
               )}
+
+              {/* Recent Transactions Section */}
+              {clubPerformance.recentTransactions && clubPerformance.recentTransactions.length > 0 && (
+                <div>
+                  <h2 className="text-2xl font-bold text-neutral-text mb-4 flex items-center">
+                    <DollarSign className="w-6 h-6 mr-2 text-primary" />
+                    Recent Financial Transactions
+                  </h2>
+                  <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b border-neutral-light">
+                            <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-text">Date</th>
+                            <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-text">Type</th>
+                            <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-text">Category</th>
+                            <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-text">Amount</th>
+                            <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-text">Description</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {clubPerformance.recentTransactions.map((transaction: any) => (
+                            <tr key={transaction.id} className="border-b border-neutral-light/50 hover:bg-neutral-light/30 transition-colors">
+                              <td className="py-3 px-4 text-sm text-neutral-medium">
+                                {new Date(transaction.transaction_date).toLocaleDateString()}
+                              </td>
+                              <td className="py-3 px-4">
+                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${transaction.type === 'revenue' ? 'bg-success/10 text-success' : 'bg-secondary/10 text-secondary'}`}>
+                                  {transaction.type === 'revenue' ? 'Revenue' : 'Expense'}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4 text-neutral-text font-medium">{transaction.category}</td>
+                              <td className={`py-3 px-4 font-bold ${transaction.type === 'revenue' ? 'text-success' : 'text-secondary'}`}>
+                                {transaction.type === 'revenue' ? '+' : '-'}{formatCurrency(parseFloat(transaction.amount.toString()))}
+                              </td>
+                              <td className="py-3 px-4 text-sm text-neutral-medium">{transaction.description}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {(!clubPerformance.recentTransactions || clubPerformance.recentTransactions.length === 0) && (
+                <div className="bg-white rounded-card p-8 border border-neutral-light shadow-soft text-center">
+                  <DollarSign className="w-12 h-12 text-neutral-light mx-auto mb-4" />
+                  <p className="text-neutral-medium">No recent transactions found</p>
+                </div>
+              )}
             </>
+          ) : (
+            <div className="bg-white rounded-card p-8 border border-neutral-light shadow-soft text-center">
+              <DollarSign className="w-12 h-12 text-neutral-light mx-auto mb-4" />
+              <p className="text-neutral-medium">Loading financial data...</p>
+            </div>
           )}
         </div>
       </Layout>

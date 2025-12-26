@@ -138,7 +138,7 @@ export default function LoginPage() {
 
         <div className="mt-6 text-center">
           <p className="text-sm text-neutral-medium">
-            Don't have an account?{' '}
+            Don&apos;t have an account?{' '}
             <Link href="/dev-login" className="text-primary hover:text-primary-dark font-medium">
               Use Demo Login
             </Link>

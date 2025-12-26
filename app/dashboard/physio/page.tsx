@@ -153,37 +153,36 @@ export default function PhysioDashboard() {
         // Fetch injuries
         await loadInjuries()
 
-          // Load training sessions and games attended
-          try {
-            const { db } = await import('@/lib/db-helpers')
-            const sessionsCount = await db.getTotalTrainingSessions()
-            const matchesCount = await db.getTotalMatches()
-            setTrainingSessionsAttended(sessionsCount)
-            setGamesAttended(matchesCount)
-          } catch (error) {
-            console.error('Error loading physio stats:', error)
-          }
+        // Load training sessions and games attended
+        try {
+          const { db } = await import('@/lib/db-helpers')
+          const sessionsCount = await db.getTotalTrainingSessions()
+          const matchesCount = await db.getTotalMatches()
+          setTrainingSessionsAttended(sessionsCount)
+          setGamesAttended(matchesCount)
+        } catch (error) {
+          console.error('Error loading physio stats:', error)
+        }
 
-          // Load team selection for upcoming fixture
-          try {
-            setLoadingTeamSelection(true)
-            const matchesResponse = await fetch('/api/fixtures')
-            if (matchesResponse.ok) {
-              const matchesData = await matchesResponse.json()
-              if (matchesData.fixtures && matchesData.fixtures.length > 0) {
-                const latestMatch = matchesData.fixtures[0]
-                const selectionResponse = await fetch(`/api/fixtures/team-selection?matchId=${latestMatch.id}`)
-                if (selectionResponse.ok) {
-                  const selectionData = await selectionResponse.json()
-                  setTeamSelection(selectionData)
-                }
+        // Load team selection for upcoming fixture
+        try {
+          setLoadingTeamSelection(true)
+          const matchesResponse = await fetch('/api/fixtures')
+          if (matchesResponse.ok) {
+            const matchesData = await matchesResponse.json()
+            if (matchesData.fixtures && matchesData.fixtures.length > 0) {
+              const latestMatch = matchesData.fixtures[0]
+              const selectionResponse = await fetch(`/api/fixtures/team-selection?matchId=${latestMatch.id}`)
+              if (selectionResponse.ok) {
+                const selectionData = await selectionResponse.json()
+                setTeamSelection(selectionData)
               }
             }
-          } catch (error) {
-            console.error('Error loading team selection:', error)
-          } finally {
-            setLoadingTeamSelection(false)
           }
+        } catch (error) {
+          console.error('Error loading team selection:', error)
+        } finally {
+          setLoadingTeamSelection(false)
         }
       }
       setLoading(false)

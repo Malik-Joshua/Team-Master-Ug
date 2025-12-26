@@ -183,7 +183,22 @@ export default function InventoryPage() {
         description: newItem.description || '',
       }
 
-      setItems([formattedItem, ...items])
+      // Refetch inventory items to ensure we have the latest data (especially for admin users)
+      if (user?.role === 'admin' || user?.role === 'data_admin') {
+        try {
+          const response = await fetch('/api/admin/inventory')
+          if (response.ok) {
+            const data = await response.json()
+            setItems(data.items || [])
+          }
+        } catch (error) {
+          console.error('Error refetching inventory:', error)
+          // Fallback: add to local state
+          setItems([formattedItem, ...items])
+        }
+      } else {
+        setItems([formattedItem, ...items])
+      }
       setFormData({ name: '', category: '', quantity: '', unit: '', location: '', description: '' })
       setShowAddModal(false)
       alert('Item added successfully!')
@@ -241,7 +256,22 @@ export default function InventoryPage() {
         description: updatedItem.description || '',
       }
 
-      setItems(items.map(item => item.id === selectedItem.id ? formattedItem : item))
+      // Refetch inventory items to ensure we have the latest data (especially for admin users)
+      if (user?.role === 'admin' || user?.role === 'data_admin') {
+        try {
+          const response = await fetch('/api/admin/inventory')
+          if (response.ok) {
+            const data = await response.json()
+            setItems(data.items || [])
+          }
+        } catch (error) {
+          console.error('Error refetching inventory:', error)
+          // Fallback: update local state
+          setItems(items.map(item => item.id === selectedItem.id ? formattedItem : item))
+        }
+      } else {
+        setItems(items.map(item => item.id === selectedItem.id ? formattedItem : item))
+      }
       setShowEditModal(false)
       setSelectedItem(null)
       setFormData({ name: '', category: '', quantity: '', unit: '', location: '', description: '' })
@@ -264,7 +294,22 @@ export default function InventoryPage() {
 
       if (error) throw error
 
-      setItems(items.filter(item => item.id !== itemId))
+      // Refetch inventory items to ensure we have the latest data (especially for admin users)
+      if (user?.role === 'admin' || user?.role === 'data_admin') {
+        try {
+          const response = await fetch('/api/admin/inventory')
+          if (response.ok) {
+            const data = await response.json()
+            setItems(data.items || [])
+          }
+        } catch (error) {
+          console.error('Error refetching inventory:', error)
+          // Fallback: update local state
+          setItems(items.filter(item => item.id !== itemId))
+        }
+      } else {
+        setItems(items.filter(item => item.id !== itemId))
+      }
       alert('Item deleted successfully!')
     } catch (error: any) {
       console.error('Error deleting item:', error)

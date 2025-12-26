@@ -29,6 +29,7 @@ ChartJS.register(
 interface AttendanceSummary {
   totalSessions: number
   totalPlayers: number
+  activePlayers?: number
   presentCount: number
   absentCount: number
   justifiedAbsenceCount: number

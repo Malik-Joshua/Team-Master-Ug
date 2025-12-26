@@ -192,37 +192,6 @@ export default function PhysioDashboard() {
     loadData()
   }, [])
 
-  const loadInjuries = async () => {
-    const supabase = createClient()
-    const { data: injuriesData, error } = await supabase
-      .from('injuries')
-      .select(`
-        *,
-        player:user_profiles!injuries_player_id_fkey(name)
-      `)
-      .order('injury_date', { ascending: false })
-
-    if (error) {
-      console.error('Error loading injuries:', error)
-      return
-    }
-
-    if (injuriesData) {
-      const injuriesWithDetails = injuriesData.map((injury: any) => {
-        const healingDuration = injury.return_to_play_date && injury.injury_date
-          ? Math.ceil((new Date(injury.return_to_play_date).getTime() - new Date(injury.injury_date).getTime()) / (1000 * 60 * 60 * 24))
-          : null
-
-        return {
-          ...injury,
-          player_name: injury.player?.name || 'Unknown Player',
-          healing_duration: healingDuration,
-        } as Injury
-      })
-      setInjuries(injuriesWithDetails)
-    }
-  }
-
   const handleSaveInjury = async () => {
     if (!injuryForm.player_id || !injuryForm.injury_date || !injuryForm.cause || !injuryForm.diagnosis || !injuryForm.action_taken) {
       alert('Please fill in all required fields (Player, Date, Cause, Diagnosis, Action Taken)')

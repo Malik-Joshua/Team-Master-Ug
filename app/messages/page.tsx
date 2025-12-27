@@ -71,7 +71,7 @@ export default function MessagesPage() {
             .or(`sender_id.eq.${authUser.id},recipient_id.eq.${authUser.id},recipient_role.eq.${profile.role}`)
             .order('created_at', { ascending: false })
 
-          if (fetchedMessages) {
+          if (fetchedMessages && fetchedMessages.length > 0) {
             // Fetch sender and recipient info separately to avoid foreign key issues
             const senderIds = [...new Set(fetchedMessages.map((msg: any) => msg.sender_id).filter(Boolean))]
             const recipientIds = [...new Set(fetchedMessages.map((msg: any) => msg.recipient_id).filter(Boolean))]
@@ -79,20 +79,39 @@ export default function MessagesPage() {
             
             let userProfilesMap: Record<string, any> = {}
             if (allUserIds.length > 0) {
-              const { data: profiles } = await supabase
+              const { data: profiles, error: profilesError } = await supabase
                 .from('user_profiles')
                 .select('user_id, name, role')
                 .in('user_id', allUserIds)
               
-              if (profiles) {
+              if (profilesError) {
+                console.error('Error fetching user profiles for messages:', profilesError)
+              }
+              
+              if (profiles && profiles.length > 0) {
                 profiles.forEach((profile: any) => {
+                  // Use both user_id and id as keys in case of inconsistency
                   userProfilesMap[profile.user_id] = profile
+                  if (profile.id) {
+                    userProfilesMap[profile.id] = profile
+                  }
                 })
+              } else {
+                console.warn('No user profiles found for sender/recipient IDs:', allUserIds)
               }
             }
             
             const formattedMessages: Message[] = fetchedMessages.map((msg: any) => {
-              const sender = userProfilesMap[msg.sender_id]
+              // Try multiple ways to find the sender
+              const sender = userProfilesMap[msg.sender_id] || 
+                           userProfilesMap[msg.sender_id?.toString()] ||
+                           null
+              
+              // If still not found, log for debugging
+              if (!sender && msg.sender_id) {
+                console.warn('Sender profile not found for sender_id:', msg.sender_id, 'Available IDs:', Object.keys(userProfilesMap))
+              }
+              
               return {
                 id: msg.id,
                 sender_name: sender?.name || 'Unknown',
@@ -104,6 +123,8 @@ export default function MessagesPage() {
               }
             })
             setMessages(formattedMessages)
+          } else {
+            setMessages([])
           }
 
           // If user is a coach, fetch players and admins for messaging

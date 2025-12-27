@@ -382,7 +382,7 @@ export default function MessagesPage() {
             try {
               const { db } = await import('@/lib/db-helpers')
               await db.createNotificationForUsers(
-                recipients.map(r => r.user_id),
+                recipients.map((r: { user_id: string }) => r.user_id),
                 {
                   title: 'New Message',
                   message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
@@ -526,7 +526,7 @@ export default function MessagesPage() {
             try {
               const { db } = await import('@/lib/db-helpers')
               await db.createNotificationForUsers(
-                recipients.map(r => r.user_id),
+                recipients.map((r: { user_id: string }) => r.user_id),
                 {
                   title: 'New Message',
                   message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,

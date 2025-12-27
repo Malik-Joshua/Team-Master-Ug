@@ -45,11 +45,20 @@ export async function GET(request: NextRequest) {
     })
 
     // Fetch users with the specified role, excluding the current user
-    const { data: recipients, error } = await supabaseAdmin
+    // Special handling for 'admin' role - include all admin types
+    let query = supabaseAdmin
       .from('user_profiles')
       .select('user_id')
-      .eq('role', role)
       .neq('user_id', authUser.id)
+    
+    if (role === 'admin') {
+      // Include all admin types: admin, data_admin, finance_admin
+      query = query.in('role', ['admin', 'data_admin', 'finance_admin'])
+    } else {
+      query = query.eq('role', role)
+    }
+    
+    const { data: recipients, error } = await query
 
     if (error) {
       console.error('Error fetching recipients:', error)

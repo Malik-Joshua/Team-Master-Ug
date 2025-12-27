@@ -150,7 +150,7 @@ export default function MessagesPage() {
             setMessages([])
           }
 
-          // If user is a coach, fetch players and admins for messaging
+          // If user is a coach, fetch players, admins, and physios for messaging
           if (profile.role === 'coach') {
             // Fetch all players
             const { data: playersData } = await supabase
@@ -163,15 +163,69 @@ export default function MessagesPage() {
               setPlayers(playersData as UserProfile[])
             }
 
-            // Fetch all admins
-            const { data: adminsData } = await supabase
-              .from('user_profiles')
-              .select('user_id, name, role, email')
-              .in('role', ['admin', 'data_admin', 'finance_admin'])
-              .order('name', { ascending: true })
+            // Fetch all admins (using API route to bypass RLS)
+            try {
+              const adminResponse = await fetch('/api/messages/recipients?role=admin')
+              if (adminResponse.ok) {
+                const adminData = await adminResponse.json()
+                // Fetch full profiles for admins
+                if (adminData.recipients && adminData.recipients.length > 0) {
+                  const adminIds = adminData.recipients.map((r: { user_id: string }) => r.user_id)
+                  const { data: adminsData } = await supabase
+                    .from('user_profiles')
+                    .select('user_id, name, role, email')
+                    .in('user_id', adminIds)
+                    .order('name', { ascending: true })
+                  
+                  if (adminsData) {
+                    setAdmins(adminsData as UserProfile[])
+                  }
+                }
+              }
+            } catch (adminError) {
+              console.error('Error fetching admins via API, trying direct query:', adminError)
+              // Fallback to direct query
+              const { data: adminsData } = await supabase
+                .from('user_profiles')
+                .select('user_id, name, role, email')
+                .in('role', ['admin', 'data_admin', 'finance_admin'])
+                .order('name', { ascending: true })
 
-            if (adminsData) {
-              setAdmins(adminsData as UserProfile[])
+              if (adminsData) {
+                setAdmins(adminsData as UserProfile[])
+              }
+            }
+
+            // Fetch all physios
+            try {
+              const physioResponse = await fetch('/api/messages/recipients?role=physio')
+              if (physioResponse.ok) {
+                const physioData = await physioResponse.json()
+                if (physioData.recipients && physioData.recipients.length > 0) {
+                  const physioIds = physioData.recipients.map((r: { user_id: string }) => r.user_id)
+                  const { data: physiosData } = await supabase
+                    .from('user_profiles')
+                    .select('user_id, name, role, email')
+                    .in('user_id', physioIds)
+                    .order('name', { ascending: true })
+                  
+                  if (physiosData) {
+                    setPhysios(physiosData as UserProfile[])
+                  }
+                }
+              }
+            } catch (physioError) {
+              console.error('Error fetching physios via API, trying direct query:', physioError)
+              // Fallback to direct query
+              const { data: physiosData } = await supabase
+                .from('user_profiles')
+                .select('user_id, name, role, email')
+                .eq('role', 'physio')
+                .order('name', { ascending: true })
+
+              if (physiosData) {
+                setPhysios(physiosData as UserProfile[])
+              }
             }
           }
 
@@ -428,27 +482,32 @@ export default function MessagesPage() {
         let recipientRole: string | null = null
 
         if (composeData.recipientType === 'role') {
-          // Send to all players or all admins
+          // Send to all players, all admins, or all physios
           if (composeData.recipient === 'all_players') {
             recipientRole = 'player'
           } else if (composeData.recipient === 'all_admins') {
-            recipientRole = 'admin'
+            recipientRole = 'admin' // This will be handled by API route to get all admin types
+          } else if (composeData.recipient === 'all_physios') {
+            recipientRole = 'physio'
           }
         } else {
-          // Send to individual player or admin
+          // Send to individual player, admin, or physio
           recipientId = composeData.recipientId
         }
 
-        // If sending to a role (all players or all admins), we need to send individual messages
-        if (recipientRole && (recipientRole === 'player' || recipientRole === 'admin')) {
-          // Get all users with that role
-          const roleToQuery = recipientRole === 'player' ? 'player' : recipientRole
-          const { data: recipients } = await supabase
-            .from('user_profiles')
-            .select('user_id')
-            .eq('role', roleToQuery)
+        // If sending to a role, use API route to bypass RLS
+        if (recipientRole) {
+          try {
+            const response = await fetch(`/api/messages/recipients?role=${recipientRole}`)
+            if (!response.ok) {
+              const errorData = await response.json()
+              throw new Error(errorData.error || 'Failed to fetch recipients')
+            }
+            
+            const data = await response.json()
+            const recipients = data.recipients || []
 
-          if (recipients && recipients.length > 0) {
+            if (recipients && recipients.length > 0) {
             // Send message to each recipient
             const messagePromises = recipients.map((recipient) =>
               supabase
@@ -481,9 +540,25 @@ export default function MessagesPage() {
               // Don't fail the message send if notification creation fails
             }
             
-            alert(`Message sent successfully to ${recipients.length} ${recipientRole === 'player' ? 'players' : 'admins'}!`)
-          } else {
-            alert(`No ${recipientRole === 'player' ? 'players' : 'admins'} found`)
+              const roleName = recipientRole === 'player' ? 'players' : recipientRole === 'physio' ? 'physiotherapists' : 'administrators'
+              alert(`Message sent successfully to ${recipients.length} ${roleName}!`)
+              setComposeData({ recipientType: 'role', recipient: '', recipientId: '', selectedRoles: [], subject: '', message: '' })
+              setShowCompose(false)
+              // Reload messages
+              const response = await fetch('/api/messages', { cache: 'no-store' })
+              if (response.ok) {
+                const data = await response.json()
+                setMessages(data.messages || [])
+              }
+              return
+            } else {
+              const roleName = recipientRole === 'player' ? 'players' : recipientRole === 'physio' ? 'physiotherapists' : 'administrators'
+              alert(`No ${roleName} found`)
+              return
+            }
+          } catch (fetchError: any) {
+            console.error('Error fetching recipients:', fetchError)
+            alert(`Error fetching recipients: ${fetchError.message || 'Unknown error'}`)
             return
           }
         } else {
@@ -923,8 +998,8 @@ export default function MessagesPage() {
                       onChange={(e) => setComposeData({ ...composeData, recipientType: e.target.value, recipient: '', recipientId: '' })}
                       className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                     >
-                      <option value="role">All Players / All Admins</option>
-                      <option value="individual">Individual Player / Admin</option>
+                      <option value="role">Send to Role Group</option>
+                      <option value="individual">Send to Individual</option>
                     </select>
                   </div>
                   {composeData.recipientType === 'role' ? (
@@ -940,6 +1015,7 @@ export default function MessagesPage() {
                         <option value="">Select recipient group...</option>
                         <option value="all_players">All Players</option>
                         <option value="all_admins">All Administrators</option>
+                        <option value="all_physios">All Physiotherapists</option>
                       </select>
                     </div>
                   ) : (
@@ -953,20 +1029,33 @@ export default function MessagesPage() {
                         className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                       >
                         <option value="">Select recipient...</option>
-                        <optgroup label="Players">
-                          {players.map((player) => (
-                            <option key={player.user_id} value={player.user_id}>
-                              {player.name} (Player)
-                            </option>
-                          ))}
-                        </optgroup>
-                        <optgroup label="Administrators">
-                          {admins.map((admin) => (
-                            <option key={admin.user_id} value={admin.user_id}>
-                              {admin.name} ({admin.role.replace('_', ' ')})
-                            </option>
-                          ))}
-                        </optgroup>
+                        {players.length > 0 && (
+                          <optgroup label="Players">
+                            {players.map((player) => (
+                              <option key={player.user_id} value={player.user_id}>
+                                {player.name} (Player)
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                        {admins.length > 0 && (
+                          <optgroup label="Administrators">
+                            {admins.map((admin) => (
+                              <option key={admin.user_id} value={admin.user_id}>
+                                {admin.name} ({admin.role.replace('_', ' ')})
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                        {physios.length > 0 && (
+                          <optgroup label="Physiotherapists">
+                            {physios.map((physio) => (
+                              <option key={physio.user_id} value={physio.user_id}>
+                                {physio.name} (Physio)
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
                       </select>
                     </div>
                   )}

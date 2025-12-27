@@ -64,66 +64,61 @@ export default function MessagesPage() {
         if (profile) {
           setUser(profile)
           
-          // Fetch messages
-          const { data: fetchedMessages } = await supabase
-            .from('messages')
-            .select('*')
-            .or(`sender_id.eq.${authUser.id},recipient_id.eq.${authUser.id},recipient_role.eq.${profile.role}`)
-            .order('created_at', { ascending: false })
-
-          if (fetchedMessages && fetchedMessages.length > 0) {
-            // Fetch sender and recipient info separately to avoid foreign key issues
-            const senderIds = [...new Set(fetchedMessages.map((msg: any) => msg.sender_id).filter(Boolean))]
-            const recipientIds = [...new Set(fetchedMessages.map((msg: any) => msg.recipient_id).filter(Boolean))]
-            const allUserIds = [...new Set([...senderIds, ...recipientIds])]
+          // Fetch messages via API route to bypass RLS and get proper sender info
+          try {
+            const response = await fetch('/api/messages', {
+              cache: 'no-store',
+            })
             
-            let userProfilesMap: Record<string, any> = {}
-            if (allUserIds.length > 0) {
-              const { data: profiles, error: profilesError } = await supabase
-                .from('user_profiles')
-                .select('user_id, name, role')
-                .in('user_id', allUserIds)
+            if (response.ok) {
+              const data = await response.json()
+              setMessages(data.messages || [])
+            } else {
+              console.error('Error fetching messages from API:', response.status)
+              // Fallback to direct query
+              const { data: fetchedMessages } = await supabase
+                .from('messages')
+                .select('*')
+                .or(`sender_id.eq.${authUser.id},recipient_id.eq.${authUser.id},recipient_role.eq.${profile.role}`)
+                .order('created_at', { ascending: false })
               
-              if (profilesError) {
-                console.error('Error fetching user profiles for messages:', profilesError)
-              }
-              
-              if (profiles && profiles.length > 0) {
-                profiles.forEach((profile: any) => {
-                  // Use both user_id and id as keys in case of inconsistency
-                  userProfilesMap[profile.user_id] = profile
-                  if (profile.id) {
-                    userProfilesMap[profile.id] = profile
+              if (fetchedMessages) {
+                // Try to get sender info even with RLS limitations
+                const senderIds = [...new Set(fetchedMessages.map((msg: any) => msg.sender_id).filter(Boolean))]
+                let userProfilesMap: Record<string, any> = {}
+                
+                if (senderIds.length > 0) {
+                  const { data: profiles } = await supabase
+                    .from('user_profiles')
+                    .select('user_id, name, role')
+                    .in('user_id', senderIds)
+                  
+                  if (profiles) {
+                    profiles.forEach((profile: any) => {
+                      userProfilesMap[profile.user_id] = profile
+                    })
+                  }
+                }
+                
+                const formattedMessages: Message[] = fetchedMessages.map((msg: any) => {
+                  const sender = userProfilesMap[msg.sender_id]
+                  return {
+                    id: msg.id,
+                    sender_name: sender?.name || 'Unknown',
+                    sender_role: sender?.role || 'unknown',
+                    subject: msg.subject || '',
+                    message: msg.message,
+                    read: msg.read || false,
+                    created_at: msg.created_at,
                   }
                 })
+                setMessages(formattedMessages)
               } else {
-                console.warn('No user profiles found for sender/recipient IDs:', allUserIds)
+                setMessages([])
               }
             }
-            
-            const formattedMessages: Message[] = fetchedMessages.map((msg: any) => {
-              // Try multiple ways to find the sender
-              const sender = userProfilesMap[msg.sender_id] || 
-                           userProfilesMap[msg.sender_id?.toString()] ||
-                           null
-              
-              // If still not found, log for debugging
-              if (!sender && msg.sender_id) {
-                console.warn('Sender profile not found for sender_id:', msg.sender_id, 'Available IDs:', Object.keys(userProfilesMap))
-              }
-              
-              return {
-                id: msg.id,
-                sender_name: sender?.name || 'Unknown',
-                sender_role: sender?.role || 'unknown',
-                subject: msg.subject || '',
-                message: msg.message,
-                read: msg.read || false,
-                created_at: msg.created_at,
-              }
-            })
-            setMessages(formattedMessages)
-          } else {
+          } catch (error) {
+            console.error('Error fetching messages:', error)
             setMessages([])
           }
 

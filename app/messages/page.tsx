@@ -712,7 +712,8 @@ export default function MessagesPage() {
 
   if (!user) return null
 
-  const unreadCount = messages.filter((m) => !m.read).length
+  // Calculate unread count (only for received messages, not sent)
+  const unreadCount = messages.filter((m) => !m.is_sent && !m.read).length
 
   return (
     <Layout pageTitle="Messages">

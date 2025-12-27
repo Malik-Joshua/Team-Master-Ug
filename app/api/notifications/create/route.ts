@@ -17,11 +17,44 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { userIds, notificationData } = body
+    const { userIds, notificationData, singleNotification } = body
 
-    if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+    // Support both single notification and multiple notifications
+    let notificationsToCreate: any[]
+    
+    if (singleNotification) {
+      // Single notification creation
+      if (!singleNotification.user_id || !singleNotification.title || !singleNotification.message) {
+        return NextResponse.json(
+          { error: 'Single notification requires user_id, title, and message' },
+          { status: 400 }
+        )
+      }
+      notificationsToCreate = [{
+        user_id: singleNotification.user_id,
+        title: singleNotification.title,
+        message: singleNotification.message,
+        type: singleNotification.type || 'info',
+        action_url: singleNotification.action_url || null,
+      }]
+    } else if (userIds && Array.isArray(userIds) && userIds.length > 0) {
+      // Multiple notifications creation
+      if (!notificationData || !notificationData.title || !notificationData.message) {
+        return NextResponse.json(
+          { error: 'Notification data with title and message is required' },
+          { status: 400 }
+        )
+      }
+      notificationsToCreate = userIds.map((userId: string) => ({
+        user_id: userId,
+        title: notificationData.title,
+        message: notificationData.message,
+        type: notificationData.type || 'info',
+        action_url: notificationData.action_url || null,
+      }))
+    } else {
       return NextResponse.json(
-        { error: 'User IDs array is required' },
+        { error: 'Either userIds array or singleNotification object is required' },
         { status: 400 }
       )
     }

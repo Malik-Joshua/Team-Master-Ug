@@ -92,10 +92,10 @@ export default function DashboardPage() {
             setUser(profile)
             
             // Load general statistics for all roles
-            // For admin, use API route to bypass RLS; for others, use direct queries
+            // For admin and coach, use API route to bypass RLS; for others, use direct queries
             try {
-              if (profile.role === 'admin') {
-                // Use API route for admin (bypasses RLS)
+              if (profile.role === 'admin' || profile.role === 'coach') {
+                // Use API route for admin/coach (bypasses RLS)
                 const response = await fetch('/api/admin/statistics')
                 if (response.ok) {
                   const data = await response.json()
@@ -112,7 +112,7 @@ export default function DashboardPage() {
                     totalExpenses: data.totalExpenses || 0,
                   }))
                 } else {
-                  console.error('Failed to fetch admin statistics from API')
+                  console.error('Failed to fetch statistics from API')
                 }
               } else {
                 // For non-admin roles, use direct queries (they can only see their own data)

@@ -1046,12 +1046,13 @@ export default function TrainingPage() {
                 <div>
                   <label className="block text-sm font-medium text-neutral-medium mb-2">
                     <Clock className="w-4 h-4 inline mr-2" />
-                    Training Time
+                    Training Time <span className="text-xs text-neutral-medium">(e.g., 18:00, 6:00 PM, 2:30 PM)</span>
                   </label>
                   <input
-                    type="time"
+                    type="text"
                     value={scheduleForm.session_time}
                     onChange={(e) => setScheduleForm({ ...scheduleForm, session_time: e.target.value })}
+                    placeholder="e.g., 18:00 or 6:00 PM"
                     className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                   />
                 </div>

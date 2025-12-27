@@ -16,16 +16,16 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Get user profile to verify admin role
+    // Get user profile to verify admin/coach role
     const { data: profile } = await supabase
       .from('user_profiles')
       .select('role')
       .eq('user_id', authUser.id)
       .single()
 
-    if (!profile || profile.role !== 'admin') {
+    if (!profile || !['admin', 'coach'].includes(profile.role)) {
       return NextResponse.json(
-        { error: 'Unauthorized: Admin access required' },
+        { error: 'Unauthorized: Admin/Coach access required' },
         { status: 403 }
       )
     }

@@ -29,21 +29,52 @@ export function useNotifications() {
           return
         }
 
-        // Fetch initial notifications
-        const { data, error } = await supabase
-          .from('notifications')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(50)
+        // Fetch initial notifications via API route to bypass RLS
+        try {
+          const response = await fetch('/api/notifications', {
+            cache: 'no-store',
+          })
+          
+          if (response.ok) {
+            const result = await response.json()
+            console.log(`Loaded ${result.count || 0} notifications for user ${user.id} via API`)
+            setNotifications(result.notifications || [])
+            setUnreadCount((result.notifications || []).filter((n: Notification) => !n.read).length)
+          } else {
+            console.error('Error fetching notifications from API:', response.status)
+            // Fallback to direct query
+            const { data, error } = await supabase
+              .from('notifications')
+              .select('*')
+              .eq('user_id', user.id)
+              .order('created_at', { ascending: false })
+              .limit(50)
 
-        if (error) {
-          console.error('Error fetching notifications:', error)
-          console.error('Error details:', JSON.stringify(error, null, 2))
-        } else {
-          console.log(`Loaded ${data?.length || 0} notifications for user ${user.id}`)
-          setNotifications(data || [])
-          setUnreadCount((data || []).filter((n) => !n.read).length)
+            if (error) {
+              console.error('Error fetching notifications (fallback):', error)
+            } else {
+              console.log(`Loaded ${data?.length || 0} notifications for user ${user.id} (fallback)`)
+              setNotifications(data || [])
+              setUnreadCount((data || []).filter((n) => !n.read).length)
+            }
+          }
+        } catch (fetchError) {
+          console.error('Error fetching notifications:', fetchError)
+          // Fallback to direct query
+          const { data, error } = await supabase
+            .from('notifications')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+            .limit(50)
+
+          if (error) {
+            console.error('Error fetching notifications (fallback):', error)
+          } else {
+            console.log(`Loaded ${data?.length || 0} notifications for user ${user.id} (fallback)`)
+            setNotifications(data || [])
+            setUnreadCount((data || []).filter((n) => !n.read).length)
+          }
         }
 
         // Set up real-time subscription for new notifications

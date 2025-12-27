@@ -37,6 +37,8 @@ export default function DataAdminDashboard() {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [players, setPlayers] = useState<Player[]>([])
+  const [matchesCount, setMatchesCount] = useState(0)
+  const [trainingSessionsCount, setTrainingSessionsCount] = useState(0)
   const [showMatchForm, setShowMatchForm] = useState(false)
   const [matchForm, setMatchForm] = useState<MatchForm>({
     match_date: '',
@@ -80,6 +82,24 @@ export default function DataAdminDashboard() {
 
           if (playersData) {
             setPlayers(playersData as Player[])
+          }
+
+          // Fetch matches count
+          const { count: matchesCount, error: matchesError } = await supabase
+            .from('matches')
+            .select('*', { count: 'exact', head: true })
+
+          if (!matchesError && matchesCount !== null) {
+            setMatchesCount(matchesCount)
+          }
+
+          // Fetch training sessions count
+          const { count: trainingCount, error: trainingError } = await supabase
+            .from('training_sessions')
+            .select('*', { count: 'exact', head: true })
+
+          if (!trainingError && trainingCount !== null) {
+            setTrainingSessionsCount(trainingCount)
           }
         }
       }
@@ -223,8 +243,8 @@ export default function DataAdminDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <StatCard title="Total Players" value={players.length} icon={Users} iconColor="bg-primary" />
           <StatCard title="Active Players" value={players.length} icon={Activity} iconColor="bg-success" />
-          <StatCard title="Matches Logged" value={0} icon={Trophy} iconColor="bg-warning" />
-          <StatCard title="Training Sessions" value={0} icon={Calendar} iconColor="bg-info" />
+          <StatCard title="Matches Logged" value={matchesCount} icon={Trophy} iconColor="bg-warning" />
+          <StatCard title="Training Sessions" value={trainingSessionsCount} icon={Calendar} iconColor="bg-info" />
         </div>
 
         {/* Match Stats Entry Form Modal */}

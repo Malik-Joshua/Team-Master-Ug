@@ -645,7 +645,20 @@ export default function MessagesPage() {
           }
 
           setMessages([formattedMessage, ...messages])
+          setComposeData({ recipientType: 'role', recipient: '', recipientId: '', selectedRoles: [], subject: '', message: '' })
+          setShowCompose(false)
           alert('Message sent successfully!')
+          
+          // Reload messages to ensure sync
+          try {
+            const response = await fetch('/api/messages', { cache: 'no-store' })
+            if (response.ok) {
+              const data = await response.json()
+              setMessages(data.messages || [])
+            }
+          } catch (reloadError) {
+            console.error('Error reloading messages:', reloadError)
+          }
         }
       } else {
         // For other roles (players, etc.)

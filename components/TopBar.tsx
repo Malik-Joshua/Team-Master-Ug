@@ -183,9 +183,14 @@ export default function TopBar({ title, userName, userRole, userAvatar }: TopBar
                                 )}
                               />
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm font-semibold text-neutral-text mb-1">
-                                  {notification.title}
-                                </p>
+                                <div className="flex items-center gap-2 mb-1">
+                                  <p className="text-sm font-semibold text-neutral-text">
+                                    {notification.title}
+                                  </p>
+                                  {getNotificationLink(notification) && (
+                                    <span className="text-xs text-primary font-medium">→ Click to view</span>
+                                  )}
+                                </div>
                                 <p className="text-sm text-neutral-text">{notification.message}</p>
                                 <p className="text-xs text-neutral-medium mt-1">
                                   {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}

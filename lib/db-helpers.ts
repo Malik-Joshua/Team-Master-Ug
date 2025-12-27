@@ -646,6 +646,7 @@ export const db = {
     title: string
     message: string
     type?: 'info' | 'success' | 'warning' | 'error'
+    action_url?: string // URL to navigate to when notification is clicked
   }) {
     const supabase = createClient()
     

@@ -208,12 +208,11 @@ export function useNotifications() {
     loadNotifications()
 
     return () => {
+      const supabase = createClient()
       if (channel) {
-        const supabase = createClient()
         supabase.removeChannel(channel)
       }
       // Cleanup messages channel
-      const supabase = createClient()
       supabase.removeChannel(`messages-${user?.id}`)
     }
   }, [])

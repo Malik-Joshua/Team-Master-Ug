@@ -444,12 +444,26 @@ export default function MessagesPage() {
           }
         } else {
           // Send to individual recipient
+          // Get recipient role for the message
+          let recipientRoleForMessage: string | null = null
+          if (recipientId) {
+            const { data: recipientProfile } = await supabase
+              .from('user_profiles')
+              .select('role')
+              .eq('user_id', recipientId)
+              .single()
+            
+            if (recipientProfile) {
+              recipientRoleForMessage = recipientProfile.role
+            }
+          }
+          
           const { data: newMessage, error } = await supabase
             .from('messages')
             .insert({
               sender_id: authUser.id,
               recipient_id: recipientId,
-              recipient_role: recipientRole,
+              recipient_role: recipientRoleForMessage,
               subject: composeData.subject,
               message: composeData.message,
             })

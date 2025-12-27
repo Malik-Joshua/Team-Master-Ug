@@ -163,45 +163,56 @@ export default function TopBar({ title, userName, userRole, userAvatar }: TopBar
                           <p className="text-sm text-neutral-medium">No notifications</p>
                         </div>
                       ) : (
-                        notifications.map((notification) => (
-                          <div
-                            key={notification.id}
-                            onClick={() => handleNotificationClick(notification)}
-                            className={cn(
-                              'p-4 hover:bg-neutral-light transition-colors cursor-pointer',
-                              !notification.read && 'bg-blue-50/50'
-                            )}
-                          >
-                            <div className="flex items-start space-x-3">
+                        notifications
+                          .filter((notification) => notification && typeof notification === 'object' && notification.id)
+                          .map((notification) => {
+                            // Ensure notification has required fields
+                            const title = notification.title || 'Notification'
+                            const message = notification.message || ''
+                            const created_at = notification.created_at || new Date().toISOString()
+                            const type = notification.type || 'info'
+                            const read = notification.read || false
+                            
+                            return (
                               <div
+                                key={notification.id}
+                                onClick={() => handleNotificationClick(notification)}
                                 className={cn(
-                                  'w-2 h-2 rounded-full mt-2 flex-shrink-0',
-                                  notification.type === 'info' && 'bg-primary',
-                                  notification.type === 'success' && 'bg-success',
-                                  notification.type === 'warning' && 'bg-warning',
-                                  notification.type === 'error' && 'bg-secondary'
+                                  'p-4 hover:bg-neutral-light transition-colors cursor-pointer',
+                                  !read && 'bg-blue-50/50'
                                 )}
-                              />
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <p className="text-sm font-semibold text-neutral-text">
-                                    {notification.title}
-                                  </p>
-                                  {getNotificationLink(notification) && (
-                                    <span className="text-xs text-primary font-medium">→ Click to view</span>
+                              >
+                                <div className="flex items-start space-x-3">
+                                  <div
+                                    className={cn(
+                                      'w-2 h-2 rounded-full mt-2 flex-shrink-0',
+                                      type === 'info' && 'bg-primary',
+                                      type === 'success' && 'bg-success',
+                                      type === 'warning' && 'bg-warning',
+                                      type === 'error' && 'bg-secondary'
+                                    )}
+                                  />
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <p className="text-sm font-semibold text-neutral-text">
+                                        {title}
+                                      </p>
+                                      {getNotificationLink(notification) && (
+                                        <span className="text-xs text-primary font-medium">→ Click to view</span>
+                                      )}
+                                    </div>
+                                    <p className="text-sm text-neutral-text">{message}</p>
+                                    <p className="text-xs text-neutral-medium mt-1">
+                                      {formatDistanceToNow(new Date(created_at), { addSuffix: true })}
+                                    </p>
+                                  </div>
+                                  {!read && (
+                                    <div className="w-2 h-2 bg-primary rounded-full flex-shrink-0 mt-2" />
                                   )}
                                 </div>
-                                <p className="text-sm text-neutral-text">{notification.message}</p>
-                                <p className="text-xs text-neutral-medium mt-1">
-                                  {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
-                                </p>
                               </div>
-                              {!notification.read && (
-                                <div className="w-2 h-2 bg-primary rounded-full flex-shrink-0 mt-2" />
-                              )}
-                            </div>
-                          </div>
-                        ))
+                            )
+                          })
                       )}
                     </div>
                   </div>

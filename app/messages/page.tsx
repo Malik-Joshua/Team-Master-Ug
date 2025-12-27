@@ -174,6 +174,66 @@ export default function MessagesPage() {
     loadData()
   }, [])
 
+  const markMessageAsRead = async (messageId: string) => {
+    try {
+      const supabase = createClient()
+      const { data: { user: authUser } } = await supabase.auth.getUser()
+      
+      if (!authUser) return
+
+      // Mark message as read
+      const { error: messageError } = await supabase
+        .from('messages')
+        .update({ read: true })
+        .eq('id', messageId)
+        .eq('recipient_id', authUser.id) // Only mark as read if user is the recipient
+
+      if (messageError) {
+        console.error('Error marking message as read:', messageError)
+        return
+      }
+
+      // Update local state
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === messageId ? { ...msg, read: true } : msg
+        )
+      )
+
+      // Find and mark related notifications as read
+      // Notifications for messages typically have "New Message" in the title
+      try {
+        const { data: notifications } = await supabase
+          .from('notifications')
+          .select('id')
+          .eq('user_id', authUser.id)
+          .eq('read', false)
+          .ilike('title', '%New Message%')
+          .order('created_at', { ascending: false })
+          .limit(10) // Check recent notifications
+
+        if (notifications && notifications.length > 0) {
+          // Mark the most recent unread message notification as read
+          // (assuming it's for this message)
+          const { error: notifError } = await supabase
+            .from('notifications')
+            .update({ read: true })
+            .eq('id', notifications[0].id)
+
+          if (notifError) {
+            console.error('Error marking notification as read:', notifError)
+          } else {
+            console.log('Marked notification as read:', notifications[0].id)
+          }
+        }
+      } catch (notifError) {
+        console.error('Error finding related notification:', notifError)
+      }
+    } catch (error) {
+      console.error('Error marking message as read:', error)
+    }
+  }
+
   const handleSendMessage = async () => {
     try {
       const supabase = createClient()
@@ -857,7 +917,13 @@ export default function MessagesPage() {
               {messages.map((message) => (
                 <div
                   key={message.id}
-                  onClick={() => setSelectedMessage(message)}
+                  onClick={() => {
+                    setSelectedMessage(message)
+                    // Mark message as read when clicked
+                    if (!message.read) {
+                      markMessageAsRead(message.id)
+                    }
+                  }}
                   className={`p-6 cursor-pointer hover:bg-neutral-light transition-all duration-200 ${
                     !message.read ? 'bg-blue-50/50 border-l-4 border-primary' : ''
                   }`}
@@ -898,7 +964,14 @@ export default function MessagesPage() {
               <div className="p-6 border-b border-neutral-light">
                 <div className="flex justify-between items-start">
                   <div>
-                    <h2 className="text-2xl font-bold text-neutral-text mb-2">{selectedMessage.subject}</h2>
+                    <div className="flex items-center gap-2 mb-2">
+                      <h2 className="text-2xl font-bold text-neutral-text">{selectedMessage.subject}</h2>
+                      {!selectedMessage.read && (
+                        <span className="bg-club-gradient text-white text-xs px-2.5 py-1 rounded-full font-semibold shadow-soft">
+                          New
+                        </span>
+                      )}
+                    </div>
                     <div className="flex items-center gap-4 text-sm text-neutral-medium">
                       <div className="flex items-center">
                         <User className="w-4 h-4 mr-1" />

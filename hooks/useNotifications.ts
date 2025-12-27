@@ -15,6 +15,7 @@ export function useNotifications() {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
   const [unreadCount, setUnreadCount] = useState(0)
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0)
 
   useEffect(() => {
     let channel: any = null
@@ -39,7 +40,21 @@ export function useNotifications() {
             const result = await response.json()
             console.log(`Loaded ${result.count || 0} notifications for user ${user.id} via API`)
             setNotifications(result.notifications || [])
-            setUnreadCount((result.notifications || []).filter((n: Notification) => !n.read).length)
+            const unreadNotifs = (result.notifications || []).filter((n: Notification) => !n.read).length
+            setUnreadCount(unreadNotifs)
+            
+            // Also fetch unread messages count
+            const { data: unreadMessages, error: messagesError } = await supabase
+              .from('messages')
+              .select('id', { count: 'exact', head: true })
+              .eq('recipient_id', user.id)
+              .eq('read', false)
+            
+            if (!messagesError && unreadMessages !== null) {
+              const count = typeof unreadMessages === 'number' ? unreadMessages : 0
+              setUnreadMessagesCount(count)
+              console.log(`Found ${count} unread messages`)
+            }
           } else {
             console.error('Error fetching notifications from API:', response.status)
             // Fallback to direct query
@@ -197,7 +212,7 @@ export function useNotifications() {
   return {
     notifications,
     loading,
-    unreadCount,
+    unreadCount: unreadCount + unreadMessagesCount, // Include unread messages in count
     markAsRead,
     markAllAsRead,
   }

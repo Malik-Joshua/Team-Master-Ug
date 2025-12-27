@@ -51,6 +51,17 @@ export async function GET(request: NextRequest) {
     }
 
     console.log(`Fetched ${notifications?.length || 0} notifications for user ${authUser.id}`)
+    if (notifications && notifications.length > 0) {
+      console.log('Fetched notification user_ids:', notifications.map((n: any) => ({ id: n.id, user_id: n.user_id, title: n.title, action_url: n.action_url })))
+    } else {
+      console.log('No notifications found. Checking if any exist in database...')
+      // Debug: Check if there are ANY notifications for this user
+      const { count } = await supabaseAdmin
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', authUser.id)
+      console.log(`Total notifications count for user ${authUser.id}: ${count}`)
+    }
     
     return NextResponse.json({
       notifications: notifications || [],

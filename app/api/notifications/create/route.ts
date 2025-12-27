@@ -95,7 +95,8 @@ export async function POST(request: NextRequest) {
 
     const count = singleNotification ? 1 : notificationsToCreate.length
     console.log(`Successfully created ${data?.length || 0} notifications for ${count} user(s) via API`)
-    console.log('Created notifications:', JSON.stringify(data, null, 2))
+    console.log('Created notifications with user_ids:', data?.map((n: any) => ({ id: n.id, user_id: n.user_id, title: n.title })))
+    console.log('Full created notifications:', JSON.stringify(data, null, 2))
 
     return NextResponse.json({
       success: true,

@@ -19,6 +19,7 @@ export function useNotifications() {
 
   useEffect(() => {
     let channel: any = null
+    let messagesChannel: any = null
 
     const loadNotifications = async () => {
       try {
@@ -153,7 +154,7 @@ export function useNotifications() {
           })
 
         // Set up real-time subscription for messages to update unread count
-        const messagesChannel = supabase
+        messagesChannel = supabase
           .channel(`messages-${user.id}`)
           .on(
             'postgres_changes',
@@ -212,8 +213,9 @@ export function useNotifications() {
       if (channel) {
         supabase.removeChannel(channel)
       }
-      // Cleanup messages channel
-      supabase.removeChannel(`messages-${user?.id}`)
+      if (messagesChannel) {
+        supabase.removeChannel(messagesChannel)
+      }
     }
   }, [])
 

@@ -575,78 +575,32 @@ export const db = {
     type?: 'info' | 'success' | 'warning' | 'error'
     action_url?: string // URL to navigate to when notification is clicked
   }) {
-    const supabase = createClient()
-    
-    const notifications = userIds.map((userId) => ({
-      user_id: userId,
-      title: notificationData.title,
-      message: notificationData.message,
-      type: notificationData.type || 'info',
-      action_url: notificationData.action_url || null,
-    }))
-    
-    // Check if current user is admin/finance_admin/data_admin
-    const { data: { user: authUser } } = await supabase.auth.getUser()
-    
-    if (authUser) {
-      const { data: profile } = await supabase
-        .from('user_profiles')
-        .select('role')
-        .eq('user_id', authUser.id)
-        .single()
-      
-      // If user is admin/finance_admin/data_admin, they can create notifications
-      if (profile && ['admin', 'finance_admin', 'data_admin'].includes(profile.role)) {
-        const { data, error } = await supabase
-          .from('notifications')
-          .insert(notifications)
-          .select()
-        
-        if (error) throw error
-        return data
-      }
-    }
-    
-    // For other cases (like players sending messages), use service role to bypass RLS
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-    
-    if (supabaseUrl && supabaseServiceKey) {
-      const { createClient: createServiceClient } = await import('@supabase/supabase-js')
-      const supabaseAdmin = createServiceClient(supabaseUrl, supabaseServiceKey, {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
+    // Use API route to create notifications (server-side can access service role key)
+    try {
+      const response = await fetch('/api/notifications/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userIds,
+          notificationData,
+        }),
       })
-      
-      const { data, error } = await supabaseAdmin
-        .from('notifications')
-        .insert(notifications)
-        .select()
-      
-      if (error) {
-        console.error('Error creating notifications with service role:', error)
-        console.error('Error details:', JSON.stringify(error, null, 2))
-        throw error
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error('Error creating notifications via API:', errorData)
+        throw new Error(errorData.error || 'Failed to create notifications')
       }
-      console.log(`Successfully created ${data?.length || 0} notifications for ${userIds.length} users`)
-      console.log('Created notifications:', JSON.stringify(data, null, 2))
-      return data
-    }
-    
-    // Fallback: try regular insert (might work if user is creating for themselves)
-    const { data, error } = await supabase
-      .from('notifications')
-      .insert(notifications)
-      .select()
-    
-    if (error) {
-      console.error('Error creating notifications (fallback):', error)
+
+      const result = await response.json()
+      console.log(`Successfully created ${result.count || 0} notifications via API`)
+      return result.notifications || []
+    } catch (error) {
+      console.error('Error in createNotificationForUsers:', error)
       throw error
     }
-    console.log(`Successfully created ${data?.length || 0} notifications (fallback)`)
-    return data
   },
 
   async createNotificationForRole(role: string, notificationData: {

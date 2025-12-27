@@ -608,15 +608,36 @@ export default function MessagesPage() {
             // Don't fail the message send if notification creation fails
           }
 
-          // Add to local state
+          // Get recipient info for the sent message
+          let recipientName = 'Unknown'
+          let recipientRole = 'unknown'
+          if (recipientId) {
+            const { data: recipientProfile } = await supabase
+              .from('user_profiles')
+              .select('name, role')
+              .eq('user_id', recipientId)
+              .single()
+            
+            if (recipientProfile) {
+              recipientName = recipientProfile.name
+              recipientRole = recipientProfile.role
+            }
+          }
+          
+          // Add to local state (as a sent message)
           const formattedMessage: Message = {
             id: newMessage.id,
-            sender_name: newMessage.sender?.name || user.name,
-            sender_role: newMessage.sender?.role || user.role,
+            sender_id: authUser.id,
+            sender_name: user.name,
+            sender_role: user.role,
+            recipient_id: recipientId || '',
+            recipient_name: recipientName,
+            recipient_role: recipientRole,
             subject: newMessage.subject || '',
             message: newMessage.message,
             read: false,
             created_at: newMessage.created_at,
+            is_sent: true,
           }
 
           setMessages([formattedMessage, ...messages])

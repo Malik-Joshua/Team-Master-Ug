@@ -9,6 +9,7 @@ export interface Notification {
   type: 'info' | 'success' | 'warning' | 'error'
   read: boolean
   created_at: string
+  action_url?: string | null // URL to navigate to when notification is clicked
 }
 
 export function useNotifications() {

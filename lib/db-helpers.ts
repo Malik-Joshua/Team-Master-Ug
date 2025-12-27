@@ -493,6 +493,7 @@ export const db = {
     title: string
     message: string
     type?: 'info' | 'success' | 'warning' | 'error'
+    action_url?: string // URL to navigate to when notification is clicked
   }) {
     const supabase = createClient()
     
@@ -567,6 +568,7 @@ export const db = {
     title: string
     message: string
     type?: 'info' | 'success' | 'warning' | 'error'
+    action_url?: string // URL to navigate to when notification is clicked
   }) {
     const supabase = createClient()
     
@@ -575,6 +577,7 @@ export const db = {
       title: notificationData.title,
       message: notificationData.message,
       type: notificationData.type || 'info',
+      action_url: notificationData.action_url || null,
     }))
     
     // Check if current user is admin/finance_admin/data_admin
@@ -663,6 +666,7 @@ export const db = {
       title: notificationData.title,
       message: notificationData.message,
       type: notificationData.type || 'info',
+      action_url: notificationData.action_url || null,
     }))
     
     // Check if current user is admin/finance_admin/data_admin
@@ -817,6 +821,7 @@ export const db = {
         title: 'Budget Rejected',
         message: `Your budget "${budget.event_name}" has been rejected. Reason: ${reason}`,
         type: 'warning',
+        action_url: `/finance?budget=${budgetId}`,
       })
     }
     

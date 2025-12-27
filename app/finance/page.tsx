@@ -286,6 +286,7 @@ export default function FinancePage() {
         title: 'New Budget Pending Approval',
         message: `A new budget "${budgetForm.event_name}" (${budgetForm.event_type}) has been submitted for approval.`,
         type: 'info',
+        action_url: `/finance?budget=${budget.id}`,
       })
 
       setShowBudgetModal(false)

@@ -20,7 +20,12 @@ export default function TopBar({ title, userName, userRole, userAvatar }: TopBar
   const router = useRouter()
 
   const getNotificationLink = (notification: any): string | null => {
-    // Determine link based on notification title/message content
+    // First, check if notification has an action_url (preferred method)
+    if (notification.action_url) {
+      return notification.action_url
+    }
+    
+    // Fallback: Determine link based on notification title/message content
     const title = notification.title?.toLowerCase() || ''
     const message = notification.message?.toLowerCase() || ''
     
@@ -68,7 +73,7 @@ export default function TopBar({ title, userName, userRole, userAvatar }: TopBar
       markAsRead(notification.id)
     }
     
-    // Navigate to relevant page based on notification type
+    // Navigate to relevant page based on notification action_url or content
     const link = getNotificationLink(notification)
     if (link) {
       setNotificationsOpen(false)

@@ -1047,19 +1047,31 @@ export default function MessagesPage() {
               {messages.map((message) => (
                 <div
                   key={message.id}
-                  onClick={() => {
-                    setSelectedMessage(message)
-                    // Mark message as read when clicked
-                    if (!message.read) {
-                      markMessageAsRead(message.id)
-                    }
-                  }}
-                  className={`p-6 cursor-pointer hover:bg-neutral-light transition-all duration-200 ${
+                  className={`p-6 cursor-pointer hover:bg-neutral-light transition-all duration-200 relative ${
                     !message.is_sent && !message.read ? 'bg-blue-50/50 border-l-4 border-primary' : message.is_sent ? 'bg-green-50/30' : ''
                   }`}
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      deleteMessage(message.id, e)
+                    }}
+                    className="absolute top-4 right-4 p-2 text-neutral-medium hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors z-10"
+                    title="Delete message"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                  <div
+                    onClick={() => {
+                      setSelectedMessage(message)
+                      // Mark message as read when clicked
+                      if (!message.read) {
+                        markMessageAsRead(message.id)
+                      }
+                    }}
+                    className="flex items-start justify-between"
+                  >
+                    <div className="flex-1 pr-12">
                       <div className="flex items-center gap-2 mb-2">
                         {message.is_sent ? (
                           <>

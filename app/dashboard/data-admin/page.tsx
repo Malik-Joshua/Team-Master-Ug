@@ -257,6 +257,18 @@ export default function DataAdminDashboard() {
         notes: '',
       })
       setPlayerStats({})
+      
+      // Refresh statistics
+      try {
+        const statsResponse = await fetch('/api/admin/statistics')
+        if (statsResponse.ok) {
+          const statsData = await statsResponse.json()
+          setMatchesCount(statsData.totalMatches || 0)
+          setTrainingSessionsCount(statsData.totalTrainingSessions || 0)
+        }
+      } catch (refreshError) {
+        console.error('Error refreshing statistics:', refreshError)
+      }
     } catch (error: any) {
       console.error('Error saving match stats:', error)
       alert(`Error saving match stats: ${error.message}`)

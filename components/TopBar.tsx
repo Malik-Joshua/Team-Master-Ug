@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Bell, MessageSquare, X, CheckCheck } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useNotifications } from '@/hooks/useNotifications'
@@ -16,10 +17,62 @@ interface TopBarProps {
 export default function TopBar({ title, userName, userRole, userAvatar }: TopBarProps) {
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications()
+  const router = useRouter()
+
+  const getNotificationLink = (notification: any): string | null => {
+    // Determine link based on notification title/message content
+    const title = notification.title?.toLowerCase() || ''
+    const message = notification.message?.toLowerCase() || ''
+    
+    // Budget-related notifications
+    if (title.includes('budget') || message.includes('budget')) {
+      return '/finance'
+    }
+    
+    // Message notifications
+    if (title.includes('message') || message.includes('message') || message.includes('sent you')) {
+      return '/messages'
+    }
+    
+    // Fixture/team selection notifications
+    if (title.includes('fixture') || title.includes('team selection') || message.includes('selected') || message.includes('fixture')) {
+      return '/fixtures'
+    }
+    
+    // Training schedule notifications
+    if (title.includes('training') || message.includes('training schedule')) {
+      return '/training'
+    }
+    
+    // Injury notifications
+    if (title.includes('injury') || message.includes('injury')) {
+      return '/dashboard/physio'
+    }
+    
+    // Report notifications
+    if (title.includes('report') || message.includes('report')) {
+      return '/reports'
+    }
+    
+    // Player-related notifications
+    if (title.includes('player') || message.includes('player')) {
+      return '/players'
+    }
+    
+    // Default: no link
+    return null
+  }
 
   const handleNotificationClick = (notification: any) => {
     if (!notification.read) {
       markAsRead(notification.id)
+    }
+    
+    // Navigate to relevant page based on notification type
+    const link = getNotificationLink(notification)
+    if (link) {
+      setNotificationsOpen(false)
+      router.push(link)
     }
   }
 

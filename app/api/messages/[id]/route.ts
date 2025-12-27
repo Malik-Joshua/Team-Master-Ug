@@ -127,3 +127,88 @@ export async function PATCH(
   }
 }
 
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const supabase = await createClient()
+    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !authUser) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      )
+    }
+
+    const messageId = params.id
+
+    // Use service role to bypass RLS for deleting messages
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      return NextResponse.json(
+        { error: 'Server configuration error: Missing SUPABASE_SERVICE_ROLE_KEY' },
+        { status: 500 }
+      )
+    }
+
+    const supabaseAdmin = createServiceClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
+
+    // First, verify the message exists and the user is either sender or recipient
+    const { data: message, error: fetchError } = await supabaseAdmin
+      .from('messages')
+      .select('id, sender_id, recipient_id')
+      .eq('id', messageId)
+      .single()
+
+    if (fetchError || !message) {
+      console.error('Error fetching message:', fetchError)
+      return NextResponse.json(
+        { error: 'Message not found' },
+        { status: 404 }
+      )
+    }
+
+    // Only allow deletion if user is the sender or recipient
+    if (message.sender_id !== authUser.id && message.recipient_id !== authUser.id) {
+      return NextResponse.json(
+        { error: 'Unauthorized: You can only delete your own messages' },
+        { status: 403 }
+      )
+    }
+
+    // Delete the message
+    const { error: deleteError } = await supabaseAdmin
+      .from('messages')
+      .delete()
+      .eq('id', messageId)
+
+    if (deleteError) {
+      console.error('Error deleting message:', deleteError)
+      return NextResponse.json(
+        { error: `Failed to delete message: ${deleteError.message}` },
+        { status: 500 }
+      )
+    }
+
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Message deleted successfully' 
+    })
+  } catch (error: any) {
+    console.error('Delete message API error:', error)
+    return NextResponse.json(
+      { error: error.message || 'An unexpected error occurred' },
+      { status: 500 }
+    )
+  }
+}
+

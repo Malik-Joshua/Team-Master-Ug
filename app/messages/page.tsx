@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Layout from '@/components/Layout'
-import { MessageSquare, Send, User, Mail, Clock, X } from 'lucide-react'
+import { MessageSquare, Send, User, Mail, Clock, X, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 interface Message {
@@ -230,6 +230,47 @@ export default function MessagesPage() {
       }
     } catch (error) {
       console.error('Error marking message as read:', error)
+    }
+  }
+
+  const deleteMessage = async (messageId: string, e: React.MouseEvent) => {
+    e.stopPropagation() // Prevent opening the message modal
+    
+    if (!confirm('Are you sure you want to delete this message?')) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/messages/${messageId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error('Error deleting message:', errorData.error || response.statusText)
+        alert(`Error deleting message: ${errorData.error || response.statusText}`)
+        return
+      }
+
+      const result = await response.json()
+      
+      if (result.success) {
+        // Remove from local state
+        setMessages((prev) => prev.filter((msg) => msg.id !== messageId))
+        
+        // Close modal if the deleted message was selected
+        if (selectedMessage?.id === messageId) {
+          setSelectedMessage(null)
+        }
+        
+        console.log('Message deleted successfully:', messageId)
+      }
+    } catch (error) {
+      console.error('Error deleting message:', error)
+      alert('Error deleting message. Please try again.')
     }
   }
 
@@ -1120,7 +1161,18 @@ export default function MessagesPage() {
                   <p className="text-neutral-text whitespace-pre-wrap">{selectedMessage.message}</p>
                 </div>
               </div>
-              <div className="p-6 border-t border-neutral-light flex justify-end">
+              <div className="p-6 border-t border-neutral-light flex justify-between items-center">
+                <button
+                  onClick={() => {
+                    if (selectedMessage && confirm('Are you sure you want to delete this message?')) {
+                      deleteMessage(selectedMessage.id, new MouseEvent('click') as any)
+                    }
+                  }}
+                  className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-button transition-all duration-300 font-semibold flex items-center gap-2"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Delete
+                </button>
                 <button
                   onClick={() => setSelectedMessage(null)}
                   className="px-6 py-3 bg-neutral-light text-neutral-text rounded-button hover:bg-neutral-medium transition-all duration-300 font-semibold"

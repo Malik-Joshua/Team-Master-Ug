@@ -1019,14 +1019,30 @@ export default function MessagesPage() {
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
-                        <h3 className="font-bold text-neutral-text">{message.sender_name}</h3>
-                        <span className="text-xs font-medium text-neutral-medium bg-neutral-light px-2 py-0.5 rounded-full capitalize">
-                          {message.sender_role.replace('_', ' ')}
-                        </span>
-                        {!message.read && (
-                          <span className="bg-club-gradient text-white text-xs px-2.5 py-1 rounded-full font-semibold shadow-soft">
-                            New
-                          </span>
+                        {message.is_sent ? (
+                          <>
+                            <span className="text-xs font-medium text-neutral-medium">To:</span>
+                            <h3 className="font-bold text-neutral-text">{message.recipient_name || 'Unknown'}</h3>
+                            <span className="text-xs font-medium text-neutral-medium bg-neutral-light px-2 py-0.5 rounded-full capitalize">
+                              {message.recipient_role?.replace('_', ' ') || 'unknown'}
+                            </span>
+                            <span className="text-xs font-medium text-neutral-medium bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                              Sent
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="text-xs font-medium text-neutral-medium">From:</span>
+                            <h3 className="font-bold text-neutral-text">{message.sender_name}</h3>
+                            <span className="text-xs font-medium text-neutral-medium bg-neutral-light px-2 py-0.5 rounded-full capitalize">
+                              {message.sender_role.replace('_', ' ')}
+                            </span>
+                            {!message.read && (
+                              <span className="bg-club-gradient text-white text-xs px-2.5 py-1 rounded-full font-semibold shadow-soft">
+                                New
+                              </span>
+                            )}
+                          </>
                         )}
                       </div>
                       <p className="font-semibold text-neutral-text mb-1">{message.subject}</p>

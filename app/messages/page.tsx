@@ -7,12 +7,17 @@ import { createClient } from '@/lib/supabase/client'
 
 interface Message {
   id: string
+  sender_id: string
   sender_name: string
   sender_role: string
+  recipient_id: string
+  recipient_name?: string
+  recipient_role?: string
   subject: string
   message: string
   read: boolean
   created_at: string
+  is_sent?: boolean // true if current user is the sender
 }
 
 interface UserProfile {
@@ -100,16 +105,39 @@ export default function MessagesPage() {
                   }
                 }
                 
+                // Get recipient IDs for recipient info
+                const recipientIds = [...new Set(fetchedMessages.map((msg: any) => msg.recipient_id).filter(Boolean))]
+                if (recipientIds.length > 0) {
+                  const { data: recipientProfiles } = await supabase
+                    .from('user_profiles')
+                    .select('user_id, name, role')
+                    .in('user_id', recipientIds)
+                  
+                  if (recipientProfiles) {
+                    recipientProfiles.forEach((profile: any) => {
+                      userProfilesMap[profile.user_id] = profile
+                    })
+                  }
+                }
+                
                 const formattedMessages: Message[] = fetchedMessages.map((msg: any) => {
                   const sender = userProfilesMap[msg.sender_id]
+                  const recipient = userProfilesMap[msg.recipient_id]
+                  const isSent = msg.sender_id === authUser.id
+                  
                   return {
                     id: msg.id,
+                    sender_id: msg.sender_id,
                     sender_name: sender?.name || 'Unknown',
                     sender_role: sender?.role || 'unknown',
+                    recipient_id: msg.recipient_id,
+                    recipient_name: recipient?.name || 'Unknown',
+                    recipient_role: recipient?.role || 'unknown',
                     subject: msg.subject || '',
                     message: msg.message,
                     read: msg.read || false,
                     created_at: msg.created_at,
+                    is_sent: isSent,
                   }
                 })
                 setMessages(formattedMessages)
@@ -944,14 +972,29 @@ export default function MessagesPage() {
                       )}
                     </div>
                     <div className="flex items-center gap-4 text-sm text-neutral-medium">
-                      <div className="flex items-center">
-                        <User className="w-4 h-4 mr-1" />
-                        {selectedMessage.sender_name}
-                      </div>
-                      <div className="flex items-center">
-                        <Mail className="w-4 h-4 mr-1" />
-                        {selectedMessage.sender_role.replace('_', ' ')}
-                      </div>
+                      {selectedMessage.is_sent ? (
+                        <>
+                          <div className="flex items-center">
+                            <Mail className="w-4 h-4 mr-1" />
+                            To: {selectedMessage.recipient_name || 'Unknown'}
+                          </div>
+                          <div className="flex items-center">
+                            <User className="w-4 h-4 mr-1" />
+                            {selectedMessage.recipient_role?.replace('_', ' ') || 'unknown'}
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="flex items-center">
+                            <User className="w-4 h-4 mr-1" />
+                            From: {selectedMessage.sender_name}
+                          </div>
+                          <div className="flex items-center">
+                            <Mail className="w-4 h-4 mr-1" />
+                            {selectedMessage.sender_role.replace('_', ' ')}
+                          </div>
+                        </>
+                      )}
                       <div className="flex items-center">
                         <Clock className="w-4 h-4 mr-1" />
                         {new Date(selectedMessage.created_at).toLocaleString()}

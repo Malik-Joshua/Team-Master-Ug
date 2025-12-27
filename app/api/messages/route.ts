@@ -89,17 +89,25 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Format messages with sender info
+    // Format messages with sender and recipient info
     const formattedMessages = messages.map((msg: any) => {
       const sender = userProfilesMap[msg.sender_id]
+      const recipient = userProfilesMap[msg.recipient_id]
+      const isSent = msg.sender_id === authUser.id
+      
       return {
         id: msg.id,
+        sender_id: msg.sender_id,
         sender_name: sender?.name || 'Unknown',
         sender_role: sender?.role || 'unknown',
+        recipient_id: msg.recipient_id,
+        recipient_name: recipient?.name || 'Unknown',
+        recipient_role: recipient?.role || 'unknown',
         subject: msg.subject || '',
         message: msg.message,
         read: msg.read || false,
         created_at: msg.created_at,
+        is_sent: isSent,
       }
     })
 

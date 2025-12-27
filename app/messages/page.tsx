@@ -176,58 +176,29 @@ export default function MessagesPage() {
 
   const markMessageAsRead = async (messageId: string) => {
     try {
-      const supabase = createClient()
-      const { data: { user: authUser } } = await supabase.auth.getUser()
-      
-      if (!authUser) return
+      const response = await fetch(`/api/messages/${messageId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
 
-      // Mark message as read
-      const { error: messageError } = await supabase
-        .from('messages')
-        .update({ read: true })
-        .eq('id', messageId)
-        .eq('recipient_id', authUser.id) // Only mark as read if user is the recipient
-
-      if (messageError) {
-        console.error('Error marking message as read:', messageError)
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error('Error marking message as read:', errorData.error || response.statusText)
         return
       }
 
-      // Update local state
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === messageId ? { ...msg, read: true } : msg
+      const result = await response.json()
+      
+      if (result.success) {
+        // Update local state
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === messageId ? { ...msg, read: true } : msg
+          )
         )
-      )
-
-      // Find and mark related notifications as read
-      // Notifications for messages typically have "New Message" in the title
-      try {
-        const { data: notifications } = await supabase
-          .from('notifications')
-          .select('id')
-          .eq('user_id', authUser.id)
-          .eq('read', false)
-          .ilike('title', '%New Message%')
-          .order('created_at', { ascending: false })
-          .limit(10) // Check recent notifications
-
-        if (notifications && notifications.length > 0) {
-          // Mark the most recent unread message notification as read
-          // (assuming it's for this message)
-          const { error: notifError } = await supabase
-            .from('notifications')
-            .update({ read: true })
-            .eq('id', notifications[0].id)
-
-          if (notifError) {
-            console.error('Error marking notification as read:', notifError)
-          } else {
-            console.log('Marked notification as read:', notifications[0].id)
-          }
-        }
-      } catch (notifError) {
-        console.error('Error finding related notification:', notifError)
+        console.log('Message marked as read successfully:', messageId)
       }
     } catch (error) {
       console.error('Error marking message as read:', error)

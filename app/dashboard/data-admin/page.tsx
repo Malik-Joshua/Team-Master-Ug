@@ -37,6 +37,7 @@ export default function DataAdminDashboard() {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [players, setPlayers] = useState<Player[]>([])
+  const [activePlayersCount, setActivePlayersCount] = useState(0)
   const [matchesCount, setMatchesCount] = useState(0)
   const [trainingSessionsCount, setTrainingSessionsCount] = useState(0)
   const [showMatchForm, setShowMatchForm] = useState(false)
@@ -73,33 +74,100 @@ export default function DataAdminDashboard() {
         if (profile) {
           setUser(profile)
 
-          // Fetch players
-          const { data: playersData } = await supabase
-            .from('user_profiles')
-            .select('user_id, name')
-            .eq('role', 'player')
-            .order('name', { ascending: true })
+          // Fetch players using API route to bypass RLS
+          try {
+            const playersResponse = await fetch('/api/admin/players')
+            if (playersResponse.ok) {
+              const playersData = await playersResponse.json()
+              if (playersData.players) {
+                setPlayers(playersData.players.map((p: any) => ({
+                  user_id: p.user_id,
+                  name: p.name,
+                  position: p.position,
+                })))
+                // Calculate active players (status === 'active')
+                const activePlayers = playersData.players.filter((p: any) => p.status === 'active').length
+                setActivePlayersCount(activePlayers)
+              }
+            } else {
+              // Fallback to direct query
+              const { data: playersData } = await supabase
+                .from('user_profiles')
+                .select('user_id, name, status')
+                .eq('role', 'player')
+                .order('name', { ascending: true })
 
-          if (playersData) {
-            setPlayers(playersData as Player[])
+              if (playersData) {
+                setPlayers(playersData.map((p: any) => ({
+                  user_id: p.user_id,
+                  name: p.name,
+                })))
+                const activePlayers = playersData.filter((p: any) => p.status === 'active').length
+                setActivePlayersCount(activePlayers)
+              }
+            }
+          } catch (playersError) {
+            console.error('Error fetching players:', playersError)
+            // Fallback to direct query
+            const { data: playersData } = await supabase
+              .from('user_profiles')
+              .select('user_id, name, status')
+              .eq('role', 'player')
+              .order('name', { ascending: true })
+
+            if (playersData) {
+              setPlayers(playersData.map((p: any) => ({
+                user_id: p.user_id,
+                name: p.name,
+              })))
+              const activePlayers = playersData.filter((p: any) => p.status === 'active').length
+              setActivePlayersCount(activePlayers)
+            }
           }
 
-          // Fetch matches count
-          const { count: matchesCount, error: matchesError } = await supabase
-            .from('matches')
-            .select('*', { count: 'exact', head: true })
+          // Fetch matches count using API route
+          try {
+            const statsResponse = await fetch('/api/admin/statistics')
+            if (statsResponse.ok) {
+              const statsData = await statsResponse.json()
+              setMatchesCount(statsData.totalMatches || 0)
+              setTrainingSessionsCount(statsData.totalTrainingSessions || 0)
+            } else {
+              // Fallback to direct queries
+              const { count: matchesCount, error: matchesError } = await supabase
+                .from('matches')
+                .select('*', { count: 'exact', head: true })
 
-          if (!matchesError && matchesCount !== null) {
-            setMatchesCount(matchesCount)
-          }
+              if (!matchesError && matchesCount !== null) {
+                setMatchesCount(matchesCount)
+              }
 
-          // Fetch training sessions count
-          const { count: trainingCount, error: trainingError } = await supabase
-            .from('training_sessions')
-            .select('*', { count: 'exact', head: true })
+              const { count: trainingCount, error: trainingError } = await supabase
+                .from('training_sessions')
+                .select('*', { count: 'exact', head: true })
 
-          if (!trainingError && trainingCount !== null) {
-            setTrainingSessionsCount(trainingCount)
+              if (!trainingError && trainingCount !== null) {
+                setTrainingSessionsCount(trainingCount)
+              }
+            }
+          } catch (statsError) {
+            console.error('Error fetching statistics:', statsError)
+            // Fallback to direct queries
+            const { count: matchesCount, error: matchesError } = await supabase
+              .from('matches')
+              .select('*', { count: 'exact', head: true })
+
+            if (!matchesError && matchesCount !== null) {
+              setMatchesCount(matchesCount)
+            }
+
+            const { count: trainingCount, error: trainingError } = await supabase
+              .from('training_sessions')
+              .select('*', { count: 'exact', head: true })
+
+            if (!trainingError && trainingCount !== null) {
+              setTrainingSessionsCount(trainingCount)
+            }
           }
         }
       }
@@ -242,7 +310,7 @@ export default function DataAdminDashboard() {
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <StatCard title="Total Players" value={players.length} icon={Users} iconColor="bg-primary" />
-          <StatCard title="Active Players" value={players.length} icon={Activity} iconColor="bg-success" />
+          <StatCard title="Active Players" value={activePlayersCount} icon={Activity} iconColor="bg-success" />
           <StatCard title="Matches Logged" value={matchesCount} icon={Trophy} iconColor="bg-warning" />
           <StatCard title="Training Sessions" value={trainingSessionsCount} icon={Calendar} iconColor="bg-info" />
         </div>

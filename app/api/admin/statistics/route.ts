@@ -23,9 +23,9 @@ export async function GET(request: NextRequest) {
       .eq('user_id', authUser.id)
       .single()
 
-    if (!profile || !['admin', 'coach'].includes(profile.role)) {
+    if (!profile || !['admin', 'coach', 'data_admin'].includes(profile.role)) {
       return NextResponse.json(
-        { error: 'Unauthorized: Admin/Coach access required' },
+        { error: 'Unauthorized: Admin/Coach/Data Admin access required' },
         { status: 403 }
       )
     }
@@ -56,6 +56,7 @@ export async function GET(request: NextRequest) {
       { data: transactions },
       { count: inventoryCount },
       { count: totalMatchesCount },
+      { count: totalTrainingSessionsCount },
       { data: matchStats },
       { data: matches },
     ] = await Promise.all([
@@ -65,6 +66,7 @@ export async function GET(request: NextRequest) {
       supabaseAdmin.from('financial_transactions').select('amount, type'),
       supabaseAdmin.from('inventory').select('*', { count: 'exact', head: true }),
       supabaseAdmin.from('matches').select('*', { count: 'exact', head: true }),
+      supabaseAdmin.from('training_sessions').select('*', { count: 'exact', head: true }),
       supabaseAdmin.from('match_stats').select('tries_scored, tackles_made, minutes_played'),
       supabaseAdmin.from('matches').select('result'),
     ])
@@ -92,6 +94,7 @@ export async function GET(request: NextRequest) {
       totalExpenses: Math.round(totalExpenses),
       inventoryItems: inventoryCount || 0,
       totalMatches: totalMatchesCount || 0,
+      totalTrainingSessions: totalTrainingSessionsCount || 0,
       totalTries,
       totalTackles,
       avgMinutes,

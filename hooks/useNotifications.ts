@@ -45,17 +45,23 @@ export function useNotifications() {
             setUnreadCount(unreadNotifs)
             
             // Also fetch unread messages count
-            const { count: unreadMessagesCount, error: messagesError } = await supabase
-              .from('messages')
-              .select('*', { count: 'exact', head: true })
-              .eq('recipient_id', user.id)
-              .eq('read', false)
-            
-            if (!messagesError) {
-              setUnreadMessagesCount(unreadMessagesCount || 0)
-              console.log(`Found ${unreadMessagesCount || 0} unread messages`)
-            } else {
-              console.error('Error fetching unread messages count:', messagesError)
+            try {
+              const { count: unreadMessagesCount, error: messagesError } = await supabase
+                .from('messages')
+                .select('*', { count: 'exact', head: true })
+                .eq('recipient_id', user.id)
+                .eq('read', false)
+              
+              if (messagesError) {
+                console.error('Error fetching unread messages count:', messagesError)
+                setUnreadMessagesCount(0)
+              } else {
+                setUnreadMessagesCount(unreadMessagesCount || 0)
+                console.log(`Found ${unreadMessagesCount || 0} unread messages for user ${user.id}`)
+              }
+            } catch (messagesError) {
+              console.error('Exception fetching unread messages count:', messagesError)
+              setUnreadMessagesCount(0)
             }
           } else {
             console.error('Error fetching notifications from API:', response.status)

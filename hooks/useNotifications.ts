@@ -48,7 +48,7 @@ export function useNotifications() {
 
         // Set up real-time subscription for new notifications
         channel = supabase
-          .channel('notifications')
+          .channel(`notifications-${user.id}`)
           .on(
             'postgres_changes',
             {
@@ -58,8 +58,14 @@ export function useNotifications() {
               filter: `user_id=eq.${user.id}`,
             },
             (payload) => {
+              console.log('New notification received via real-time:', payload.new)
               const newNotification = payload.new as Notification
-              setNotifications((prev) => [newNotification, ...prev])
+              setNotifications((prev) => {
+                // Check if notification already exists to avoid duplicates
+                const exists = prev.some(n => n.id === newNotification.id)
+                if (exists) return prev
+                return [newNotification, ...prev]
+              })
               setUnreadCount((prev) => prev + 1)
               
               // Show browser notification if permission granted
@@ -80,6 +86,7 @@ export function useNotifications() {
               filter: `user_id=eq.${user.id}`,
             },
             (payload) => {
+              console.log('Notification updated via real-time:', payload.new)
               const updatedNotification = payload.new as Notification
               setNotifications((prev) =>
                 prev.map((n) => (n.id === updatedNotification.id ? updatedNotification : n))
@@ -94,7 +101,9 @@ export function useNotifications() {
               })
             }
           )
-          .subscribe()
+          .subscribe((status) => {
+            console.log('Notification subscription status:', status)
+          })
 
         // Request notification permission
         if ('Notification' in window && Notification.permission === 'default') {

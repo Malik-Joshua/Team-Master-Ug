@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
-import { Calendar, Activity, Trophy, Target, AlertCircle, Dumbbell, Edit, X, Save, HeartPulse, Pill, FileText, Clock, CheckCircle } from 'lucide-react'
+import { Calendar, Activity, Trophy, Target, AlertCircle, Dumbbell, Edit, X, Save, HeartPulse, Pill, FileText, Clock, CheckCircle, MapPin } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import {
@@ -67,6 +67,8 @@ export default function DashboardPage() {
   const [loadingPlayerFixture, setLoadingPlayerFixture] = useState(false)
   const [activeInjuriesView, setActiveInjuriesView] = useState<any[]>([])
   const [loadingActiveInjuries, setLoadingActiveInjuries] = useState(false)
+  const [recentTeamSelections, setRecentTeamSelections] = useState<any[]>([])
+  const [recentTrainingSchedules, setRecentTrainingSchedules] = useState<any[]>([])
 
   useEffect(() => {
     const loadDashboard = async () => {
@@ -195,6 +197,48 @@ export default function DashboardPage() {
                   trainingSessionsAttended: sessionCount,
                 }))
                 setTrainingSessionsData(sessions)
+                
+                // Get recent training schedules (last 5, ordered by date desc)
+                const recentSessions = sessions
+                  .sort((a: any, b: any) => new Date(b.session_date).getTime() - new Date(a.session_date).getTime())
+                  .slice(0, 5)
+                setRecentTrainingSchedules(recentSessions)
+                
+                // Get recent team selections created by this coach
+                const { data: teamSelections } = await supabase
+                  .from('fixture_team_selections')
+                  .select(`
+                    *,
+                    match:matches(id, match_date, opponent, venue, tournament_type)
+                  `)
+                  .eq('selected_by', authUser.id)
+                  .order('created_at', { ascending: false })
+                  .limit(10)
+                
+                if (teamSelections) {
+                  // Group by match_id to get unique matches
+                  const matchGroups = new Map()
+                  teamSelections.forEach((selection: any) => {
+                    if (selection.match) {
+                      const matchId = selection.match.id
+                      if (!matchGroups.has(matchId)) {
+                        matchGroups.set(matchId, {
+                          match: selection.match,
+                          selections: [],
+                          created_at: selection.created_at,
+                        })
+                      }
+                      matchGroups.get(matchId).selections.push(selection)
+                    }
+                  })
+                  
+                  // Convert to array and sort by created_at
+                  const recentSelections = Array.from(matchGroups.values())
+                    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                    .slice(0, 5)
+                  
+                  setRecentTeamSelections(recentSelections)
+                }
               } catch (error) {
                 console.error('Error loading coach training sessions:', error)
               }
@@ -939,6 +983,161 @@ export default function DashboardPage() {
               </div>
             )}
           </div>
+
+          {/* Recent Training Schedules */}
+          {recentTrainingSchedules.length > 0 && (
+            <div className="bg-white rounded-card border border-neutral-light shadow-soft">
+              <div className="p-6 border-b border-neutral-light">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-bold text-neutral-text flex items-center gap-2">
+                    <Calendar className="w-5 h-5 text-primary" />
+                    Recent Training Schedules
+                  </h3>
+                  <Link
+                    href="/training"
+                    className="text-primary hover:underline text-sm font-medium"
+                  >
+                    View All →
+                  </Link>
+                </div>
+              </div>
+              <div className="p-6">
+                <div className="space-y-3">
+                  {recentTrainingSchedules.map((session: any) => (
+                    <div key={session.id} className="border border-neutral-light rounded-lg p-4 hover:bg-neutral-light/50 transition-colors">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <h4 className="font-semibold text-neutral-text">
+                              {session.description || `Training Session ${session.session_number}`}
+                            </h4>
+                            <span className="px-2 py-1 bg-primary/10 text-primary rounded text-xs font-medium">
+                              Session #{session.session_number}
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap gap-4 text-sm text-neutral-medium">
+                            <div className="flex items-center gap-1">
+                              <Calendar className="w-4 h-4" />
+                              {new Date(session.session_date).toLocaleDateString('en-US', {
+                                weekday: 'short',
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric',
+                              })}
+                            </div>
+                            {session.session_time && (
+                              <div className="flex items-center gap-1">
+                                <Clock className="w-4 h-4" />
+                                {session.session_time}
+                              </div>
+                            )}
+                            {session.location && (
+                              <div className="flex items-center gap-1">
+                                <MapPin className="w-4 h-4" />
+                                {session.location}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Recent Team Selections */}
+          {recentTeamSelections.length > 0 && (
+            <div className="bg-white rounded-card border border-neutral-light shadow-soft">
+              <div className="p-6 border-b border-neutral-light">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-bold text-neutral-text flex items-center gap-2">
+                    <Trophy className="w-5 h-5 text-primary" />
+                    Recent Team Selections
+                  </h3>
+                  <Link
+                    href="/fixtures"
+                    className="text-primary hover:underline text-sm font-medium"
+                  >
+                    Manage Selections →
+                  </Link>
+                </div>
+              </div>
+              <div className="p-6">
+                <div className="space-y-4">
+                  {recentTeamSelections.map((selectionGroup: any, index: number) => {
+                    const match = selectionGroup.match
+                    const startingCount = selectionGroup.selections.filter((s: any) => s.is_starting && !s.is_substitute).length
+                    const substituteCount = selectionGroup.selections.filter((s: any) => s.is_substitute).length
+                    const totalSelected = selectionGroup.selections.length
+                    
+                    return (
+                      <div key={match?.id || index} className="border border-neutral-light rounded-lg p-4 hover:bg-neutral-light/50 transition-colors">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <h4 className="font-semibold text-neutral-text">
+                                {match?.opponent ? `vs ${match.opponent}` : 'Match Team Selection'}
+                              </h4>
+                              {match?.tournament_type && (
+                                <span className="px-2 py-1 bg-secondary/10 text-secondary rounded text-xs font-medium capitalize">
+                                  {match.tournament_type.replace('_', ' ')}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex flex-wrap gap-4 text-sm text-neutral-medium">
+                              {match?.match_date && (
+                                <div className="flex items-center gap-1">
+                                  <Calendar className="w-4 h-4" />
+                                  {new Date(match.match_date).toLocaleDateString('en-US', {
+                                    weekday: 'short',
+                                    month: 'short',
+                                    day: 'numeric',
+                                    year: 'numeric',
+                                  })}
+                                </div>
+                              )}
+                              {match?.venue && (
+                                <div className="flex items-center gap-1">
+                                  <MapPin className="w-4 h-4" />
+                                  {match.venue}
+                                </div>
+                              )}
+                              <div className="flex items-center gap-1">
+                                <Clock className="w-4 h-4" />
+                                {new Date(selectionGroup.created_at).toLocaleDateString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                })} at {new Date(selectionGroup.created_at).toLocaleTimeString('en-US', {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-3 gap-3 mt-3 pt-3 border-t border-neutral-light">
+                          <div className="text-center">
+                            <p className="text-2xl font-bold text-success">{startingCount}</p>
+                            <p className="text-xs text-neutral-medium">Starting</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-2xl font-bold text-warning">{substituteCount}</p>
+                            <p className="text-xs text-neutral-medium">Substitutes</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-2xl font-bold text-primary">{totalSelected}</p>
+                            <p className="text-xs text-neutral-medium">Total Selected</p>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Upcoming Fixture Team Selection */}
           {playerFixtureSelection && playerFixtureSelection.match && (

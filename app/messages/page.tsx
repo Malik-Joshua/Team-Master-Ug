@@ -455,17 +455,20 @@ export default function MessagesPage() {
               // Create notifications for recipients
               try {
                 const { db } = await import('@/lib/db-helpers')
-                await db.createNotificationForUsers(
-                  recipients.map((r: { user_id: string }) => r.user_id),
+                const recipientIds = recipients.map((r: { user_id: string }) => r.user_id)
+                console.log(`Creating notifications for ${recipientIds.length} recipients:`, recipientIds)
+                const result = await db.createNotificationForUsers(
+                  recipientIds,
                   {
                     title: 'New Message',
                     message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
                     type: 'info',
                   }
                 )
-                console.log(`Notifications created for ${recipients.length} recipient(s)`)
+                console.log(`Notifications created successfully:`, result)
               } catch (notifError) {
                 console.error('Error creating notifications:', notifError)
+                console.error('Notification error details:', JSON.stringify(notifError, null, 2))
                 // Don't fail the message send if notification creation fails
               }
               

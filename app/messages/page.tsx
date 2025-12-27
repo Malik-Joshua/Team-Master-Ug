@@ -333,6 +333,7 @@ export default function MessagesPage() {
                   title: 'New Message',
                   message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
                   type: 'info',
+                  action_url: '/messages',
                 }
               )
               console.log(`Notifications created for ${recipients.length} recipient(s)`)
@@ -471,6 +472,7 @@ export default function MessagesPage() {
                   title: 'New Message',
                   message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
                   type: 'info',
+                  action_url: '/messages',
                 }
               )
               console.log(`Notifications created for ${recipients.length} recipient(s)`)
@@ -526,6 +528,7 @@ export default function MessagesPage() {
                 title: 'New Message',
                 message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
                 type: 'info',
+                action_url: '/messages',
               })
               console.log('Notification created for recipient:', recipientId)
             } catch (notifError) {

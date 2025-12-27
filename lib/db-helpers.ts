@@ -617,7 +617,11 @@ export const db = {
         .insert(notifications)
         .select()
       
-      if (error) throw error
+      if (error) {
+        console.error('Error creating notifications with service role:', error)
+        throw error
+      }
+      console.log(`Successfully created ${data?.length || 0} notifications for ${userIds.length} users`)
       return data
     }
     
@@ -627,7 +631,11 @@ export const db = {
       .insert(notifications)
       .select()
     
-    if (error) throw error
+    if (error) {
+      console.error('Error creating notifications (fallback):', error)
+      throw error
+    }
+    console.log(`Successfully created ${data?.length || 0} notifications (fallback)`)
     return data
   },
 

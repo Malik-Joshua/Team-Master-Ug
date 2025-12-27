@@ -69,15 +69,21 @@ export default function TopBar({ title, userName, userRole, userAvatar }: TopBar
   }
 
   const handleNotificationClick = (notification: any) => {
+    console.log('Notification clicked:', notification)
+    
     if (!notification.read) {
       markAsRead(notification.id)
     }
     
     // Navigate to relevant page based on notification action_url or content
     const link = getNotificationLink(notification)
+    console.log('Notification link:', link, 'action_url:', notification.action_url)
+    
     if (link) {
       setNotificationsOpen(false)
       router.push(link)
+    } else {
+      console.log('No link found for notification')
     }
   }
 

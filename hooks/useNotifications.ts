@@ -121,20 +121,33 @@ export function useNotifications() {
               filter: `user_id=eq.${user.id}`,
             },
             (payload) => {
-              console.log('New notification received via real-time:', payload.new)
+              console.log('[useNotifications] New notification received via real-time:', payload.new)
               const newNotification = payload.new as Notification
+              // Ensure action_url is included
+              const notificationWithActionUrl = {
+                ...newNotification,
+                action_url: (payload.new as any).action_url || null,
+              }
               setNotifications((prev) => {
                 // Check if notification already exists to avoid duplicates
-                const exists = prev.some(n => n.id === newNotification.id)
-                if (exists) return prev
-                return [newNotification, ...prev]
+                const exists = prev.some(n => n.id === notificationWithActionUrl.id)
+                if (exists) {
+                  console.log('[useNotifications] Notification already exists, skipping duplicate')
+                  return prev
+                }
+                console.log('[useNotifications] Adding new notification to list')
+                return [notificationWithActionUrl, ...prev]
               })
-              setUnreadCount((prev) => prev + 1)
+              setUnreadCount((prev) => {
+                const newCount = prev + 1
+                console.log(`[useNotifications] Updated unread count: ${prev} -> ${newCount}`)
+                return newCount
+              })
               
               // Show browser notification if permission granted
               if ('Notification' in window && Notification.permission === 'granted') {
-                new Notification(newNotification.title, {
-                  body: newNotification.message,
+                new Notification(notificationWithActionUrl.title, {
+                  body: notificationWithActionUrl.message,
                   icon: '/favicon.ico',
                 })
               }

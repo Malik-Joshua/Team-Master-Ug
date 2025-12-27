@@ -401,14 +401,18 @@ export default function MessagesPage() {
           if (composeData.recipient === 'admin' || composeData.recipient === 'coach') {
             recipientRole = composeData.recipient
             
-            // Get all users with that role and send individual messages
-            const { data: recipients } = await supabase
-              .from('user_profiles')
-              .select('user_id')
-              .eq('role', recipientRole)
-              .neq('user_id', authUser.id) // Exclude self
+            // Use API route to bypass RLS and get recipients
+            try {
+              const response = await fetch(`/api/messages/recipients?role=${recipientRole}`)
+              if (!response.ok) {
+                const errorData = await response.json()
+                throw new Error(errorData.error || 'Failed to fetch recipients')
+              }
+              
+              const data = await response.json()
+              const recipients = data.recipients || []
 
-            if (recipients && recipients.length > 0) {
+              if (recipients && recipients.length > 0) {
               // Send message to each recipient
               const messagePromises = recipients.map((recipient) =>
                 supabase
@@ -441,6 +445,11 @@ export default function MessagesPage() {
               return
             } else {
               alert('No recipients found for selected role')
+              return
+            }
+            } catch (fetchError: any) {
+              console.error('Error fetching recipients:', fetchError)
+              alert(`Error fetching recipients: ${fetchError.message || 'Unknown error'}`)
               return
             }
           } else {

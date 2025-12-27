@@ -59,13 +59,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!notificationData || !notificationData.title || !notificationData.message) {
-      return NextResponse.json(
-        { error: 'Notification data with title and message is required' },
-        { status: 400 }
-      )
-    }
-
     // Use service role to bypass RLS for creating notifications
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -85,18 +78,10 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    // Create notifications for all user IDs
-    const notifications = userIds.map((userId: string) => ({
-      user_id: userId,
-      title: notificationData.title,
-      message: notificationData.message,
-      type: notificationData.type || 'info',
-      action_url: notificationData.action_url || null,
-    }))
-
+    // Insert notifications
     const { data, error } = await supabaseAdmin
       .from('notifications')
-      .insert(notifications)
+      .insert(notificationsToCreate)
       .select()
 
     if (error) {
@@ -108,7 +93,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log(`Successfully created ${data?.length || 0} notifications for ${userIds.length} users via API`)
+    const count = singleNotification ? 1 : notificationsToCreate.length
+    console.log(`Successfully created ${data?.length || 0} notifications for ${count} user(s) via API`)
     console.log('Created notifications:', JSON.stringify(data, null, 2))
 
     return NextResponse.json({

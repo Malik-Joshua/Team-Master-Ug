@@ -39,7 +39,9 @@ export function useNotifications() {
 
         if (error) {
           console.error('Error fetching notifications:', error)
+          console.error('Error details:', JSON.stringify(error, null, 2))
         } else {
+          console.log(`Loaded ${data?.length || 0} notifications for user ${user.id}`)
           setNotifications(data || [])
           setUnreadCount((data || []).filter((n) => !n.read).length)
         }

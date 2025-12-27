@@ -225,15 +225,21 @@ export default function MessagesPage() {
             await Promise.all(messagePromises)
             
             // Create notifications for recipients
-            const { db } = await import('@/lib/db-helpers')
-            await db.createNotificationForUsers(
-              recipients.map(r => r.user_id),
-              {
-                title: 'New Message',
-                message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
-                type: 'info',
-              }
-            )
+            try {
+              const { db } = await import('@/lib/db-helpers')
+              await db.createNotificationForUsers(
+                recipients.map(r => r.user_id),
+                {
+                  title: 'New Message',
+                  message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
+                  type: 'info',
+                }
+              )
+              console.log(`Notifications created for ${recipients.length} recipient(s)`)
+            } catch (notifError) {
+              console.error('Error creating notifications:', notifError)
+              // Don't fail the message send if notification creation fails
+            }
             
             const roleNames = rolesToSend.map(r => r === 'data_admin' ? 'team managers' : r.replace('_', ' ')).join(', ')
             alert(`Message sent successfully to ${recipients.length} recipient(s) (${roleNames})!`)
@@ -265,13 +271,19 @@ export default function MessagesPage() {
           if (error) throw error
 
           // Create notification for recipient
-          const { db } = await import('@/lib/db-helpers')
-          await db.createNotification({
-            user_id: composeData.recipientId,
-            title: 'New Message',
-            message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
-            type: 'info',
-          })
+          try {
+            const { db } = await import('@/lib/db-helpers')
+            await db.createNotification({
+              user_id: composeData.recipientId,
+              title: 'New Message',
+              message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
+              type: 'info',
+            })
+            console.log('Notification created for recipient:', composeData.recipientId)
+          } catch (notifError) {
+            console.error('Error creating notification:', notifError)
+            // Don't fail the message send if notification creation fails
+          }
 
           // Add to local state
           const formattedMessage: Message = {
@@ -329,15 +341,21 @@ export default function MessagesPage() {
             await Promise.all(messagePromises)
             
             // Create notifications for recipients
-            const { db } = await import('@/lib/db-helpers')
-            await db.createNotificationForUsers(
-              recipients.map(r => r.user_id),
-              {
-                title: 'New Message',
-                message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
-                type: 'info',
-              }
-            )
+            try {
+              const { db } = await import('@/lib/db-helpers')
+              await db.createNotificationForUsers(
+                recipients.map(r => r.user_id),
+                {
+                  title: 'New Message',
+                  message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
+                  type: 'info',
+                }
+              )
+              console.log(`Notifications created for ${recipients.length} recipient(s)`)
+            } catch (notifError) {
+              console.error('Error creating notifications:', notifError)
+              // Don't fail the message send if notification creation fails
+            }
             
             alert(`Message sent successfully to ${recipients.length} ${recipientRole === 'player' ? 'players' : 'admins'}!`)
           } else {
@@ -366,12 +384,18 @@ export default function MessagesPage() {
           // Create notification for recipient
           if (recipientId) {
             const { db } = await import('@/lib/db-helpers')
-            await db.createNotification({
-              user_id: recipientId,
-              title: 'New Message',
-              message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
-              type: 'info',
-            })
+            try {
+              await db.createNotification({
+                user_id: recipientId,
+                title: 'New Message',
+                message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
+                type: 'info',
+              })
+              console.log('Notification created for recipient:', recipientId)
+            } catch (notifError) {
+              console.error('Error creating notification:', notifError)
+              // Don't fail the message send if notification creation fails
+            }
           }
 
           // Add to local state
@@ -429,15 +453,21 @@ export default function MessagesPage() {
               await Promise.all(messagePromises)
               
               // Create notifications for recipients
-              const { db } = await import('@/lib/db-helpers')
-              await db.createNotificationForUsers(
-                recipients.map((r: { user_id: string }) => r.user_id),
-                {
-                  title: 'New Message',
-                  message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
-                  type: 'info',
-                }
-              )
+              try {
+                const { db } = await import('@/lib/db-helpers')
+                await db.createNotificationForUsers(
+                  recipients.map((r: { user_id: string }) => r.user_id),
+                  {
+                    title: 'New Message',
+                    message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
+                    type: 'info',
+                  }
+                )
+                console.log(`Notifications created for ${recipients.length} recipient(s)`)
+              } catch (notifError) {
+                console.error('Error creating notifications:', notifError)
+                // Don't fail the message send if notification creation fails
+              }
               
               alert(`Message sent successfully to ${recipients.length} recipient(s)!`)
               setComposeData({ recipientType: 'role', recipient: '', recipientId: '', selectedRoles: [], subject: '', message: '' })
@@ -481,13 +511,19 @@ export default function MessagesPage() {
           if (error) throw error
 
           // Create notification for recipient
-          const { db } = await import('@/lib/db-helpers')
-          await db.createNotification({
-            user_id: recipientId,
-            title: 'New Message',
-            message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
-            type: 'info',
-          })
+          try {
+            const { db } = await import('@/lib/db-helpers')
+            await db.createNotification({
+              user_id: recipientId,
+              title: 'New Message',
+              message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
+              type: 'info',
+            })
+            console.log('Notification created for recipient:', recipientId)
+          } catch (notifError) {
+            console.error('Error creating notification:', notifError)
+            // Don't fail the message send if notification creation fails
+          }
 
           // Add to local state
           const formattedMessage: Message = {

@@ -414,7 +414,7 @@ export default function MessagesPage() {
 
               if (recipients && recipients.length > 0) {
               // Send message to each recipient
-              const messagePromises = recipients.map((recipient) =>
+              const messagePromises = recipients.map((recipient: { user_id: string }) =>
                 supabase
                   .from('messages')
                   .insert({

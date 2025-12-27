@@ -389,37 +389,89 @@ export default function MessagesPage() {
           alert('Message sent successfully!')
         }
       } else {
-        // For other roles, use the old logic
+        // For other roles (players, etc.)
         let recipientId: string | null = null
         let recipientRole: string | null = null
 
-        if (composeData.recipient === 'admin') {
-          recipientRole = 'admin'
-        } else if (composeData.recipient === 'coach') {
-          recipientRole = 'coach'
-        } else if (composeData.recipientId) {
+        // Priority: If recipientId is set, use it (specific recipient)
+        if (composeData.recipientId) {
           recipientId = composeData.recipientId
+        } else if (composeData.recipientType === 'role') {
+          // Role-based messaging - need to send to all users with that role
+          if (composeData.recipient === 'admin' || composeData.recipient === 'coach') {
+            recipientRole = composeData.recipient
+            
+            // Get all users with that role and send individual messages
+            const { data: recipients } = await supabase
+              .from('user_profiles')
+              .select('user_id')
+              .eq('role', recipientRole)
+              .neq('user_id', authUser.id) // Exclude self
+
+            if (recipients && recipients.length > 0) {
+              // Send message to each recipient
+              const messagePromises = recipients.map((recipient) =>
+                supabase
+                  .from('messages')
+                  .insert({
+                    sender_id: authUser.id,
+                    recipient_id: recipient.user_id, // Always set recipient_id
+                    recipient_role: recipientRole,
+                    subject: composeData.subject,
+                    message: composeData.message,
+                  })
+              )
+
+              await Promise.all(messagePromises)
+              
+              // Create notifications for recipients
+              const { db } = await import('@/lib/db-helpers')
+              await db.createNotificationForUsers(
+                recipients.map(r => r.user_id),
+                {
+                  title: 'New Message',
+                  message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
+                  type: 'info',
+                }
+              )
+              
+              alert(`Message sent successfully to ${recipients.length} recipient(s)!`)
+              setComposeData({ recipientType: 'role', recipient: '', recipientId: '', selectedRoles: [], subject: '', message: '' })
+              setShowCompose(false)
+              return
+            } else {
+              alert('No recipients found for selected role')
+              return
+            }
+          } else {
+            alert('Please select a valid recipient')
+            return
+          }
+        } else {
+          alert('Please select a recipient')
+          return
         }
 
-        const { data: newMessage, error } = await supabase
-          .from('messages')
-          .insert({
-            sender_id: authUser.id,
-            recipient_id: recipientId,
-            recipient_role: recipientRole,
-            subject: composeData.subject,
-            message: composeData.message,
-          })
-          .select(`
-            *,
-            sender:user_profiles!messages_sender_id_fkey(name, role)
-          `)
-          .single()
-
-        if (error) throw error
-
-        // Create notification for recipient if individual
+        // If we have a specific recipientId, send to that person
         if (recipientId) {
+          const { data: newMessage, error } = await supabase
+            .from('messages')
+            .insert({
+              sender_id: authUser.id,
+              recipient_id: recipientId, // Always set recipient_id for specific recipients
+              recipient_role: recipientRole,
+              subject: composeData.subject,
+              message: composeData.message,
+            })
+            .select(`
+              *,
+              sender:user_profiles!messages_sender_id_fkey(name, role)
+            `)
+            .single()
+
+          if (error) throw error
+
+          // Create notification for recipient
           const { db } = await import('@/lib/db-helpers')
           await db.createNotification({
             user_id: recipientId,
@@ -427,21 +479,21 @@ export default function MessagesPage() {
             message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
             type: 'info',
           })
-        }
 
-        // Add to local state
-        const formattedMessage: Message = {
-          id: newMessage.id,
-          sender_name: newMessage.sender?.name || user.name,
-          sender_role: newMessage.sender?.role || user.role,
-          subject: newMessage.subject || '',
-          message: newMessage.message,
-          read: false,
-          created_at: newMessage.created_at,
-        }
+          // Add to local state
+          const formattedMessage: Message = {
+            id: newMessage.id,
+            sender_name: newMessage.sender?.name || user.name,
+            sender_role: newMessage.sender?.role || user.role,
+            subject: newMessage.subject || '',
+            message: newMessage.message,
+            read: false,
+            created_at: newMessage.created_at,
+          }
 
-        setMessages([formattedMessage, ...messages])
-        alert('Message sent successfully!')
+          setMessages([formattedMessage, ...messages])
+          alert('Message sent successfully!')
+        }
       }
 
       setComposeData({ recipientType: 'role', recipient: '', recipientId: '', selectedRoles: [], subject: '', message: '' })

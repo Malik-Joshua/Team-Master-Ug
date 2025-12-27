@@ -611,12 +611,24 @@ export default function MessagesPage() {
 
         // If we have a specific recipientId, send to that person
         if (recipientId) {
+          // Get recipient role for the message
+          let recipientRoleForMessage: string | null = null
+          const { data: recipientProfile } = await supabase
+            .from('user_profiles')
+            .select('role')
+            .eq('user_id', recipientId)
+            .single()
+          
+          if (recipientProfile) {
+            recipientRoleForMessage = recipientProfile.role
+          }
+          
           const { data: newMessage, error } = await supabase
             .from('messages')
             .insert({
               sender_id: authUser.id,
               recipient_id: recipientId, // Always set recipient_id for specific recipients
-              recipient_role: recipientRole,
+              recipient_role: recipientRoleForMessage,
               subject: composeData.subject,
               message: composeData.message,
             })

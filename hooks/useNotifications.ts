@@ -284,11 +284,42 @@ export function useNotifications() {
     }
   }
 
+  const refreshNotifications = async () => {
+    try {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (!user) return
+      
+      setLoading(true)
+      const response = await fetch('/api/notifications', {
+        cache: 'no-store',
+      })
+      
+      if (response.ok) {
+        const result = await response.json()
+        console.log(`[refreshNotifications] Loaded ${result.count || 0} notifications for user ${user.id}`)
+        const notificationsWithActionUrl = (result.notifications || []).map((n: any) => ({
+          ...n,
+          action_url: n.action_url || null,
+        }))
+        setNotifications(notificationsWithActionUrl)
+        const unreadNotifs = notificationsWithActionUrl.filter((n: Notification) => !n.read).length
+        setUnreadCount(unreadNotifs)
+      }
+    } catch (error) {
+      console.error('[refreshNotifications] Error:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return {
     notifications,
     loading,
     unreadCount: unreadCount + unreadMessagesCount, // Include unread messages in count
     markAsRead,
     markAllAsRead,
+    refreshNotifications,
   }
 }

@@ -542,11 +542,16 @@ export const db = {
         .insert({
           ...notificationData,
           type: notificationData.type || 'info',
+          action_url: notificationData.action_url || null,
         })
         .select()
         .single()
       
-      if (error) throw error
+      if (error) {
+        console.error('Error creating notification with service role:', error)
+        throw error
+      }
+      console.log('Notification created successfully:', data?.id)
       return data
     }
     
@@ -622,9 +627,11 @@ export const db = {
       
       if (error) {
         console.error('Error creating notifications with service role:', error)
+        console.error('Error details:', JSON.stringify(error, null, 2))
         throw error
       }
       console.log(`Successfully created ${data?.length || 0} notifications for ${userIds.length} users`)
+      console.log('Created notifications:', JSON.stringify(data, null, 2))
       return data
     }
     

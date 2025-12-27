@@ -41,15 +41,17 @@ export function useNotifications() {
           if (response.ok) {
             const result = await response.json()
             console.log(`Loaded ${result.count || 0} notifications for user ${user.id} via API`)
-            console.log('Notifications data:', result.notifications)
+            console.log('Notifications data:', JSON.stringify(result.notifications, null, 2))
             // Ensure action_url is included in notifications
             const notificationsWithActionUrl = (result.notifications || []).map((n: any) => ({
               ...n,
               action_url: n.action_url || null,
             }))
+            console.log(`Processed ${notificationsWithActionUrl.length} notifications with action_url`)
             setNotifications(notificationsWithActionUrl)
             const unreadNotifs = notificationsWithActionUrl.filter((n: Notification) => !n.read).length
             setUnreadCount(unreadNotifs)
+            console.log(`Found ${unreadNotifs} unread notifications`)
             
             // Also fetch unread messages count
             try {

@@ -69,6 +69,7 @@ export default function DashboardPage() {
   const [loadingActiveInjuries, setLoadingActiveInjuries] = useState(false)
   const [recentTeamSelections, setRecentTeamSelections] = useState<any[]>([])
   const [recentTrainingSchedules, setRecentTrainingSchedules] = useState<any[]>([])
+  const [topPerformers, setTopPerformers] = useState<any[]>([])
 
   useEffect(() => {
     const loadDashboard = async () => {
@@ -197,6 +198,43 @@ export default function DashboardPage() {
                   trainingSessionsAttended: sessionCount,
                 }))
                 setTrainingSessionsData(sessions)
+                
+                // Load top performers for coach dashboard
+                const performers = await db.getPlayersPerformanceSummary()
+                if (performers) {
+                  // Get player positions
+                  const playerIds = performers.map((p: any) => p.playerId)
+                  if (playerIds.length > 0) {
+                    const { data: playerDetails } = await supabase
+                      .from('players')
+                      .select('user_id, position')
+                      .in('user_id', playerIds)
+                    
+                    const positionMap: Record<string, string> = {}
+                    if (playerDetails) {
+                      playerDetails.forEach((p: any) => {
+                        positionMap[p.user_id] = p.position
+                      })
+                    }
+                    
+                    // Add positions to performers and sort
+                    const performersWithPositions = performers.map((p: any) => ({
+                      ...p,
+                      position: positionMap[p.playerId] || null,
+                    }))
+                    
+                    // Sort by total tries, then tackles, and take top 5
+                    const sorted = performersWithPositions
+                      .sort((a: any, b: any) => {
+                        if (b.totalTries !== a.totalTries) return b.totalTries - a.totalTries
+                        return b.totalTackles - a.totalTackles
+                      })
+                      .slice(0, 5)
+                    setTopPerformers(sorted)
+                  } else {
+                    setTopPerformers([])
+                  }
+                }
                 
                 // Get recent training schedules (last 5, ordered by date desc)
                 const recentSessions = sessions
@@ -1296,20 +1334,25 @@ export default function DashboardPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-light">
-                  <tr className="hover:bg-neutral-light transition-colors cursor-pointer">
-                    <td className="px-6 py-4 text-sm font-medium text-neutral-text">John Doe</td>
-                    <td className="px-6 py-4 text-sm text-neutral-medium">Fly Half</td>
-                    <td className="px-6 py-4 text-sm text-neutral-medium">15</td>
-                    <td className="px-6 py-4 text-sm text-neutral-medium">8</td>
-                    <td className="px-6 py-4 text-sm text-neutral-medium">45</td>
-                  </tr>
-                  <tr className="hover:bg-neutral-light transition-colors cursor-pointer">
-                    <td className="px-6 py-4 text-sm font-medium text-neutral-text">Jane Smith</td>
-                    <td className="px-6 py-4 text-sm text-neutral-medium">Prop</td>
-                    <td className="px-6 py-4 text-sm text-neutral-medium">12</td>
-                    <td className="px-6 py-4 text-sm text-neutral-medium">2</td>
-                    <td className="px-6 py-4 text-sm text-neutral-medium">38</td>
-                  </tr>
+                  {topPerformers.length > 0 ? (
+                    topPerformers.map((player: any) => (
+                      <tr key={player.playerId || player.user_id || player.id} className="hover:bg-neutral-light transition-colors cursor-pointer">
+                        <td className="px-6 py-4 text-sm font-medium text-neutral-text">{player.name || 'Unknown'}</td>
+                        <td className="px-6 py-4 text-sm text-neutral-medium capitalize">
+                          {player.position?.replace(/_/g, ' ') || 'N/A'}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-neutral-medium">{player.totalMatches || 0}</td>
+                        <td className="px-6 py-4 text-sm text-neutral-medium">{player.totalTries || 0}</td>
+                        <td className="px-6 py-4 text-sm text-neutral-medium">{player.totalTackles || 0}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-8 text-center text-neutral-medium">
+                        No performance data available yet
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>

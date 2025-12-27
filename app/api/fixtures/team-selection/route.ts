@@ -8,10 +8,87 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const matchId = searchParams.get('matchId')
+    const playerId = searchParams.get('playerId')
 
+    // If playerId is provided, find the player's selection for upcoming matches
+    if (playerId && !matchId) {
+      const supabase = await createClient()
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
+
+      if (authError || !authUser || authUser.id !== playerId) {
+        return NextResponse.json(
+          { error: 'Authentication required' },
+          { status: 401 }
+        )
+      }
+
+      // Use service role to bypass RLS
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+      const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+      if (!supabaseUrl || !supabaseServiceKey) {
+        return NextResponse.json(
+          { error: 'Server configuration error' },
+          { status: 500 }
+        )
+      }
+
+      const supabaseAdmin = createServiceClient(supabaseUrl, supabaseServiceKey, {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      })
+
+      // Get upcoming matches
+      const today = new Date().toISOString().split('T')[0]
+      const { data: upcomingMatches } = await supabaseAdmin
+        .from('matches')
+        .select('id, match_date, opponent, venue, tournament_type')
+        .gte('match_date', today)
+        .order('match_date', { ascending: true })
+        .limit(1)
+
+      if (!upcomingMatches || upcomingMatches.length === 0) {
+        return NextResponse.json({
+          isSelected: false,
+          message: 'No upcoming matches found'
+        })
+      }
+
+      const nextMatch = upcomingMatches[0]
+
+      // Check if player is selected for this match
+      const { data: selection } = await supabaseAdmin
+        .from('fixture_team_selections')
+        .select('*')
+        .eq('match_id', nextMatch.id)
+        .eq('player_id', playerId)
+        .single()
+
+      if (selection) {
+        return NextResponse.json({
+          isSelected: true,
+          selection: {
+            is_starting: selection.is_starting,
+            is_substitute: selection.is_substitute,
+            jersey_number: selection.jersey_number,
+            position: selection.position,
+          },
+          match: nextMatch
+        })
+      } else {
+        return NextResponse.json({
+          isSelected: false,
+          match: nextMatch
+        })
+      }
+    }
+
+    // Original matchId-based query
     if (!matchId) {
       return NextResponse.json(
-        { error: 'Match ID is required' },
+        { error: 'Match ID or Player ID is required' },
         { status: 400 }
       )
     }

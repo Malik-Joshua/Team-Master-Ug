@@ -67,24 +67,42 @@ export default function MessagesPage() {
           // Fetch messages
           const { data: fetchedMessages } = await supabase
             .from('messages')
-            .select(`
-              *,
-              sender:user_profiles!messages_sender_id_fkey(name, role),
-              recipient:user_profiles!messages_recipient_id_fkey(name, role)
-            `)
+            .select('*')
             .or(`sender_id.eq.${authUser.id},recipient_id.eq.${authUser.id},recipient_role.eq.${profile.role}`)
             .order('created_at', { ascending: false })
 
           if (fetchedMessages) {
-            const formattedMessages: Message[] = fetchedMessages.map((msg: any) => ({
-              id: msg.id,
-              sender_name: msg.sender?.name || 'Unknown',
-              sender_role: msg.sender?.role || 'unknown',
-              subject: msg.subject || '',
-              message: msg.message,
-              read: msg.read || false,
-              created_at: msg.created_at,
-            }))
+            // Fetch sender and recipient info separately to avoid foreign key issues
+            const senderIds = [...new Set(fetchedMessages.map((msg: any) => msg.sender_id).filter(Boolean))]
+            const recipientIds = [...new Set(fetchedMessages.map((msg: any) => msg.recipient_id).filter(Boolean))]
+            const allUserIds = [...new Set([...senderIds, ...recipientIds])]
+            
+            let userProfilesMap: Record<string, any> = {}
+            if (allUserIds.length > 0) {
+              const { data: profiles } = await supabase
+                .from('user_profiles')
+                .select('user_id, name, role')
+                .in('user_id', allUserIds)
+              
+              if (profiles) {
+                profiles.forEach((profile: any) => {
+                  userProfilesMap[profile.user_id] = profile
+                })
+              }
+            }
+            
+            const formattedMessages: Message[] = fetchedMessages.map((msg: any) => {
+              const sender = userProfilesMap[msg.sender_id]
+              return {
+                id: msg.id,
+                sender_name: sender?.name || 'Unknown',
+                sender_role: sender?.role || 'unknown',
+                subject: msg.subject || '',
+                message: msg.message,
+                read: msg.read || false,
+                created_at: msg.created_at,
+              }
+            })
             setMessages(formattedMessages)
           }
 

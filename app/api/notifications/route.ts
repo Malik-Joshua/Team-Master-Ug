@@ -34,10 +34,10 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Fetch notifications for this user
+    // Fetch notifications for this user (including action_url field)
     const { data: notifications, error } = await supabaseAdmin
       .from('notifications')
-      .select('*')
+      .select('id, user_id, title, message, type, read, created_at, action_url')
       .eq('user_id', authUser.id)
       .order('created_at', { ascending: false })
       .limit(50)
@@ -50,6 +50,8 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    console.log(`Fetched ${notifications?.length || 0} notifications for user ${authUser.id}`)
+    
     return NextResponse.json({
       notifications: notifications || [],
       count: notifications?.length || 0

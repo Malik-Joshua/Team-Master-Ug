@@ -44,16 +44,17 @@ export function useNotifications() {
             setUnreadCount(unreadNotifs)
             
             // Also fetch unread messages count
-            const { data: unreadMessages, error: messagesError } = await supabase
+            const { count: unreadMessagesCount, error: messagesError } = await supabase
               .from('messages')
-              .select('id', { count: 'exact', head: true })
+              .select('*', { count: 'exact', head: true })
               .eq('recipient_id', user.id)
               .eq('read', false)
             
-            if (!messagesError && unreadMessages !== null) {
-              const count = typeof unreadMessages === 'number' ? unreadMessages : 0
-              setUnreadMessagesCount(count)
-              console.log(`Found ${count} unread messages`)
+            if (!messagesError) {
+              setUnreadMessagesCount(unreadMessagesCount || 0)
+              console.log(`Found ${unreadMessagesCount || 0} unread messages`)
+            } else {
+              console.error('Error fetching unread messages count:', messagesError)
             }
           } else {
             console.error('Error fetching notifications from API:', response.status)
@@ -151,6 +152,48 @@ export function useNotifications() {
             console.log('Notification subscription status:', status)
           })
 
+        // Set up real-time subscription for messages to update unread count
+        const messagesChannel = supabase
+          .channel(`messages-${user.id}`)
+          .on(
+            'postgres_changes',
+            {
+              event: 'UPDATE',
+              schema: 'public',
+              table: 'messages',
+              filter: `recipient_id=eq.${user.id}`,
+            },
+            (payload) => {
+              console.log('Message updated via real-time:', payload.new)
+              const updatedMessage = payload.new as any
+              // If message was marked as read, decrease unread count
+              if (updatedMessage.read && !payload.old.read) {
+                setUnreadMessagesCount((prev) => Math.max(0, prev - 1))
+              } else if (!updatedMessage.read && payload.old.read) {
+                setUnreadMessagesCount((prev) => prev + 1)
+              }
+            }
+          )
+          .on(
+            'postgres_changes',
+            {
+              event: 'INSERT',
+              schema: 'public',
+              table: 'messages',
+              filter: `recipient_id=eq.${user.id}`,
+            },
+            (payload) => {
+              console.log('New message received via real-time:', payload.new)
+              const newMessage = payload.new as any
+              if (!newMessage.read) {
+                setUnreadMessagesCount((prev) => prev + 1)
+              }
+            }
+          )
+          .subscribe((status) => {
+            console.log('Messages subscription status:', status)
+          })
+
         // Request notification permission
         if ('Notification' in window && Notification.permission === 'default') {
           Notification.requestPermission()
@@ -169,6 +212,9 @@ export function useNotifications() {
         const supabase = createClient()
         supabase.removeChannel(channel)
       }
+      // Cleanup messages channel
+      const supabase = createClient()
+      supabase.removeChannel(`messages-${user?.id}`)
     }
   }, [])
 

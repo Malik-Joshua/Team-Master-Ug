@@ -983,115 +983,80 @@ export default function DataAdminDashboard() {
           </div>
         )}
 
-        {/* View Selected Team for Fixture */}
+        {/* Fixtures List */}
         <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
-          <h2 className="text-2xl font-bold text-neutral-text mb-6 flex items-center">
-            <Trophy className="w-6 h-6 mr-2 text-primary" />
-            View Selected Team for Fixture
-          </h2>
-          
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-neutral-medium mb-2">
-              Select Match/Fixture
-            </label>
-            <select
-              value={selectedMatchForView}
-              onChange={(e) => {
-                setSelectedMatchForView(e.target.value)
-                if (e.target.value) {
-                  loadTeamSelection(e.target.value)
-                } else {
-                  setTeamSelections([])
-                }
-              }}
-              className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
-            >
-              <option value="">Select a match...</option>
-              {matches.map((match) => (
-                <option key={match.id} value={match.id}>
-                  {new Date(match.match_date).toLocaleDateString()} - vs {match.opponent} ({match.tournament_type})
-                </option>
-              ))}
-            </select>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-neutral-text flex items-center">
+              <Trophy className="w-6 h-6 mr-2 text-primary" />
+              Fixtures
+            </h2>
           </div>
 
-          {loadingTeamSelection && selectedMatchForView && (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+          {matches.length === 0 ? (
+            <div className="text-center py-12 text-neutral-medium">
+              <Trophy className="w-16 h-16 mx-auto mb-4 text-neutral-light" />
+              <p className="text-lg font-semibold">No fixtures created yet</p>
+              <p className="text-sm mt-2">Click "Create Fixture" to add a new fixture</p>
             </div>
-          )}
-
-          {teamSelections.length > 0 && !loadingTeamSelection && (
+          ) : (
             <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div className="text-center p-4 bg-primary/10 rounded-lg">
-                  <p className="text-2xl font-bold text-primary">
-                    {teamSelections.filter((s: any) => s.is_starting && !s.is_substitute).length}
-                  </p>
-                  <p className="text-sm text-neutral-medium">Starting Players</p>
-                </div>
-                <div className="text-center p-4 bg-secondary/10 rounded-lg">
-                  <p className="text-2xl font-bold text-secondary">
-                    {teamSelections.filter((s: any) => s.is_substitute).length}
-                  </p>
-                  <p className="text-sm text-neutral-medium">Substitutes</p>
-                </div>
-                <div className="text-center p-4 bg-success/10 rounded-lg">
-                  <p className="text-2xl font-bold text-success">{teamSelections.length}</p>
-                  <p className="text-sm text-neutral-medium">Total Selected</p>
-                </div>
-              </div>
-
-              <div>
-                <h3 className="text-lg font-semibold text-neutral-text mb-4">Starting Lineup</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {teamSelections
-                    .filter((s: any) => s.is_starting && !s.is_substitute)
-                    .map((selection: any) => (
-                      <div key={selection.player_id} className="p-3 bg-primary/5 border border-primary/20 rounded-lg">
-                        <p className="font-semibold text-neutral-text">{selection.player_name}</p>
-                        {selection.position && (
-                          <p className="text-sm text-neutral-medium capitalize">
-                            {selection.position.replace('_', ' ')}
-                          </p>
-                        )}
-                        {selection.jersey_number && (
-                          <p className="text-sm text-neutral-medium">Jersey #{selection.jersey_number}</p>
+              {matches.map((match) => (
+                <div
+                  key={match.id}
+                  className="border-2 border-neutral-light rounded-lg p-4 hover:border-primary/50 transition-all"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <h3 className="text-lg font-bold text-neutral-text">
+                          vs {match.opponent}
+                        </h3>
+                        <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-semibold capitalize">
+                          {match.tournament_type.replace('_', ' ')}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-neutral-medium">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-4 h-4" />
+                          <span>{new Date(match.match_date).toLocaleDateString('en-US', {
+                            weekday: 'short',
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                          })}</span>
+                        </div>
+                        {match.venue && (
+                          <div className="flex items-center gap-2">
+                            <MapPin className="w-4 h-4" />
+                            <span>{match.venue}</span>
+                          </div>
                         )}
                       </div>
-                    ))}
-                </div>
-              </div>
-
-              {teamSelections.filter((s: any) => s.is_substitute).length > 0 && (
-                <div>
-                  <h3 className="text-lg font-semibold text-neutral-text mb-4">Substitutes</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {teamSelections
-                      .filter((s: any) => s.is_substitute)
-                      .map((selection: any) => (
-                        <div key={selection.player_id} className="p-3 bg-secondary/5 border border-secondary/20 rounded-lg">
-                          <p className="font-semibold text-neutral-text">{selection.player_name}</p>
-                          {selection.position && (
-                            <p className="text-sm text-neutral-medium capitalize">
-                              {selection.position.replace('_', ' ')}
-                            </p>
-                          )}
-                          {selection.jersey_number && (
-                            <p className="text-sm text-neutral-medium">Jersey #{selection.jersey_number}</p>
-                          )}
-                        </div>
-                      ))}
+                    </div>
+                    <button
+                      onClick={() => {
+                        setSelectedMatchForStats(match.id)
+                        // Load match details into form
+                        setMatchForm({
+                          match_date: match.match_date,
+                          opponent: match.opponent,
+                          tournament_type: match.tournament_type as any,
+                          venue: match.venue || '',
+                          result: 'win',
+                          score_our_team: '0',
+                          score_opponent: '0',
+                          notes: '',
+                        })
+                        setShowMatchForm(true)
+                      }}
+                      className="ml-4 px-4 py-2 bg-primary text-white rounded-button font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Match Stats
+                    </button>
                   </div>
                 </div>
-              )}
-            </div>
-          )}
-
-          {teamSelections.length === 0 && !loadingTeamSelection && selectedMatchForView && (
-            <div className="text-center py-8 text-neutral-medium">
-              <p>No team has been selected for this match yet.</p>
-              <p className="text-sm mt-2">Go to the Fixtures page to select a team.</p>
+              ))}
             </div>
           )}
         </div>

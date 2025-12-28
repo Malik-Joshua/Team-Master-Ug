@@ -10,6 +10,8 @@ export interface Notification {
   read: boolean
   created_at: string
   action_url?: string | null // URL to navigate to when notification is clicked
+  reference_id?: string | null // ID of the related item (e.g., message ID, task ID)
+  reference_type?: string | null // Type of the related item (e.g., 'message', 'task', 'fixture')
 }
 
 export function useNotifications() {
@@ -123,10 +125,12 @@ export function useNotifications() {
             (payload) => {
               console.log('[useNotifications] New notification received via real-time:', payload.new)
               const newNotification = payload.new as Notification
-              // Ensure action_url is included
+              // Ensure action_url and reference fields are included
               const notificationWithActionUrl = {
                 ...newNotification,
                 action_url: (payload.new as any).action_url || null,
+                reference_id: (payload.new as any).reference_id || null,
+                reference_type: (payload.new as any).reference_type || null,
               }
               setNotifications((prev) => {
                 // Check if notification already exists to avoid duplicates
@@ -302,6 +306,8 @@ export function useNotifications() {
         const notificationsWithActionUrl = (result.notifications || []).map((n: any) => ({
           ...n,
           action_url: n.action_url || null,
+          reference_id: n.reference_id || null,
+          reference_type: n.reference_type || null,
         }))
         setNotifications(notificationsWithActionUrl)
         const unreadNotifs = notificationsWithActionUrl.filter((n: Notification) => !n.read).length

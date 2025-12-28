@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
-import { Users, Activity, BarChart3, Calendar, Trophy, Plus, X, Save } from 'lucide-react'
+import { Users, Activity, BarChart3, Calendar, Trophy, Plus, X, Save, MapPin } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 interface Player {

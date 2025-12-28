@@ -5,6 +5,9 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url)
+    const allMatches = searchParams.get('all') === 'true' // Query parameter to get all matches
+    
     const supabase = await createClient()
     const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
 
@@ -15,12 +18,52 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Get upcoming matches
-    const { data: fixtures, error } = await supabase
+    // Get user profile to verify role
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('role')
+      .eq('user_id', authUser.id)
+      .single()
+
+    if (!profile || !['admin', 'coach', 'data_admin'].includes(profile.role)) {
+      return NextResponse.json(
+        { error: 'Unauthorized: Admin/Coach access required' },
+        { status: 403 }
+      )
+    }
+
+    // Use service role to bypass RLS
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      return NextResponse.json(
+        { error: 'Server configuration error' },
+        { status: 500 }
+      )
+    }
+
+    const { createClient: createServiceClient } = await import('@supabase/supabase-js')
+    const supabaseAdmin = createServiceClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
+
+    // Get matches - all matches if requested, otherwise just upcoming
+    let query = supabaseAdmin
       .from('matches')
       .select('*')
-      .gte('match_date', new Date().toISOString().split('T')[0])
-      .order('match_date', { ascending: true })
+    
+    if (!allMatches) {
+      // Only upcoming matches
+      query = query.gte('match_date', new Date().toISOString().split('T')[0])
+    }
+    
+    query = query.order('match_date', { ascending: true })
+
+    const { data: fixtures, error } = await query
 
     if (error) {
       console.error('Error fetching fixtures:', error)

@@ -120,19 +120,56 @@ export default function FixturesPage() {
         setUser(profile)
 
         // Load matches - for data_admin and coach/admin, load all matches so they can see newly created fixtures
-        let matchesData
+        let matchesData: Match[] = []
         if (profile.role === 'data_admin' || profile.role === 'coach' || profile.role === 'admin') {
-          // Load all matches (not just upcoming) so coaches can see newly created fixtures
-          const { data: allMatches, error: matchesError } = await supabase
-            .from('matches')
-            .select('id, match_date, opponent, venue, tournament_type')
-            .order('match_date', { ascending: true }) // Order by date ascending for coaches (upcoming first)
+          // Use API route with all=true parameter to get all matches (bypasses RLS)
+          try {
+            const matchesResponse = await fetch('/api/fixtures?all=true', { cache: 'no-store' })
+            if (matchesResponse.ok) {
+              const matchesApiData = await matchesResponse.json()
+              if (matchesApiData.fixtures && Array.isArray(matchesApiData.fixtures)) {
+                matchesData = matchesApiData.fixtures.map((m: any) => ({
+                  id: m.id,
+                  match_date: m.match_date,
+                  opponent: m.opponent,
+                  venue: m.venue || undefined,
+                  tournament_type: m.tournament_type,
+                }))
+                console.log('Loaded matches from API:', matchesData.length)
+              }
+            } else {
+              const errorData = await matchesResponse.json().catch(() => ({ error: matchesResponse.statusText }))
+              console.error('Error loading matches from API:', errorData)
+            }
+          } catch (apiError) {
+            console.error('Error loading matches from API:', apiError)
+          }
           
-          if (matchesError) {
-            console.error('Error loading matches:', matchesError)
-            matchesData = []
-          } else {
-            matchesData = allMatches || []
+          // Fallback to direct query if API fails
+          if (matchesData.length === 0) {
+            try {
+              const { data: allMatches, error: matchesError } = await supabase
+                .from('matches')
+                .select('id, match_date, opponent, venue, tournament_type')
+                .order('match_date', { ascending: true })
+              
+              if (matchesError) {
+                console.error('Error loading matches:', matchesError)
+                matchesData = []
+              } else {
+                matchesData = (allMatches || []).map((m: any) => ({
+                  id: m.id,
+                  match_date: m.match_date,
+                  opponent: m.opponent,
+                  venue: m.venue || undefined,
+                  tournament_type: m.tournament_type,
+                }))
+                console.log('Loaded matches from direct query:', matchesData.length)
+              }
+            } catch (directError) {
+              console.error('Error in direct matches query:', directError)
+              matchesData = []
+            }
           }
         } else {
           matchesData = await db.getUpcomingMatches()
@@ -142,16 +179,65 @@ export default function FixturesPage() {
 
         // Only load players for coach/admin (data_admin doesn't select teams)
         if (profile.role !== 'data_admin') {
-          const playersData = await db.getAvailablePlayers()
-          // Transform players data to match Player interface
-          const transformedPlayers = (playersData || []).map((p: any) => ({
-            user_id: p.user_id,
-            name: p.name,
-            email: p.email,
-            status: p.status,
-            players: Array.isArray(p.players) ? p.players[0] : p.players,
-          }))
-          setAvailablePlayers(transformedPlayers as Player[])
+          // Use API route to fetch players (bypasses RLS)
+          try {
+            const playersResponse = await fetch('/api/admin/players', { cache: 'no-store' })
+            if (playersResponse.ok) {
+              const playersApiData = await playersResponse.json()
+              if (playersApiData.players && Array.isArray(playersApiData.players)) {
+                // Transform players data to match Player interface
+                const transformedPlayers = playersApiData.players
+                  .filter((p: any) => p.status === 'active') // Filter active players
+                  .map((p: any) => ({
+                    user_id: p.user_id,
+                    name: p.name,
+                    email: p.email || '',
+                    status: p.status || 'active',
+                    players: {
+                      position: p.position || '',
+                      category: p.category || '',
+                      jersey_number: p.jersey_number || undefined,
+                    },
+                  }))
+                setAvailablePlayers(transformedPlayers as Player[])
+                console.log('Loaded players from API:', transformedPlayers.length)
+              }
+            } else {
+              console.error('Error loading players from API:', playersResponse.status)
+              // Fallback to direct query
+              try {
+                const playersData = await db.getAvailablePlayers()
+                const transformedPlayers = (playersData || []).map((p: any) => ({
+                  user_id: p.user_id,
+                  name: p.name,
+                  email: p.email,
+                  status: p.status,
+                  players: Array.isArray(p.players) ? p.players[0] : p.players,
+                }))
+                setAvailablePlayers(transformedPlayers as Player[])
+              } catch (fallbackError) {
+                console.error('Error in fallback players query:', fallbackError)
+                setAvailablePlayers([])
+              }
+            }
+          } catch (apiError) {
+            console.error('Error loading players from API:', apiError)
+            // Fallback to direct query
+            try {
+              const playersData = await db.getAvailablePlayers()
+              const transformedPlayers = (playersData || []).map((p: any) => ({
+                user_id: p.user_id,
+                name: p.name,
+                email: p.email,
+                status: p.status,
+                players: Array.isArray(p.players) ? p.players[0] : p.players,
+              }))
+              setAvailablePlayers(transformedPlayers as Player[])
+            } catch (fallbackError) {
+              console.error('Error in fallback players query:', fallbackError)
+              setAvailablePlayers([])
+            }
+          }
         }
 
         if (matchesData.length > 0) {

@@ -2,8 +2,9 @@
 
 import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
-import { DollarSign, TrendingUp, TrendingDown } from 'lucide-react'
-import { useState } from 'react'
+import { DollarSign, TrendingUp, TrendingDown, Calendar, X } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { createClient } from '@/lib/supabase/client'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -37,6 +38,112 @@ export default function FinanceAdminDashboard() {
     date: '',
     notes: '',
   })
+  const [trainingSessions, setTrainingSessions] = useState<any[]>([])
+  const [matches, setMatches] = useState<any[]>([])
+  const [selectedSessionId, setSelectedSessionId] = useState<string>('')
+  const [selectedMatchId, setSelectedMatchId] = useState<string>('')
+  const [sessionAttendance, setSessionAttendance] = useState<any>(null)
+  const [matchAttendance, setMatchAttendance] = useState<any>(null)
+  const [loadingAttendance, setLoadingAttendance] = useState(false)
+
+  useEffect(() => {
+    const loadAttendanceData = async () => {
+      const supabase = createClient()
+      const { data: { user: authUser } } = await supabase.auth.getUser()
+      
+      if (!authUser) return
+
+      // Load training sessions
+      const { data: sessionsData } = await supabase
+        .from('training_sessions')
+        .select('id, session_date, session_time, description, location')
+        .order('session_date', { ascending: false })
+        .limit(50)
+      
+      if (sessionsData) {
+        setTrainingSessions(sessionsData)
+      }
+      
+      // Load matches
+      const { data: matchesData } = await supabase
+        .from('matches')
+        .select('id, match_date, opponent, venue, tournament_type')
+        .order('match_date', { ascending: false })
+        .limit(50)
+      
+      if (matchesData) {
+        setMatches(matchesData)
+      }
+    }
+
+    loadAttendanceData()
+  }, [])
+
+  const loadSessionAttendance = async (sessionId: string) => {
+    if (!sessionId) return
+    
+    setLoadingAttendance(true)
+    try {
+      const supabase = createClient()
+      const { data: attendanceData } = await supabase
+        .from('training_attendance')
+        .select('attendance_status, player_id, players!inner(user_id, user_profiles!inner(name))')
+        .eq('session_id', sessionId)
+      
+      if (attendanceData) {
+        const present = attendanceData.filter((a: any) => a.attendance_status === 'P').length
+        const absent = attendanceData.filter((a: any) => a.attendance_status === 'X').length
+        const justified = attendanceData.filter((a: any) => a.attendance_status === 'A').length
+        const injured = attendanceData.filter((a: any) => a.attendance_status === 'I').length
+        const total = attendanceData.length
+        const attendanceRate = total > 0 ? Math.round((present / total) * 100 * 10) / 10 : 0
+        
+        setSessionAttendance({
+          present,
+          absent,
+          justified,
+          injured,
+          total,
+          attendanceRate,
+          details: attendanceData,
+        })
+      }
+    } catch (error) {
+      console.error('Error loading session attendance:', error)
+    } finally {
+      setLoadingAttendance(false)
+    }
+  }
+
+  const loadMatchAttendance = async (matchId: string) => {
+    if (!matchId) return
+    
+    setLoadingAttendance(true)
+    try {
+      const supabase = createClient()
+      const { data: selectionsData } = await supabase
+        .from('fixture_team_selections')
+        .select('is_starting, is_substitute, player_id, players!inner(user_id, user_profiles!inner(name))')
+        .eq('match_id', matchId)
+      
+      if (selectionsData) {
+        const starting = selectionsData.filter((s: any) => s.is_starting).length
+        const substitutes = selectionsData.filter((s: any) => s.is_substitute).length
+        const total = selectionsData.length
+        
+        setMatchAttendance({
+          starting,
+          substitutes,
+          total,
+          details: selectionsData,
+        })
+      }
+    } catch (error) {
+      console.error('Error loading match attendance:', error)
+    } finally {
+      setLoadingAttendance(false)
+    }
+  }
 
   const formatCurrency = (amount: number) => {
     if (amount >= 1000000) {
@@ -158,6 +265,129 @@ export default function FinanceAdminDashboard() {
           <h3 className="text-xl font-bold text-neutral-text mb-4">Monthly Financial Trend</h3>
           <div className="h-64">
             <Bar data={chartData} options={chartOptions} />
+          </div>
+        </div>
+
+        {/* Attendance Summary Section */}
+        <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-neutral-text flex items-center">
+              <Calendar className="w-6 h-6 mr-2 text-primary" />
+              Attendance Summary
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Training Session Attendance */}
+            <div>
+              <h3 className="text-lg font-semibold text-neutral-text mb-4">Training Session Attendance</h3>
+              <select
+                value={selectedSessionId}
+                onChange={(e) => {
+                  setSelectedSessionId(e.target.value)
+                  setMatchAttendance(null)
+                  setSelectedMatchId('')
+                  if (e.target.value) {
+                    loadSessionAttendance(e.target.value)
+                  } else {
+                    setSessionAttendance(null)
+                  }
+                }}
+                className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all mb-4"
+              >
+                <option value="">Select a training session...</option>
+                {trainingSessions.map((session) => (
+                  <option key={session.id} value={session.id}>
+                    {new Date(session.session_date).toLocaleDateString()} - {session.description || `Session ${session.id.slice(0, 8)}`}
+                  </option>
+                ))}
+              </select>
+
+              {loadingAttendance && selectedSessionId && (
+                <div className="text-center py-4">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                </div>
+              )}
+
+              {sessionAttendance && !loadingAttendance && (
+                <div className="bg-neutral-light/50 rounded-lg p-4 space-y-2">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-neutral-medium">Present</p>
+                      <p className="text-2xl font-bold text-success">{sessionAttendance.present}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-neutral-medium">Absent</p>
+                      <p className="text-2xl font-bold text-secondary">{sessionAttendance.absent}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-neutral-medium">Justified Absence</p>
+                      <p className="text-2xl font-bold text-warning">{sessionAttendance.justified}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-neutral-medium">Injured</p>
+                      <p className="text-2xl font-bold text-info">{sessionAttendance.injured}</p>
+                    </div>
+                  </div>
+                  <div className="pt-2 border-t border-neutral-light">
+                    <p className="text-sm text-neutral-medium">Total Players</p>
+                    <p className="text-xl font-bold text-neutral-text">{sessionAttendance.total}</p>
+                    <p className="text-sm text-neutral-medium mt-1">Attendance Rate: {sessionAttendance.attendanceRate}%</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Game Day/Match Attendance */}
+            <div>
+              <h3 className="text-lg font-semibold text-neutral-text mb-4">Game Day Attendance</h3>
+              <select
+                value={selectedMatchId}
+                onChange={(e) => {
+                  setSelectedMatchId(e.target.value)
+                  setSessionAttendance(null)
+                  setSelectedSessionId('')
+                  if (e.target.value) {
+                    loadMatchAttendance(e.target.value)
+                  } else {
+                    setMatchAttendance(null)
+                  }
+                }}
+                className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all mb-4"
+              >
+                <option value="">Select a match...</option>
+                {matches.map((match) => (
+                  <option key={match.id} value={match.id}>
+                    {new Date(match.match_date).toLocaleDateString()} - vs {match.opponent} ({match.tournament_type})
+                  </option>
+                ))}
+              </select>
+
+              {loadingAttendance && selectedMatchId && (
+                <div className="text-center py-4">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                </div>
+              )}
+
+              {matchAttendance && !loadingAttendance && (
+                <div className="bg-neutral-light/50 rounded-lg p-4 space-y-2">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-neutral-medium">Starting Lineup</p>
+                      <p className="text-2xl font-bold text-success">{matchAttendance.starting}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-neutral-medium">Substitutes</p>
+                      <p className="text-2xl font-bold text-primary">{matchAttendance.substitutes}</p>
+                    </div>
+                  </div>
+                  <div className="pt-2 border-t border-neutral-light">
+                    <p className="text-sm text-neutral-medium">Total Selected</p>
+                    <p className="text-xl font-bold text-neutral-text">{matchAttendance.total}</p>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

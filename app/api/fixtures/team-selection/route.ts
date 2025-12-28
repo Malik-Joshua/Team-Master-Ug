@@ -267,16 +267,29 @@ export async function POST(request: NextRequest) {
     }
 
     // Insert new selections using service role (bypasses RLS)
-    const records = selections.map((selection: any) => ({
-      match_id: matchId,
-      player_id: selection.player_id,
-      position: selection.position || null,
-      jersey_number: selection.jersey_number || null,
-      is_starting: selection.is_starting ?? true,
-      is_substitute: selection.is_substitute ?? false,
-      notes: selection.notes || null,
-      selected_by: authUser.id,
-    }))
+    const records = selections.map((selection: any) => {
+      // Validate required fields
+      if (!selection.player_id) {
+        throw new Error(`Invalid selection: player_id is required. Selection: ${JSON.stringify(selection)}`)
+      }
+      
+      return {
+        match_id: matchId,
+        player_id: selection.player_id,
+        position: selection.position || null,
+        jersey_number: selection.jersey_number ? parseInt(String(selection.jersey_number)) : null,
+        is_starting: selection.is_starting !== undefined ? Boolean(selection.is_starting) : true,
+        is_substitute: selection.is_substitute !== undefined ? Boolean(selection.is_substitute) : false,
+        notes: selection.notes || null,
+        selected_by: authUser.id,
+      }
+    })
+    
+    console.log('Inserting team selections:', {
+      matchId,
+      recordsCount: records.length,
+      records: records.map(r => ({ player_id: r.player_id, is_starting: r.is_starting, is_substitute: r.is_substitute }))
+    })
 
     const { data: newSelections, error: insertError } = await supabaseAdmin
       .from('fixture_team_selections')

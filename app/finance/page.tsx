@@ -89,12 +89,6 @@ export default function FinancePage() {
   const [sessionAttendance, setSessionAttendance] = useState<any>(null)
   const [matchAttendance, setMatchAttendance] = useState<any>(null)
   const [loadingAttendance, setLoadingAttendance] = useState(false)
-  const [matches, setMatches] = useState<any[]>([])
-  const [selectedSessionId, setSelectedSessionId] = useState<string>('')
-  const [selectedMatchId, setSelectedMatchId] = useState<string>('')
-  const [sessionAttendance, setSessionAttendance] = useState<any>(null)
-  const [matchAttendance, setMatchAttendance] = useState<any>(null)
-  const [loadingAttendance, setLoadingAttendance] = useState(false)
 
   useEffect(() => {
     const loadData = async () => {

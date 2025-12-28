@@ -89,6 +89,14 @@ export default function FinancePage() {
   const [sessionAttendance, setSessionAttendance] = useState<any>(null)
   const [matchAttendance, setMatchAttendance] = useState<any>(null)
   const [loadingAttendance, setLoadingAttendance] = useState(false)
+  const [showAttendanceView, setShowAttendanceView] = useState(false)
+  const [trainingSessions, setTrainingSessions] = useState<any[]>([])
+  const [matches, setMatches] = useState<any[]>([])
+  const [selectedSessionId, setSelectedSessionId] = useState<string>('')
+  const [selectedMatchId, setSelectedMatchId] = useState<string>('')
+  const [sessionAttendance, setSessionAttendance] = useState<any>(null)
+  const [matchAttendance, setMatchAttendance] = useState<any>(null)
+  const [loadingAttendance, setLoadingAttendance] = useState(false)
 
   useEffect(() => {
     const loadData = async () => {
@@ -106,6 +114,29 @@ export default function FinancePage() {
           setUser(profile)
           const { data: transactionsData } = await supabase.from('financial_transactions').select('*').order('transaction_date', { ascending: false })
           if (transactionsData) setTransactions(transactionsData as Transaction[])
+          
+          // If finance_admin, load training sessions and matches for attendance viewing
+          if (profile.role === 'finance_admin') {
+            const { data: sessionsData } = await supabase
+              .from('training_sessions')
+              .select('id, session_date, session_time, description, location')
+              .order('session_date', { ascending: false })
+              .limit(50)
+            
+            if (sessionsData) {
+              setTrainingSessions(sessionsData)
+            }
+            
+            const { data: matchesData } = await supabase
+              .from('matches')
+              .select('id, match_date, opponent, venue, tournament_type')
+              .order('match_date', { ascending: false })
+              .limit(50)
+            
+            if (matchesData) {
+              setMatches(matchesData)
+            }
+          }
           
           if (profile.role === 'finance_admin' || profile.role === 'admin') {
             try {

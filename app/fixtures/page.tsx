@@ -377,9 +377,42 @@ export default function FixturesPage() {
       await db.saveFixtureTeamSelection(selectedMatchId, selectionsArray)
       
       alert('Team selection saved successfully!')
-      // Reload existing selection
-      const selections = await db.getFixtureTeamSelection(selectedMatchId)
-      setExistingSelection(selections)
+      // Reload existing selection using API route
+      try {
+        const response = await fetch(`/api/fixtures/team-selection?matchId=${selectedMatchId}`, { cache: 'no-store' })
+        if (response.ok) {
+          const data = await response.json()
+          const selections = data.selections || []
+          setExistingSelection(selections)
+          
+          // Populate teamSelections map
+          const selectionsMap = new Map<string, TeamSelection>()
+          selections.forEach((sel: any) => {
+            selectionsMap.set(sel.player_id, {
+              player_id: sel.player_id,
+              position: sel.position,
+              jersey_number: sel.jersey_number,
+              is_starting: sel.is_starting,
+              is_substitute: sel.is_substitute,
+              notes: sel.notes,
+            })
+          })
+          setTeamSelections(selectionsMap)
+        } else {
+          // Fallback to direct query
+          const selections = await db.getFixtureTeamSelection(selectedMatchId)
+          setExistingSelection(selections)
+        }
+      } catch (reloadError) {
+        console.error('Error reloading team selection:', reloadError)
+        // Fallback to direct query
+        try {
+          const selections = await db.getFixtureTeamSelection(selectedMatchId)
+          setExistingSelection(selections)
+        } catch (fallbackError) {
+          console.error('Error in fallback reload:', fallbackError)
+        }
+      }
     } catch (error) {
       console.error('Error saving team selection:', error)
       alert('Error saving team selection. Please try again.')

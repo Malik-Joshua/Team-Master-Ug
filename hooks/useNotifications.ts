@@ -44,10 +44,12 @@ export function useNotifications() {
             const result = await response.json()
             console.log(`Loaded ${result.count || 0} notifications for user ${user.id} via API`)
             console.log('Notifications data:', JSON.stringify(result.notifications, null, 2))
-            // Ensure action_url is included in notifications
+            // Ensure action_url and reference fields are included in notifications
             const notificationsWithActionUrl = (result.notifications || []).map((n: any) => ({
               ...n,
               action_url: n.action_url || null,
+              reference_id: n.reference_id || null,
+              reference_type: n.reference_type || null,
             }))
             console.log(`Processed ${notificationsWithActionUrl.length} notifications with action_url`)
             setNotifications(notificationsWithActionUrl)

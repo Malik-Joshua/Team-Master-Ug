@@ -296,14 +296,21 @@ export default function DataAdminDashboard() {
       setSelectedMatchForStats('')
       
       // Reload matches
-      const { data: matchesData } = await supabase
-        .from('matches')
-        .select('id, match_date, opponent, venue, tournament_type')
-        .order('match_date', { ascending: false })
-        .limit(50)
+      try {
+        const { data: matchesData, error: reloadError } = await supabase
+          .from('matches')
+          .select('id, match_date, opponent, venue, tournament_type')
+          .order('match_date', { ascending: false })
+          .limit(100)
 
-      if (matchesData) {
-        setMatches(matchesData)
+        if (reloadError) {
+          console.error('Error reloading matches:', reloadError)
+        } else if (matchesData) {
+          setMatches(matchesData)
+          console.log('Reloaded matches after save:', matchesData.length)
+        }
+      } catch (reloadErr) {
+        console.error('Error reloading matches:', reloadErr)
       }
       
       // Refresh statistics

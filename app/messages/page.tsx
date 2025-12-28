@@ -150,8 +150,8 @@ export default function MessagesPage() {
             setMessages([])
           }
 
-          // If user is a coach, admin, or team manager, fetch all users for messaging
-          if (['coach', 'admin', 'data_admin'].includes(profile.role)) {
+          // If user is a coach, admin, team manager, or finance admin, fetch users for messaging
+          if (['coach', 'admin', 'data_admin', 'finance_admin'].includes(profile.role)) {
             // Use API route to fetch all users (bypasses RLS)
             try {
               const usersResponse = await fetch('/api/messages/users')
@@ -238,6 +238,18 @@ export default function MessagesPage() {
         setTeamManagers(allUsersData.filter((u: UserProfile) => u.role === 'data_admin'))
         setFinanceAdmins(allUsersData.filter((u: UserProfile) => u.role === 'finance_admin'))
         setAdmins(allUsersData.filter((u: UserProfile) => u.role === 'admin'))
+      }
+    } else if (userRole === 'finance_admin') {
+      // Finance admin can only message general admin
+      const { data: adminsData } = await supabase
+        .from('user_profiles')
+        .select('user_id, name, role, email')
+        .eq('role', 'admin')
+        .neq('user_id', currentUserId)
+        .order('name', { ascending: true })
+
+      if (adminsData) {
+        setAdmins(adminsData as UserProfile[])
       }
     }
   }
@@ -671,6 +683,107 @@ export default function MessagesPage() {
           } catch (reloadError) {
             console.error('Error reloading messages:', reloadError)
           }
+        }
+      } else if (user?.role === 'finance_admin') {
+        // Finance admin can only send to general admin
+        if (!composeData.recipientId) {
+          alert('Please select a general admin recipient')
+          return
+        }
+
+        // Verify the recipient is actually an admin
+        const { data: recipientProfile } = await supabase
+          .from('user_profiles')
+          .select('role')
+          .eq('user_id', composeData.recipientId)
+          .single()
+
+        if (!recipientProfile || recipientProfile.role !== 'admin') {
+          alert('You can only send messages to general administrators')
+          return
+        }
+
+        const { data: newMessage, error } = await supabase
+          .from('messages')
+          .insert({
+            sender_id: authUser.id,
+            recipient_id: composeData.recipientId,
+            recipient_role: 'admin',
+            subject: composeData.subject,
+            message: composeData.message,
+          })
+          .select(`
+            *,
+            sender:user_profiles!messages_sender_id_fkey(name, role)
+          `)
+          .single()
+
+        if (error) throw error
+
+        // Create notification for recipient
+        if (composeData.recipientId && newMessage) {
+          const { db } = await import('@/lib/db-helpers')
+          try {
+            await db.createNotification({
+              user_id: composeData.recipientId,
+              title: 'New Message',
+              message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
+              type: 'info',
+              action_url: '/messages',
+              reference_id: newMessage.id,
+              reference_type: 'message',
+            })
+            console.log('Notification created for recipient:', composeData.recipientId)
+          } catch (notifError) {
+            console.error('Error creating notification:', notifError)
+            // Don't fail the message send if notification creation fails
+          }
+        }
+
+        // Get recipient info for the sent message
+        let recipientName = 'Unknown'
+        if (composeData.recipientId) {
+          const { data: recipientProfile } = await supabase
+            .from('user_profiles')
+            .select('name, role')
+            .eq('user_id', composeData.recipientId)
+            .single()
+          
+          if (recipientProfile) {
+            recipientName = recipientProfile.name
+          }
+        }
+        
+        // Add to local state (as a sent message)
+        const formattedMessage: Message = {
+          id: newMessage.id,
+          sender_id: authUser.id,
+          sender_name: user.name,
+          sender_role: user.role,
+          recipient_id: composeData.recipientId || '',
+          recipient_name: recipientName,
+          recipient_role: 'admin',
+          subject: newMessage.subject || '',
+          message: newMessage.message,
+          read: false,
+          created_at: newMessage.created_at,
+          is_sent: true,
+        }
+
+        setMessages([formattedMessage, ...messages])
+        setComposeData({ recipientType: 'role', recipient: '', recipientId: '', selectedRoles: [], subject: '', message: '' })
+        setShowCompose(false)
+        alert('Message sent successfully!')
+        
+        // Reload messages to ensure sync
+        try {
+          const response = await fetch('/api/messages', { cache: 'no-store' })
+          if (response.ok) {
+            const data = await response.json()
+            setMessages(data.messages || [])
+          }
+        } catch (reloadError) {
+          console.error('Error reloading messages:', reloadError)
         }
       } else {
         // For other roles (players, etc.)
@@ -1204,6 +1317,28 @@ export default function MessagesPage() {
                     </div>
                   )}
                 </>
+              ) : user?.role === 'finance_admin' ? (
+                <div>
+                  <label className="block text-sm font-medium text-neutral-medium mb-2">
+                    To (General Admin)
+                  </label>
+                  <select
+                    value={composeData.recipientId}
+                    onChange={(e) => setComposeData({ ...composeData, recipientId: e.target.value, recipient: '' })}
+                    className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                  >
+                    <option value="">Select general admin...</option>
+                    {admins.length > 0 && (
+                      <optgroup label="General Administrators">
+                        {admins.map((admin) => (
+                          <option key={admin.user_id} value={admin.user_id}>
+                            {admin.name} (Admin)
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                  </select>
+                </div>
               ) : (
                 <div>
                   <label className="block text-sm font-medium text-neutral-medium mb-2">

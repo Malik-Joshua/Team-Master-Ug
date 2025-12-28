@@ -30,10 +30,10 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Only allow admin, coach, and data_admin (team manager) to fetch all users
-    if (!['admin', 'coach', 'data_admin'].includes(profile.role)) {
+    // Only allow admin, coach, data_admin (team manager), and finance_admin to fetch users
+    if (!['admin', 'coach', 'data_admin', 'finance_admin'].includes(profile.role)) {
       return NextResponse.json(
-        { error: 'Unauthorized: Admin/Coach/Team Manager access required' },
+        { error: 'Unauthorized: Admin/Coach/Team Manager/Finance Admin access required' },
         { status: 403 }
       )
     }

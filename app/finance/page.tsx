@@ -81,6 +81,14 @@ export default function FinancePage() {
     items: [{ item_name: '', category: '', quantity: '1', unit_price: '', total_amount: '', notes: '' }],
   })
   const [savingBudget, setSavingBudget] = useState(false)
+  const [showAttendanceView, setShowAttendanceView] = useState(false)
+  const [trainingSessions, setTrainingSessions] = useState<any[]>([])
+  const [matches, setMatches] = useState<any[]>([])
+  const [selectedSessionId, setSelectedSessionId] = useState<string>('')
+  const [selectedMatchId, setSelectedMatchId] = useState<string>('')
+  const [sessionAttendance, setSessionAttendance] = useState<any>(null)
+  const [matchAttendance, setMatchAttendance] = useState<any>(null)
+  const [loadingAttendance, setLoadingAttendance] = useState(false)
 
   useEffect(() => {
     const loadData = async () => {
@@ -457,13 +465,22 @@ export default function FinancePage() {
           </div>
           <div className="flex items-center space-x-3">
             {user?.role === 'finance_admin' && (
-              <button
-                onClick={() => setShowBudgetModal(true)}
-                className="bg-info text-white px-6 py-3 rounded-button font-semibold hover:bg-info-dark transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
-              >
-                <FileText className="w-5 h-5 mr-2" />
-                Create Budget
-              </button>
+              <>
+                <button
+                  onClick={() => setShowAttendanceView(!showAttendanceView)}
+                  className="bg-primary text-white px-6 py-3 rounded-button font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
+                >
+                  <Calendar className="w-5 h-5 mr-2" />
+                  View Attendance
+                </button>
+                <button
+                  onClick={() => setShowBudgetModal(true)}
+                  className="bg-info text-white px-6 py-3 rounded-button font-semibold hover:bg-info-dark transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
+                >
+                  <FileText className="w-5 h-5 mr-2" />
+                  Create Budget
+                </button>
+              </>
             )}
             <button
               onClick={() => setShowRevenueModal(true)}

@@ -64,7 +64,7 @@ export default function FixturesPage() {
           .eq('user_id', authUser.id)
           .single()
 
-        if (!profile || (profile.role !== 'coach' && profile.role !== 'admin' && profile.role !== 'data_admin')) {
+        if (!profile || (profile.role !== 'coach' && profile.role !== 'admin')) {
           router.push('/dashboard')
           return
         }
@@ -199,7 +199,7 @@ export default function FixturesPage() {
     )
   }
 
-  if (!user || (user.role !== 'coach' && user.role !== 'admin' && user.role !== 'data_admin')) {
+  if (!user || (user.role !== 'coach' && user.role !== 'admin')) {
     return null
   }
 

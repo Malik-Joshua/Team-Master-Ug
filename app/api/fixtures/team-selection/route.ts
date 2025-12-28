@@ -193,9 +193,9 @@ export async function POST(request: NextRequest) {
       .eq('user_id', authUser.id)
       .single()
 
-    if (!profile || (profile.role !== 'coach' && profile.role !== 'admin' && profile.role !== 'data_admin')) {
+    if (!profile || (profile.role !== 'coach' && profile.role !== 'admin')) {
       return NextResponse.json(
-        { error: 'Only coaches, admins, and data admins can select teams' },
+        { error: 'Only coaches and admins can select teams' },
         { status: 403 }
       )
     }

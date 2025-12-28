@@ -223,6 +223,11 @@ export default function DataAdminDashboard() {
   }, [])
 
   const handleSaveMatch = async () => {
+    if (!selectedMatchForStats) {
+      alert('Please select a match first')
+      return
+    }
+
     if (!matchForm.match_date || !matchForm.opponent) {
       alert('Please fill in match date and opponent')
       return
@@ -238,10 +243,10 @@ export default function DataAdminDashboard() {
         return
       }
 
-      // Create match record
-      const { data: match, error: matchError } = await supabase
+      // Update existing match record with stats
+      const { error: matchError } = await supabase
         .from('matches')
-        .insert({
+        .update({
           match_date: matchForm.match_date,
           opponent: matchForm.opponent,
           tournament_type: matchForm.tournament_type,
@@ -250,28 +255,39 @@ export default function DataAdminDashboard() {
           score_our_team: parseInt(matchForm.score_our_team) || 0,
           score_opponent: parseInt(matchForm.score_opponent) || 0,
           notes: matchForm.notes || null,
-          created_by: authUser.id,
         })
-        .select('id')
-        .single()
+        .eq('id', selectedMatchForStats)
 
       if (matchError) throw matchError
 
-      // Create match stats for each player
+      // Get selected team for this match (if exists)
+      const { data: teamSelectionData } = await supabase
+        .from('fixture_team_selections')
+        .select('player_id')
+        .eq('match_id', selectedMatchForStats)
+
+      const selectedPlayerIds = teamSelectionData?.map((s: any) => s.player_id) || []
+
+      // Create match stats only for selected players (if team is selected)
+      // If no team selected, allow all players
       const statsToInsert = Object.entries(playerStats)
         .filter(([playerId, stats]) => {
-          // Only include players with at least one stat entered
+          // Only include players who are in the selected team (if team exists) AND have at least one stat entered
+          const isInSelectedTeam = selectedPlayerIds.length === 0 || selectedPlayerIds.includes(playerId)
           return (
-            parseInt(stats.tackles_made) > 0 ||
-            parseInt(stats.tackles_missed) > 0 ||
-            parseInt(stats.ball_handling_errors) > 0 ||
-            parseInt(stats.ball_carries) > 0 ||
-            parseInt(stats.tries_scored) > 0 ||
-            parseInt(stats.minutes_played) > 0
+            isInSelectedTeam &&
+            (
+              parseInt(stats.tackles_made) > 0 ||
+              parseInt(stats.tackles_missed) > 0 ||
+              parseInt(stats.ball_handling_errors) > 0 ||
+              parseInt(stats.ball_carries) > 0 ||
+              parseInt(stats.tries_scored) > 0 ||
+              parseInt(stats.minutes_played) > 0
+            )
           )
         })
         .map(([playerId, stats]) => ({
-          match_id: match.id,
+          match_id: selectedMatchForStats,
           player_id: playerId,
           tackles_made: parseInt(stats.tackles_made) || 0,
           tackles_missed: parseInt(stats.tackles_missed) || 0,
@@ -282,6 +298,12 @@ export default function DataAdminDashboard() {
         }))
 
       if (statsToInsert.length > 0) {
+        // Delete existing stats for this match first
+        await supabase
+          .from('match_stats')
+          .delete()
+          .eq('match_id', selectedMatchForStats)
+
         const { error: statsError } = await supabase
           .from('match_stats')
           .insert(statsToInsert)
@@ -303,6 +325,23 @@ export default function DataAdminDashboard() {
       })
       setPlayerStats({})
       setSelectedMatchForStats('')
+      
+      // Reload matches to refresh the list
+      try {
+        const { data: matchesData, error: reloadError } = await supabase
+          .from('matches')
+          .select('id, match_date, opponent, venue, tournament_type')
+          .order('match_date', { ascending: false })
+          .limit(100)
+
+        if (reloadError) {
+          console.error('Error reloading matches:', reloadError)
+        } else if (matchesData) {
+          setMatches(matchesData)
+        }
+      } catch (reloadErr) {
+        console.error('Error reloading matches:', reloadErr)
+      }
       
       // Reload matches
       try {
@@ -544,31 +583,21 @@ export default function DataAdminDashboard() {
               </div>
 
               <div className="p-6 space-y-6 max-h-[calc(100vh-200px)] overflow-y-auto">
-                {/* Match Selection */}
-                <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                  <h3 className="text-lg font-semibold text-neutral-text mb-4">Select or Create Match</h3>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-neutral-medium mb-2">
-                      Select Existing Match (or leave blank to create new)
-                    </label>
-                    <select
-                      value={selectedMatchForStats}
-                      onChange={(e) => {
-                        setSelectedMatchForStats(e.target.value)
-                        if (e.target.value) {
-                          // Load match details
-                          const match = matches.find(m => m.id === e.target.value)
-                          if (match) {
-                            setMatchForm({
-                              ...matchForm,
-                              match_date: match.match_date,
-                              opponent: match.opponent,
-                              tournament_type: match.tournament_type as any,
-                              venue: match.venue || '',
-                            })
-                          }
-                        } else {
-                          // Reset form for new match
+                {/* Show selected match info if a match is pre-selected */}
+                {selectedMatchForStats && (
+                  <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-lg font-semibold text-neutral-text mb-2">
+                          Entering Stats for: vs {matchForm.opponent}
+                        </h3>
+                        <p className="text-sm text-neutral-medium">
+                          {new Date(matchForm.match_date).toLocaleDateString()} • {matchForm.tournament_type.replace('_', ' ')}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setSelectedMatchForStats('')
                           setMatchForm({
                             match_date: '',
                             opponent: '',
@@ -579,20 +608,61 @@ export default function DataAdminDashboard() {
                             score_opponent: '0',
                             notes: '',
                           })
-                        }
-                        setPlayerStats({})
-                      }}
-                      className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
-                    >
-                      <option value="">Create New Match</option>
-                      {matches.map((match) => (
-                        <option key={match.id} value={match.id}>
-                          {new Date(match.match_date).toLocaleDateString()} - vs {match.opponent} ({match.tournament_type})
-                        </option>
-                      ))}
-                    </select>
+                          setPlayerStats({})
+                        }}
+                        className="text-neutral-medium hover:text-neutral-text"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )}
+
+                {/* Match Selection - Only show if no match is pre-selected */}
+                {!selectedMatchForStats && (
+                  <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                    <h3 className="text-lg font-semibold text-neutral-text mb-4">Select Match for Stats</h3>
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-neutral-medium mb-2">
+                        Select Existing Match
+                      </label>
+                      <select
+                        value={selectedMatchForStats}
+                        onChange={(e) => {
+                          setSelectedMatchForStats(e.target.value)
+                          if (e.target.value) {
+                            // Load match details
+                            const match = matches.find(m => m.id === e.target.value)
+                            if (match) {
+                              setMatchForm({
+                                match_date: match.match_date,
+                                opponent: match.opponent,
+                                tournament_type: match.tournament_type as any,
+                                venue: match.venue || '',
+                                result: 'win',
+                                score_our_team: '0',
+                                score_opponent: '0',
+                                notes: '',
+                              })
+                            }
+                          }
+                          setPlayerStats({})
+                        }}
+                        className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                      >
+                        <option value="">Select a match...</option>
+                        {matches.map((match) => (
+                          <option key={match.id} value={match.id}>
+                            {new Date(match.match_date).toLocaleDateString()} - vs {match.opponent} ({match.tournament_type})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <p className="text-sm text-blue-700">
+                      <strong>Note:</strong> To create a new fixture, use the "Create Fixture" button in the header.
+                    </p>
+                  </div>
+                )}
 
                 {/* Match Information */}
                 <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">

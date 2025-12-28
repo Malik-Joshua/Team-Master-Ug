@@ -85,7 +85,7 @@ export default function PhysioDashboard() {
 
     if (error) {
       console.error('Error loading injuries:', error)
-      return
+            return
     }
 
     if (injuriesData) {
@@ -108,81 +108,81 @@ export default function PhysioDashboard() {
     const loadData = async () => {
       const supabase = createClient()
       const { data: { user: authUser } } = await supabase.auth.getUser()
-      
+
       if (!authUser) {
         setLoading(false)
         return
       }
 
-      const { data: profile } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('user_id', authUser.id)
-        .single()
-
-      if (profile) {
-        setUser(profile)
-
-        // Fetch players
-        const { data: playersData } = await supabase
+        const { data: profile } = await supabase
           .from('user_profiles')
+          .select('*')
+          .eq('user_id', authUser.id)
+          .single()
+
+        if (profile) {
+          setUser(profile)
+
+          // Fetch players
+          const { data: playersData } = await supabase
+            .from('user_profiles')
           .select('user_id, name, position, jersey_number')
-          .eq('role', 'player')
-          .order('name', { ascending: true })
+            .eq('role', 'player')
+            .order('name', { ascending: true })
 
-        if (playersData) {
-          // Fetch player details
-          const playersWithDetails = await Promise.all(
-            playersData.map(async (p) => {
-              const { data: playerData } = await supabase
-                .from('players')
-                .select('position, jersey_number')
-                .eq('user_id', p.user_id)
-                .single()
-              
-              return {
-                ...p,
-                position: playerData?.position,
-                jersey_number: playerData?.jersey_number,
-              } as Player
-            })
-          )
-          setPlayers(playersWithDetails)
-        }
+          if (playersData) {
+            // Fetch player details
+            const playersWithDetails = await Promise.all(
+              playersData.map(async (p) => {
+                const { data: playerData } = await supabase
+                  .from('players')
+                  .select('position, jersey_number')
+                  .eq('user_id', p.user_id)
+                  .single()
+                
+                return {
+                  ...p,
+                  position: playerData?.position,
+                  jersey_number: playerData?.jersey_number,
+                } as Player
+              })
+            )
+            setPlayers(playersWithDetails)
+          }
 
-        // Fetch injuries
-        await loadInjuries()
+          // Fetch injuries
+          await loadInjuries()
 
-        // Load training sessions and games attended
-        try {
-          const { db } = await import('@/lib/db-helpers')
-          const sessionsCount = await db.getTotalTrainingSessions()
-          const matchesCount = await db.getTotalMatches()
-          setTrainingSessionsAttended(sessionsCount)
-          setGamesAttended(matchesCount)
-        } catch (error) {
-          console.error('Error loading physio stats:', error)
-        }
+          // Load training sessions and games attended
+          try {
+            const { db } = await import('@/lib/db-helpers')
+            const sessionsCount = await db.getTotalTrainingSessions()
+            const matchesCount = await db.getTotalMatches()
+            setTrainingSessionsAttended(sessionsCount)
+            setGamesAttended(matchesCount)
+          } catch (error) {
+            console.error('Error loading physio stats:', error)
+          }
 
-        // Load team selection for upcoming fixture
-        try {
-          setLoadingTeamSelection(true)
-          const matchesResponse = await fetch('/api/fixtures')
-          if (matchesResponse.ok) {
-            const matchesData = await matchesResponse.json()
-            if (matchesData.fixtures && matchesData.fixtures.length > 0) {
-              const latestMatch = matchesData.fixtures[0]
-              const selectionResponse = await fetch(`/api/fixtures/team-selection?matchId=${latestMatch.id}`)
-              if (selectionResponse.ok) {
-                const selectionData = await selectionResponse.json()
-                setTeamSelection(selectionData)
+          // Load team selection for upcoming fixture
+          try {
+            setLoadingTeamSelection(true)
+            const matchesResponse = await fetch('/api/fixtures')
+            if (matchesResponse.ok) {
+              const matchesData = await matchesResponse.json()
+              if (matchesData.fixtures && matchesData.fixtures.length > 0) {
+                const latestMatch = matchesData.fixtures[0]
+                const selectionResponse = await fetch(`/api/fixtures/team-selection?matchId=${latestMatch.id}`)
+                if (selectionResponse.ok) {
+                  const selectionData = await selectionResponse.json()
+                  setTeamSelection(selectionData)
+                }
               }
             }
-          }
-        } catch (error) {
-          console.error('Error loading team selection:', error)
-        } finally {
-          setLoadingTeamSelection(false)
+          } catch (error) {
+            console.error('Error loading team selection:', error)
+          } finally {
+            setLoadingTeamSelection(false)
         }
       }
       setLoading(false)

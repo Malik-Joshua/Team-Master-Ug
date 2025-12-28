@@ -73,8 +73,8 @@ export default function PlayersPage() {
         .eq('user_id', authUser.id)
         .single()
       
-      if (profile) {
-        setUser(profile)
+        if (profile) {
+          setUser(profile)
         
         // Fetch players - use API route for admin to bypass RLS, otherwise direct query
         if (profile.role === 'admin' || profile.role === 'coach' || profile.role === 'data_admin') {

@@ -73,8 +73,8 @@ export default function TrainingPage() {
       const { data: { user: authUser } } = await supabase.auth.getUser()
       
       if (!authUser) {
-        setLoading(false)
-        return
+            setLoading(false)
+            return
       }
 
       if (authUser) {

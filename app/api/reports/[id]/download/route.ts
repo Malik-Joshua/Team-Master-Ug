@@ -118,7 +118,7 @@ export async function GET(
     const titleWidth = doc.getTextWidth(report.title)
     doc.text(report.title, (pageWidth - titleWidth) / 2, yPosition)
     yPosition += lineHeight * 2
-
+    
     // Add report metadata
     doc.setFontSize(12)
     doc.setFont('helvetica', 'normal')

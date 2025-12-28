@@ -88,8 +88,8 @@ export default function FinancePage() {
       const { data: { user: authUser } } = await supabase.auth.getUser()
       
       if (!authUser) {
-        setLoading(false)
-        return
+            setLoading(false)
+            return
       }
 
       if (authUser) {
@@ -225,8 +225,8 @@ export default function FinancePage() {
     if (totalAmount === 0) {
       // Fallback to calculating from items if total_amount is not provided
       totalAmount = budgetForm.items.reduce((sum, item) => {
-        return sum + (parseFloat(item.total_amount) || 0)
-      }, 0)
+      return sum + (parseFloat(item.total_amount) || 0)
+    }, 0)
     }
 
     if (totalAmount === 0) {

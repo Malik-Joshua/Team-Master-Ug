@@ -360,23 +360,33 @@ export default function MessagesPage() {
                   subject: composeData.subject,
                   message: composeData.message,
                 })
+                .select('id, recipient_id')
+                .single()
             )
 
-            await Promise.all(messagePromises)
+            const messageResults = await Promise.all(messagePromises)
             
-            // Create notifications for recipients
+            // Create notifications for recipients with message references
             try {
               const { db } = await import('@/lib/db-helpers')
-              await db.createNotificationForUsers(
-                recipients.map((r: { user_id: string }) => r.user_id),
-                {
-                  title: 'New Message',
-                  message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
-                  type: 'info',
-                  action_url: '/messages',
+              // Create individual notifications with message IDs
+              const notificationPromises = messageResults.map((result: any) => {
+                if (result.data && result.data.id) {
+                  return db.createNotification({
+                    user_id: result.data.recipient_id,
+                    title: 'New Message',
+                    message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
+                    type: 'info',
+                    action_url: '/messages',
+                    reference_id: result.data.id,
+                    reference_type: 'message',
+                  })
                 }
-              )
-              console.log(`Notifications created for ${recipients.length} recipient(s)`)
+                return Promise.resolve(null)
+              })
+              
+              await Promise.all(notificationPromises)
+              console.log(`Notifications created for ${messageResults.length} recipient(s)`)
             } catch (notifError) {
               console.error('Error creating notifications:', notifError)
               // Don't fail the message send if notification creation fails
@@ -420,6 +430,8 @@ export default function MessagesPage() {
               message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
               type: 'info',
               action_url: '/messages',
+              reference_id: newMessage?.id,
+              reference_type: 'message',
             })
             console.log('Notification created for recipient:', composeData.recipientId)
           } catch (notifError) {
@@ -506,22 +518,32 @@ export default function MessagesPage() {
                 subject: composeData.subject,
                 message: composeData.message,
               })
+              .select('id, recipient_id')
+              .single()
           )
 
-          await Promise.all(messagePromises)
+          const messageResults = await Promise.all(messagePromises)
             
-            // Create notifications for recipients
+            // Create notifications for recipients with message references
             try {
               const { db } = await import('@/lib/db-helpers')
-              await db.createNotificationForUsers(
-                recipients.map((r: { user_id: string }) => r.user_id),
-                {
-                  title: 'New Message',
-                  message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
-                  type: 'info',
-                  action_url: '/messages',
+              // Create individual notifications with message IDs
+              const notificationPromises = messageResults.map((result: any) => {
+                if (result.data && result.data.id) {
+                  return db.createNotification({
+                    user_id: result.data.recipient_id,
+                    title: 'New Message',
+                    message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
+                    type: 'info',
+                    action_url: '/messages',
+                    reference_id: result.data.id,
+                    reference_type: 'message',
+                  })
                 }
-              )
+                return Promise.resolve(null)
+              })
+              
+              await Promise.all(notificationPromises)
               console.log(`Notifications created for ${recipients.length} recipient(s)`)
             } catch (notifError) {
               console.error('Error creating notifications:', notifError)
@@ -582,8 +604,8 @@ export default function MessagesPage() {
 
           if (error) throw error
 
-          // Create notification for recipient
-          if (recipientId) {
+          // Create notification for recipient with message reference
+          if (recipientId && newMessage) {
             const { db } = await import('@/lib/db-helpers')
             try {
               await db.createNotification({
@@ -592,8 +614,10 @@ export default function MessagesPage() {
                 message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
                 type: 'info',
                 action_url: '/messages',
+                reference_id: newMessage.id,
+                reference_type: 'message',
               })
-              console.log('Notification created for recipient:', recipientId)
+              console.log('Notification created for recipient:', recipientId, 'with message ID:', newMessage.id)
             } catch (notifError) {
               console.error('Error creating notification:', notifError)
               // Don't fail the message send if notification creation fails
@@ -673,7 +697,7 @@ export default function MessagesPage() {
               const recipients = data.recipients || []
 
               if (recipients && recipients.length > 0) {
-              // Send message to each recipient
+              // Send message to each recipient and capture message IDs
               const messagePromises = recipients.map((recipient: { user_id: string }) =>
                 supabase
                   .from('messages')
@@ -684,25 +708,33 @@ export default function MessagesPage() {
                     subject: composeData.subject,
                     message: composeData.message,
                   })
+                  .select('id, recipient_id')
+                  .single()
               )
 
-              await Promise.all(messagePromises)
+              const messageResults = await Promise.all(messagePromises)
               
-              // Create notifications for recipients
+              // Create notifications for recipients with message references
               try {
                 const { db } = await import('@/lib/db-helpers')
-                const recipientIds = recipients.map((r: { user_id: string }) => r.user_id)
-                console.log(`Creating notifications for ${recipientIds.length} recipients:`, recipientIds)
-                const result = await db.createNotificationForUsers(
-                  recipientIds,
-                  {
-                    title: 'New Message',
-                    message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
-                    type: 'info',
-                    action_url: '/messages',
+                // Create individual notifications with message IDs
+                const notificationPromises = messageResults.map((result: any) => {
+                  if (result.data && result.data.id) {
+                    return db.createNotification({
+                      user_id: result.data.recipient_id,
+                      title: 'New Message',
+                      message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
+                      type: 'info',
+                      action_url: '/messages',
+                      reference_id: result.data.id,
+                      reference_type: 'message',
+                    })
                   }
-                )
-                console.log(`Notifications created successfully:`, result)
+                  return Promise.resolve(null)
+                })
+                
+                await Promise.all(notificationPromises)
+                console.log(`Notifications created successfully for ${messageResults.length} messages`)
               } catch (notifError) {
                 console.error('Error creating notifications:', notifError)
                 console.error('Notification error details:', JSON.stringify(notifError, null, 2))

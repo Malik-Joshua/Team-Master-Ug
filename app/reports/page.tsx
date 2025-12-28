@@ -140,7 +140,7 @@ export default function ReportsPage() {
       }
 
       setReports([formattedReport, ...reports])
-
+      
       // Simulate report generation (in production, this would be a background job)
       setTimeout(async () => {
         const { error: updateError } = await supabase
@@ -149,12 +149,12 @@ export default function ReportsPage() {
           .eq('id', newReport.id)
 
         if (!updateError) {
-          setReports((prev) =>
-            prev.map((r) => (r.id === newReport.id ? { ...r, status: 'ready' as const } : r))
-          )
+        setReports((prev) =>
+          prev.map((r) => (r.id === newReport.id ? { ...r, status: 'ready' as const } : r))
+        )
         }
       }, 2000)
-
+      
       alert('Report generation started! It will be ready shortly.')
     } catch (error: any) {
       console.error('Error generating report:', error)
@@ -450,11 +450,11 @@ export default function ReportsPage() {
                       <div className="flex items-center space-x-3">
                         {report.status === 'ready' && (
                           <div className="relative download-menu-container">
-                            <button
+                          <button
                               onClick={() => setShowDownloadMenu(showDownloadMenu === report.id ? null : report.id)}
                               disabled={downloadingReport === report.id}
                               className="px-4 py-2 bg-club-gradient text-white rounded-button font-medium hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center disabled:opacity-50"
-                            >
+                          >
                               {downloadingReport === report.id ? (
                                 <>
                                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
@@ -462,8 +462,8 @@ export default function ReportsPage() {
                                 </>
                               ) : (
                                 <>
-                                  <Download className="w-4 h-4 mr-2" />
-                                  Download
+                            <Download className="w-4 h-4 mr-2" />
+                            Download
                                   <ChevronDown className="w-4 h-4 ml-2" />
                                 </>
                               )}
@@ -490,7 +490,7 @@ export default function ReportsPage() {
                                 >
                                   <FileText className="w-4 h-4 text-info" />
                                   <span>Download as CSV</span>
-                                </button>
+                          </button>
                               </div>
                             )}
                           </div>

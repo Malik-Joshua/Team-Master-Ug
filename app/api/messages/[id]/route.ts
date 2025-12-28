@@ -85,28 +85,53 @@ export async function PATCH(
     }
 
     // Find and mark related notifications as read
-    // Notifications for messages typically have "New Message" in the title
+    // First try to find by reference_id (most accurate)
     try {
-      const { data: notifications } = await supabaseAdmin
+      const { data: notificationsByReference } = await supabaseAdmin
         .from('notifications')
         .select('id')
         .eq('user_id', authUser.id)
         .eq('read', false)
-        .ilike('title', '%New Message%')
-        .order('created_at', { ascending: false })
-        .limit(10)
+        .eq('reference_type', 'message')
+        .eq('reference_id', messageId)
 
-      if (notifications && notifications.length > 0) {
-        // Mark the most recent unread message notification as read
+      if (notificationsByReference && notificationsByReference.length > 0) {
+        // Mark all notifications linked to this message as read
         const { error: notifError } = await supabaseAdmin
           .from('notifications')
           .update({ read: true })
-          .eq('id', notifications[0].id)
+          .in('id', notificationsByReference.map(n => n.id))
 
         if (notifError) {
           console.error('Error marking notification as read:', notifError)
         } else {
-          console.log('Marked notification as read:', notifications[0].id)
+          console.log(`Marked ${notificationsByReference.length} notification(s) as read for message ${messageId}`)
+        }
+      } else {
+        // Fallback: Find notifications with "New Message" in title and action_url pointing to messages
+        // This handles older notifications that don't have reference_id
+        const { data: notifications } = await supabaseAdmin
+          .from('notifications')
+          .select('id')
+          .eq('user_id', authUser.id)
+          .eq('read', false)
+          .ilike('title', '%New Message%')
+          .or('action_url.eq./messages,action_url.ilike.%/messages%')
+          .order('created_at', { ascending: false })
+          .limit(5)
+
+        if (notifications && notifications.length > 0) {
+          // Mark the most recent unread message notification as read
+          const { error: notifError } = await supabaseAdmin
+            .from('notifications')
+            .update({ read: true })
+            .eq('id', notifications[0].id)
+
+          if (notifError) {
+            console.error('Error marking notification as read:', notifError)
+          } else {
+            console.log('Marked notification as read (fallback):', notifications[0].id)
+          }
         }
       }
     } catch (notifError) {

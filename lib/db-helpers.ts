@@ -494,6 +494,8 @@ export const db = {
     message: string
     type?: 'info' | 'success' | 'warning' | 'error'
     action_url?: string // URL to navigate to when notification is clicked
+    reference_id?: string // ID of the related item (e.g., message ID, task ID)
+    reference_type?: string // Type of the related item (e.g., 'message', 'task', 'fixture')
   }) {
     // Use API route to create notification (server-side can access service role key)
     try {
@@ -527,6 +529,8 @@ export const db = {
     message: string
     type?: 'info' | 'success' | 'warning' | 'error'
     action_url?: string // URL to navigate to when notification is clicked
+    reference_id?: string // ID of the related item (e.g., message ID, task ID)
+    reference_type?: string // Type of the related item (e.g., 'message', 'task', 'fixture')
   }) {
     // Use API route to create notifications (server-side can access service role key)
     try {
@@ -561,6 +565,8 @@ export const db = {
     message: string
     type?: 'info' | 'success' | 'warning' | 'error'
     action_url?: string // URL to navigate to when notification is clicked
+    reference_id?: string // ID of the related item (e.g., message ID, task ID)
+    reference_type?: string // Type of the related item (e.g., 'message', 'task', 'fixture')
   }) {
     const supabase = createClient()
     

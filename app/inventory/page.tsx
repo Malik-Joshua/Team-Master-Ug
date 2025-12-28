@@ -47,14 +47,14 @@ export default function InventoryPage() {
         return
       }
 
-      const { data: profile } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('user_id', authUser.id)
-        .single()
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('user_id', authUser.id)
+          .single()
 
-      if (profile) {
-        setUser(profile)
+        if (profile) {
+          setUser(profile)
         
         // Fetch inventory items - use API route for admin/data_admin to bypass RLS
         if (profile.role === 'admin' || profile.role === 'data_admin') {
@@ -279,7 +279,7 @@ export default function InventoryPage() {
           setItems([formattedItem, ...items])
         }
       } else {
-        setItems([formattedItem, ...items])
+      setItems([formattedItem, ...items])
       }
       setFormData({ name: '', category: '', quantity: '', unit: '', location: '', description: '' })
       setShowAddModal(false)
@@ -443,13 +443,13 @@ export default function InventoryPage() {
               <Package className="w-5 h-5 mr-2" />
               Refresh
             </button>
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="bg-primary-gradient text-white px-6 py-3 rounded-button font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
-            >
-              <Plus className="w-5 h-5 mr-2" />
-              Add Item
-            </button>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="bg-primary-gradient text-white px-6 py-3 rounded-button font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
+          >
+            <Plus className="w-5 h-5 mr-2" />
+            Add Item
+          </button>
           </div>
         </div>
 

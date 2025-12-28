@@ -1344,14 +1344,14 @@ export default function DashboardPage() {
                         <td className="px-6 py-4 text-sm text-neutral-medium">{player.totalMatches || 0}</td>
                         <td className="px-6 py-4 text-sm text-neutral-medium">{player.totalTries || 0}</td>
                         <td className="px-6 py-4 text-sm text-neutral-medium">{player.totalTackles || 0}</td>
-                      </tr>
+                  </tr>
                     ))
                   ) : (
                     <tr>
                       <td colSpan={5} className="px-6 py-8 text-center text-neutral-medium">
                         No performance data available yet
                       </td>
-                    </tr>
+                  </tr>
                   )}
                 </tbody>
               </table>

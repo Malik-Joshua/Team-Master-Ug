@@ -109,13 +109,13 @@ export default function DataAdminDashboard() {
           } catch (playersError) {
             console.error('Error fetching players:', playersError)
             // Fallback to direct query
-            const { data: playersData } = await supabase
-              .from('user_profiles')
+          const { data: playersData } = await supabase
+            .from('user_profiles')
               .select('user_id, name, status')
-              .eq('role', 'player')
-              .order('name', { ascending: true })
+            .eq('role', 'player')
+            .order('name', { ascending: true })
 
-            if (playersData) {
+          if (playersData) {
               setPlayers(playersData.map((p: any) => ({
                 user_id: p.user_id,
                 name: p.name,

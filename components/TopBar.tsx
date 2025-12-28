@@ -131,7 +131,7 @@ export default function TopBar({ title, userName, userRole, userAvatar }: TopBar
                   <div className="absolute right-0 mt-2 w-80 bg-white rounded-card shadow-large border border-neutral-light z-20 max-h-96 overflow-y-auto">
                     <div className="p-4 border-b border-neutral-light flex items-center justify-between">
                       <div className="flex items-center space-x-2">
-                        <h3 className="font-bold text-neutral-text">Notifications</h3>
+                      <h3 className="font-bold text-neutral-text">Notifications</h3>
                         {unreadCount > 0 && (
                           <span className="bg-primary text-white text-xs font-bold rounded-full px-2 py-0.5">
                             {unreadCount}
@@ -148,13 +148,13 @@ export default function TopBar({ title, userName, userRole, userAvatar }: TopBar
                             <CheckCheck className="w-4 h-4" />
                           </button>
                         )}
-                        <button
-                          onClick={() => setNotificationsOpen(false)}
-                          className="p-1 hover:bg-neutral-light rounded"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => setNotificationsOpen(false)}
+                        className="p-1 hover:bg-neutral-light rounded"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
                     </div>
                     <div className="divide-y divide-neutral-light max-h-96 overflow-y-auto">
                       {notifications.length === 0 ? (
@@ -174,25 +174,25 @@ export default function TopBar({ title, userName, userRole, userAvatar }: TopBar
                             const read = notification.read || false
                             
                             return (
-                              <div
-                                key={notification.id}
+                        <div
+                          key={notification.id}
                                 onClick={() => handleNotificationClick(notification)}
-                                className={cn(
-                                  'p-4 hover:bg-neutral-light transition-colors cursor-pointer',
+                          className={cn(
+                            'p-4 hover:bg-neutral-light transition-colors cursor-pointer',
                                   !read && 'bg-blue-50/50'
-                                )}
-                              >
-                                <div className="flex items-start space-x-3">
-                                  <div
-                                    className={cn(
-                                      'w-2 h-2 rounded-full mt-2 flex-shrink-0',
+                          )}
+                        >
+                          <div className="flex items-start space-x-3">
+                            <div
+                              className={cn(
+                                'w-2 h-2 rounded-full mt-2 flex-shrink-0',
                                       type === 'info' && 'bg-primary',
                                       type === 'success' && 'bg-success',
                                       type === 'warning' && 'bg-warning',
                                       type === 'error' && 'bg-secondary'
-                                    )}
-                                  />
-                                  <div className="flex-1 min-w-0">
+                              )}
+                            />
+                            <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-1">
                                       <p className="text-sm font-semibold text-neutral-text">
                                         {title}
@@ -202,15 +202,15 @@ export default function TopBar({ title, userName, userRole, userAvatar }: TopBar
                                       )}
                                     </div>
                                     <p className="text-sm text-neutral-text">{message}</p>
-                                    <p className="text-xs text-neutral-medium mt-1">
+                              <p className="text-xs text-neutral-medium mt-1">
                                       {formatDistanceToNow(new Date(created_at), { addSuffix: true })}
-                                    </p>
-                                  </div>
+                              </p>
+                            </div>
                                   {!read && (
-                                    <div className="w-2 h-2 bg-primary rounded-full flex-shrink-0 mt-2" />
-                                  )}
-                                </div>
-                              </div>
+                              <div className="w-2 h-2 bg-primary rounded-full flex-shrink-0 mt-2" />
+                            )}
+                          </div>
+                        </div>
                             )
                           })
                       )}

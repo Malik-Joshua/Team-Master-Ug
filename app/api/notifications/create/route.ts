@@ -36,6 +36,8 @@ export async function POST(request: NextRequest) {
         message: singleNotification.message,
         type: singleNotification.type || 'info',
         action_url: singleNotification.action_url || null,
+        reference_id: singleNotification.reference_id || null,
+        reference_type: singleNotification.reference_type || null,
       }]
     } else if (userIds && Array.isArray(userIds) && userIds.length > 0) {
       // Multiple notifications creation
@@ -51,6 +53,8 @@ export async function POST(request: NextRequest) {
         message: notificationData.message,
         type: notificationData.type || 'info',
         action_url: notificationData.action_url || null,
+        reference_id: notificationData.reference_id || null,
+        reference_type: notificationData.reference_type || null,
       }))
     } else {
       return NextResponse.json(

@@ -89,8 +89,6 @@ export default function FinancePage() {
   const [sessionAttendance, setSessionAttendance] = useState<any>(null)
   const [matchAttendance, setMatchAttendance] = useState<any>(null)
   const [loadingAttendance, setLoadingAttendance] = useState(false)
-  const [showAttendanceView, setShowAttendanceView] = useState(false)
-  const [trainingSessions, setTrainingSessions] = useState<any[]>([])
   const [matches, setMatches] = useState<any[]>([])
   const [selectedSessionId, setSelectedSessionId] = useState<string>('')
   const [selectedMatchId, setSelectedMatchId] = useState<string>('')

@@ -424,6 +424,56 @@ export default function DataAdminDashboard() {
               </div>
 
               <div className="p-6 space-y-6 max-h-[calc(100vh-200px)] overflow-y-auto">
+                {/* Match Selection */}
+                <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                  <h3 className="text-lg font-semibold text-neutral-text mb-4">Select or Create Match</h3>
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-neutral-medium mb-2">
+                      Select Existing Match (or leave blank to create new)
+                    </label>
+                    <select
+                      value={selectedMatchForStats}
+                      onChange={(e) => {
+                        setSelectedMatchForStats(e.target.value)
+                        if (e.target.value) {
+                          // Load match details
+                          const match = matches.find(m => m.id === e.target.value)
+                          if (match) {
+                            setMatchForm({
+                              ...matchForm,
+                              match_date: match.match_date,
+                              opponent: match.opponent,
+                              tournament_type: match.tournament_type as any,
+                              venue: match.venue || '',
+                            })
+                          }
+                        } else {
+                          // Reset form for new match
+                          setMatchForm({
+                            match_date: '',
+                            opponent: '',
+                            tournament_type: 'friendly',
+                            venue: '',
+                            result: 'win',
+                            score_our_team: '0',
+                            score_opponent: '0',
+                            notes: '',
+                          })
+                        }
+                        setPlayerStats({})
+                      }}
+                      className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                    >
+                      <option value="">Create New Match</option>
+                      {matches.map((match) => (
+                        <option key={match.id} value={match.id}>
+                          {new Date(match.match_date).toLocaleDateString()} - vs {match.opponent} ({match.tournament_type})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
                 {/* Match Information */}
                 <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
                   <h3 className="text-lg font-semibold text-neutral-text mb-4">Match Information</h3>
@@ -527,7 +577,17 @@ export default function DataAdminDashboard() {
 
                 {/* Player Statistics */}
                 <div>
-                  <h3 className="text-lg font-semibold text-neutral-text mb-4">Player Statistics</h3>
+                  <h3 className="text-lg font-semibold text-neutral-text mb-4">
+                    Player Statistics {selectedMatchForStats && '(Only players in selected team can have stats)'}
+                  </h3>
+                  {selectedMatchForStats && (
+                    <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <p className="text-sm text-yellow-800">
+                        <strong>Note:</strong> Match stats can only be entered for players who are in the selected team for this fixture. 
+                        Make sure the team has been selected in the Fixtures page first.
+                      </p>
+                    </div>
+                  )}
                   <div className="overflow-x-auto">
                     <table className="w-full min-w-[1000px]">
                       <thead className="bg-neutral-light">
@@ -554,10 +614,21 @@ export default function DataAdminDashboard() {
                             tries_scored: '0',
                             minutes_played: '0',
                           }
+                          // Check if player is in selected team (if match is selected)
+                          const isInSelectedTeam = selectedMatchForStats 
+                            ? teamSelections.some((s: any) => s.player_id === player.user_id)
+                            : true // If no match selected, allow all players
+                          
                           return (
-                            <tr key={player.user_id} className={index % 2 === 0 ? 'bg-white' : 'bg-blue-50/30'}>
+                            <tr 
+                              key={player.user_id} 
+                              className={`${index % 2 === 0 ? 'bg-white' : 'bg-blue-50/30'} ${!isInSelectedTeam && selectedMatchForStats ? 'opacity-50' : ''}`}
+                            >
                               <td className="px-4 py-3 text-sm font-medium text-neutral-text sticky left-0 bg-inherit z-10 border-r border-neutral-light">
                                 {player.name}
+                                {!isInSelectedTeam && selectedMatchForStats && (
+                                  <span className="ml-2 text-xs text-neutral-medium">(Not in selected team)</span>
+                                )}
                               </td>
                               <td className="px-2 py-2">
                                 <input
@@ -565,7 +636,8 @@ export default function DataAdminDashboard() {
                                   min="0"
                                   value={stats.tackles_made}
                                   onChange={(e) => updatePlayerStat(player.user_id, 'tackles_made', e.target.value)}
-                                  className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm"
+                                  disabled={!isInSelectedTeam && selectedMatchForStats}
+                                  className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm disabled:bg-neutral-light disabled:cursor-not-allowed"
                                 />
                               </td>
                               <td className="px-2 py-2">
@@ -574,7 +646,8 @@ export default function DataAdminDashboard() {
                                   min="0"
                                   value={stats.tackles_missed}
                                   onChange={(e) => updatePlayerStat(player.user_id, 'tackles_missed', e.target.value)}
-                                  className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm"
+                                  disabled={!isInSelectedTeam && selectedMatchForStats}
+                                  className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm disabled:bg-neutral-light disabled:cursor-not-allowed"
                                 />
                               </td>
                               <td className="px-2 py-2">
@@ -583,7 +656,8 @@ export default function DataAdminDashboard() {
                                   min="0"
                                   value={stats.ball_handling_errors}
                                   onChange={(e) => updatePlayerStat(player.user_id, 'ball_handling_errors', e.target.value)}
-                                  className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm"
+                                  disabled={!isInSelectedTeam && selectedMatchForStats}
+                                  className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm disabled:bg-neutral-light disabled:cursor-not-allowed"
                                 />
                               </td>
                               <td className="px-2 py-2">
@@ -592,7 +666,8 @@ export default function DataAdminDashboard() {
                                   min="0"
                                   value={stats.ball_carries}
                                   onChange={(e) => updatePlayerStat(player.user_id, 'ball_carries', e.target.value)}
-                                  className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm"
+                                  disabled={!isInSelectedTeam && selectedMatchForStats}
+                                  className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm disabled:bg-neutral-light disabled:cursor-not-allowed"
                                 />
                               </td>
                               <td className="px-2 py-2">
@@ -601,7 +676,8 @@ export default function DataAdminDashboard() {
                                   min="0"
                                   value={stats.tries_scored}
                                   onChange={(e) => updatePlayerStat(player.user_id, 'tries_scored', e.target.value)}
-                                  className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm"
+                                  disabled={!isInSelectedTeam && selectedMatchForStats}
+                                  className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm disabled:bg-neutral-light disabled:cursor-not-allowed"
                                 />
                               </td>
                               <td className="px-2 py-2">
@@ -611,7 +687,8 @@ export default function DataAdminDashboard() {
                                   max="80"
                                   value={stats.minutes_played}
                                   onChange={(e) => updatePlayerStat(player.user_id, 'minutes_played', e.target.value)}
-                                  className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm"
+                                  disabled={!isInSelectedTeam && selectedMatchForStats}
+                                  className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm disabled:bg-neutral-light disabled:cursor-not-allowed"
                                 />
                               </td>
                             </tr>

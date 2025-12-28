@@ -526,22 +526,6 @@ export default function DataAdminDashboard() {
               <h1 className="text-3xl font-bold mb-2">Team Manager Control Center</h1>
               <p className="text-blue-100">Manage players, training attendance, and match statistics</p>
             </div>
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={() => setShowCreateFixtureForm(true)}
-                className="bg-white text-primary px-6 py-3 rounded-button font-semibold hover:bg-blue-50 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
-              >
-                <Plus className="w-5 h-5 mr-2" />
-                Create Fixture
-              </button>
-              <button
-                onClick={() => setShowMatchForm(true)}
-                className="bg-white text-primary px-6 py-3 rounded-button font-semibold hover:bg-blue-50 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
-              >
-                <Plus className="w-5 h-5 mr-2" />
-                Enter Match Stats
-              </button>
-            </div>
           </div>
         </div>
 
@@ -659,7 +643,7 @@ export default function DataAdminDashboard() {
                       </select>
                     </div>
                     <p className="text-sm text-blue-700">
-                      <strong>Note:</strong> To create a new fixture, use the &quot;Create Fixture&quot; button in the header.
+                      <strong>Note:</strong> To create a new fixture or enter match stats, go to the Fixtures page.
                     </p>
                   </div>
                 )}
@@ -1054,83 +1038,6 @@ export default function DataAdminDashboard() {
           </div>
         )}
 
-        {/* Fixtures List */}
-        <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-neutral-text flex items-center">
-              <Trophy className="w-6 h-6 mr-2 text-primary" />
-              Fixtures
-            </h2>
-          </div>
-
-          {matches.length === 0 ? (
-            <div className="text-center py-12 text-neutral-medium">
-              <Trophy className="w-16 h-16 mx-auto mb-4 text-neutral-light" />
-              <p className="text-lg font-semibold">No fixtures created yet</p>
-              <p className="text-sm mt-2">Click &quot;Create Fixture&quot; to add a new fixture</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {matches.map((match) => (
-                <div
-                  key={match.id}
-                  className="border-2 border-neutral-light rounded-lg p-4 hover:border-primary/50 transition-all"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-lg font-bold text-neutral-text">
-                          vs {match.opponent}
-                        </h3>
-                        <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-semibold capitalize">
-                          {match.tournament_type.replace('_', ' ')}
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-neutral-medium">
-                        <div className="flex items-center gap-2">
-                          <Calendar className="w-4 h-4" />
-                          <span>{new Date(match.match_date).toLocaleDateString('en-US', {
-                            weekday: 'short',
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric',
-                          })}</span>
-                        </div>
-                        {match.venue && (
-                          <div className="flex items-center gap-2">
-                            <MapPin className="w-4 h-4" />
-                            <span>{match.venue}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => {
-                        setSelectedMatchForStats(match.id)
-                        // Load match details into form
-                        setMatchForm({
-                          match_date: match.match_date,
-                          opponent: match.opponent,
-                          tournament_type: match.tournament_type as any,
-                          venue: match.venue || '',
-                          result: 'win',
-                          score_our_team: '0',
-                          score_opponent: '0',
-                          notes: '',
-                        })
-                        setShowMatchForm(true)
-                      }}
-                      className="ml-4 px-4 py-2 bg-primary text-white rounded-button font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Add Match Stats
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
 
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

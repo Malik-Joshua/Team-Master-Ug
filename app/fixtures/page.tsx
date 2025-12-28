@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Layout from '@/components/Layout'
-import { Users, Check, X, Save, Calendar, MapPin, Trophy } from 'lucide-react'
+import { Users, Check, X, Save, Calendar, MapPin, Trophy, Plus } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { db } from '@/lib/db-helpers'
 
@@ -64,29 +64,47 @@ export default function FixturesPage() {
           .eq('user_id', authUser.id)
           .single()
 
-        if (!profile || (profile.role !== 'coach' && profile.role !== 'admin')) {
+        if (!profile || (profile.role !== 'coach' && profile.role !== 'admin' && profile.role !== 'data_admin')) {
           router.push('/dashboard')
           return
         }
 
         setUser(profile)
 
-        // Load matches and players
-        const [matchesData, playersData] = await Promise.all([
-          db.getUpcomingMatches(),
-          db.getAvailablePlayers(),
-        ])
+        // Load matches - for data_admin, load all matches; for coach/admin, load upcoming only
+        let matchesData
+        if (profile.role === 'data_admin') {
+          // Data admin can see all matches
+          const { data: allMatches, error: matchesError } = await supabase
+            .from('matches')
+            .select('id, match_date, opponent, venue, tournament_type')
+            .order('match_date', { ascending: false })
+          
+          if (matchesError) {
+            console.error('Error loading matches:', matchesError)
+            matchesData = []
+          } else {
+            matchesData = allMatches || []
+          }
+        } else {
+          matchesData = await db.getUpcomingMatches()
+        }
 
         setMatches(matchesData)
-        // Transform players data to match Player interface
-        const transformedPlayers = (playersData || []).map((p: any) => ({
-          user_id: p.user_id,
-          name: p.name,
-          email: p.email,
-          status: p.status,
-          players: Array.isArray(p.players) ? p.players[0] : p.players,
-        }))
-        setAvailablePlayers(transformedPlayers as Player[])
+
+        // Only load players for coach/admin (data_admin doesn't select teams)
+        if (profile.role !== 'data_admin') {
+          const playersData = await db.getAvailablePlayers()
+          // Transform players data to match Player interface
+          const transformedPlayers = (playersData || []).map((p: any) => ({
+            user_id: p.user_id,
+            name: p.name,
+            email: p.email,
+            status: p.status,
+            players: Array.isArray(p.players) ? p.players[0] : p.players,
+          }))
+          setAvailablePlayers(transformedPlayers as Player[])
+        }
 
         if (matchesData.length > 0) {
           setSelectedMatchId(matchesData[0].id)
@@ -199,7 +217,7 @@ export default function FixturesPage() {
     )
   }
 
-  if (!user || (user.role !== 'coach' && user.role !== 'admin')) {
+  if (!user || (user.role !== 'coach' && user.role !== 'admin' && user.role !== 'data_admin')) {
     return null
   }
 
@@ -208,6 +226,122 @@ export default function FixturesPage() {
   const startingPlayers = selectedPlayers.filter(p => p.is_starting && !p.is_substitute)
   const substitutes = selectedPlayers.filter(p => p.is_substitute)
 
+  // For data_admin, show fixtures list with create and match stats options
+  if (user?.role === 'data_admin') {
+    const today = new Date().toISOString().split('T')[0]
+    
+    return (
+      <Layout pageTitle="Fixtures">
+        <div className="space-y-6">
+          {/* Header with Create Fixture and Enter Match Stats buttons */}
+          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-neutral-text flex items-center gap-2">
+                <Trophy className="w-6 h-6 text-primary" />
+                Fixtures
+              </h2>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => {
+                    // Navigate to create fixture - we'll add this functionality
+                    alert('Create Fixture functionality - to be implemented in modal or separate page')
+                  }}
+                  className="bg-primary text-white px-6 py-2 rounded-button font-semibold hover:opacity-90 transition-opacity flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  Create Fixture
+                </button>
+                <button
+                  onClick={() => {
+                    // Navigate to enter match stats - we'll add this functionality
+                    alert('Enter Match Stats functionality - to be implemented in modal or separate page')
+                  }}
+                  className="bg-secondary text-white px-6 py-2 rounded-button font-semibold hover:opacity-90 transition-opacity flex items-center gap-2"
+                >
+                  <Save className="w-4 h-4" />
+                  Enter Match Stats
+                </button>
+              </div>
+            </div>
+
+            {/* Fixtures List */}
+            {matches.length === 0 ? (
+              <div className="text-center py-12 text-neutral-medium">
+                <Trophy className="w-16 h-16 mx-auto mb-4 text-neutral-light" />
+                <p className="text-lg font-semibold">No fixtures created yet</p>
+                <p className="text-sm mt-2">Click &quot;Create Fixture&quot; to add a new fixture</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {matches.map((match) => {
+                  const isUpcoming = match.match_date >= today
+                  const isPlayed = !isUpcoming
+                  
+                  return (
+                    <div
+                      key={match.id}
+                      className="border-2 border-neutral-light rounded-lg p-4 hover:border-primary/50 transition-all"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <h3 className="text-lg font-bold text-neutral-text">
+                              vs {match.opponent}
+                            </h3>
+                            <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-semibold capitalize">
+                              {match.tournament_type.replace('_', ' ')}
+                            </span>
+                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                              isUpcoming 
+                                ? 'bg-green-100 text-green-700' 
+                                : 'bg-gray-100 text-gray-700'
+                            }`}>
+                              {isUpcoming ? 'Upcoming' : 'Played'}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-neutral-medium">
+                            <div className="flex items-center gap-2">
+                              <Calendar className="w-4 h-4" />
+                              <span>{new Date(match.match_date).toLocaleDateString('en-US', {
+                                weekday: 'short',
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric',
+                              })}</span>
+                            </div>
+                            {match.venue && (
+                              <div className="flex items-center gap-2">
+                                <MapPin className="w-4 h-4" />
+                                <span>{match.venue}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        {isUpcoming && (
+                          <button
+                            onClick={() => {
+                              // Navigate to enter match stats for this fixture
+                              alert(`Enter Match Stats for ${match.opponent} - to be implemented`)
+                            }}
+                            className="ml-4 px-4 py-2 bg-primary text-white rounded-button font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
+                          >
+                            <Plus className="w-4 h-4 mr-2" />
+                            Add Match Stats
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      </Layout>
+    )
+  }
+
+  // For coach/admin, show team selection interface
   return (
     <Layout pageTitle="Fixture Team Selection">
       <div className="space-y-6">

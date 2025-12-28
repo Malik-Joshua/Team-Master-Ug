@@ -848,6 +848,134 @@ export default function DataAdminDashboard() {
           </div>
         )}
 
+        {/* Create Fixture Modal */}
+        {showCreateFixtureForm && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+            <div className="bg-white rounded-card shadow-large max-w-2xl w-full border border-neutral-light">
+              <div className="p-6 border-b border-neutral-light">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-2xl font-bold text-neutral-text">Create New Fixture</h2>
+                  <button
+                    onClick={() => {
+                      setShowCreateFixtureForm(false)
+                      setFixtureForm({
+                        match_date: '',
+                        opponent: '',
+                        tournament_type: 'friendly',
+                        venue: '',
+                        notes: '',
+                      })
+                    }}
+                    className="text-neutral-medium hover:text-neutral-text"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <div className="bg-blue-50 rounded-lg p-4 border border-blue-200 mb-4">
+                  <p className="text-sm text-blue-800">
+                    <strong>Note:</strong> After creating a fixture, the coach will be able to select the team for this match on the Fixtures page.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-neutral-medium mb-2">
+                    Match Date <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={fixtureForm.match_date}
+                    onChange={(e) => setFixtureForm({ ...fixtureForm, match_date: e.target.value })}
+                    className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-neutral-medium mb-2">
+                    Opponent <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={fixtureForm.opponent}
+                    onChange={(e) => setFixtureForm({ ...fixtureForm, opponent: e.target.value })}
+                    placeholder="e.g., Heathens RFC"
+                    className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-neutral-medium mb-2">
+                    Tournament Type
+                  </label>
+                  <select
+                    value={fixtureForm.tournament_type}
+                    onChange={(e) => setFixtureForm({ ...fixtureForm, tournament_type: e.target.value as any })}
+                    className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                  >
+                    <option value="friendly">Friendly</option>
+                    <option value="league">League</option>
+                    <option value="uganda_cup">Uganda Cup</option>
+                    <option value="sevens">Sevens</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-neutral-medium mb-2">Venue</label>
+                  <input
+                    type="text"
+                    value={fixtureForm.venue}
+                    onChange={(e) => setFixtureForm({ ...fixtureForm, venue: e.target.value })}
+                    placeholder="e.g., Kyadondo Rugby Club"
+                    className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-neutral-medium mb-2">Notes</label>
+                  <textarea
+                    value={fixtureForm.notes}
+                    onChange={(e) => setFixtureForm({ ...fixtureForm, notes: e.target.value })}
+                    rows={3}
+                    placeholder="Additional fixture notes..."
+                    className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-4 border-t border-neutral-light">
+                  <button
+                    onClick={handleCreateFixture}
+                    disabled={creatingFixture}
+                    className="flex-1 px-6 py-3 bg-club-gradient text-white rounded-button hover:opacity-90 transition-all duration-300 font-semibold shadow-soft hover:shadow-medium disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center"
+                  >
+                    <Save className="w-5 h-5 mr-2" />
+                    {creatingFixture ? 'Creating...' : 'Create Fixture'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowCreateFixtureForm(false)
+                      setFixtureForm({
+                        match_date: '',
+                        opponent: '',
+                        tournament_type: 'friendly',
+                        venue: '',
+                        notes: '',
+                      })
+                    }}
+                    disabled={creatingFixture}
+                    className="px-6 py-3 bg-neutral-light text-neutral-text rounded-button hover:bg-neutral-medium transition-all duration-300 font-semibold disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* View Selected Team for Fixture */}
         <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
           <h2 className="text-2xl font-bold text-neutral-text mb-6 flex items-center">

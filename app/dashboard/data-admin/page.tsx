@@ -41,6 +41,15 @@ export default function DataAdminDashboard() {
   const [matchesCount, setMatchesCount] = useState(0)
   const [trainingSessionsCount, setTrainingSessionsCount] = useState(0)
   const [showMatchForm, setShowMatchForm] = useState(false)
+  const [showCreateFixtureForm, setShowCreateFixtureForm] = useState(false)
+  const [fixtureForm, setFixtureForm] = useState({
+    match_date: '',
+    opponent: '',
+    tournament_type: 'friendly' as 'uganda_cup' | 'league' | 'sevens' | 'friendly',
+    venue: '',
+    notes: '',
+  })
+  const [creatingFixture, setCreatingFixture] = useState(false)
   const [matchForm, setMatchForm] = useState<MatchForm>({
     match_date: '',
     opponent: '',
@@ -379,6 +388,84 @@ export default function DataAdminDashboard() {
       setTeamSelections([])
     }
   }, [selectedMatchForStats])
+
+  const handleCreateFixture = async () => {
+    if (!fixtureForm.match_date || !fixtureForm.opponent) {
+      alert('Please fill in match date and opponent')
+      return
+    }
+
+    setCreatingFixture(true)
+    try {
+      const supabase = createClient()
+      const { data: { user: authUser } } = await supabase.auth.getUser()
+
+      if (!authUser) {
+        alert('Please log in to create fixture')
+        return
+      }
+
+      // Create match/fixture record
+      const { data: match, error: matchError } = await supabase
+        .from('matches')
+        .insert({
+          match_date: fixtureForm.match_date,
+          opponent: fixtureForm.opponent,
+          tournament_type: fixtureForm.tournament_type,
+          venue: fixtureForm.venue || null,
+          notes: fixtureForm.notes || null,
+          created_by: authUser.id,
+        })
+        .select('id')
+        .single()
+
+      if (matchError) throw matchError
+
+      alert('Fixture created successfully! The coach can now select the team for this fixture.')
+      setShowCreateFixtureForm(false)
+      setFixtureForm({
+        match_date: '',
+        opponent: '',
+        tournament_type: 'friendly',
+        venue: '',
+        notes: '',
+      })
+      
+      // Reload matches
+      try {
+        const { data: matchesData, error: reloadError } = await supabase
+          .from('matches')
+          .select('id, match_date, opponent, venue, tournament_type')
+          .order('match_date', { ascending: false })
+          .limit(100)
+
+        if (reloadError) {
+          console.error('Error reloading matches:', reloadError)
+        } else if (matchesData) {
+          setMatches(matchesData)
+          console.log('Reloaded matches after creating fixture:', matchesData.length)
+        }
+      } catch (reloadErr) {
+        console.error('Error reloading matches:', reloadErr)
+      }
+
+      // Refresh statistics
+      try {
+        const statsResponse = await fetch('/api/admin/statistics')
+        if (statsResponse.ok) {
+          const statsData = await statsResponse.json()
+          setMatchesCount(statsData.totalMatches || 0)
+        }
+      } catch (refreshError) {
+        console.error('Error refreshing statistics:', refreshError)
+      }
+    } catch (error: any) {
+      console.error('Error creating fixture:', error)
+      alert(`Error creating fixture: ${error.message}`)
+    } finally {
+      setCreatingFixture(false)
+    }
+  }
 
   if (loading) {
     return (

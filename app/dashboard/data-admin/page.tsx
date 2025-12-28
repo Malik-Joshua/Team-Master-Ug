@@ -53,6 +53,11 @@ export default function DataAdminDashboard() {
   })
   const [playerStats, setPlayerStats] = useState<Record<string, PlayerStats>>({})
   const [saving, setSaving] = useState(false)
+  const [matches, setMatches] = useState<any[]>([])
+  const [selectedMatchForStats, setSelectedMatchForStats] = useState<string>('')
+  const [teamSelections, setTeamSelections] = useState<any[]>([])
+  const [selectedMatchForView, setSelectedMatchForView] = useState<string>('')
+  const [loadingTeamSelection, setLoadingTeamSelection] = useState(false)
 
   useEffect(() => {
     const loadData = async () => {
@@ -257,6 +262,18 @@ export default function DataAdminDashboard() {
         notes: '',
       })
       setPlayerStats({})
+      setSelectedMatchForStats('')
+      
+      // Reload matches
+      const { data: matchesData } = await supabase
+        .from('matches')
+        .select('id, match_date, opponent, venue, tournament_type')
+        .order('match_date', { ascending: false })
+        .limit(50)
+
+      if (matchesData) {
+        setMatches(matchesData)
+      }
       
       // Refresh statistics
       try {
@@ -286,6 +303,56 @@ export default function DataAdminDashboard() {
       },
     }))
   }
+
+  const loadTeamSelection = async (matchId: string) => {
+    if (!matchId) return
+    
+    setLoadingTeamSelection(true)
+    try {
+      const supabase = createClient()
+      const response = await fetch(`/api/fixtures/team-selection?matchId=${matchId}`)
+      
+      if (response.ok) {
+        const data = await response.json()
+        if (data.selections) {
+          // Fetch player names
+          const playerIds = data.selections.map((s: any) => s.player_id)
+          const { data: playersData } = await supabase
+            .from('user_profiles')
+            .select('user_id, name')
+            .in('user_id', playerIds)
+          
+          const playersMap = new Map((playersData || []).map((p: any) => [p.user_id, p.name]))
+          
+          const selectionsWithNames = data.selections.map((s: any) => ({
+            ...s,
+            player_name: playersMap.get(s.player_id) || 'Unknown',
+          }))
+          
+          setTeamSelections(selectionsWithNames)
+        } else {
+          setTeamSelections([])
+        }
+      } else {
+        console.error('Error loading team selection:', response.statusText)
+        setTeamSelections([])
+      }
+    } catch (error) {
+      console.error('Error loading team selection:', error)
+      setTeamSelections([])
+    } finally {
+      setLoadingTeamSelection(false)
+    }
+  }
+
+  // Load team selection when match is selected for stats
+  useEffect(() => {
+    if (selectedMatchForStats) {
+      loadTeamSelection(selectedMatchForStats)
+    } else {
+      setTeamSelections([])
+    }
+  }, [selectedMatchForStats])
 
   if (loading) {
     return (

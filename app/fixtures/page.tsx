@@ -446,38 +446,75 @@ export default function FixturesPage() {
   // Load players and team selection when match is selected for stats
   useEffect(() => {
     const loadDataForMatchStats = async () => {
-      if (!selectedMatchForStats || !showMatchForm) return
+      if (!showMatchForm) return
 
-      const supabase = createClient()
-      
-      // Load players
+      // Load players using API route to bypass RLS
       try {
-        const { data: playersData, error: playersError } = await supabase
-          .from('user_profiles')
-          .select('user_id, name')
-          .eq('role', 'player')
-          .eq('status', 'active')
-
-        if (!playersError && playersData) {
-          setPlayers(playersData)
-        }
-      } catch (error) {
-        console.error('Error loading players:', error)
-      }
-
-      // Load team selection
-      try {
-        const response = await fetch(`/api/fixtures/team-selection?matchId=${selectedMatchForStats}`)
+        const response = await fetch('/api/admin/players')
         if (response.ok) {
           const data = await response.json()
-          if (data.selections && data.selections.length > 0) {
-            setTeamSelectionsForStats(data.selections)
+          if (data.players && data.players.length > 0) {
+            // Transform to match the expected format
+            setPlayers(data.players.map((p: any) => ({
+              user_id: p.user_id,
+              name: p.name,
+            })))
+            console.log('Loaded players for match stats:', data.players.length)
           } else {
-            setTeamSelectionsForStats([])
+            setPlayers([])
+          }
+        } else {
+          console.error('Error loading players from API:', response.statusText)
+          // Fallback to direct query
+          const supabase = createClient()
+          const { data: playersData, error: playersError } = await supabase
+            .from('user_profiles')
+            .select('user_id, name')
+            .eq('role', 'player')
+            .eq('status', 'active')
+
+          if (!playersError && playersData) {
+            setPlayers(playersData)
           }
         }
       } catch (error) {
-        console.error('Error loading team selection:', error)
+        console.error('Error loading players:', error)
+        // Fallback to direct query
+        const supabase = createClient()
+        try {
+          const { data: playersData, error: playersError } = await supabase
+            .from('user_profiles')
+            .select('user_id, name')
+            .eq('role', 'player')
+            .eq('status', 'active')
+
+          if (!playersError && playersData) {
+            setPlayers(playersData)
+          }
+        } catch (fallbackError) {
+          console.error('Error in fallback player query:', fallbackError)
+        }
+      }
+
+      // Load team selection only if a match is selected
+      if (selectedMatchForStats) {
+        try {
+          const response = await fetch(`/api/fixtures/team-selection?matchId=${selectedMatchForStats}`)
+          if (response.ok) {
+            const data = await response.json()
+            if (data.selections && data.selections.length > 0) {
+              setTeamSelectionsForStats(data.selections)
+              console.log('Loaded team selections:', data.selections.length)
+            } else {
+              setTeamSelectionsForStats([])
+            }
+          }
+        } catch (error) {
+          console.error('Error loading team selection:', error)
+          setTeamSelectionsForStats([])
+        }
+      } else {
+        setTeamSelectionsForStats([])
       }
     }
 

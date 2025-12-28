@@ -735,6 +735,119 @@ export default function DataAdminDashboard() {
           </div>
         )}
 
+        {/* View Selected Team for Fixture */}
+        <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+          <h2 className="text-2xl font-bold text-neutral-text mb-6 flex items-center">
+            <Trophy className="w-6 h-6 mr-2 text-primary" />
+            View Selected Team for Fixture
+          </h2>
+          
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-neutral-medium mb-2">
+              Select Match/Fixture
+            </label>
+            <select
+              value={selectedMatchForView}
+              onChange={(e) => {
+                setSelectedMatchForView(e.target.value)
+                if (e.target.value) {
+                  loadTeamSelection(e.target.value)
+                } else {
+                  setTeamSelections([])
+                }
+              }}
+              className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+            >
+              <option value="">Select a match...</option>
+              {matches.map((match) => (
+                <option key={match.id} value={match.id}>
+                  {new Date(match.match_date).toLocaleDateString()} - vs {match.opponent} ({match.tournament_type})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {loadingTeamSelection && selectedMatchForView && (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+            </div>
+          )}
+
+          {teamSelections.length > 0 && !loadingTeamSelection && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="text-center p-4 bg-primary/10 rounded-lg">
+                  <p className="text-2xl font-bold text-primary">
+                    {teamSelections.filter((s: any) => s.is_starting && !s.is_substitute).length}
+                  </p>
+                  <p className="text-sm text-neutral-medium">Starting Players</p>
+                </div>
+                <div className="text-center p-4 bg-secondary/10 rounded-lg">
+                  <p className="text-2xl font-bold text-secondary">
+                    {teamSelections.filter((s: any) => s.is_substitute).length}
+                  </p>
+                  <p className="text-sm text-neutral-medium">Substitutes</p>
+                </div>
+                <div className="text-center p-4 bg-success/10 rounded-lg">
+                  <p className="text-2xl font-bold text-success">{teamSelections.length}</p>
+                  <p className="text-sm text-neutral-medium">Total Selected</p>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-semibold text-neutral-text mb-4">Starting Lineup</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {teamSelections
+                    .filter((s: any) => s.is_starting && !s.is_substitute)
+                    .map((selection: any) => (
+                      <div key={selection.player_id} className="p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                        <p className="font-semibold text-neutral-text">{selection.player_name}</p>
+                        {selection.position && (
+                          <p className="text-sm text-neutral-medium capitalize">
+                            {selection.position.replace('_', ' ')}
+                          </p>
+                        )}
+                        {selection.jersey_number && (
+                          <p className="text-sm text-neutral-medium">Jersey #{selection.jersey_number}</p>
+                        )}
+                      </div>
+                    ))}
+                </div>
+              </div>
+
+              {teamSelections.filter((s: any) => s.is_substitute).length > 0 && (
+                <div>
+                  <h3 className="text-lg font-semibold text-neutral-text mb-4">Substitutes</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {teamSelections
+                      .filter((s: any) => s.is_substitute)
+                      .map((selection: any) => (
+                        <div key={selection.player_id} className="p-3 bg-secondary/5 border border-secondary/20 rounded-lg">
+                          <p className="font-semibold text-neutral-text">{selection.player_name}</p>
+                          {selection.position && (
+                            <p className="text-sm text-neutral-medium capitalize">
+                              {selection.position.replace('_', ' ')}
+                            </p>
+                          )}
+                          {selection.jersey_number && (
+                            <p className="text-sm text-neutral-medium">Jersey #{selection.jersey_number}</p>
+                          )}
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {teamSelections.length === 0 && !loadingTeamSelection && selectedMatchForView && (
+            <div className="text-center py-8 text-neutral-medium">
+              <p>No team has been selected for this match yet.</p>
+              <p className="text-sm mt-2">Go to the Fixtures page to select a team.</p>
+            </div>
+          )}
+        </div>
+
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft hover-lift">

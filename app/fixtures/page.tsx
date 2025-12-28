@@ -436,9 +436,10 @@ export default function FixturesPage() {
           console.error('Error in fallback reload:', fallbackError)
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving team selection:', error)
-      alert('Error saving team selection. Please try again.')
+      const errorMessage = error?.message || 'Unknown error occurred'
+      alert(`Error saving team selection: ${errorMessage}. Please check the console for details.`)
     } finally {
       setSaving(false)
     }

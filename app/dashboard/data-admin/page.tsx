@@ -175,16 +175,29 @@ export default function DataAdminDashboard() {
             }
           }
 
-          // Load matches for match stats and team selection viewing
+          // Load matches for match stats and team selection viewing (all matches, not just upcoming)
           try {
             const { data: matchesData, error: matchesError } = await supabase
               .from('matches')
               .select('id, match_date, opponent, venue, tournament_type')
               .order('match_date', { ascending: false })
-              .limit(50)
+              .limit(100)
 
             if (matchesError) {
               console.error('Error loading matches:', matchesError)
+              // Try using API route as fallback
+              try {
+                const response = await fetch('/api/fixtures')
+                if (response.ok) {
+                  const apiData = await response.json()
+                  if (apiData.fixtures) {
+                    setMatches(apiData.fixtures)
+                    console.log('Loaded matches via API:', apiData.fixtures.length)
+                  }
+                }
+              } catch (apiErr) {
+                console.error('Error loading matches via API:', apiErr)
+              }
             } else if (matchesData) {
               setMatches(matchesData)
               console.log('Loaded matches for viewing:', matchesData.length)

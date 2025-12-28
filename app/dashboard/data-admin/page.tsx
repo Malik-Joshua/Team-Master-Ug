@@ -489,13 +489,22 @@ export default function DataAdminDashboard() {
               <h1 className="text-3xl font-bold mb-2">Team Manager Control Center</h1>
               <p className="text-blue-100">Manage players, training attendance, and match statistics</p>
             </div>
-            <button
-              onClick={() => setShowMatchForm(true)}
-              className="bg-white text-primary px-6 py-3 rounded-button font-semibold hover:bg-blue-50 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
-            >
-              <Plus className="w-5 h-5 mr-2" />
-              Enter Match Stats
-            </button>
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={() => setShowCreateFixtureForm(true)}
+                className="bg-white text-primary px-6 py-3 rounded-button font-semibold hover:bg-blue-50 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
+              >
+                <Plus className="w-5 h-5 mr-2" />
+                Create Fixture
+              </button>
+              <button
+                onClick={() => setShowMatchForm(true)}
+                className="bg-white text-primary px-6 py-3 rounded-button font-semibold hover:bg-blue-50 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
+              >
+                <Plus className="w-5 h-5 mr-2" />
+                Enter Match Stats
+              </button>
+            </div>
           </div>
         </div>
 

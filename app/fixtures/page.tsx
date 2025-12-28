@@ -258,25 +258,72 @@ export default function FixturesPage() {
       if (!selectedMatchId) return
 
       try {
-
-        const selections = await db.getFixtureTeamSelection(selectedMatchId)
-        setExistingSelection(selections)
-        
-        // Populate teamSelections map
-        const selectionsMap = new Map<string, TeamSelection>()
-        selections.forEach((sel: any) => {
-          selectionsMap.set(sel.player_id, {
-            player_id: sel.player_id,
-            position: sel.position,
-            jersey_number: sel.jersey_number,
-            is_starting: sel.is_starting,
-            is_substitute: sel.is_substitute,
-            notes: sel.notes,
+        // Use API route to fetch team selection (bypasses RLS)
+        const response = await fetch(`/api/fixtures/team-selection?matchId=${selectedMatchId}`, { cache: 'no-store' })
+        if (response.ok) {
+          const data = await response.json()
+          const selections = data.selections || []
+          setExistingSelection(selections)
+          
+          // Populate teamSelections map
+          const selectionsMap = new Map<string, TeamSelection>()
+          selections.forEach((sel: any) => {
+            selectionsMap.set(sel.player_id, {
+              player_id: sel.player_id,
+              position: sel.position,
+              jersey_number: sel.jersey_number,
+              is_starting: sel.is_starting,
+              is_substitute: sel.is_substitute,
+              notes: sel.notes,
+            })
           })
-        })
-        setTeamSelections(selectionsMap)
+          setTeamSelections(selectionsMap)
+          console.log('Loaded team selection from API:', selections.length, 'players')
+        } else {
+          console.error('Error loading team selection from API:', response.statusText)
+          // Fallback to direct query
+          try {
+            const selections = await db.getFixtureTeamSelection(selectedMatchId)
+            setExistingSelection(selections)
+            
+            const selectionsMap = new Map<string, TeamSelection>()
+            selections.forEach((sel: any) => {
+              selectionsMap.set(sel.player_id, {
+                player_id: sel.player_id,
+                position: sel.position,
+                jersey_number: sel.jersey_number,
+                is_starting: sel.is_starting,
+                is_substitute: sel.is_substitute,
+                notes: sel.notes,
+              })
+            })
+            setTeamSelections(selectionsMap)
+          } catch (fallbackError) {
+            console.error('Error in fallback team selection query:', fallbackError)
+          }
+        }
       } catch (error) {
         console.error('Error loading existing selection:', error)
+        // Fallback to direct query
+        try {
+          const selections = await db.getFixtureTeamSelection(selectedMatchId)
+          setExistingSelection(selections)
+          
+          const selectionsMap = new Map<string, TeamSelection>()
+          selections.forEach((sel: any) => {
+            selectionsMap.set(sel.player_id, {
+              player_id: sel.player_id,
+              position: sel.position,
+              jersey_number: sel.jersey_number,
+              is_starting: sel.is_starting,
+              is_substitute: sel.is_substitute,
+              notes: sel.notes,
+            })
+          })
+          setTeamSelections(selectionsMap)
+        } catch (fallbackError) {
+          console.error('Error in fallback team selection query:', fallbackError)
+        }
       }
     }
 

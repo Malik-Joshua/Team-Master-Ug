@@ -913,6 +913,7 @@ export default function DataAdminDashboard() {
                         notes: '',
                       })
                       setPlayerStats({})
+                      setSelectedMatchForStats('')
                     }}
                     disabled={saving}
                     className="px-6 py-3 bg-neutral-light text-neutral-text rounded-button hover:bg-neutral-medium transition-all duration-300 font-semibold disabled:opacity-50"

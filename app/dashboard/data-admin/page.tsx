@@ -659,7 +659,7 @@ export default function DataAdminDashboard() {
                       </select>
                     </div>
                     <p className="text-sm text-blue-700">
-                      <strong>Note:</strong> To create a new fixture, use the "Create Fixture" button in the header.
+                      <strong>Note:</strong> To create a new fixture, use the &quot;Create Fixture&quot; button in the header.
                     </p>
                   </div>
                 )}
@@ -1067,7 +1067,7 @@ export default function DataAdminDashboard() {
             <div className="text-center py-12 text-neutral-medium">
               <Trophy className="w-16 h-16 mx-auto mb-4 text-neutral-light" />
               <p className="text-lg font-semibold">No fixtures created yet</p>
-              <p className="text-sm mt-2">Click "Create Fixture" to add a new fixture</p>
+              <p className="text-sm mt-2">Click &quot;Create Fixture&quot; to add a new fixture</p>
             </div>
           ) : (
             <div className="space-y-4">

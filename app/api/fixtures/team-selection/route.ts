@@ -266,6 +266,42 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Validate that all player_ids exist in user_profiles
+    const playerIds = selections.map((s: any) => s.player_id).filter(Boolean)
+    if (playerIds.length === 0) {
+      return NextResponse.json(
+        { error: 'No valid player IDs provided' },
+        { status: 400 }
+      )
+    }
+
+    const { data: existingPlayers, error: checkError } = await supabaseAdmin
+      .from('user_profiles')
+      .select('user_id, role')
+      .in('user_id', playerIds)
+
+    if (checkError) {
+      console.error('Error checking player IDs:', checkError)
+      return NextResponse.json(
+        { error: `Failed to validate players: ${checkError.message}` },
+        { status: 500 }
+      )
+    }
+
+    const existingPlayerIds = new Set(existingPlayers?.map((p: any) => p.user_id) || [])
+    const missingPlayerIds = playerIds.filter((id: string) => !existingPlayerIds.has(id))
+
+    if (missingPlayerIds.length > 0) {
+      console.error('Invalid player IDs:', missingPlayerIds)
+      return NextResponse.json(
+        { 
+          error: `The following player IDs do not exist in user_profiles: ${missingPlayerIds.join(', ')}`,
+          invalidPlayerIds: missingPlayerIds
+        },
+        { status: 400 }
+      )
+    }
+
     // Insert new selections using service role (bypasses RLS)
     const records = selections.map((selection: any) => {
       // Validate required fields

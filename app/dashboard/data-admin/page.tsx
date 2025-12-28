@@ -174,6 +174,24 @@ export default function DataAdminDashboard() {
               setTrainingSessionsCount(trainingCount)
             }
           }
+
+          // Load matches for match stats and team selection viewing
+          try {
+            const { data: matchesData, error: matchesError } = await supabase
+              .from('matches')
+              .select('id, match_date, opponent, venue, tournament_type')
+              .order('match_date', { ascending: false })
+              .limit(50)
+
+            if (matchesError) {
+              console.error('Error loading matches:', matchesError)
+            } else if (matchesData) {
+              setMatches(matchesData)
+              console.log('Loaded matches for viewing:', matchesData.length)
+            }
+          } catch (matchesErr) {
+            console.error('Error in matches loading:', matchesErr)
+          }
         }
       }
       setLoading(false)

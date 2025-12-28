@@ -1016,6 +1016,7 @@ export default function MessagesPage() {
                         <option value="">Select recipient group...</option>
                         <option value="all_players">All Players</option>
                         <option value="all_admins">All Administrators</option>
+                        <option value="all_coaches">All Coaches</option>
                         <option value="all_physios">All Physiotherapists</option>
                       </select>
                     </div>

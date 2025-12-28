@@ -372,9 +372,32 @@ export default function FixturesPage() {
     setSaving(true)
 
     try {
-
       const selectionsArray = Array.from(teamSelections.values())
-      await db.saveFixtureTeamSelection(selectedMatchId, selectionsArray)
+      console.log('Saving team selection:', {
+        matchId: selectedMatchId,
+        selectionsCount: selectionsArray.length,
+        selections: selectionsArray
+      })
+      
+      const response = await fetch('/api/fixtures/team-selection', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          matchId: selectedMatchId,
+          selections: selectionsArray,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: response.statusText }))
+        console.error('Error saving team selection:', errorData)
+        throw new Error(errorData.error || `Failed to save team selection: ${response.status}`)
+      }
+
+      const result = await response.json()
+      console.log('Team selection saved successfully:', result)
       
       alert('Team selection saved successfully!')
       // Reload existing selection using API route

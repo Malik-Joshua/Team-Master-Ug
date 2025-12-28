@@ -124,7 +124,7 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Get team selections for this match
+    // Get team selections for this match with player names
     const { data: selections, error } = await supabaseAdmin
       .from('fixture_team_selections')
       .select('*')
@@ -138,6 +138,25 @@ export async function GET(request: NextRequest) {
         { error: `Failed to fetch team selections: ${error.message}` },
         { status: 500 }
       )
+    }
+
+    // Fetch player names using service role to bypass RLS
+    if (selections && selections.length > 0) {
+      const playerIds = selections.map((s: any) => s.player_id)
+      const { data: playersData, error: playersError } = await supabaseAdmin
+        .from('user_profiles')
+        .select('user_id, name')
+        .in('user_id', playerIds)
+
+      if (playersError) {
+        console.error('Error fetching player names:', playersError)
+      } else {
+        // Map player names to selections
+        const playersMap = new Map((playersData || []).map((p: any) => [p.user_id, p.name]))
+        selections.forEach((selection: any) => {
+          selection.player_name = playersMap.get(selection.player_id) || 'Unknown'
+        })
+      }
     }
 
     return NextResponse.json({

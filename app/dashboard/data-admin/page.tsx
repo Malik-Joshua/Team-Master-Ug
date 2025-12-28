@@ -327,32 +327,20 @@ export default function DataAdminDashboard() {
     
     setLoadingTeamSelection(true)
     try {
-      const supabase = createClient()
       const response = await fetch(`/api/fixtures/team-selection?matchId=${matchId}`)
       
       if (response.ok) {
         const data = await response.json()
-        if (data.selections) {
-          // Fetch player names
-          const playerIds = data.selections.map((s: any) => s.player_id)
-          const { data: playersData } = await supabase
-            .from('user_profiles')
-            .select('user_id, name')
-            .in('user_id', playerIds)
-          
-          const playersMap = new Map((playersData || []).map((p: any) => [p.user_id, p.name]))
-          
-          const selectionsWithNames = data.selections.map((s: any) => ({
-            ...s,
-            player_name: playersMap.get(s.player_id) || 'Unknown',
-          }))
-          
-          setTeamSelections(selectionsWithNames)
+        if (data.selections && data.selections.length > 0) {
+          // Player names are now included in the API response
+          setTeamSelections(data.selections)
+          console.log('Loaded team selections:', data.selections.length, 'players')
         } else {
           setTeamSelections([])
         }
       } else {
-        console.error('Error loading team selection:', response.statusText)
+        const errorData = await response.json().catch(() => ({ error: response.statusText }))
+        console.error('Error loading team selection:', errorData)
         setTeamSelections([])
       }
     } catch (error) {

@@ -55,8 +55,8 @@ export default function MessagesPage() {
       const { data: { user: authUser } } = await supabase.auth.getUser()
       
       if (!authUser) {
-        setLoading(false)
-        return
+            setLoading(false)
+            return
       }
 
       if (authUser) {
@@ -81,13 +81,13 @@ export default function MessagesPage() {
             } else {
               console.error('Error fetching messages from API:', response.status)
               // Fallback to direct query
-              const { data: fetchedMessages } = await supabase
-                .from('messages')
+          const { data: fetchedMessages } = await supabase
+            .from('messages')
                 .select('*')
-                .or(`sender_id.eq.${authUser.id},recipient_id.eq.${authUser.id},recipient_role.eq.${profile.role}`)
-                .order('created_at', { ascending: false })
-              
-              if (fetchedMessages) {
+            .or(`sender_id.eq.${authUser.id},recipient_id.eq.${authUser.id},recipient_role.eq.${profile.role}`)
+            .order('created_at', { ascending: false })
+
+          if (fetchedMessages) {
                 // Try to get sender info even with RLS limitations
                 const senderIds = [...new Set(fetchedMessages.map((msg: any) => msg.sender_id).filter(Boolean))]
                 let userProfilesMap: Record<string, any> = {}
@@ -126,21 +126,21 @@ export default function MessagesPage() {
                   const isSent = msg.sender_id === authUser.id
                   
                   return {
-                    id: msg.id,
+              id: msg.id,
                     sender_id: msg.sender_id,
                     sender_name: sender?.name || 'Unknown',
                     sender_role: sender?.role || 'unknown',
                     recipient_id: msg.recipient_id,
                     recipient_name: recipient?.name || 'Unknown',
                     recipient_role: recipient?.role || 'unknown',
-                    subject: msg.subject || '',
-                    message: msg.message,
-                    read: msg.read || false,
-                    created_at: msg.created_at,
+              subject: msg.subject || '',
+              message: msg.message,
+              read: msg.read || false,
+              created_at: msg.created_at,
                     is_sent: isSent,
                   }
                 })
-                setMessages(formattedMessages)
+            setMessages(formattedMessages)
               } else {
                 setMessages([])
               }
@@ -150,102 +150,32 @@ export default function MessagesPage() {
             setMessages([])
           }
 
-          // If user is a coach, fetch players, admins, and physios for messaging
-          if (profile.role === 'coach') {
-            // Fetch all players
-            const { data: playersData } = await supabase
-              .from('user_profiles')
-              .select('user_id, name, role, email')
-              .eq('role', 'player')
-              .order('name', { ascending: true })
-
-            if (playersData) {
-              setPlayers(playersData as UserProfile[])
-            }
-
-            // Fetch all admins (using API route to bypass RLS)
+          // If user is a coach, admin, or team manager, fetch all users for messaging
+          if (['coach', 'admin', 'data_admin'].includes(profile.role)) {
+            // Use API route to fetch all users (bypasses RLS)
             try {
-              const adminResponse = await fetch('/api/messages/recipients?role=admin')
-              if (adminResponse.ok) {
-                const adminData = await adminResponse.json()
-                // Fetch full profiles for admins
-                if (adminData.recipients && adminData.recipients.length > 0) {
-                  const adminIds = adminData.recipients.map((r: { user_id: string }) => r.user_id)
-                  const { data: adminsData } = await supabase
-                    .from('user_profiles')
-                    .select('user_id, name, role, email')
-                    .in('user_id', adminIds)
-                    .order('name', { ascending: true })
-                  
-                  if (adminsData) {
-                    setAdmins(adminsData as UserProfile[])
-                  }
+              const usersResponse = await fetch('/api/messages/users')
+              if (usersResponse.ok) {
+                const usersData = await usersResponse.json()
+                if (usersData.users && usersData.users.length > 0) {
+                  const allUsersList = usersData.users as UserProfile[]
+                  setAllUsers(allUsersList)
+                  setPlayers(allUsersList.filter((u: UserProfile) => u.role === 'player'))
+                  setCoaches(allUsersList.filter((u: UserProfile) => u.role === 'coach'))
+                  setPhysios(allUsersList.filter((u: UserProfile) => u.role === 'physio'))
+                  setTeamManagers(allUsersList.filter((u: UserProfile) => u.role === 'data_admin'))
+                  setFinanceAdmins(allUsersList.filter((u: UserProfile) => u.role === 'finance_admin'))
+                  setAdmins(allUsersList.filter((u: UserProfile) => ['admin', 'data_admin', 'finance_admin'].includes(u.role)))
                 }
+              } else {
+                console.error('Error fetching users via API:', usersResponse.status)
+                // Fallback to direct queries
+                await fetchUsersDirectly(supabase, authUser.id, profile.role)
               }
-            } catch (adminError) {
-              console.error('Error fetching admins via API, trying direct query:', adminError)
-              // Fallback to direct query
-              const { data: adminsData } = await supabase
-                .from('user_profiles')
-                .select('user_id, name, role, email')
-                .in('role', ['admin', 'data_admin', 'finance_admin'])
-                .order('name', { ascending: true })
-
-              if (adminsData) {
-                setAdmins(adminsData as UserProfile[])
-              }
-            }
-
-            // Fetch all physios
-            try {
-              const physioResponse = await fetch('/api/messages/recipients?role=physio')
-              if (physioResponse.ok) {
-                const physioData = await physioResponse.json()
-                if (physioData.recipients && physioData.recipients.length > 0) {
-                  const physioIds = physioData.recipients.map((r: { user_id: string }) => r.user_id)
-                  const { data: physiosData } = await supabase
-                    .from('user_profiles')
-                    .select('user_id, name, role, email')
-                    .in('user_id', physioIds)
-                    .order('name', { ascending: true })
-                  
-                  if (physiosData) {
-                    setPhysios(physiosData as UserProfile[])
-                  }
-                }
-              }
-            } catch (physioError) {
-              console.error('Error fetching physios via API, trying direct query:', physioError)
-              // Fallback to direct query
-              const { data: physiosData } = await supabase
-                .from('user_profiles')
-                .select('user_id, name, role, email')
-                .eq('role', 'physio')
-                .order('name', { ascending: true })
-
-              if (physiosData) {
-                setPhysios(physiosData as UserProfile[])
-              }
-            }
-          }
-
-          // If user is an admin, fetch all users for messaging
-          if (profile.role === 'admin') {
-            // Fetch all users grouped by role
-            const { data: allUsersData } = await supabase
-              .from('user_profiles')
-              .select('user_id, name, role, email')
-              .neq('user_id', authUser.id) // Exclude self
-              .order('name', { ascending: true })
-
-            if (allUsersData) {
-              setAllUsers(allUsersData as UserProfile[])
-              setPlayers(allUsersData.filter((u: UserProfile) => u.role === 'player'))
-              setCoaches(allUsersData.filter((u: UserProfile) => u.role === 'coach'))
-              setPhysios(allUsersData.filter((u: UserProfile) => u.role === 'physio'))
-              setTeamManagers(allUsersData.filter((u: UserProfile) => u.role === 'data_admin'))
-              setFinanceAdmins(allUsersData.filter((u: UserProfile) => u.role === 'finance_admin'))
-              setAdmins(allUsersData.filter((u: UserProfile) => u.role === 'admin'))
+            } catch (usersError) {
+              console.error('Error fetching users via API, trying direct queries:', usersError)
+              // Fallback to direct queries
+              await fetchUsersDirectly(supabase, authUser.id, profile.role)
             }
           }
         }
@@ -255,6 +185,62 @@ export default function MessagesPage() {
 
     loadData()
   }, [])
+
+  // Helper function to fetch users directly (fallback)
+  const fetchUsersDirectly = async (supabase: any, currentUserId: string, userRole: string) => {
+    if (userRole === 'coach') {
+      // Fetch all players
+      const { data: playersData } = await supabase
+        .from('user_profiles')
+        .select('user_id, name, role, email')
+        .eq('role', 'player')
+        .order('name', { ascending: true })
+
+      if (playersData) {
+        setPlayers(playersData as UserProfile[])
+      }
+
+      // Fetch all admins
+      const { data: adminsData } = await supabase
+        .from('user_profiles')
+        .select('user_id, name, role, email')
+        .in('role', ['admin', 'data_admin', 'finance_admin'])
+        .neq('user_id', currentUserId)
+        .order('name', { ascending: true })
+
+      if (adminsData) {
+        setAdmins(adminsData as UserProfile[])
+      }
+
+      // Fetch all physios
+      const { data: physiosData } = await supabase
+        .from('user_profiles')
+        .select('user_id, name, role, email')
+        .eq('role', 'physio')
+        .order('name', { ascending: true })
+
+      if (physiosData) {
+        setPhysios(physiosData as UserProfile[])
+      }
+    } else if (userRole === 'admin' || userRole === 'data_admin') {
+      // Fetch all users grouped by role
+      const { data: allUsersData } = await supabase
+        .from('user_profiles')
+        .select('user_id, name, role, email')
+        .neq('user_id', currentUserId)
+        .order('name', { ascending: true })
+
+      if (allUsersData) {
+        setAllUsers(allUsersData as UserProfile[])
+        setPlayers(allUsersData.filter((u: UserProfile) => u.role === 'player'))
+        setCoaches(allUsersData.filter((u: UserProfile) => u.role === 'coach'))
+        setPhysios(allUsersData.filter((u: UserProfile) => u.role === 'physio'))
+        setTeamManagers(allUsersData.filter((u: UserProfile) => u.role === 'data_admin'))
+        setFinanceAdmins(allUsersData.filter((u: UserProfile) => u.role === 'finance_admin'))
+        setAdmins(allUsersData.filter((u: UserProfile) => u.role === 'admin'))
+      }
+    }
+  }
 
   const markMessageAsRead = async (messageId: string) => {
     try {
@@ -478,20 +464,22 @@ export default function MessagesPage() {
         }
       } else if (user?.role === 'coach') {
         // Coach can send to players or admins
-        let recipientId: string | null = null
-        let recipientRole: string | null = null
+      let recipientId: string | null = null
+      let recipientRole: string | null = null
 
         if (composeData.recipientType === 'role') {
-          // Send to all players, all admins, or all physios
+          // Send to all players, all admins, all coaches, or all physios
           if (composeData.recipient === 'all_players') {
             recipientRole = 'player'
           } else if (composeData.recipient === 'all_admins') {
             recipientRole = 'admin' // This will be handled by API route to get all admin types
+          } else if (composeData.recipient === 'all_coaches') {
+            recipientRole = 'coach'
           } else if (composeData.recipient === 'all_physios') {
             recipientRole = 'physio'
           }
         } else {
-          // Send to individual player, admin, or physio
+          // Send to individual player, admin, coach, physio, or team manager
           recipientId = composeData.recipientId
         }
 
@@ -507,20 +495,20 @@ export default function MessagesPage() {
             const data = await response.json()
             const recipients = data.recipients || []
 
-            if (recipients && recipients.length > 0) {
-            // Send message to each recipient
+        if (recipients && recipients.length > 0) {
+          // Send message to each recipient
             const messagePromises = recipients.map((recipient: { user_id: string }) =>
-              supabase
-                .from('messages')
-                .insert({
-                  sender_id: authUser.id,
-                  recipient_id: recipient.user_id,
-                  subject: composeData.subject,
-                  message: composeData.message,
-                })
-            )
+            supabase
+              .from('messages')
+              .insert({
+                sender_id: authUser.id,
+                recipient_id: recipient.user_id,
+                subject: composeData.subject,
+                message: composeData.message,
+              })
+          )
 
-            await Promise.all(messagePromises)
+          await Promise.all(messagePromises)
             
             // Create notifications for recipients
             try {
@@ -551,7 +539,7 @@ export default function MessagesPage() {
                 setMessages(data.messages || [])
               }
               return
-            } else {
+        } else {
               const roleName = recipientRole === 'player' ? 'players' : recipientRole === 'physio' ? 'physiotherapists' : 'administrators'
               alert(`No ${roleName} found`)
               return
@@ -559,10 +547,10 @@ export default function MessagesPage() {
           } catch (fetchError: any) {
             console.error('Error fetching recipients:', fetchError)
             alert(`Error fetching recipients: ${fetchError.message || 'Unknown error'}`)
-            return
-          }
-        } else {
-          // Send to individual recipient
+          return
+        }
+      } else {
+        // Send to individual recipient
           // Get recipient role for the message
           let recipientRoleForMessage: string | null = null
           if (recipientId) {
@@ -577,11 +565,11 @@ export default function MessagesPage() {
             }
           }
           
-          const { data: newMessage, error } = await supabase
-            .from('messages')
-            .insert({
-              sender_id: authUser.id,
-              recipient_id: recipientId,
+        const { data: newMessage, error } = await supabase
+          .from('messages')
+          .insert({
+            sender_id: authUser.id,
+            recipient_id: recipientId,
               recipient_role: recipientRoleForMessage,
               subject: composeData.subject,
               message: composeData.message,
@@ -692,7 +680,7 @@ export default function MessagesPage() {
                   .insert({
                     sender_id: authUser.id,
                     recipient_id: recipient.user_id, // Always set recipient_id
-                    recipient_role: recipientRole,
+            recipient_role: recipientRole,
                     subject: composeData.subject,
                     message: composeData.message,
                   })
@@ -763,16 +751,16 @@ export default function MessagesPage() {
               sender_id: authUser.id,
               recipient_id: recipientId, // Always set recipient_id for specific recipients
               recipient_role: recipientRoleForMessage,
-              subject: composeData.subject,
-              message: composeData.message,
-            })
-            .select(`
-              *,
-              sender:user_profiles!messages_sender_id_fkey(name, role)
-            `)
-            .single()
+            subject: composeData.subject,
+            message: composeData.message,
+          })
+          .select(`
+            *,
+            sender:user_profiles!messages_sender_id_fkey(name, role)
+          `)
+          .single()
 
-          if (error) throw error
+        if (error) throw error
 
           // Create notification for recipient
           try {
@@ -808,23 +796,23 @@ export default function MessagesPage() {
           }
           
           // Add to local state (as a sent message)
-          const formattedMessage: Message = {
-            id: newMessage.id,
+        const formattedMessage: Message = {
+          id: newMessage.id,
             sender_id: authUser.id,
             sender_name: user.name,
             sender_role: user.role,
             recipient_id: recipientId || '',
             recipient_name: recipientName,
             recipient_role: recipientRole,
-            subject: newMessage.subject || '',
-            message: newMessage.message,
-            read: false,
-            created_at: newMessage.created_at,
+          subject: newMessage.subject || '',
+          message: newMessage.message,
+          read: false,
+          created_at: newMessage.created_at,
             is_sent: true,
-          }
+        }
 
-          setMessages([formattedMessage, ...messages])
-          alert('Message sent successfully!')
+        setMessages([formattedMessage, ...messages])
+        alert('Message sent successfully!')
         }
       }
 
@@ -1043,6 +1031,107 @@ export default function MessagesPage() {
                       >
                         <option value="">Select recipient...</option>
                         {players.length > 0 && (
+                        <optgroup label="Players">
+                          {players.map((player) => (
+                            <option key={player.user_id} value={player.user_id}>
+                              {player.name} (Player)
+                            </option>
+                          ))}
+                        </optgroup>
+                        )}
+                        {admins.length > 0 && (
+                        <optgroup label="Administrators">
+                          {admins.map((admin) => (
+                            <option key={admin.user_id} value={admin.user_id}>
+                              {admin.name} ({admin.role.replace('_', ' ')})
+                            </option>
+                          ))}
+                        </optgroup>
+                        )}
+                        {physios.length > 0 && (
+                          <optgroup label="Physiotherapists">
+                            {physios.map((physio) => (
+                              <option key={physio.user_id} value={physio.user_id}>
+                                {physio.name} (Physio)
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                        {coaches.length > 0 && (
+                          <optgroup label="Coaches">
+                            {coaches.map((coach) => (
+                              <option key={coach.user_id} value={coach.user_id}>
+                                {coach.name} (Coach)
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                        {teamManagers.length > 0 && (
+                          <optgroup label="Team Managers">
+                            {teamManagers.map((manager) => (
+                              <option key={manager.user_id} value={manager.user_id}>
+                                {manager.name} (Team Manager)
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                        {financeAdmins.length > 0 && (
+                          <optgroup label="Finance Admins">
+                            {financeAdmins.map((finance) => (
+                              <option key={finance.user_id} value={finance.user_id}>
+                                {finance.name} (Finance Admin)
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                      </select>
+                    </div>
+                  )}
+                </>
+              ) : user?.role === 'data_admin' ? (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-medium mb-2">
+                      Send To
+                    </label>
+                    <select
+                      value={composeData.recipientType}
+                      onChange={(e) => setComposeData({ ...composeData, recipientType: e.target.value, recipient: '', recipientId: '' })}
+                      className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                    >
+                      <option value="role">Send to Role Group</option>
+                      <option value="individual">Send to Individual</option>
+                    </select>
+                  </div>
+                  {composeData.recipientType === 'role' ? (
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-medium mb-2">
+                        Select Recipient Group
+                      </label>
+                      <select
+                        value={composeData.recipient}
+                        onChange={(e) => setComposeData({ ...composeData, recipient: e.target.value })}
+                        className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                      >
+                        <option value="">Select recipient group...</option>
+                        <option value="all_players">All Players</option>
+                        <option value="all_admins">All Administrators</option>
+                        <option value="all_coaches">All Coaches</option>
+                        <option value="all_physios">All Physiotherapists</option>
+                      </select>
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-medium mb-2">
+                        Select Individual Recipient
+                      </label>
+                      <select
+                        value={composeData.recipientId}
+                        onChange={(e) => setComposeData({ ...composeData, recipientId: e.target.value, recipient: '' })}
+                        className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                      >
+                        <option value="">Select recipient...</option>
+                        {players.length > 0 && (
                           <optgroup label="Players">
                             {players.map((player) => (
                               <option key={player.user_id} value={player.user_id}>
@@ -1051,11 +1140,11 @@ export default function MessagesPage() {
                             ))}
                           </optgroup>
                         )}
-                        {admins.length > 0 && (
-                          <optgroup label="Administrators">
-                            {admins.map((admin) => (
-                              <option key={admin.user_id} value={admin.user_id}>
-                                {admin.name} ({admin.role.replace('_', ' ')})
+                        {coaches.length > 0 && (
+                          <optgroup label="Coaches">
+                            {coaches.map((coach) => (
+                              <option key={coach.user_id} value={coach.user_id}>
+                                {coach.name} (Coach)
                               </option>
                             ))}
                           </optgroup>
@@ -1065,6 +1154,15 @@ export default function MessagesPage() {
                             {physios.map((physio) => (
                               <option key={physio.user_id} value={physio.user_id}>
                                 {physio.name} (Physio)
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                        {admins.length > 0 && (
+                          <optgroup label="Administrators">
+                            {admins.map((admin) => (
+                              <option key={admin.user_id} value={admin.user_id}>
+                                {admin.name} ({admin.role === 'admin' ? 'Admin' : admin.role === 'data_admin' ? 'Team Manager' : 'Finance Admin'})
                               </option>
                             ))}
                           </optgroup>
@@ -1196,14 +1294,14 @@ export default function MessagesPage() {
                         ) : (
                           <>
                             <span className="text-xs font-medium text-neutral-medium">From:</span>
-                            <h3 className="font-bold text-neutral-text">{message.sender_name}</h3>
-                            <span className="text-xs font-medium text-neutral-medium bg-neutral-light px-2 py-0.5 rounded-full capitalize">
-                              {message.sender_role.replace('_', ' ')}
-                            </span>
-                            {!message.read && (
-                              <span className="bg-club-gradient text-white text-xs px-2.5 py-1 rounded-full font-semibold shadow-soft">
-                                New
-                              </span>
+                        <h3 className="font-bold text-neutral-text">{message.sender_name}</h3>
+                        <span className="text-xs font-medium text-neutral-medium bg-neutral-light px-2 py-0.5 rounded-full capitalize">
+                          {message.sender_role.replace('_', ' ')}
+                        </span>
+                        {!message.read && (
+                          <span className="bg-club-gradient text-white text-xs px-2.5 py-1 rounded-full font-semibold shadow-soft">
+                            New
+                          </span>
                             )}
                           </>
                         )}
@@ -1246,8 +1344,8 @@ export default function MessagesPage() {
                             <Mail className="w-4 h-4 mr-1" />
                             To: {selectedMessage.recipient_name || 'Unknown'}
                           </div>
-                          <div className="flex items-center">
-                            <User className="w-4 h-4 mr-1" />
+                      <div className="flex items-center">
+                        <User className="w-4 h-4 mr-1" />
                             {selectedMessage.recipient_role?.replace('_', ' ') || 'unknown'}
                           </div>
                         </>
@@ -1256,11 +1354,11 @@ export default function MessagesPage() {
                           <div className="flex items-center">
                             <User className="w-4 h-4 mr-1" />
                             From: {selectedMessage.sender_name}
-                          </div>
-                          <div className="flex items-center">
-                            <Mail className="w-4 h-4 mr-1" />
-                            {selectedMessage.sender_role.replace('_', ' ')}
-                          </div>
+                      </div>
+                      <div className="flex items-center">
+                        <Mail className="w-4 h-4 mr-1" />
+                        {selectedMessage.sender_role.replace('_', ' ')}
+                      </div>
                         </>
                       )}
                       <div className="flex items-center">

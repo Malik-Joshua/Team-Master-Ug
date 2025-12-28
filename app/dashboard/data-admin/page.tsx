@@ -397,29 +397,26 @@ export default function DataAdminDashboard() {
 
     setCreatingFixture(true)
     try {
-      const supabase = createClient()
-      const { data: { user: authUser } } = await supabase.auth.getUser()
-
-      if (!authUser) {
-        alert('Please log in to create fixture')
-        return
-      }
-
-      // Create match/fixture record
-      const { data: match, error: matchError } = await supabase
-        .from('matches')
-        .insert({
+      // Use API route to create fixture (bypasses RLS)
+      const response = await fetch('/api/fixtures/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           match_date: fixtureForm.match_date,
           opponent: fixtureForm.opponent,
           tournament_type: fixtureForm.tournament_type,
           venue: fixtureForm.venue || null,
           notes: fixtureForm.notes || null,
-          created_by: authUser.id,
-        })
-        .select('id')
-        .single()
+        }),
+      })
 
-      if (matchError) throw matchError
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create fixture')
+      }
 
       alert('Fixture created successfully! The coach can now select the team for this fixture.')
       setShowCreateFixtureForm(false)
@@ -432,6 +429,7 @@ export default function DataAdminDashboard() {
       })
       
       // Reload matches
+      const supabase = createClient()
       try {
         const { data: matchesData, error: reloadError } = await supabase
           .from('matches')

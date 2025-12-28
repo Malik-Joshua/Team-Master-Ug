@@ -84,6 +84,48 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Create notifications for coaches about the new fixture
+    try {
+      // Get all coaches
+      const { data: coaches, error: coachesError } = await supabaseAdmin
+        .from('user_profiles')
+        .select('user_id')
+        .eq('role', 'coach')
+      
+      if (!coachesError && coaches && coaches.length > 0) {
+        const matchDate = new Date(match_date).toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        })
+        
+        const notifications = coaches.map((coach) => ({
+          user_id: coach.user_id,
+          title: 'New Fixture Created',
+          message: `A new fixture has been created: vs ${opponent} on ${matchDate}. Please select the team for this match.`,
+          type: 'info' as const,
+          action_url: '/fixtures',
+          reference_id: match.id,
+          reference_type: 'fixture',
+        }))
+        
+        const { error: notifError } = await supabaseAdmin
+          .from('notifications')
+          .insert(notifications)
+        
+        if (notifError) {
+          console.error('Error creating notifications for coaches:', notifError)
+          // Don't fail the fixture creation if notification fails
+        } else {
+          console.log(`Created ${notifications.length} notifications for coaches about new fixture`)
+        }
+      }
+    } catch (notifErr) {
+      console.error('Error in notification creation:', notifErr)
+      // Don't fail the fixture creation if notification fails
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Fixture created successfully',

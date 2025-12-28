@@ -119,14 +119,14 @@ export default function FixturesPage() {
 
         setUser(profile)
 
-        // Load matches - for data_admin, load all matches; for coach/admin, load upcoming only
+        // Load matches - for data_admin and coach/admin, load all matches so they can see newly created fixtures
         let matchesData
-        if (profile.role === 'data_admin') {
-          // Data admin can see all matches
+        if (profile.role === 'data_admin' || profile.role === 'coach' || profile.role === 'admin') {
+          // Load all matches (not just upcoming) so coaches can see newly created fixtures
           const { data: allMatches, error: matchesError } = await supabase
             .from('matches')
             .select('id, match_date, opponent, venue, tournament_type')
-            .order('match_date', { ascending: false })
+            .order('match_date', { ascending: true }) // Order by date ascending for coaches (upcoming first)
           
           if (matchesError) {
             console.error('Error loading matches:', matchesError)

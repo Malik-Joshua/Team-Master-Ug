@@ -96,18 +96,54 @@ export default function TrainingPage() {
         if (profile) {
           setUser(profile)
           
-          // Fetch players
-          const { data: playersData } = await supabase
-            .from('user_profiles')
-            .select('*')
-            .eq('role', 'player')
+          // Fetch all registered players using API route to bypass RLS
+          try {
+            const playersResponse = await fetch('/api/admin/players')
+            if (playersResponse.ok) {
+              const playersData = await playersResponse.json()
+              if (playersData.players && Array.isArray(playersData.players)) {
+                setPlayers(playersData.players.map((p: any) => ({
+                  id: p.user_id || p.id,
+                  name: p.name || 'Unknown',
+                  position: p.position || 'N/A',
+                })))
+                console.log(`Loaded ${playersData.players.length} players from API`)
+              }
+            } else {
+              console.error('Failed to fetch players from API:', playersResponse.status)
+              // Fallback to direct query
+              const { data: playersData } = await supabase
+                .from('user_profiles')
+                .select('user_id, name, position')
+                .eq('role', 'player')
+                .order('name', { ascending: true })
 
-          if (playersData) {
-            setPlayers(playersData.map((p: any) => ({
-              id: p.user_id,
-              name: p.name,
-              position: p.position || 'N/A',
-            })))
+              if (playersData) {
+                setPlayers(playersData.map((p: any) => ({
+                  id: p.user_id,
+                  name: p.name || 'Unknown',
+                  position: p.position || 'N/A',
+                })))
+                console.log(`Loaded ${playersData.length} players from direct query (fallback)`)
+              }
+            }
+          } catch (err) {
+            console.error('Error fetching players:', err)
+            // Fallback to direct query
+            const { data: playersData } = await supabase
+              .from('user_profiles')
+              .select('user_id, name, position')
+              .eq('role', 'player')
+              .order('name', { ascending: true })
+
+            if (playersData) {
+              setPlayers(playersData.map((p: any) => ({
+                id: p.user_id,
+                name: p.name || 'Unknown',
+                position: p.position || 'N/A',
+              })))
+              console.log(`Loaded ${playersData.length} players from direct query (error fallback)`)
+            }
           }
 
           // Fetch training sessions

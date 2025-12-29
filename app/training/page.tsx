@@ -863,19 +863,21 @@ export default function TrainingPage() {
         .delete()
         .eq('session_id', sessionId)
 
-      // Prepare attendance records
+      // Prepare attendance records - only include valid attendance codes
       const attendanceRecords = players
         .map(player => {
           const key = `${player.id}-${sessionId}`
           const code = attendance[key]
-          if (!code || (code !== 'P' && code !== 'A' && code !== 'X' && code !== 'I')) {
+          // Only include records with valid attendance codes (P, A, X, I)
+          // Exclude empty strings, null, undefined, or any other invalid values
+          if (!code || code === '' || (code !== 'P' && code !== 'A' && code !== 'X' && code !== 'I')) {
             return null
           }
           
           return {
             session_id: sessionId,
             player_id: player.id,
-            attendance_status: code,
+            attendance_status: code as 'P' | 'A' | 'X' | 'I', // Explicit type assertion
             recorded_by: authUser.id,
           }
         })
@@ -884,7 +886,9 @@ export default function TrainingPage() {
           player_id: string
           attendance_status: 'P' | 'A' | 'X' | 'I'
           recorded_by: string
-        } => item !== null)
+        } => item !== null && 
+             item.attendance_status !== '' && 
+             ['P', 'A', 'X', 'I'].includes(item.attendance_status))
 
       if (attendanceRecords.length === 0) {
         alert('Please mark attendance for at least one player')

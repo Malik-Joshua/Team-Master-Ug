@@ -58,6 +58,23 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    // Validate attendance records
+    const validStatuses = ['P', 'A', 'X', 'I']
+    const invalidRecords = attendanceRecords.filter((r: any) => 
+      !r.attendance_status || 
+      !validStatuses.includes(r.attendance_status) ||
+      !r.session_id ||
+      !r.player_id
+    )
+
+    if (invalidRecords.length > 0) {
+      console.error('Invalid attendance records:', invalidRecords)
+      return NextResponse.json(
+        { error: `Invalid attendance status values. Only 'P', 'A', 'X', 'I' are allowed. Found: ${invalidRecords.map((r: any) => r.attendance_status).join(', ')}` },
+        { status: 400 }
+      )
+    }
+
     // Validate all player_ids exist
     const playerIds = [...new Set(attendanceRecords.map((r: any) => r.player_id))]
     const { data: existingPlayers, error: playersError } = await supabaseAdmin

@@ -97,52 +97,25 @@ export default function TrainingPage() {
           setUser(profile)
           
           // Fetch all registered players using API route to bypass RLS
-          try {
-            const playersResponse = await fetch('/api/admin/players')
-            if (playersResponse.ok) {
-              const playersData = await playersResponse.json()
-              if (playersData.players && Array.isArray(playersData.players)) {
-                setPlayers(playersData.players.map((p: any) => ({
-                  id: p.user_id || p.id,
-                  name: p.name || 'Unknown',
-                  position: p.position || 'N/A',
-                })))
-                console.log(`Loaded ${playersData.players.length} players from API`)
-              }
-            } else {
-              console.error('Failed to fetch players from API:', playersResponse.status)
-              // Fallback to direct query
-              const { data: playersData } = await supabase
-                .from('user_profiles')
-                .select('user_id, name, position')
-                .eq('role', 'player')
-                .order('name', { ascending: true })
-
-              if (playersData) {
-                setPlayers(playersData.map((p: any) => ({
-                  id: p.user_id,
-                  name: p.name || 'Unknown',
-                  position: p.position || 'N/A',
-                })))
-                console.log(`Loaded ${playersData.length} players from direct query (fallback)`)
-              }
-            }
-          } catch (err) {
-            console.error('Error fetching players:', err)
-            // Fallback to direct query
+          const playersLoaded = await loadPlayers()
+          if (!playersLoaded) {
+            // Fallback to direct query if API fails
+            console.log('API route failed, trying direct query as fallback...')
             const { data: playersData } = await supabase
               .from('user_profiles')
               .select('user_id, name, position')
               .eq('role', 'player')
               .order('name', { ascending: true })
 
-            if (playersData) {
+            if (playersData && playersData.length > 0) {
               setPlayers(playersData.map((p: any) => ({
                 id: p.user_id,
                 name: p.name || 'Unknown',
                 position: p.position || 'N/A',
               })))
-              console.log(`Loaded ${playersData.length} players from direct query (error fallback)`)
+              console.log(`Loaded ${playersData.length} players from direct query (fallback)`)
+            } else {
+              console.warn('No players found via direct query either')
             }
           }
 
@@ -1627,7 +1600,33 @@ export default function TrainingPage() {
                     {players.length === 0 ? (
                       <tr>
                         <td colSpan={2} className="px-4 py-8 text-center text-neutral-medium">
-                          No players found. Please ensure players are registered in the system.
+                          <div className="space-y-2">
+                            <p className="font-semibold">No players found.</p>
+                            <p className="text-sm">Please ensure players are registered in the system.</p>
+                            <button
+                              onClick={async () => {
+                                // Reload players
+                                try {
+                                  const playersResponse = await fetch('/api/admin/players')
+                                  if (playersResponse.ok) {
+                                    const playersData = await playersResponse.json()
+                                    if (playersData.players && Array.isArray(playersData.players)) {
+                                      setPlayers(playersData.players.map((p: any) => ({
+                                        id: p.user_id || p.id,
+                                        name: p.name || 'Unknown',
+                                        position: p.position || 'N/A',
+                                      })))
+                                    }
+                                  }
+                                } catch (err) {
+                                  console.error('Error reloading players:', err)
+                                }
+                              }}
+                              className="mt-2 px-4 py-2 bg-primary text-white rounded-lg text-sm hover:opacity-90"
+                            >
+                              Refresh Players List
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ) : (

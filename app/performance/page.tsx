@@ -221,8 +221,169 @@ export default function PerformancePage() {
         // Load performance resources
         if (profile) {
           await loadPerformanceResources(profile.role)
+          setUser(profile)
+
+          if (profile.role === 'coach') {
+            // Load coach-specific data
+            try {
+              const { db } = await import('@/lib/db-helpers')
+              
+              // Training sessions conducted
+              const sessionsCount = await db.getCoachTrainingSessionsCount(authUser.id)
+              
+              // Matches attended
+              const matchesCount = await db.getCoachMatchesAttended(authUser.id)
+              const matches = await db.getCoachMatches(authUser.id)
+              
+              // Team performance stats
+              const teamPerformance = await db.getTeamPerformanceStats()
+              
+              // Players performance summary
+              const playersPerf = await db.getPlayersPerformanceSummary()
+              
+              setCoachStats({
+                trainingSessionsConducted: sessionsCount,
+                matchesAttended: matchesCount,
+              })
+              setTeamStats(teamPerformance)
+              setPlayersSummary(playersPerf)
+              setCoachMatches(matches)
+            } catch (error) {
+              console.error('Error loading coach performance data:', error)
+              // Set default values on error
+              setTeamStats({
+                totalTries: 0,
+                totalTackles: 0,
+                totalTacklesMissed: 0,
+                totalBallCarries: 0,
+                totalBallHandlingErrors: 0,
+                matchCount: 0,
+                avgTriesPerMatch: 0,
+                avgTacklesPerMatch: 0,
+                tackleSuccessRate: 0,
+              })
+            }
+          } else if (profile.role === 'data_admin') {
+            // Load Team Manager-specific data
+            try {
+              const { db } = await import('@/lib/db-helpers')
+              
+              // Game days (matches created by team manager)
+              const gameDays = await db.getTeamManagerGameDays(authUser.id)
+              
+              // Training sessions attended (where team manager recorded attendance)
+              const trainingSessions = await db.getTeamManagerTrainingSessionsAttended(authUser.id)
+              
+              // Injury reports
+              const injuries = await db.getInjuryReports()
+              
+              // Matches created by team manager
+              const matches = await db.getTeamManagerMatches(authUser.id)
+              
+              // Players performance summary
+              const playersPerf = await db.getPlayersPerformanceSummary()
+              
+              setTeamManagerStats({
+                gameDays,
+                trainingSessionsAttended: trainingSessions,
+                injuryReports: injuries.length,
+              })
+              setInjuryReports(injuries)
+              setPlayersSummary(playersPerf)
+              setTeamManagerMatches(matches)
+            } catch (error) {
+              console.error('Error loading team manager performance data:', error)
+            }
+          } else if (profile.role === 'finance_admin') {
+            // Load Club Performance data for Finance Admin
+            try {
+              const { db } = await import('@/lib/db-helpers')
+              const performance = await db.getClubFinancialPerformance()
+              setClubPerformance(performance)
+            } catch (error) {
+              console.error('Error loading club performance data:', error)
+            }
+          } else if (profile.role === 'admin') {
+            // Load Club Performance data for Admin using API route (bypasses RLS)
+            try {
+              const response = await fetch('/api/admin/performance')
+              if (response.ok) {
+                const performance = await response.json()
+                setAdminClubPerformance(performance)
+              } else {
+                const error = await response.json()
+                console.error('Error loading club performance data:', error)
+                // Fallback to db helper if API fails
+                const { db } = await import('@/lib/db-helpers')
+                const performance = await db.getClubPerformance()
+                setAdminClubPerformance(performance)
+              }
+            } catch (error) {
+              console.error('Error loading club performance data:', error)
+              // Fallback to db helper if API fails
+              try {
+                const { db } = await import('@/lib/db-helpers')
+                const performance = await db.getClubPerformance()
+                setAdminClubPerformance(performance)
+              } catch (fallbackError) {
+                console.error('Fallback also failed:', fallbackError)
+              }
+            }
+          } else if (profile.role === 'physio') {
+            // Load Physio-specific data
+            try {
+              const { db } = await import('@/lib/db-helpers')
+              const sessionsCount = await db.getTotalTrainingSessions()
+              const matchesCount = await db.getTotalMatches()
+              setPhysioStats({
+                trainingSessionsAttended: sessionsCount,
+                gamesAttended: matchesCount,
+              })
+            } catch (error) {
+              console.error('Error loading physio performance data:', error)
+            }
+          } else {
+            // Load player-specific match stats - only count games where stats have been entered
+            try {
+              const { data: matchStats } = await supabase
+                .from('match_stats')
+                .select('match_id, tries_scored, tackles_made, minutes_played')
+                .eq('player_id', authUser.id)
+
+              if (matchStats && matchStats.length > 0) {
+                // Count unique matches (games played) - only games with stats entered count
+                const uniqueMatchIds = new Set(matchStats.map(stat => stat.match_id))
+                const totalMatches = uniqueMatchIds.size
+                
+                const totalTries = matchStats.reduce((sum, stat) => sum + (stat.tries_scored || 0), 0)
+                const totalTackles = matchStats.reduce((sum, stat) => sum + (stat.tackles_made || 0), 0)
+                const totalMinutes = matchStats.reduce((sum, stat) => sum + (stat.minutes_played || 0), 0)
+
+                setPlayerStats({
+                  totalMatches: totalMatches, // Count unique matches, not total stats records
+                  totalTries,
+                  totalTackles,
+                  avgMinutes: totalMatches > 0 ? Math.round(totalMinutes / totalMatches) : 0,
+                  winRate: 0,
+                })
+              } else {
+                // No match stats means no games played
+                setPlayerStats({
+                  totalMatches: 0,
+                  totalTries: 0,
+                  totalTackles: 0,
+                  avgMinutes: 0,
+                  winRate: 0,
+                })
+              }
+            } catch (error) {
+              console.error('Error loading player performance data:', error)
+            }
+          }
         }
       }
+      
+      setLoading(false)
     }
 
     loadData()
@@ -354,175 +515,6 @@ export default function PerformancePage() {
     })
     setShowResourceModal(true)
   }
-
-        if (profile) {
-          setUser(profile)
-
-          if (profile.role === 'coach') {
-            // Load coach-specific data
-            try {
-              const { db } = await import('@/lib/db-helpers')
-              
-              // Training sessions conducted
-              const sessionsCount = await db.getCoachTrainingSessionsCount(authUser.id)
-              
-              // Matches attended
-              const matchesCount = await db.getCoachMatchesAttended(authUser.id)
-              const matches = await db.getCoachMatches(authUser.id)
-              
-              // Team performance stats
-              const teamPerformance = await db.getTeamPerformanceStats()
-              
-              // Players performance summary
-              const playersPerf = await db.getPlayersPerformanceSummary()
-              
-              setCoachStats({
-                trainingSessionsConducted: sessionsCount,
-                matchesAttended: matchesCount,
-              })
-              setTeamStats(teamPerformance)
-              setPlayersSummary(playersPerf)
-              setCoachMatches(matches)
-            } catch (error) {
-              console.error('Error loading coach performance data:', error)
-              // Set default values on error
-              setTeamStats({
-                totalTries: 0,
-                totalTackles: 0,
-                totalTacklesMissed: 0,
-                totalBallCarries: 0,
-                totalBallHandlingErrors: 0,
-                matchCount: 0,
-                avgTriesPerMatch: 0,
-                avgTacklesPerMatch: 0,
-                tackleSuccessRate: 0,
-              })
-            }
-          } else if (profile.role === 'data_admin') {
-            // Load Team Manager-specific data
-            try {
-              const { db } = await import('@/lib/db-helpers')
-              
-              // Game days (matches created by team manager)
-              const gameDays = await db.getTeamManagerGameDays(authUser.id)
-              
-              // Training sessions attended (where team manager recorded attendance)
-              const trainingSessions = await db.getTeamManagerTrainingSessionsAttended(authUser.id)
-              
-              // Injury reports
-              const injuries = await db.getInjuryReports()
-              
-              // Matches created by team manager
-              const matches = await db.getTeamManagerMatches(authUser.id)
-              
-              // Players performance summary
-              const playersPerf = await db.getPlayersPerformanceSummary()
-              
-              setTeamManagerStats({
-                gameDays,
-                trainingSessionsAttended: trainingSessions,
-                injuryReports: injuries.length,
-              })
-              setInjuryReports(injuries)
-              setPlayersSummary(playersPerf)
-              setTeamManagerMatches(matches)
-            } catch (error) {
-              console.error('Error loading team manager performance data:', error)
-            }
-          } else if (profile.role === 'finance_admin') {
-            // Load Club Performance data for Finance Admin
-            try {
-              const { db } = await import('@/lib/db-helpers')
-              const performance = await db.getClubFinancialPerformance()
-              setClubPerformance(performance)
-            } catch (error) {
-              console.error('Error loading club performance data:', error)
-            }
-          } else if (profile.role === 'admin') {
-            // Load Club Performance data for Admin using API route (bypasses RLS)
-            try {
-              const response = await fetch('/api/admin/performance')
-              if (response.ok) {
-                const performance = await response.json()
-                setAdminClubPerformance(performance)
-              } else {
-                const error = await response.json()
-                console.error('Error loading club performance data:', error)
-                // Fallback to db helper if API fails
-              const { db } = await import('@/lib/db-helpers')
-              const performance = await db.getClubPerformance()
-              setAdminClubPerformance(performance)
-              }
-            } catch (error) {
-              console.error('Error loading club performance data:', error)
-              // Fallback to db helper if API fails
-              try {
-                const { db } = await import('@/lib/db-helpers')
-                const performance = await db.getClubPerformance()
-                setAdminClubPerformance(performance)
-              } catch (fallbackError) {
-                console.error('Fallback also failed:', fallbackError)
-              }
-            }
-          } else if (profile.role === 'physio') {
-            // Load Physio-specific data
-            try {
-              const { db } = await import('@/lib/db-helpers')
-              const sessionsCount = await db.getTotalTrainingSessions()
-              const matchesCount = await db.getTotalMatches()
-              setPhysioStats({
-                trainingSessionsAttended: sessionsCount,
-                gamesAttended: matchesCount,
-              })
-            } catch (error) {
-              console.error('Error loading physio performance data:', error)
-            }
-          } else {
-            // Load player-specific match stats - only count games where stats have been entered
-            try {
-              const { data: matchStats } = await supabase
-                .from('match_stats')
-                .select('match_id, tries_scored, tackles_made, minutes_played')
-                .eq('player_id', authUser.id)
-
-              if (matchStats && matchStats.length > 0) {
-                // Count unique matches (games played) - only games with stats entered count
-                const uniqueMatchIds = new Set(matchStats.map(stat => stat.match_id))
-                const totalMatches = uniqueMatchIds.size
-                
-                const totalTries = matchStats.reduce((sum, stat) => sum + (stat.tries_scored || 0), 0)
-                const totalTackles = matchStats.reduce((sum, stat) => sum + (stat.tackles_made || 0), 0)
-                const totalMinutes = matchStats.reduce((sum, stat) => sum + (stat.minutes_played || 0), 0)
-
-                setPlayerStats({
-                  totalMatches: totalMatches, // Count unique matches, not total stats records
-                  totalTries,
-                  totalTackles,
-                  avgMinutes: totalMatches > 0 ? Math.round(totalMinutes / totalMatches) : 0,
-                  winRate: 0,
-                })
-              } else {
-                // No match stats means no games played
-                setPlayerStats({
-                  totalMatches: 0,
-                  totalTries: 0,
-                  totalTackles: 0,
-                  avgMinutes: 0,
-                  winRate: 0,
-                })
-              }
-            } catch (error) {
-              console.error('Error loading player performance data:', error)
-            }
-          }
-        }
-      }
-      
-      setLoading(false)
-    }
-
-    loadData()
-  }, [])
 
   if (loading || !user) {
     return (

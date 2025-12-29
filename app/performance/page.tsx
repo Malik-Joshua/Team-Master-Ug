@@ -89,6 +89,11 @@ export default function PerformancePage() {
   })
   const [selectedResourceType, setSelectedResourceType] = useState<string>('all')
 
+  // Debug: Log when modal state changes
+  useEffect(() => {
+    console.log('showResourceModal changed:', showResourceModal)
+  }, [showResourceModal])
+
   useEffect(() => {
     const loadData = async () => {
       setLoading(true)

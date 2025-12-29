@@ -53,16 +53,10 @@ export async function GET(request: NextRequest) {
     const resourceType = searchParams.get('type') // Optional filter by type
     const includeInactive = profile.role === 'admin' || profile.role === 'coach'
 
-    // Build query using admin client
+    // Build query using admin client - fetch resources first
     let query = supabaseAdmin
       .from('performance_resources')
-      .select(`
-        *,
-        created_by_profile:user_profiles!created_by(
-          name,
-          role
-        )
-      `)
+      .select('*')
       .order('created_at', { ascending: false })
 
     // Apply filters
@@ -85,9 +79,47 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    if (!resources || resources.length === 0) {
+      return NextResponse.json({
+        success: true,
+        resources: [],
+      })
+    }
+
+    // Fetch creator profiles separately
+    const creatorIds = [...new Set(resources.map((r: any) => r.created_by).filter(Boolean))]
+    let creatorProfilesMap: Record<string, any> = {}
+    
+    if (creatorIds.length > 0) {
+      const { data: creators, error: creatorsError } = await supabaseAdmin
+        .from('user_profiles')
+        .select('user_id, name, role')
+        .in('user_id', creatorIds)
+
+      if (creatorsError) {
+        console.error('Error fetching creator profiles:', creatorsError)
+      } else if (creators) {
+        creators.forEach((creator: any) => {
+          creatorProfilesMap[creator.user_id] = creator
+        })
+      }
+    }
+
+    // Format resources with creator info
+    const formattedResources = resources.map((resource: any) => {
+      const creator = creatorProfilesMap[resource.created_by]
+      return {
+        ...resource,
+        created_by_profile: creator ? {
+          name: creator.name,
+          role: creator.role
+        } : null
+      }
+    })
+
     return NextResponse.json({
       success: true,
-      resources: resources || [],
+      resources: formattedResources,
     })
   } catch (error: any) {
     console.error('Performance resources API error:', error)

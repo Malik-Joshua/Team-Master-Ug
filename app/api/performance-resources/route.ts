@@ -17,8 +17,26 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // Use service role to bypass RLS for fetching
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      return NextResponse.json(
+        { error: 'Server configuration error' },
+        { status: 500 }
+      )
+    }
+
+    const supabaseAdmin = createServiceClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
+
     // Get user profile to check role
-    const { data: profile } = await supabase
+    const { data: profile } = await supabaseAdmin
       .from('user_profiles')
       .select('role')
       .eq('user_id', authUser.id)
@@ -35,10 +53,16 @@ export async function GET(request: NextRequest) {
     const resourceType = searchParams.get('type') // Optional filter by type
     const includeInactive = profile.role === 'admin' || profile.role === 'coach'
 
-    // Build query
-    let query = supabase
+    // Build query using admin client
+    let query = supabaseAdmin
       .from('performance_resources')
-      .select('*, created_by_profile:user_profiles!created_by(name, role)')
+      .select(`
+        *,
+        created_by_profile:user_profiles!created_by(
+          name,
+          role
+        )
+      `)
       .order('created_at', { ascending: false })
 
     // Apply filters
@@ -56,7 +80,7 @@ export async function GET(request: NextRequest) {
     if (error) {
       console.error('Error fetching performance resources:', error)
       return NextResponse.json(
-        { error: 'Failed to fetch performance resources' },
+        { error: `Failed to fetch performance resources: ${error.message}` },
         { status: 500 }
       )
     }

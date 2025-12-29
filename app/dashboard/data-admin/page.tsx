@@ -1165,6 +1165,70 @@ export default function DataAdminDashboard() {
           )}
         </div>
 
+        {/* Recent Gym Schedules */}
+        {recentGymSchedules.length > 0 && (
+          <div className="bg-white rounded-card border border-neutral-light shadow-soft">
+            <div className="p-6 border-b border-neutral-light">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-bold text-neutral-text flex items-center gap-2">
+                  <Activity className="w-5 h-5 text-secondary" />
+                  Recent Gym Schedules
+                </h3>
+                <a
+                  href="/training"
+                  className="text-secondary hover:underline text-sm font-medium"
+                >
+                  View All →
+                </a>
+              </div>
+            </div>
+            <div className="p-6">
+              <div className="space-y-3">
+                {recentGymSchedules.map((schedule: any) => (
+                  <div key={schedule.id} className="border border-neutral-light rounded-lg p-4 hover:bg-neutral-light/50 transition-colors">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h4 className="font-semibold text-neutral-text">
+                            {schedule.description}
+                          </h4>
+                          <span className="px-2 py-1 bg-secondary/10 text-secondary rounded text-xs font-medium">
+                            Gym Session
+                          </span>
+                        </div>
+                        <div className="space-y-1 text-sm text-neutral-medium">
+                          <div className="flex items-center gap-2">
+                            <Calendar className="w-4 h-4" />
+                            <span>{new Date(schedule.schedule_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                            {schedule.schedule_time && <span>at {schedule.schedule_time}</span>}
+                          </div>
+                          {schedule.location && (
+                            <div className="flex items-center gap-2">
+                              <MapPin className="w-4 h-4" />
+                              <span>{schedule.location}</span>
+                            </div>
+                          )}
+                          {schedule.coach?.name && (
+                            <div className="flex items-center gap-2">
+                              <span>Created by {schedule.coach.name}</span>
+                            </div>
+                          )}
+                          {schedule.exercises && (
+                            <div className="mt-2 pt-2 border-t border-neutral-light">
+                              <p className="text-xs font-semibold text-neutral-medium mb-1">Exercises:</p>
+                              <p className="text-sm text-neutral-text whitespace-pre-line">{schedule.exercises}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft hover-lift">

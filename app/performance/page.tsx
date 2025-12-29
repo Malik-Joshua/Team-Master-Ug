@@ -533,6 +533,12 @@ export default function PerformancePage() {
 
   // Open resource modal for creating
   const handleNewResource = () => {
+    // Prevent multiple calls
+    if (showResourceModal) {
+      console.log('Modal already open, ignoring click')
+      return
+    }
+    
     console.log('handleNewResource called', { user: user?.role, showResourceModal })
     setEditingResource(null)
     setResourceForm({

@@ -833,15 +833,14 @@ export default function MessagesPage() {
           return
         }
 
-        // Verify the recipient is actually a team manager
-        const { data: recipientProfile } = await supabase
-          .from('user_profiles')
-          .select('role')
-          .eq('user_id', composeData.recipientId)
-          .single()
-
-        if (!recipientProfile || recipientProfile.role !== 'data_admin') {
-          alert('You can only send messages to team managers. Please select a team manager.')
+        // Verify the recipient is in the teamManagers list (already loaded from API)
+        // This is safe because the dropdown only shows valid team managers
+        const isValidTeamManager = teamManagers.some(tm => tm.user_id === composeData.recipientId)
+        
+        if (!isValidTeamManager) {
+          console.error('Invalid recipient selected:', composeData.recipientId)
+          console.log('Available team managers:', teamManagers.map(tm => ({ id: tm.user_id, name: tm.name })))
+          alert('Invalid recipient selected. Please select a team manager from the dropdown.')
           return
         }
 

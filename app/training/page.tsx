@@ -867,20 +867,20 @@ export default function TrainingPage() {
       const attendanceRecords = players
         .map(player => {
           const key = `${player.id}-${sessionId}`
-          const code: AttendanceCode | undefined = attendance[key]
-          // Only include records with valid attendance codes (P, A, X, I)
-          // Exclude empty strings, null, undefined, or any other invalid values
-          if (!code || code === '' || (code !== 'P' && code !== 'A' && code !== 'X' && code !== 'I')) {
+          const code = attendance[key]
+          
+          // Check if code is valid - handle all possible values including empty string
+          const isValidCode = code && code !== '' && (code === 'P' || code === 'A' || code === 'X' || code === 'I')
+          
+          if (!isValidCode) {
             return null
           }
           
-          // At this point, TypeScript knows code is 'P' | 'A' | 'X' | 'I'
-          const validCode = code as 'P' | 'A' | 'X' | 'I'
-          
+          // TypeScript now knows code is one of the valid values
           return {
             session_id: sessionId,
             player_id: player.id,
-            attendance_status: validCode,
+            attendance_status: code as 'P' | 'A' | 'X' | 'I',
             recorded_by: authUser.id,
           }
         })
@@ -889,7 +889,7 @@ export default function TrainingPage() {
           player_id: string
           attendance_status: 'P' | 'A' | 'X' | 'I'
           recorded_by: string
-        } => item !== null && ['P', 'A', 'X', 'I'].includes(item.attendance_status))
+        } => item !== null)
 
       if (attendanceRecords.length === 0) {
         alert('Please mark attendance for at least one player')

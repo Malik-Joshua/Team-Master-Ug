@@ -867,20 +867,23 @@ export default function TrainingPage() {
       const attendanceRecords = players
         .map(player => {
           const key = `${player.id}-${sessionId}`
-          const code = attendance[key]
+          const code: AttendanceCode | undefined = attendance[key]
           
-          // Check if code is valid - handle all possible values including empty string
-          const isValidCode = code && code !== '' && (code === 'P' || code === 'A' || code === 'X' || code === 'I')
-          
-          if (!isValidCode) {
+          // Check if code is valid - explicitly check for each valid value
+          if (!code) {
             return null
           }
           
-          // TypeScript now knows code is one of the valid values
+          // Check if it's a valid non-empty code
+          if (code !== 'P' && code !== 'A' && code !== 'X' && code !== 'I') {
+            return null
+          }
+          
+          // At this point, TypeScript knows code is 'P' | 'A' | 'X' | 'I'
           return {
             session_id: sessionId,
             player_id: player.id,
-            attendance_status: code as 'P' | 'A' | 'X' | 'I',
+            attendance_status: code,
             recorded_by: authUser.id,
           }
         })

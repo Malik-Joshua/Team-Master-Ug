@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
-import { BarChart3, TrendingUp, TrendingDown, Trophy, Target, Activity, Calendar, Users, Award, AlertCircle, DollarSign, FileText, CheckCircle } from 'lucide-react'
+import { BarChart3, TrendingUp, TrendingDown, Trophy, Target, Activity, Calendar, Users, Award, AlertCircle, DollarSign, FileText, CheckCircle, Plus, Edit, Trash2, X, Save, Utensils, Dumbbell, PlayCircle, MapPin } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import {
   Chart as ChartJS,
@@ -73,6 +73,21 @@ export default function PerformancePage() {
     trainingSessionsAttended: 0,
     gamesAttended: 0,
   })
+
+  // Performance Resources (for players and admins/coaches)
+  const [performanceResources, setPerformanceResources] = useState<any[]>([])
+  const [loadingResources, setLoadingResources] = useState(false)
+  const [showResourceModal, setShowResourceModal] = useState(false)
+  const [editingResource, setEditingResource] = useState<any>(null)
+  const [resourceForm, setResourceForm] = useState({
+    title: '',
+    description: '',
+    resource_type: 'diet_plan',
+    content: '',
+    attachment_url: '',
+    is_active: true,
+  })
+  const [selectedResourceType, setSelectedResourceType] = useState<string>('all')
 
   useEffect(() => {
     const loadData = async () => {
@@ -203,6 +218,143 @@ export default function PerformancePage() {
           .eq('user_id', authUser.id)
           .single()
 
+        // Load performance resources
+        if (profile) {
+          await loadPerformanceResources(profile.role)
+        }
+      }
+    }
+
+    loadData()
+  }, [])
+
+  // Load performance resources
+  const loadPerformanceResources = async (userRole: string) => {
+    setLoadingResources(true)
+    try {
+      const url = selectedResourceType !== 'all' 
+        ? `/api/performance-resources?type=${selectedResourceType}`
+        : '/api/performance-resources'
+      const response = await fetch(url)
+      if (response.ok) {
+        const data = await response.json()
+        setPerformanceResources(data.resources || [])
+      } else {
+        console.error('Failed to load performance resources')
+      }
+    } catch (error) {
+      console.error('Error loading performance resources:', error)
+    } finally {
+      setLoadingResources(false)
+    }
+  }
+
+  // Reload resources when filter changes
+  useEffect(() => {
+    if (user) {
+      loadPerformanceResources(user.role)
+    }
+  }, [selectedResourceType])
+
+  // Handle create/update resource
+  const handleSaveResource = async () => {
+    try {
+      const url = editingResource 
+        ? `/api/performance-resources/${editingResource.id}`
+        : '/api/performance-resources'
+      const method = editingResource ? 'PUT' : 'POST'
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(resourceForm),
+      })
+
+      if (response.ok) {
+        await loadPerformanceResources(user?.role || 'player')
+        setShowResourceModal(false)
+        setEditingResource(null)
+        setResourceForm({
+          title: '',
+          description: '',
+          resource_type: 'diet_plan',
+          content: '',
+          attachment_url: '',
+          is_active: true,
+        })
+      } else {
+        const error = await response.json()
+        alert(`Error: ${error.error}`)
+      }
+    } catch (error: any) {
+      alert(`Error: ${error.message}`)
+    }
+  }
+
+  // Handle delete resource
+  const handleDeleteResource = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this resource?')) return
+
+    try {
+      const response = await fetch(`/api/performance-resources/${id}`, {
+        method: 'DELETE',
+      })
+
+      if (response.ok) {
+        await loadPerformanceResources(user?.role || 'player')
+      } else {
+        const error = await response.json()
+        alert(`Error: ${error.error}`)
+      }
+    } catch (error: any) {
+      alert(`Error: ${error.message}`)
+    }
+  }
+
+  // Get resource type icon and label
+  const getResourceTypeInfo = (type: string) => {
+    switch (type) {
+      case 'diet_plan':
+        return { icon: Utensils, label: 'Diet Plan', color: 'bg-success' }
+      case 'gym_programme':
+        return { icon: Dumbbell, label: 'Gym Programme', color: 'bg-primary' }
+      case 'play_info':
+        return { icon: PlayCircle, label: 'Play Information', color: 'bg-info' }
+      case 'position_info':
+        return { icon: MapPin, label: 'Position Information', color: 'bg-warning' }
+      default:
+        return { icon: FileText, label: 'Resource', color: 'bg-neutral-medium' }
+    }
+  }
+
+  // Open resource modal for editing
+  const handleEditResource = (resource: any) => {
+    setEditingResource(resource)
+    setResourceForm({
+      title: resource.title,
+      description: resource.description || '',
+      resource_type: resource.resource_type,
+      content: resource.content,
+      attachment_url: resource.attachment_url || '',
+      is_active: resource.is_active,
+    })
+    setShowResourceModal(true)
+  }
+
+  // Open resource modal for creating
+  const handleNewResource = () => {
+    setEditingResource(null)
+    setResourceForm({
+      title: '',
+      description: '',
+      resource_type: 'diet_plan',
+      content: '',
+      attachment_url: '',
+      is_active: true,
+    })
+    setShowResourceModal(true)
+  }
+
         if (profile) {
           setUser(profile)
 
@@ -326,23 +478,36 @@ export default function PerformancePage() {
               console.error('Error loading physio performance data:', error)
             }
           } else {
-            // Load player-specific match stats
+            // Load player-specific match stats - only count games where stats have been entered
             try {
               const { data: matchStats } = await supabase
                 .from('match_stats')
-                .select('*')
+                .select('match_id, tries_scored, tackles_made, minutes_played')
                 .eq('player_id', authUser.id)
 
               if (matchStats && matchStats.length > 0) {
+                // Count unique matches (games played) - only games with stats entered count
+                const uniqueMatchIds = new Set(matchStats.map(stat => stat.match_id))
+                const totalMatches = uniqueMatchIds.size
+                
                 const totalTries = matchStats.reduce((sum, stat) => sum + (stat.tries_scored || 0), 0)
                 const totalTackles = matchStats.reduce((sum, stat) => sum + (stat.tackles_made || 0), 0)
                 const totalMinutes = matchStats.reduce((sum, stat) => sum + (stat.minutes_played || 0), 0)
 
                 setPlayerStats({
-                  totalMatches: matchStats.length,
+                  totalMatches: totalMatches, // Count unique matches, not total stats records
                   totalTries,
                   totalTackles,
-                  avgMinutes: Math.round(totalMinutes / matchStats.length),
+                  avgMinutes: totalMatches > 0 ? Math.round(totalMinutes / totalMatches) : 0,
+                  winRate: 0,
+                })
+              } else {
+                // No match stats means no games played
+                setPlayerStats({
+                  totalMatches: 0,
+                  totalTries: 0,
+                  totalTackles: 0,
+                  avgMinutes: 0,
                   winRate: 0,
                 })
               }
@@ -536,6 +701,27 @@ export default function PerformancePage() {
                 </table>
               </div>
             )}
+          </div>
+
+          {/* Performance Resources Management */}
+          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-neutral-text">Performance Resources</h2>
+              <button
+                onClick={handleNewResource}
+                className="bg-primary text-white px-4 py-2 rounded-lg font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
+              >
+                <Plus className="w-5 h-5 mr-2" />
+                Add Resource
+              </button>
+            </div>
+            <PerformanceResourcesManagement
+              resources={performanceResources}
+              loading={loadingResources}
+              onRefresh={() => loadPerformanceResources(user?.role || 'coach')}
+              onEdit={handleEditResource}
+              onDelete={handleDeleteResource}
+            />
           </div>
 
           {/* Recent Game Days */}
@@ -886,6 +1072,27 @@ export default function PerformancePage() {
               </div>
             </div>
           )}
+
+          {/* Performance Resources Management */}
+          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-neutral-text">Performance Resources</h2>
+              <button
+                onClick={handleNewResource}
+                className="bg-primary text-white px-4 py-2 rounded-lg font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
+              >
+                <Plus className="w-5 h-5 mr-2" />
+                Add Resource
+              </button>
+            </div>
+            <PerformanceResourcesManagement
+              resources={performanceResources}
+              loading={loadingResources}
+              onRefresh={() => loadPerformanceResources(user?.role || 'coach')}
+              onEdit={handleEditResource}
+              onDelete={handleDeleteResource}
+            />
+          </div>
         </div>
       </Layout>
     )
@@ -1114,6 +1321,27 @@ export default function PerformancePage() {
               )}
             </>
           )}
+
+          {/* Performance Resources Management */}
+          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-neutral-text">Performance Resources</h2>
+              <button
+                onClick={handleNewResource}
+                className="bg-primary text-white px-4 py-2 rounded-lg font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
+              >
+                <Plus className="w-5 h-5 mr-2" />
+                Add Resource
+              </button>
+            </div>
+            <PerformanceResourcesManagement
+              resources={performanceResources}
+              loading={loadingResources}
+              onRefresh={() => loadPerformanceResources(user?.role || 'admin')}
+              onEdit={handleEditResource}
+              onDelete={handleDeleteResource}
+            />
+          </div>
         </div>
       </Layout>
     )
@@ -1322,6 +1550,27 @@ export default function PerformancePage() {
               <p className="text-neutral-medium">Loading financial data...</p>
             </div>
           )}
+
+          {/* Performance Resources Management */}
+          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-neutral-text">Performance Resources</h2>
+              <button
+                onClick={handleNewResource}
+                className="bg-primary text-white px-4 py-2 rounded-lg font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
+              >
+                <Plus className="w-5 h-5 mr-2" />
+                Add Resource
+              </button>
+            </div>
+            <PerformanceResourcesManagement
+              resources={performanceResources}
+              loading={loadingResources}
+              onRefresh={() => loadPerformanceResources(user?.role || 'admin')}
+              onEdit={handleEditResource}
+              onDelete={handleDeleteResource}
+            />
+          </div>
         </div>
       </Layout>
     )
@@ -1551,7 +1800,334 @@ export default function PerformancePage() {
             </div>
           </div>
         </div>
+
+        {/* Performance Resources Section for Players */}
+        <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-neutral-text">Performance Resources</h2>
+            <div className="flex items-center gap-3">
+              <select
+                value={selectedResourceType}
+                onChange={(e) => setSelectedResourceType(e.target.value)}
+                className="px-4 py-2 border border-neutral-light rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="all">All Resources</option>
+                <option value="diet_plan">Diet Plans</option>
+                <option value="gym_programme">Gym Programmes</option>
+                <option value="play_info">Play Information</option>
+                <option value="position_info">Position Information</option>
+              </select>
+            </div>
+          </div>
+
+          {loadingResources ? (
+            <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+            </div>
+          ) : performanceResources.length === 0 ? (
+            <div className="text-center py-12">
+              <FileText className="w-16 h-16 text-neutral-medium mx-auto mb-4" />
+              <p className="text-neutral-medium">No performance resources available yet</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {performanceResources.map((resource) => {
+                const typeInfo = getResourceTypeInfo(resource.resource_type)
+                const Icon = typeInfo.icon
+                return (
+                  <div
+                    key={resource.id}
+                    className="border border-neutral-light rounded-lg p-6 hover:shadow-md transition-shadow"
+                  >
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className={`${typeInfo.color} p-3 rounded-lg`}>
+                          <Icon className="w-5 h-5 text-white" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-bold text-neutral-text">{resource.title}</h3>
+                          <span className="text-xs text-neutral-medium">{typeInfo.label}</span>
+                        </div>
+                      </div>
+                    </div>
+                    {resource.description && (
+                      <p className="text-sm text-neutral-medium mb-4">{resource.description}</p>
+                    )}
+                    <div className="prose prose-sm max-w-none mb-4">
+                      <div className="text-sm text-neutral-text whitespace-pre-wrap">{resource.content}</div>
+                    </div>
+                    {resource.attachment_url && (
+                      <a
+                        href={resource.attachment_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline text-sm inline-flex items-center gap-1"
+                      >
+                        <FileText className="w-4 h-4" />
+                        View Attachment
+                      </a>
+                    )}
+                    <div className="mt-4 pt-4 border-t border-neutral-light text-xs text-neutral-medium">
+                      Created {new Date(resource.created_at).toLocaleDateString()}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Resource Modal */}
+        {showResourceModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="sticky top-0 bg-white border-b border-neutral-light p-6 flex items-center justify-between">
+                <h3 className="text-2xl font-bold text-neutral-text">
+                  {editingResource ? 'Edit Resource' : 'Create New Resource'}
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowResourceModal(false)
+                    setEditingResource(null)
+                    setResourceForm({
+                      title: '',
+                      description: '',
+                      resource_type: 'diet_plan',
+                      content: '',
+                      attachment_url: '',
+                      is_active: true,
+                    })
+                  }}
+                  className="p-2 hover:bg-neutral-light rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-neutral-text mb-2">
+                    Title *
+                  </label>
+                  <input
+                    type="text"
+                    value={resourceForm.title}
+                    onChange={(e) => setResourceForm({ ...resourceForm, title: e.target.value })}
+                    className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    placeholder="Enter resource title"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-neutral-text mb-2">
+                    Resource Type *
+                  </label>
+                  <select
+                    value={resourceForm.resource_type}
+                    onChange={(e) => setResourceForm({ ...resourceForm, resource_type: e.target.value })}
+                    className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  >
+                    <option value="diet_plan">Diet Plan</option>
+                    <option value="gym_programme">Gym Programme</option>
+                    <option value="play_info">Play Information</option>
+                    <option value="position_info">Position Information</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-neutral-text mb-2">
+                    Description
+                  </label>
+                  <input
+                    type="text"
+                    value={resourceForm.description}
+                    onChange={(e) => setResourceForm({ ...resourceForm, description: e.target.value })}
+                    className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    placeholder="Brief description (optional)"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-neutral-text mb-2">
+                    Content *
+                  </label>
+                  <textarea
+                    value={resourceForm.content}
+                    onChange={(e) => setResourceForm({ ...resourceForm, content: e.target.value })}
+                    className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary min-h-[200px]"
+                    placeholder="Enter the resource content (supports markdown)"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-neutral-text mb-2">
+                    Attachment URL (optional)
+                  </label>
+                  <input
+                    type="url"
+                    value={resourceForm.attachment_url}
+                    onChange={(e) => setResourceForm({ ...resourceForm, attachment_url: e.target.value })}
+                    className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    placeholder="https://example.com/file.pdf"
+                  />
+                </div>
+                {(user?.role === 'admin' || user?.role === 'coach') && (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="is_active"
+                      checked={resourceForm.is_active}
+                      onChange={(e) => setResourceForm({ ...resourceForm, is_active: e.target.checked })}
+                      className="w-4 h-4"
+                    />
+                    <label htmlFor="is_active" className="text-sm text-neutral-text">
+                      Active (visible to players)
+                    </label>
+                  </div>
+                )}
+                <div className="flex items-center justify-end gap-3 pt-4">
+                  <button
+                    onClick={() => {
+                      setShowResourceModal(false)
+                      setEditingResource(null)
+                      setResourceForm({
+                        title: '',
+                        description: '',
+                        resource_type: 'diet_plan',
+                        content: '',
+                        attachment_url: '',
+                        is_active: true,
+                      })
+                    }}
+                    className="px-4 py-2 border border-neutral-light rounded-lg text-neutral-text hover:bg-neutral-light transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveResource}
+                    className="px-4 py-2 bg-primary text-white rounded-lg font-semibold hover:opacity-90 transition-all"
+                  >
+                    <Save className="w-4 h-4 inline mr-2" />
+                    {editingResource ? 'Update' : 'Create'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </Layout>
+  )
+}
+
+// Admin/Coach Performance Resources Management Component
+function PerformanceResourcesManagement({ 
+  resources, 
+  loading, 
+  onRefresh,
+  onEdit,
+  onDelete 
+}: {
+  resources: any[]
+  loading: boolean
+  onRefresh: () => void
+  onEdit: (resource: any) => void
+  onDelete: (id: string) => void
+}) {
+  const [selectedType, setSelectedType] = useState<string>('all')
+
+  const filteredResources = selectedType === 'all' 
+    ? resources 
+    : resources.filter(r => r.resource_type === selectedType)
+
+  const getResourceTypeInfo = (type: string) => {
+    switch (type) {
+      case 'diet_plan':
+        return { icon: Utensils, label: 'Diet Plan', color: 'bg-success' }
+      case 'gym_programme':
+        return { icon: Dumbbell, label: 'Gym Programme', color: 'bg-primary' }
+      case 'play_info':
+        return { icon: PlayCircle, label: 'Play Information', color: 'bg-info' }
+      case 'position_info':
+        return { icon: MapPin, label: 'Position Information', color: 'bg-warning' }
+      default:
+        return { icon: FileText, label: 'Resource', color: 'bg-neutral-medium' }
+    }
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <select
+          value={selectedType}
+          onChange={(e) => setSelectedType(e.target.value)}
+          className="px-4 py-2 border border-neutral-light rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+        >
+          <option value="all">All Resources</option>
+          <option value="diet_plan">Diet Plans</option>
+          <option value="gym_programme">Gym Programmes</option>
+          <option value="play_info">Play Information</option>
+          <option value="position_info">Position Information</option>
+        </select>
+      </div>
+
+      {loading ? (
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+        </div>
+      ) : filteredResources.length === 0 ? (
+        <div className="text-center py-12">
+          <FileText className="w-16 h-16 text-neutral-medium mx-auto mb-4" />
+          <p className="text-neutral-medium">No resources found</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {filteredResources.map((resource) => {
+            const typeInfo = getResourceTypeInfo(resource.resource_type)
+            const Icon = typeInfo.icon
+            return (
+              <div
+                key={resource.id}
+                className="border border-neutral-light rounded-lg p-4 hover:shadow-md transition-shadow"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className={`${typeInfo.color} p-2 rounded-lg`}>
+                        <Icon className="w-4 h-4 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-bold text-neutral-text">{resource.title}</h3>
+                        <span className="text-xs text-neutral-medium">{typeInfo.label}</span>
+                      </div>
+                      {!resource.is_active && (
+                        <span className="px-2 py-1 bg-neutral-medium/10 text-neutral-medium rounded-full text-xs">
+                          Inactive
+                        </span>
+                      )}
+                    </div>
+                    {resource.description && (
+                      <p className="text-sm text-neutral-medium mb-2">{resource.description}</p>
+                    )}
+                    <div className="text-xs text-neutral-medium">
+                      Created {new Date(resource.created_at).toLocaleDateString()}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => onEdit(resource)}
+                      className="p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => onDelete(resource.id)}
+                      className="p-2 text-secondary hover:bg-secondary/10 rounded-lg transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
   )
 }

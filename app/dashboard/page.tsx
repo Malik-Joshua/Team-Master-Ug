@@ -285,9 +285,28 @@ export default function DashboardPage() {
                 const { db } = await import('@/lib/db-helpers')
                 const sessionsAttended = await db.getPlayerTrainingSessionsAttended(authUser.id)
                 const gymMetrics = await db.getPlayerGymStats(authUser.id)
+                
+                // Load player match stats - only count games where stats have been entered
+                const { data: playerMatchStats } = await supabase
+                  .from('match_stats')
+                  .select('match_id, tries_scored, tackles_made, minutes_played')
+                  .eq('player_id', authUser.id)
+                
+                // Calculate games played based on unique match_ids (only games with stats entered)
+                const uniqueMatchIds = new Set(playerMatchStats?.map(stat => stat.match_id) || [])
+                const totalMatches = uniqueMatchIds.size
+                const totalTries = playerMatchStats?.reduce((sum, stat) => sum + (stat.tries_scored || 0), 0) || 0
+                const totalTackles = playerMatchStats?.reduce((sum, stat) => sum + (stat.tackles_made || 0), 0) || 0
+                const totalMinutes = playerMatchStats?.reduce((sum, stat) => sum + (stat.minutes_played || 0), 0) || 0
+                const avgMinutes = totalMatches > 0 ? Math.round(totalMinutes / totalMatches) : 0
+                
                 setStats(prev => ({
                   ...prev,
                   trainingSessionsAttended: sessionsAttended,
+                  totalMatches: totalMatches,
+                  totalTries: totalTries,
+                  totalTackles: totalTackles,
+                  avgMinutes: avgMinutes,
                 }))
                 setGymStats(gymMetrics)
                 

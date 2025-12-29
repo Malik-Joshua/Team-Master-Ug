@@ -53,6 +53,14 @@ export default function TrainingPage() {
   const [showUploadForm, setShowUploadForm] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [uploadFile, setUploadFile] = useState<File | null>(null)
+  const [showGymScheduleForm, setShowGymScheduleForm] = useState(false)
+  const [gymScheduleForm, setGymScheduleForm] = useState({
+    schedule_date: '',
+    schedule_time: '',
+    location: '',
+    description: '',
+    exercises: '',
+  })
   const [sessionSummaries, setSessionSummaries] = useState<Array<{
     sessionId: string
     sessionDate: string
@@ -994,6 +1002,13 @@ export default function TrainingPage() {
                         <Plus className="w-5 h-5 mr-2" />
                         Create Schedule
                       </button>
+                      <button
+                        onClick={() => setShowGymScheduleForm(true)}
+                        className="bg-white text-secondary px-6 py-3 rounded-button font-semibold hover:bg-purple-50 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
+                      >
+                        <Plus className="w-5 h-5 mr-2" />
+                        Create Gym Schedule
+                      </button>
                     </>
                   )}
                   <button
@@ -1075,6 +1090,114 @@ export default function TrainingPage() {
                     }}
                     disabled={uploading}
                     className="px-6 py-3 bg-neutral-light text-neutral-text rounded-button hover:bg-neutral-medium transition-all duration-300 font-semibold disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Create Gym Schedule Modal for Coaches */}
+        {showGymScheduleForm && user?.role === 'coach' && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+            <div className="bg-white rounded-card shadow-large max-w-2xl w-full border border-neutral-light">
+              <div className="p-6 border-b border-neutral-light">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-2xl font-bold text-neutral-text">Create Gym Schedule</h2>
+                  <button
+                    onClick={() => {
+                      setShowGymScheduleForm(false)
+                      setGymScheduleForm({ schedule_date: '', schedule_time: '', location: '', description: '', exercises: '' })
+                    }}
+                    className="text-neutral-medium hover:text-neutral-text"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+              </div>
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-neutral-medium mb-2">
+                    <Calendar className="w-4 h-4 inline mr-2" />
+                    Gym Schedule Date <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={gymScheduleForm.schedule_date}
+                    onChange={(e) => setGymScheduleForm({ ...gymScheduleForm, schedule_date: e.target.value })}
+                    min={new Date().toISOString().split('T')[0]}
+                    className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-neutral-medium mb-2">
+                    <Clock className="w-4 h-4 inline mr-2" />
+                    Schedule Time <span className="text-xs text-neutral-medium">(e.g., 18:00, 6:00 PM)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={gymScheduleForm.schedule_time}
+                    onChange={(e) => setGymScheduleForm({ ...gymScheduleForm, schedule_time: e.target.value })}
+                    placeholder="e.g., 18:00 or 6:00 PM"
+                    className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-neutral-medium mb-2">
+                    <MapPin className="w-4 h-4 inline mr-2" />
+                    Location
+                  </label>
+                  <input
+                    type="text"
+                    value={gymScheduleForm.location}
+                    onChange={(e) => setGymScheduleForm({ ...gymScheduleForm, location: e.target.value })}
+                    placeholder="e.g., Main Gym, Fitness Center"
+                    className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-neutral-medium mb-2">
+                    <FileText className="w-4 h-4 inline mr-2" />
+                    Description <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={gymScheduleForm.description}
+                    onChange={(e) => setGymScheduleForm({ ...gymScheduleForm, description: e.target.value })}
+                    rows={3}
+                    placeholder="e.g., Strength training session focusing on upper body"
+                    className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-neutral-medium mb-2">
+                    <FileText className="w-4 h-4 inline mr-2" />
+                    Exercises/Program Details
+                  </label>
+                  <textarea
+                    value={gymScheduleForm.exercises}
+                    onChange={(e) => setGymScheduleForm({ ...gymScheduleForm, exercises: e.target.value })}
+                    rows={4}
+                    placeholder="e.g., Bench Press 3x8, Squats 3x10, Deadlifts 3x5, Pull-ups 3x8"
+                    className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                  />
+                </div>
+                <div className="flex gap-3 pt-4">
+                  <button
+                    onClick={handleCreateGymSchedule}
+                    className="flex-1 px-6 py-3 bg-secondary text-white rounded-button hover:opacity-90 transition-all duration-300 font-semibold shadow-soft hover:shadow-medium"
+                  >
+                    Create Gym Schedule
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowGymScheduleForm(false)
+                      setGymScheduleForm({ schedule_date: '', schedule_time: '', location: '', description: '', exercises: '' })
+                    }}
+                    className="px-6 py-3 bg-neutral-light text-neutral-text rounded-button hover:bg-neutral-medium transition-all duration-300 font-semibold"
                   >
                     Cancel
                   </button>

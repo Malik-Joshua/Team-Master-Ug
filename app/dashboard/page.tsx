@@ -69,6 +69,7 @@ export default function DashboardPage() {
   const [loadingActiveInjuries, setLoadingActiveInjuries] = useState(false)
   const [recentTeamSelections, setRecentTeamSelections] = useState<any[]>([])
   const [recentTrainingSchedules, setRecentTrainingSchedules] = useState<any[]>([])
+  const [recentGymSchedules, setRecentGymSchedules] = useState<any[]>([])
   const [topPerformers, setTopPerformers] = useState<any[]>([])
 
   useEffect(() => {
@@ -241,6 +242,22 @@ export default function DashboardPage() {
                   .sort((a: any, b: any) => new Date(b.session_date).getTime() - new Date(a.session_date).getTime())
                   .slice(0, 5)
                 setRecentTrainingSchedules(recentSessions)
+
+                // Get recent gym schedules (for players, data_admin, admin)
+                if (profile.role === 'player' || profile.role === 'data_admin' || profile.role === 'admin') {
+                  const { data: gymSchedules } = await supabase
+                    .from('gym_schedules')
+                    .select(`
+                      *,
+                      coach:user_profiles!gym_schedules_created_by_fkey(name)
+                    `)
+                    .order('schedule_date', { ascending: false })
+                    .limit(5)
+
+                  if (gymSchedules) {
+                    setRecentGymSchedules(gymSchedules)
+                  }
+                }
                 
                 // Get recent team selections created by this coach
                 const { data: teamSelections } = await supabase

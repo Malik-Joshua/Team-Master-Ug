@@ -42,6 +42,7 @@ export default function TrainingPage() {
   const [attendance, setAttendance] = useState<Record<string, AttendanceCode>>({})
   const [loading, setLoading] = useState(true)
   const [selectedSession, setSelectedSession] = useState<number>(1)
+  const [selectedSessionId, setSelectedSessionId] = useState<string>('') // For attendance session selection
   const [showScheduleForm, setShowScheduleForm] = useState(false)
   const [scheduleForm, setScheduleForm] = useState({
     session_date: '',
@@ -102,11 +103,14 @@ export default function TrainingPage() {
           }
 
           // Fetch training sessions
-          if (profile.role === 'coach') {
+          if (profile.role === 'coach' || profile.role === 'data_admin' || profile.role === 'admin') {
+            // Coaches, data admins, and admins see all training sessions
             const { data: sessionsData } = await supabase
               .from('training_sessions')
-              .select('*')
-              .eq('coach_id', authUser.id)
+              .select(`
+                *,
+                coach:user_profiles!training_sessions_coach_id_fkey(name)
+              `)
               .order('session_date', { ascending: true })
 
             if (sessionsData) {
@@ -117,6 +121,7 @@ export default function TrainingPage() {
                 session_time: s.session_time,
                 location: s.location,
                 description: s.description,
+                coach_name: s.coach?.name || 'Coach',
               }))
               setSessions(formattedSessions)
             }
@@ -580,39 +585,108 @@ export default function TrainingPage() {
 
       if (error) throw error
 
-      // Refresh sessions list
-      const { data: coachSessions } = await supabase
+      // Get coach name for notification
+      const { data: coachProfile } = await supabase
+        .from('user_profiles')
+        .select('name')
+        .eq('user_id', authUser.id)
+        .single()
+
+      const coachName = coachProfile?.name || 'Coach'
+
+      // Create notifications for all users about the new training session
+      try {
+        const { db } = await import('@/lib/db-helpers')
+        
+        // Get all user IDs
+        const { data: allUsers } = await supabase
+          .from('user_profiles')
+          .select('user_id')
+        
+        if (allUsers && allUsers.length > 0) {
+          const userIds = allUsers.map((u: any) => u.user_id)
+          const sessionDate = new Date(scheduleForm.session_date).toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+          })
+          
+          await db.createNotificationForUsers(userIds, {
+            title: 'New Training Session Scheduled',
+            message: `${coachName} has scheduled a new training session on ${sessionDate}${scheduleForm.session_time ? ` at ${scheduleForm.session_time}` : ''}${scheduleForm.location ? ` - ${scheduleForm.location}` : ''}`,
+            type: 'info',
+            action_url: '/training',
+            reference_id: newSession.id,
+            reference_type: 'training_session',
+          })
+        }
+      } catch (notifError) {
+        console.error('Error creating notifications:', notifError)
+        // Don't fail the whole operation if notifications fail
+      }
+
+      // Refresh sessions list - load all sessions for coach/data_admin/admin
+      const { data: allSessions } = await supabase
         .from('training_sessions')
-        .select('*')
-        .eq('coach_id', authUser.id)
+        .select(`
+          *,
+          coach:user_profiles!training_sessions_coach_id_fkey(name)
+        `)
         .order('session_date', { ascending: true })
 
-      if (coachSessions) {
-        const formattedSessions: TrainingSession[] = coachSessions.map((s: any) => ({
+      if (allSessions) {
+        const formattedSessions: TrainingSession[] = allSessions.map((s: any) => ({
           id: s.id,
           date: s.session_date,
           title: s.description || `Training Session ${s.session_number}`,
           session_time: s.session_time,
           location: s.location,
           description: s.description,
+          coach_name: s.coach?.name || 'Coach',
         }))
         setSessions(formattedSessions)
       }
 
       setScheduleForm({ session_date: '', session_time: '', location: '', description: '' })
       setShowScheduleForm(false)
-      alert('Training schedule created successfully!')
+      alert('Training schedule created successfully! All users have been notified.')
     } catch (error: any) {
       console.error('Error creating schedule:', error)
       alert(`Error creating schedule: ${error.message}`)
     }
   }
 
-  const handleAttendanceChange = (playerId: string, sessionNumber: number, code: AttendanceCode) => {
+  const handleAttendanceChange = (playerId: string, sessionId: string, code: AttendanceCode) => {
     setAttendance((prev) => ({
       ...prev,
-      [`${playerId}-${sessionNumber}`]: code,
+      [`${playerId}-${sessionId}`]: code,
     }))
+  }
+
+  // Load existing attendance for a specific session
+  const loadAttendanceForSession = async (sessionId: string) => {
+    try {
+      const supabase = createClient()
+      const { data: attendanceData, error } = await supabase
+        .from('training_attendance')
+        .select('player_id, attendance_status')
+        .eq('session_id', sessionId)
+
+      if (error) {
+        console.error('Error loading attendance:', error)
+        return
+      }
+
+      if (attendanceData) {
+        const attendanceMap: Record<string, AttendanceCode> = {}
+        attendanceData.forEach((record: any) => {
+          attendanceMap[`${record.player_id}-${sessionId}`] = record.attendance_status as AttendanceCode
+        })
+        setAttendance(attendanceMap)
+      }
+    } catch (err) {
+      console.error('Error loading attendance:', err)
+    }
   }
 
   const calculateTotals = (playerId: string) => {
@@ -637,29 +711,24 @@ export default function TrainingPage() {
         return
       }
 
-      // Get or create training session
-      let sessionId: string
-      const session = sessions[selectedSession - 1]
-      
-      if (session && session.id && !session.id.startsWith('session-')) {
-        sessionId = session.id
-      } else {
-        // Create new session
-        const sessionDate = new Date()
-        sessionDate.setDate(sessionDate.getDate() - (sessions.length - selectedSession))
-        
-        const { data: newSession, error: sessionError } = await supabase
-          .from('training_sessions')
-          .insert({
-            session_number: selectedSession,
-            session_date: sessionDate.toISOString().split('T')[0],
-            coach_id: authUser.id,
-          })
-          .select('id')
-          .single()
+      // Validate session selection
+      if (!selectedSessionId && (user?.role === 'coach' || user?.role === 'data_admin')) {
+        alert('Please select a training session to record attendance for')
+        return
+      }
 
-        if (sessionError) throw sessionError
-        sessionId = newSession.id
+      // Use selected session ID or fallback to selectedSession index for backward compatibility
+      let sessionId: string
+      if (selectedSessionId) {
+        sessionId = selectedSessionId
+      } else {
+        const session = sessions[selectedSession - 1]
+        if (session && session.id && !session.id.startsWith('session-')) {
+          sessionId = session.id
+        } else {
+          alert('Please select a valid training session')
+          return
+        }
       }
 
       // Delete existing attendance for this session
@@ -671,7 +740,7 @@ export default function TrainingPage() {
       // Prepare attendance records
       const attendanceRecords = players
         .map(player => {
-          const key = `${player.id}-${selectedSession}`
+          const key = `${player.id}-${sessionId}`
           const code = attendance[key]
           if (!code || (code !== 'P' && code !== 'A' && code !== 'X' && code !== 'I')) {
             return null
@@ -696,12 +765,17 @@ export default function TrainingPage() {
         return
       }
 
-      // Insert attendance records
-      const { error: attendanceError } = await supabase
-        .from('training_attendance')
-        .insert(attendanceRecords)
+      // Insert attendance records using API route to bypass RLS
+      const response = await fetch('/api/training/attendance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ attendanceRecords }),
+      })
 
-      if (attendanceError) throw attendanceError
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to save attendance')
+      }
 
       alert('Attendance saved successfully!')
     } catch (error: any) {
@@ -1248,97 +1322,116 @@ export default function TrainingPage() {
         </div>
         )}
 
+        {/* Session Selection for Attendance - Coach and Data Admin */}
+        {(user?.role === 'coach' || user?.role === 'data_admin') && sessions.length > 0 && (
+          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-xl font-bold text-neutral-text mb-2">Select Training Session for Attendance</h2>
+                <p className="text-sm text-neutral-medium">Choose which training session you want to record attendance for</p>
+              </div>
+            </div>
+            <select
+              value={selectedSessionId}
+              onChange={(e) => {
+                setSelectedSessionId(e.target.value)
+                // Load existing attendance for this session
+                if (e.target.value) {
+                  loadAttendanceForSession(e.target.value)
+                } else {
+                  setAttendance({})
+                }
+              }}
+              className="w-full px-4 py-3 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all text-sm font-medium"
+            >
+              <option value="">Select a training session...</option>
+              {sessions.map((session) => (
+                <option key={session.id} value={session.id}>
+                  {new Date(session.date).toLocaleDateString('en-US', { 
+                    month: 'short', 
+                    day: 'numeric', 
+                    year: 'numeric' 
+                  })}
+                  {session.session_time ? ` at ${session.session_time}` : ''}
+                  {session.location ? ` - ${session.location}` : ''}
+                  {session.description ? `: ${session.description}` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         {/* Attendance Table - Hidden for Admin and Finance Admin */}
         {user?.role !== 'admin' && user?.role !== 'finance_admin' && (
           <div className="bg-white rounded-card border border-neutral-light shadow-soft overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1200px]">
-              <thead>
-                <tr className="bg-success text-white">
-                  <th className="px-4 py-4 text-left text-sm font-bold sticky left-0 bg-success z-10 min-w-[200px]">
-                    Player&apos;s Name
-                  </th>
-                  {sessions.map((session, index) => (
-                    <th
-                      key={session.id}
-                      className="px-3 py-4 text-center text-xs font-bold border-l border-white/20 min-w-[50px]"
-                    >
-                      {index + 1}
-                    </th>
-                  ))}
-                  <th className="px-4 py-4 text-center text-sm font-bold bg-success-light border-l-2 border-white min-w-[80px]">
-                    Totals
-                  </th>
-                  <th className="px-3 py-4 text-center text-xs font-bold bg-success-light min-w-[50px]">P</th>
-                  <th className="px-3 py-4 text-center text-xs font-bold bg-success-light min-w-[50px]">A</th>
-                  <th className="px-3 py-4 text-center text-xs font-bold bg-success-light min-w-[50px]">X</th>
-                  <th className="px-3 py-4 text-center text-xs font-bold bg-success-light min-w-[50px]">I</th>
-                </tr>
-              </thead>
-              <tbody>
-                {players.map((player, rowIndex) => {
-                  const totals = calculateTotals(player.id)
-                  return (
-                    <tr
-                      key={player.id}
-                      className={rowIndex % 2 === 0 ? 'bg-white' : 'bg-blue-50/30'}
-                    >
-                      <td className="px-4 py-3 text-sm font-medium text-neutral-text sticky left-0 bg-inherit z-10 border-r border-neutral-light">
-                        {player.name}
-                      </td>
-                      {sessions.map((session, sessionIndex) => {
-                        const sessionNumber = sessionIndex + 1
-                        const code = attendance[`${player.id}-${sessionNumber}`] || ''
+            {(user?.role === 'coach' || user?.role === 'data_admin') && !selectedSessionId && (
+              <div className="p-6 text-center text-neutral-medium">
+                <Calendar className="w-12 h-12 mx-auto mb-3 text-neutral-light" />
+                <p className="text-lg font-semibold">Please select a training session above to record attendance</p>
+              </div>
+            )}
+            {((user?.role === 'coach' || user?.role === 'data_admin') && selectedSessionId) || (user?.role !== 'coach' && user?.role !== 'data_admin') ? (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-success text-white">
+                      <th className="px-4 py-4 text-left text-sm font-bold sticky left-0 bg-success z-10 min-w-[200px]">
+                        Player&apos;s Name
+                      </th>
+                      <th className="px-4 py-4 text-center text-sm font-bold min-w-[150px]">
+                        Attendance Status
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {players.length === 0 ? (
+                      <tr>
+                        <td colSpan={2} className="px-4 py-8 text-center text-neutral-medium">
+                          No players found. Please ensure players are registered in the system.
+                        </td>
+                      </tr>
+                    ) : (
+                      players.map((player, rowIndex) => {
+                        const code = attendance[`${player.id}-${selectedSessionId}`] || ''
                         const canEdit = user?.role === 'coach' || user?.role === 'data_admin'
                         return (
-                          <td
-                            key={session.id}
-                            className="px-2 py-2 text-center border-l border-neutral-light"
+                          <tr
+                            key={player.id}
+                            className={rowIndex % 2 === 0 ? 'bg-white' : 'bg-blue-50/30'}
                           >
-                            {canEdit ? (
-                              <select
-                                value={code}
-                                onChange={(e) =>
-                                  handleAttendanceChange(player.id, sessionNumber, e.target.value as AttendanceCode)
-                                }
-                                className={`w-full h-10 rounded-lg font-bold text-sm text-center cursor-pointer transition-all hover:scale-105 ${getCodeColor(code)} border-2 border-transparent hover:border-primary`}
-                              >
-                                <option value="">-</option>
-                                <option value="P">P</option>
-                                <option value="A">A</option>
-                                <option value="X">X</option>
-                                <option value="I">I</option>
-                              </select>
-                            ) : (
-                              <div className={`w-full h-10 rounded-lg font-bold text-sm text-center flex items-center justify-center ${getCodeColor(code)}`}>
-                                {code || '-'}
-                              </div>
-                            )}
-                          </td>
+                            <td className="px-4 py-3 text-sm font-medium text-neutral-text sticky left-0 bg-inherit z-10 border-r border-neutral-light">
+                              {player.name}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              {canEdit ? (
+                                <select
+                                  value={code}
+                                  onChange={(e) =>
+                                    handleAttendanceChange(player.id, selectedSessionId, e.target.value as AttendanceCode)
+                                  }
+                                  className={`w-full max-w-[120px] mx-auto px-3 py-2 rounded-lg font-bold text-sm text-center cursor-pointer transition-all hover:scale-105 ${getCodeColor(code)} border-2 border-transparent hover:border-primary`}
+                                >
+                                  <option value="">-</option>
+                                  <option value="P">P - Present</option>
+                                  <option value="A">A - Justified Absence</option>
+                                  <option value="X">X - Unjustified Absence</option>
+                                  <option value="I">I - Injured</option>
+                                </select>
+                              ) : (
+                                <div className={`w-full max-w-[120px] mx-auto px-3 py-2 rounded-lg font-bold text-sm text-center flex items-center justify-center ${getCodeColor(code)}`}>
+                                  {code || '-'}
+                                </div>
+                              )}
+                            </td>
+                          </tr>
                         )
-                      })}
-                      <td className="px-4 py-3 text-center text-sm font-semibold text-neutral-text bg-green-50 border-l-2 border-success">
-                        Total
-                      </td>
-                      <td className="px-3 py-3 text-center text-sm font-bold text-neutral-text bg-green-50">
-                        {totals.P}
-                      </td>
-                      <td className="px-3 py-3 text-center text-sm font-bold text-neutral-text bg-green-50">
-                        {totals.A}
-                      </td>
-                      <td className="px-3 py-3 text-center text-sm font-bold text-neutral-text bg-green-50">
-                        {totals.X}
-                      </td>
-                      <td className="px-3 py-3 text-center text-sm font-bold text-neutral-text bg-green-50">
-                        {totals.I}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
           </div>
-        </div>
         )}
 
         {/* Session Dates Reference - Hidden for Admin and Finance Admin */}

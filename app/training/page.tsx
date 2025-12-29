@@ -1574,8 +1574,24 @@ export default function TrainingPage() {
             </div>
             <select
               value={selectedSessionId}
-              onChange={(e) => {
+              onChange={async (e) => {
                 setSelectedSessionId(e.target.value)
+                // Reload players to ensure we have the latest list
+                try {
+                  const playersResponse = await fetch('/api/admin/players')
+                  if (playersResponse.ok) {
+                    const playersData = await playersResponse.json()
+                    if (playersData.players && Array.isArray(playersData.players)) {
+                      setPlayers(playersData.players.map((p: any) => ({
+                        id: p.user_id || p.id,
+                        name: p.name || 'Unknown',
+                        position: p.position || 'N/A',
+                      })))
+                    }
+                  }
+                } catch (err) {
+                  console.error('Error reloading players:', err)
+                }
                 // Load existing attendance for this session
                 if (e.target.value) {
                   loadAttendanceForSession(e.target.value)

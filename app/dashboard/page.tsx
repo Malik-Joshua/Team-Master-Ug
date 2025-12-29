@@ -661,7 +661,7 @@ export default function DashboardPage() {
                           injury.status === 'active' ? 'text-secondary' : 'text-success'
                         }`} />
                         <div>
-                          <h4 className="text-lg font-bold text-neutral-text">{injury.diagnosis}</h4>
+                          <h4 className="text-lg font-bold text-neutral-text">Injury Information</h4>
                           <p className="text-sm text-neutral-medium">
                             Injured on {new Date(injury.injury_date).toLocaleDateString()}
                           </p>
@@ -678,34 +678,11 @@ export default function DashboardPage() {
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
                         <label className="text-xs font-semibold text-neutral-medium uppercase">Cause</label>
                         <p className="text-neutral-text mt-1">{injury.cause}</p>
                       </div>
-                      <div>
-                        <label className="text-xs font-semibold text-neutral-medium uppercase">Diagnosis</label>
-                        <p className="text-neutral-text mt-1 font-medium">{injury.diagnosis}</p>
-                      </div>
-                      <div className="md:col-span-2">
-                        <label className="text-xs font-semibold text-neutral-medium uppercase">Action Taken</label>
-                        <p className="text-neutral-text mt-1">{injury.action_taken}</p>
-                      </div>
-                      {injury.further_treatment && (
-                        <div className="md:col-span-2">
-                          <label className="text-xs font-semibold text-neutral-medium uppercase">Treatment Plan</label>
-                          <p className="text-neutral-text mt-1">{injury.further_treatment}</p>
-                        </div>
-                      )}
-                      {injury.medication && (
-                        <div className="md:col-span-2">
-                          <label className="text-xs font-semibold text-neutral-medium uppercase flex items-center">
-                            <Pill className="w-4 h-4 mr-1" />
-                            Medication Plan
-                          </label>
-                          <p className="text-neutral-text mt-1 font-medium text-primary">{injury.medication}</p>
-                        </div>
-                      )}
                       {injury.return_to_training_date && (
                         <div>
                           <label className="text-xs font-semibold text-neutral-medium uppercase flex items-center">
@@ -713,7 +690,11 @@ export default function DashboardPage() {
                             Return to Training
                           </label>
                           <p className="text-neutral-text mt-1">
-                            {new Date(injury.return_to_training_date).toLocaleDateString()}
+                            {new Date(injury.return_to_training_date).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric',
+                            })}
                           </p>
                         </div>
                       )}
@@ -721,24 +702,18 @@ export default function DashboardPage() {
                         <div>
                           <label className="text-xs font-semibold text-neutral-medium uppercase flex items-center">
                             <Calendar className="w-4 h-4 mr-1" />
-                            Return to Play
+                            Return to Game
                           </label>
                           <p className="text-neutral-text mt-1">
-                            {new Date(injury.return_to_play_date).toLocaleDateString()}
+                            {new Date(injury.return_to_play_date).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric',
+                            })}
                           </p>
                         </div>
                       )}
                     </div>
-
-                    {injury.notes && (
-                      <div className="mt-4 p-4 bg-white/80 rounded-lg border border-neutral-light">
-                        <label className="text-xs font-semibold text-neutral-medium uppercase flex items-center mb-2">
-                          <FileText className="w-4 h-4 mr-1" />
-                          Physiotherapist Notes
-                        </label>
-                        <p className="text-neutral-text italic">{injury.notes}</p>
-                      </div>
-                    )}
 
                     {injury.status === 'active' && injury.return_to_play_date && (
                       <div className="mt-4 flex items-center space-x-2 text-sm">

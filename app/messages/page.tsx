@@ -177,6 +177,22 @@ export default function MessagesPage() {
               // Fallback to direct queries
               await fetchUsersDirectly(supabase, authUser.id, profile.role)
             }
+          } else if (profile.role === 'player') {
+            // Players can only message team managers
+            try {
+              const { data: teamManagersData } = await supabase
+                .from('user_profiles')
+                .select('user_id, name, role, email')
+                .eq('role', 'data_admin')
+                .neq('user_id', authUser.id)
+                .order('name', { ascending: true })
+
+              if (teamManagersData) {
+                setTeamManagers(teamManagersData as UserProfile[])
+              }
+            } catch (error) {
+              console.error('Error fetching team managers for player:', error)
+            }
           }
         }
       }
@@ -785,8 +801,108 @@ export default function MessagesPage() {
         } catch (reloadError) {
           console.error('Error reloading messages:', reloadError)
         }
+      } else if (user?.role === 'player') {
+        // Players can ONLY send to team managers (data_admin)
+        if (!composeData.recipientId) {
+          alert('Please select a team manager to send your message')
+          return
+        }
+
+        // Verify the recipient is actually a team manager
+        const { data: recipientProfile } = await supabase
+          .from('user_profiles')
+          .select('role')
+          .eq('user_id', composeData.recipientId)
+          .single()
+
+        if (!recipientProfile || recipientProfile.role !== 'data_admin') {
+          alert('You can only send messages to team managers. Please select a team manager.')
+          return
+        }
+
+        // Send message to the team manager
+        const { data: newMessage, error } = await supabase
+          .from('messages')
+          .insert({
+            sender_id: authUser.id,
+            recipient_id: composeData.recipientId,
+            recipient_role: 'data_admin',
+            subject: composeData.subject,
+            message: composeData.message,
+          })
+          .select(`
+            *,
+            sender:user_profiles!messages_sender_id_fkey(name, role)
+          `)
+          .single()
+
+        if (error) throw error
+
+        // Create notification for recipient
+        try {
+          const { db } = await import('@/lib/db-helpers')
+          await db.createNotification({
+            user_id: composeData.recipientId,
+            title: 'New Message',
+            message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
+            type: 'info',
+            action_url: '/messages',
+            reference_id: newMessage.id,
+            reference_type: 'message',
+          })
+          console.log('Notification created for team manager:', composeData.recipientId)
+        } catch (notifError) {
+          console.error('Error creating notification:', notifError)
+        }
+
+        // Get recipient info for the sent message
+        let recipientName = 'Unknown'
+        if (composeData.recipientId) {
+          const { data: recipientProfile } = await supabase
+            .from('user_profiles')
+            .select('name, role')
+            .eq('user_id', composeData.recipientId)
+            .single()
+          
+          if (recipientProfile) {
+            recipientName = recipientProfile.name
+          }
+        }
+        
+        // Add to local state (as a sent message)
+        const formattedMessage: Message = {
+          id: newMessage.id,
+          sender_id: authUser.id,
+          sender_name: user.name,
+          sender_role: user.role,
+          recipient_id: composeData.recipientId || '',
+          recipient_name: recipientName,
+          recipient_role: 'data_admin',
+          subject: newMessage.subject || '',
+          message: newMessage.message,
+          read: false,
+          created_at: newMessage.created_at,
+          is_sent: true,
+        }
+
+        setMessages([formattedMessage, ...messages])
+        setComposeData({ recipientType: 'role', recipient: '', recipientId: '', selectedRoles: [], subject: '', message: '' })
+        setShowCompose(false)
+        alert('Message sent successfully to team manager!')
+        
+        // Reload messages to ensure sync
+        try {
+          const response = await fetch('/api/messages', { cache: 'no-store' })
+          if (response.ok) {
+            const data = await response.json()
+            setMessages(data.messages || [])
+          }
+        } catch (reloadError) {
+          console.error('Error reloading messages:', reloadError)
+        }
+        return
       } else {
-        // For other roles (players, etc.)
+        // For other roles (not admin, coach, finance_admin, or player)
         let recipientId: string | null = null
         let recipientRole: string | null = null
 
@@ -1339,19 +1455,49 @@ export default function MessagesPage() {
                     )}
                   </select>
                 </div>
+              ) : user?.role === 'player' ? (
+                <div>
+                  <label className="block text-sm font-medium text-neutral-medium mb-2">
+                    To (Team Manager Only)
+                  </label>
+                  <select
+                    value={composeData.recipientId}
+                    onChange={(e) => setComposeData({ ...composeData, recipientId: e.target.value, recipient: '', recipientType: 'individual' })}
+                    className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                  >
+                    <option value="">Select team manager...</option>
+                    {teamManagers.length > 0 ? (
+                      teamManagers.map((manager) => (
+                        <option key={manager.user_id} value={manager.user_id}>
+                          {manager.name} (Team Manager)
+                        </option>
+                      ))
+                    ) : (
+                      <option value="" disabled>No team managers available</option>
+                    )}
+                  </select>
+                  <p className="text-xs text-neutral-medium mt-1">Players can only send messages to team managers</p>
+                </div>
               ) : (
                 <div>
                   <label className="block text-sm font-medium text-neutral-medium mb-2">
-                    To (Admin or Coach)
+                    Select Recipient
                   </label>
                   <select
-                    value={composeData.recipient}
-                    onChange={(e) => setComposeData({ ...composeData, recipient: e.target.value })}
+                    value={composeData.recipientId}
+                    onChange={(e) => setComposeData({ ...composeData, recipientId: e.target.value, recipient: '' })}
                     className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                   >
                     <option value="">Select recipient...</option>
-                    <option value="admin">Administrator</option>
-                    <option value="coach">Coach</option>
+                    {teamManagers.length > 0 && (
+                      <optgroup label="Team Managers">
+                        {teamManagers.map((manager) => (
+                          <option key={manager.user_id} value={manager.user_id}>
+                            {manager.name} (Team Manager)
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
                   </select>
                 </div>
               )}

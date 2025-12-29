@@ -74,9 +74,29 @@ export async function GET(request: NextRequest) {
     if (error) {
       console.error('Error fetching performance resources:', error)
       console.error('Error details:', JSON.stringify(error, null, 2))
+      console.error('Error code:', error.code)
+      console.error('Error message:', error.message)
+      console.error('Error hint:', error.hint)
       console.error('Query details:', { resourceType, includeInactive, profileRole: profile.role })
+      
+      // Check if table doesn't exist
+      if (error.code === '42P01' || error.message?.includes('does not exist') || error.message?.includes('relation "performance_resources"')) {
+        return NextResponse.json(
+          { 
+            error: 'Performance resources table not found. Please run the migration: supabase/migrations/019_create_performance_resources.sql',
+            details: error.message,
+            code: error.code
+          },
+          { status: 500 }
+        )
+      }
+      
       return NextResponse.json(
-        { error: `Failed to fetch performance resources: ${error.message}`, details: error },
+        { 
+          error: `Failed to fetch performance resources: ${error.message}`,
+          details: error,
+          code: error.code
+        },
         { status: 500 }
       )
     }

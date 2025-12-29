@@ -178,20 +178,45 @@ export default function MessagesPage() {
               await fetchUsersDirectly(supabase, authUser.id, profile.role)
             }
           } else if (profile.role === 'player') {
-            // Players can only message team managers
+            // Players can only message team managers - use API route to bypass RLS
             try {
-              const { data: teamManagersData } = await supabase
-                .from('user_profiles')
-                .select('user_id, name, role, email')
-                .eq('role', 'data_admin')
-                .neq('user_id', authUser.id)
-                .order('name', { ascending: true })
+              const teamManagersResponse = await fetch('/api/messages/team-managers', {
+                cache: 'no-store',
+              })
+              
+              if (teamManagersResponse.ok) {
+                const teamManagersData = await teamManagersResponse.json()
+                if (teamManagersData.teamManagers && teamManagersData.teamManagers.length > 0) {
+                  setTeamManagers(teamManagersData.teamManagers as UserProfile[])
+                  console.log(`Loaded ${teamManagersData.teamManagers.length} team manager(s) for player`)
+                } else {
+                  console.log('No team managers found')
+                  setTeamManagers([])
+                }
+              } else {
+                const errorData = await teamManagersResponse.json().catch(() => ({ error: teamManagersResponse.statusText }))
+                console.error('Error fetching team managers via API:', errorData.error || teamManagersResponse.status)
+                // Fallback to direct query (may fail due to RLS)
+                try {
+                  const { data: teamManagersData } = await supabase
+                    .from('user_profiles')
+                    .select('user_id, name, role, email')
+                    .eq('role', 'data_admin')
+                    .neq('user_id', authUser.id)
+                    .order('name', { ascending: true })
 
-              if (teamManagersData) {
-                setTeamManagers(teamManagersData as UserProfile[])
+                  if (teamManagersData) {
+                    setTeamManagers(teamManagersData as UserProfile[])
+                    console.log(`Loaded ${teamManagersData.length} team manager(s) via direct query`)
+                  }
+                } catch (fallbackError) {
+                  console.error('Fallback query also failed:', fallbackError)
+                  setTeamManagers([])
+                }
               }
             } catch (error) {
               console.error('Error fetching team managers for player:', error)
+              setTeamManagers([])
             }
           }
         }

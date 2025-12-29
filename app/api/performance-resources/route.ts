@@ -73,8 +73,10 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('Error fetching performance resources:', error)
+      console.error('Error details:', JSON.stringify(error, null, 2))
+      console.error('Query details:', { resourceType, includeInactive, profileRole: profile.role })
       return NextResponse.json(
-        { error: `Failed to fetch performance resources: ${error.message}` },
+        { error: `Failed to fetch performance resources: ${error.message}`, details: error },
         { status: 500 }
       )
     }
@@ -91,17 +93,22 @@ export async function GET(request: NextRequest) {
     let creatorProfilesMap: Record<string, any> = {}
     
     if (creatorIds.length > 0) {
-      const { data: creators, error: creatorsError } = await supabaseAdmin
-        .from('user_profiles')
-        .select('user_id, name, role')
-        .in('user_id', creatorIds)
+      try {
+        const { data: creators, error: creatorsError } = await supabaseAdmin
+          .from('user_profiles')
+          .select('user_id, name, role')
+          .in('user_id', creatorIds)
 
-      if (creatorsError) {
-        console.error('Error fetching creator profiles:', creatorsError)
-      } else if (creators) {
-        creators.forEach((creator: any) => {
-          creatorProfilesMap[creator.user_id] = creator
-        })
+        if (creatorsError) {
+          console.error('Error fetching creator profiles:', creatorsError)
+          console.error('Creator IDs:', creatorIds)
+        } else if (creators) {
+          creators.forEach((creator: any) => {
+            creatorProfilesMap[creator.user_id] = creator
+          })
+        }
+      } catch (creatorErr: any) {
+        console.error('Exception fetching creator profiles:', creatorErr)
       }
     }
 

@@ -797,6 +797,148 @@ export default function PerformancePage() {
             </div>
           )}
         </div>
+
+        {/* Resource Modal */}
+        {showResourceModal && (
+          <div 
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                setShowResourceModal(false)
+                setEditingResource(null)
+              }
+            }}
+          >
+            <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="sticky top-0 bg-white border-b border-neutral-light p-6 flex items-center justify-between">
+                <h3 className="text-2xl font-bold text-neutral-text">
+                  {editingResource ? 'Edit Resource' : 'Create New Resource'}
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowResourceModal(false)
+                    setEditingResource(null)
+                    setResourceForm({
+                      title: '',
+                      description: '',
+                      resource_type: 'diet_plan',
+                      content: '',
+                      attachment_url: '',
+                      is_active: true,
+                    })
+                  }}
+                  className="p-2 hover:bg-neutral-light rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-neutral-text mb-2">
+                    Title *
+                  </label>
+                  <input
+                    type="text"
+                    value={resourceForm.title}
+                    onChange={(e) => setResourceForm({ ...resourceForm, title: e.target.value })}
+                    className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    placeholder="Enter resource title"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-neutral-text mb-2">
+                    Resource Type *
+                  </label>
+                  <select
+                    value={resourceForm.resource_type}
+                    onChange={(e) => setResourceForm({ ...resourceForm, resource_type: e.target.value })}
+                    className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  >
+                    <option value="diet_plan">Diet Plan</option>
+                    <option value="gym_programme">Gym Programme</option>
+                    <option value="play_info">Play Information</option>
+                    <option value="position_info">Position Information</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-neutral-text mb-2">
+                    Description
+                  </label>
+                  <input
+                    type="text"
+                    value={resourceForm.description}
+                    onChange={(e) => setResourceForm({ ...resourceForm, description: e.target.value })}
+                    className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    placeholder="Brief description (optional)"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-neutral-text mb-2">
+                    Content *
+                  </label>
+                  <textarea
+                    value={resourceForm.content}
+                    onChange={(e) => setResourceForm({ ...resourceForm, content: e.target.value })}
+                    className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary min-h-[200px]"
+                    placeholder="Enter the resource content (supports markdown)"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-neutral-text mb-2">
+                    Attachment URL (optional)
+                  </label>
+                  <input
+                    type="url"
+                    value={resourceForm.attachment_url}
+                    onChange={(e) => setResourceForm({ ...resourceForm, attachment_url: e.target.value })}
+                    className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    placeholder="https://example.com/file.pdf"
+                  />
+                </div>
+                {(user?.role === 'admin' || user?.role === 'coach') && (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="is_active_data_admin"
+                      checked={resourceForm.is_active}
+                      onChange={(e) => setResourceForm({ ...resourceForm, is_active: e.target.checked })}
+                      className="w-4 h-4"
+                    />
+                    <label htmlFor="is_active_data_admin" className="text-sm text-neutral-text">
+                      Active (visible to players)
+                    </label>
+                  </div>
+                )}
+                <div className="flex items-center justify-end gap-3 pt-4">
+                  <button
+                    onClick={() => {
+                      setShowResourceModal(false)
+                      setEditingResource(null)
+                      setResourceForm({
+                        title: '',
+                        description: '',
+                        resource_type: 'diet_plan',
+                        content: '',
+                        attachment_url: '',
+                        is_active: true,
+                      })
+                    }}
+                    className="px-4 py-2 border border-neutral-light rounded-lg text-neutral-text hover:bg-neutral-light transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveResource}
+                    className="px-4 py-2 bg-primary text-white rounded-lg font-semibold hover:opacity-90 transition-all"
+                  >
+                    <Save className="w-4 h-4 inline mr-2" />
+                    {editingResource ? 'Update' : 'Create'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </Layout>
     )
   }

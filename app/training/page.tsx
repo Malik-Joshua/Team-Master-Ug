@@ -664,6 +664,87 @@ export default function TrainingPage() {
     }
   }
 
+  const handleCreateGymSchedule = async () => {
+    try {
+      const supabase = createClient()
+      const { data: { user: authUser } } = await supabase.auth.getUser()
+      
+      if (!authUser) {
+        alert('Please log in to create gym schedule')
+        return
+      }
+
+      if (!gymScheduleForm.schedule_date || !gymScheduleForm.description) {
+        alert('Please fill in the required fields (date and description)')
+        return
+      }
+
+      // Create the gym schedule
+      const { data: newGymSchedule, error } = await supabase
+        .from('gym_schedules')
+        .insert({
+          schedule_date: gymScheduleForm.schedule_date,
+          schedule_time: gymScheduleForm.schedule_time || null,
+          location: gymScheduleForm.location || null,
+          description: gymScheduleForm.description,
+          exercises: gymScheduleForm.exercises || null,
+          created_by: authUser.id,
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+
+      // Get coach name for notification
+      const { data: coachProfile } = await supabase
+        .from('user_profiles')
+        .select('name')
+        .eq('user_id', authUser.id)
+        .single()
+
+      const coachName = coachProfile?.name || 'Coach'
+
+      // Create notifications for players, data managers, and admins about the new gym schedule
+      try {
+        const { db } = await import('@/lib/db-helpers')
+        
+        // Get all user IDs for players, data_admin, and admin roles
+        const { data: allUsers } = await supabase
+          .from('user_profiles')
+          .select('user_id')
+          .in('role', ['player', 'data_admin', 'admin'])
+        
+        if (allUsers && allUsers.length > 0) {
+          const userIds = allUsers.map((u: any) => u.user_id)
+          const scheduleDate = new Date(gymScheduleForm.schedule_date).toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+          })
+          
+          await db.createNotificationForUsers(userIds, {
+            title: 'New Gym Schedule Created',
+            message: `${coachName} has created a new gym schedule on ${scheduleDate}${gymScheduleForm.schedule_time ? ` at ${gymScheduleForm.schedule_time}` : ''}${gymScheduleForm.location ? ` - ${gymScheduleForm.location}` : ''}`,
+            type: 'info',
+            action_url: '/dashboard',
+            reference_id: newGymSchedule.id,
+            reference_type: 'gym_schedule',
+          })
+        }
+      } catch (notifError) {
+        console.error('Error creating notifications:', notifError)
+        // Don't fail the whole operation if notifications fail
+      }
+
+      setGymScheduleForm({ schedule_date: '', schedule_time: '', location: '', description: '', exercises: '' })
+      setShowGymScheduleForm(false)
+      alert('Gym schedule created successfully! Players, data managers, and admins have been notified.')
+    } catch (error: any) {
+      console.error('Error creating gym schedule:', error)
+      alert(`Error creating gym schedule: ${error.message}`)
+    }
+  }
+
   const handleAttendanceChange = (playerId: string, sessionId: string, code: AttendanceCode) => {
     setAttendance((prev) => ({
       ...prev,

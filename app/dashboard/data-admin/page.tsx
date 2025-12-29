@@ -40,6 +40,7 @@ export default function DataAdminDashboard() {
   const [activePlayersCount, setActivePlayersCount] = useState(0)
   const [matchesCount, setMatchesCount] = useState(0)
   const [trainingSessionsCount, setTrainingSessionsCount] = useState(0)
+  const [recentGymSchedules, setRecentGymSchedules] = useState<any[]>([])
   const [showMatchForm, setShowMatchForm] = useState(false)
   const [showCreateFixtureForm, setShowCreateFixtureForm] = useState(false)
   const [fixtureForm, setFixtureForm] = useState({

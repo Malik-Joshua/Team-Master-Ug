@@ -528,6 +528,7 @@ export default function PerformancePage() {
 
   // Open resource modal for creating
   const handleNewResource = () => {
+    console.log('handleNewResource called', { user: user?.role })
     setEditingResource(null)
     setResourceForm({
       title: '',
@@ -538,6 +539,7 @@ export default function PerformancePage() {
       is_active: true,
     })
     setShowResourceModal(true)
+    console.log('Modal should be open now')
   }
 
   if (loading || !user) {
@@ -724,7 +726,12 @@ export default function PerformancePage() {
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold text-neutral-text">Performance Resources</h2>
               <button
-                onClick={handleNewResource}
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  handleNewResource()
+                }}
                 className="bg-primary text-white px-4 py-2 rounded-lg font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
               >
                 <Plus className="w-5 h-5 mr-2" />
@@ -1094,7 +1101,12 @@ export default function PerformancePage() {
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold text-neutral-text">Performance Resources</h2>
               <button
-                onClick={handleNewResource}
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  handleNewResource()
+                }}
                 className="bg-primary text-white px-4 py-2 rounded-lg font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
               >
                 <Plus className="w-5 h-5 mr-2" />
@@ -1343,7 +1355,12 @@ export default function PerformancePage() {
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold text-neutral-text">Performance Resources</h2>
               <button
-                onClick={handleNewResource}
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  handleNewResource()
+                }}
                 className="bg-primary text-white px-4 py-2 rounded-lg font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
               >
                 <Plus className="w-5 h-5 mr-2" />
@@ -1572,7 +1589,12 @@ export default function PerformancePage() {
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold text-neutral-text">Performance Resources</h2>
               <button
-                onClick={handleNewResource}
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  handleNewResource()
+                }}
                 className="bg-primary text-white px-4 py-2 rounded-lg font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
               >
                 <Plus className="w-5 h-5 mr-2" />

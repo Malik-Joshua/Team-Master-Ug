@@ -419,11 +419,29 @@ export default function PerformancePage() {
 
   // Handle create/update resource
   const handleSaveResource = async () => {
+    // Validate required fields
+    if (!resourceForm.title || !resourceForm.title.trim()) {
+      alert('Please enter a title for the resource')
+      return
+    }
+
+    if (!resourceForm.content || !resourceForm.content.trim()) {
+      alert('Please enter content for the resource')
+      return
+    }
+
+    if (!resourceForm.resource_type) {
+      alert('Please select a resource type')
+      return
+    }
+
     try {
       const url = editingResource 
         ? `/api/performance-resources/${editingResource.id}`
         : '/api/performance-resources'
       const method = editingResource ? 'PUT' : 'POST'
+
+      console.log('Saving resource:', { url, method, resourceForm })
 
       const response = await fetch(url, {
         method,
@@ -431,7 +449,10 @@ export default function PerformancePage() {
         body: JSON.stringify(resourceForm),
       })
 
+      const responseData = await response.json()
+
       if (response.ok) {
+        console.log('Resource saved successfully:', responseData)
         await loadPerformanceResources(user?.role || 'player')
         setShowResourceModal(false)
         setEditingResource(null)
@@ -443,12 +464,15 @@ export default function PerformancePage() {
           attachment_url: '',
           is_active: true,
         })
+        alert(editingResource ? 'Resource updated successfully!' : 'Resource created successfully!')
       } else {
-        const error = await response.json()
-        alert(`Error: ${error.error}`)
+        console.error('Error saving resource:', responseData)
+        const errorMessage = responseData.error || `Failed to ${editingResource ? 'update' : 'create'} resource. Status: ${response.status}`
+        alert(`Error: ${errorMessage}`)
       }
     } catch (error: any) {
-      alert(`Error: ${error.message}`)
+      console.error('Exception saving resource:', error)
+      alert(`Error: ${error.message || 'Failed to save resource. Please try again.'}`)
     }
   }
 

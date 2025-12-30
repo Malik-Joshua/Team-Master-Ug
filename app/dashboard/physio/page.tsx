@@ -167,12 +167,14 @@ export default function PhysioDashboard() {
           // Load team selection for upcoming fixture
           try {
             setLoadingTeamSelection(true)
-            const matchesResponse = await fetch('/api/fixtures')
+            const matchesResponse = await fetch('/api/fixtures', { cache: 'no-store' })
             if (matchesResponse.ok) {
               const matchesData = await matchesResponse.json()
+              console.log('Physio dashboard - Matches data:', matchesData)
               if (matchesData.fixtures && matchesData.fixtures.length > 0) {
                 const latestMatch = matchesData.fixtures[0]
-                const selectionResponse = await fetch(`/api/fixtures/team-selection?matchId=${latestMatch.id}`)
+                console.log('Physio dashboard - Latest match:', latestMatch)
+                const selectionResponse = await fetch(`/api/fixtures/team-selection?matchId=${latestMatch.id}`, { cache: 'no-store' })
                 if (selectionResponse.ok) {
                   const selectionData = await selectionResponse.json()
                   console.log('Physio dashboard - Team selection data:', selectionData)
@@ -187,19 +189,25 @@ export default function PhysioDashboard() {
                       substitutes: selectionData.selections.filter((s: any) => s.is_substitute),
                     })
                   } else {
+                    console.log('Physio dashboard - No team selection found for match')
                     setTeamSelection(null)
                   }
                 } else {
+                  const errorData = await selectionResponse.json().catch(() => ({ error: 'Unknown error' }))
+                  console.error('Physio dashboard - Team selection API error:', selectionResponse.status, errorData)
                   setTeamSelection(null)
                 }
               } else {
+                console.log('Physio dashboard - No upcoming fixtures found')
                 setTeamSelection(null)
               }
             } else {
+              const errorData = await matchesResponse.json().catch(() => ({ error: 'Unknown error' }))
+              console.error('Physio dashboard - Fixtures API error:', matchesResponse.status, errorData)
               setTeamSelection(null)
             }
           } catch (error) {
-            console.error('Error loading team selection:', error)
+            console.error('Physio dashboard - Error loading team selection:', error)
             setTeamSelection(null)
           } finally {
             setLoadingTeamSelection(false)

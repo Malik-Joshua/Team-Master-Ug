@@ -296,6 +296,36 @@ export function useNotifications() {
     }
   }
 
+  const markNotificationByReference = async (referenceId: string, referenceType: string, actionUrl?: string) => {
+    try {
+      const response = await fetch('/api/notifications/mark-read', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          reference_id: referenceId,
+          reference_type: referenceType,
+          action_url: actionUrl,
+        }),
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        // Refresh notifications to update UI
+        await refreshNotifications()
+        return result
+      } else {
+        const errorData = await response.json()
+        console.error('Error marking notification by reference:', errorData)
+        return null
+      }
+    } catch (error) {
+      console.error('Error marking notification by reference:', error)
+      return null
+    }
+  }
+
   const refreshNotifications = async () => {
     try {
       const supabase = createClient()
@@ -334,6 +364,7 @@ export function useNotifications() {
     unreadCount: unreadCount + unreadMessagesCount, // Include unread messages in count
     markAsRead,
     markAllAsRead,
+    markNotificationByReference,
     refreshNotifications,
   }
 }

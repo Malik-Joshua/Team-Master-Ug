@@ -115,13 +115,29 @@ export async function POST(request: NextRequest) {
       console.warn(`Filtered out ${attendanceRecords.length - validatedRecords.length} invalid records`)
     }
 
-    // Validate all player_ids exist
+    // Validate all player_ids exist in the players table (not just user_profiles)
     const playerIds = [...new Set(validatedRecords.map((r) => r.player_id))]
-    const { data: existingPlayers, error: playersError } = await supabaseAdmin
+    
+    // First check if they exist in user_profiles with role 'player'
+    const { data: existingUserProfiles, error: profilesError } = await supabaseAdmin
       .from('user_profiles')
       .select('user_id')
       .in('user_id', playerIds)
       .eq('role', 'player')
+
+    if (profilesError) {
+      console.error('Error validating user profiles:', profilesError)
+      return NextResponse.json(
+        { error: `Failed to validate user profiles: ${profilesError.message}` },
+        { status: 500 }
+      )
+    }
+
+    // Then check if they exist in the players table (required for foreign key)
+    const { data: existingPlayers, error: playersError } = await supabaseAdmin
+      .from('players')
+      .select('user_id')
+      .in('user_id', playerIds)
 
     if (playersError) {
       console.error('Error validating players:', playersError)
@@ -131,11 +147,27 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (existingPlayers && existingPlayers.length !== playerIds.length) {
+    const existingPlayerIds = new Set(existingPlayers?.map(p => p.user_id) || [])
+    const missingPlayerIds = playerIds.filter(id => !existingPlayerIds.has(id))
+
+    if (missingPlayerIds.length > 0) {
+      console.error('Some player IDs do not exist in players table:', missingPlayerIds)
       return NextResponse.json(
-        { error: 'Some player IDs are invalid or do not exist' },
+        { 
+          error: `Some players are not registered in the players table. Missing player IDs: ${missingPlayerIds.join(', ')}`,
+          missingPlayerIds 
+        },
         { status: 400 }
       )
+    }
+
+    // Also check if user_profiles match
+    const existingProfileIds = new Set(existingUserProfiles?.map(p => p.user_id) || [])
+    const missingProfileIds = playerIds.filter(id => !existingProfileIds.has(id))
+
+    if (missingProfileIds.length > 0) {
+      console.warn('Some player IDs do not have user_profiles with role player:', missingProfileIds)
+      // This is a warning, not an error, as the foreign key is on players table
     }
 
     // Get session_id from first record

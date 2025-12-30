@@ -175,15 +175,35 @@ export default function PhysioDashboard() {
                 const selectionResponse = await fetch(`/api/fixtures/team-selection?matchId=${latestMatch.id}`)
                 if (selectionResponse.ok) {
                   const selectionData = await selectionResponse.json()
-                  setTeamSelection(selectionData)
+                  console.log('Physio dashboard - Team selection data:', selectionData)
+                  // Ensure the data structure matches what the UI expects
+                  if (selectionData.match && (selectionData.starting || selectionData.substitutes)) {
+                    setTeamSelection(selectionData)
+                  } else if (selectionData.selections && selectionData.selections.length > 0) {
+                    // Fallback: if API returns old format, format it
+                    setTeamSelection({
+                      match: latestMatch,
+                      starting: selectionData.selections.filter((s: any) => s.is_starting && !s.is_substitute),
+                      substitutes: selectionData.selections.filter((s: any) => s.is_substitute),
+                    })
+                  } else {
+                    setTeamSelection(null)
+                  }
+                } else {
+                  setTeamSelection(null)
                 }
+              } else {
+                setTeamSelection(null)
               }
+            } else {
+              setTeamSelection(null)
             }
           } catch (error) {
             console.error('Error loading team selection:', error)
+            setTeamSelection(null)
           } finally {
             setLoadingTeamSelection(false)
-        }
+          }
       }
       setLoading(false)
     }

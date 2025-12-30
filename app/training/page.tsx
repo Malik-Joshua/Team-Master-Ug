@@ -212,14 +212,24 @@ export default function TrainingPage() {
               }))
               setSessions(formattedSessions)
 
-              // For admin, fetch session summaries with attendance data
-              if (profile.role === 'admin') {
+              // For admin, coach, and data_admin, fetch session summaries with attendance data
+              if (['admin', 'coach', 'data_admin'].includes(profile.role)) {
                 const summaries = await Promise.all(
                   sessionsData.map(async (session: any) => {
-                    const { data: attendanceData } = await supabase
-                      .from('training_attendance')
-                      .select('attendance_status')
-                      .eq('session_id', session.id)
+                    // Use API route to bypass RLS for attendance data
+                    let attendanceData: any[] = []
+                    
+                    try {
+                      const response = await fetch(`/api/training/attendance?session_id=${session.id}`)
+                      if (response.ok) {
+                        const apiData = await response.json()
+                        attendanceData = apiData.attendance || []
+                      } else {
+                        console.warn(`Failed to fetch attendance for session ${session.id}:`, response.statusText)
+                      }
+                    } catch (err) {
+                      console.error('Error fetching attendance via API:', err)
+                    }
 
                     const present = attendanceData?.filter((a: any) => a.attendance_status === 'P').length || 0
                     const absent = attendanceData?.filter((a: any) => a.attendance_status === 'X').length || 0
@@ -1442,8 +1452,8 @@ export default function TrainingPage() {
           </div>
         )}
 
-        {/* Admin Summary View */}
-        {user?.role === 'admin' && (
+        {/* Admin, Coach, and Data Admin Summary View */}
+        {['admin', 'coach', 'data_admin'].includes(user?.role || '') && (
           <div className="space-y-4">
             <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
               <h2 className="text-2xl font-bold text-neutral-text mb-4">Training Sessions Summary</h2>

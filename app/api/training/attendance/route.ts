@@ -164,14 +164,29 @@ export async function POST(request: NextRequest) {
     // Final validation pass - ensure every record has valid attendance_status
     const finalValidatedRecords = validatedRecords
       .map((r) => {
-        const status = r.attendance_status?.trim().toUpperCase()
-        if (!status || !validStatuses.includes(status)) {
-          console.error('Final validation failed for record:', r)
+        // Double-check the status is valid
+        if (!r.attendance_status || typeof r.attendance_status !== 'string') {
+          console.error('Final validation failed - invalid status type:', r)
           return null
         }
+        
+        const status = r.attendance_status.trim().toUpperCase()
+        if (!status || status === '' || !validStatuses.includes(status)) {
+          console.error('Final validation failed - invalid status value:', r.attendance_status, '(normalized:', status, ')')
+          return null
+        }
+        
+        // Ensure all required fields are present and valid
+        if (!r.session_id || !r.player_id || !r.recorded_by) {
+          console.error('Final validation failed - missing required fields:', r)
+          return null
+        }
+        
         return {
-          ...r,
+          session_id: String(r.session_id),
+          player_id: String(r.player_id),
           attendance_status: status as 'P' | 'A' | 'X' | 'I',
+          recorded_by: String(r.recorded_by),
         }
       })
       .filter((r): r is {

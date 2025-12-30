@@ -119,61 +119,42 @@ export function useNotifications() {
           .on(
             'postgres_changes',
             {
-              event: '*', // Listen to all changes (INSERT, UPDATE, DELETE)
+              event: 'INSERT',
               schema: 'public',
               table: 'notifications',
               filter: `user_id=eq.${user.id}`,
             },
             (payload) => {
-              // Handle INSERT events
-              if (payload.eventType === 'INSERT') {
-                console.log('[useNotifications] New notification received via real-time:', payload.new)
-                const newNotification = payload.new as Notification
-                // Ensure action_url and reference fields are included
-                const notificationWithActionUrl = {
-                  ...newNotification,
-                  action_url: (payload.new as any).action_url || null,
-                  reference_id: (payload.new as any).reference_id || null,
-                  reference_type: (payload.new as any).reference_type || null,
-                }
-                setNotifications((prev) => {
-                  // Check if notification already exists to avoid duplicates
-                  const exists = prev.some(n => n.id === notificationWithActionUrl.id)
-                  if (exists) {
-                    console.log('[useNotifications] Notification already exists, skipping duplicate')
-                    return prev
-                  }
-                  console.log('[useNotifications] Adding new notification to list')
-                  return [notificationWithActionUrl, ...prev]
-                })
-                setUnreadCount((prev) => {
-                  const newCount = prev + 1
-                  console.log(`[useNotifications] Updated unread count: ${prev} -> ${newCount}`)
-                  return newCount
-                })
-                
-                // Show browser notification if permission granted
-                if ('Notification' in window && Notification.permission === 'granted') {
-                  new Notification(notificationWithActionUrl.title, {
-                    body: notificationWithActionUrl.message,
-                    icon: '/favicon.ico',
-                  })
-                }
+              console.log('[useNotifications] New notification received via real-time:', payload.new)
+              const newNotification = payload.new as Notification
+              // Ensure action_url and reference fields are included
+              const notificationWithActionUrl = {
+                ...newNotification,
+                action_url: (payload.new as any).action_url || null,
+                reference_id: (payload.new as any).reference_id || null,
+                reference_type: (payload.new as any).reference_type || null,
               }
-              // Handle UPDATE events (when notification is marked as read)
-              else if (payload.eventType === 'UPDATE') {
-                console.log('[useNotifications] Notification updated via real-time:', payload.new)
-                const updatedNotification = payload.new as Notification
-                setNotifications((prev) =>
-                  prev.map((n) => (n.id === updatedNotification.id ? updatedNotification : n))
-                )
-                setUnreadCount((prev) => {
-                  if (updatedNotification.read && !(payload.old as any)?.read) {
-                    return Math.max(0, prev - 1)
-                  } else if (!updatedNotification.read && (payload.old as any)?.read) {
-                    return prev + 1
-                  }
+              setNotifications((prev) => {
+                // Check if notification already exists to avoid duplicates
+                const exists = prev.some(n => n.id === notificationWithActionUrl.id)
+                if (exists) {
+                  console.log('[useNotifications] Notification already exists, skipping duplicate')
                   return prev
+                }
+                console.log('[useNotifications] Adding new notification to list')
+                return [notificationWithActionUrl, ...prev]
+              })
+              setUnreadCount((prev) => {
+                const newCount = prev + 1
+                console.log(`[useNotifications] Updated unread count: ${prev} -> ${newCount}`)
+                return newCount
+              })
+              
+              // Show browser notification if permission granted
+              if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification(notificationWithActionUrl.title, {
+                  body: notificationWithActionUrl.message,
+                  icon: '/favicon.ico',
                 })
               }
             }
@@ -187,16 +168,35 @@ export function useNotifications() {
               filter: `user_id=eq.${user.id}`,
             },
             (payload) => {
-              console.log('Notification updated via real-time:', payload.new)
+              console.log('[useNotifications] Notification updated via real-time:', payload.new)
               const updatedNotification = payload.new as Notification
+              const oldNotification = payload.old as any
+              
+              // Update the notification in the list
               setNotifications((prev) =>
-                prev.map((n) => (n.id === updatedNotification.id ? updatedNotification : n))
+                prev.map((n) => {
+                  if (n.id === updatedNotification.id) {
+                    return {
+                      ...updatedNotification,
+                      action_url: (payload.new as any).action_url || n.action_url,
+                      reference_id: (payload.new as any).reference_id || n.reference_id,
+                      reference_type: (payload.new as any).reference_type || n.reference_type,
+                    }
+                  }
+                  return n
+                })
               )
+              
+              // Update unread count
               setUnreadCount((prev) => {
-                if (updatedNotification.read && !payload.old.read) {
-                  return Math.max(0, prev - 1)
-                } else if (!updatedNotification.read && payload.old.read) {
-                  return prev + 1
+                if (updatedNotification.read && !oldNotification?.read) {
+                  const newCount = Math.max(0, prev - 1)
+                  console.log(`[useNotifications] Notification marked as read, unread count: ${prev} -> ${newCount}`)
+                  return newCount
+                } else if (!updatedNotification.read && oldNotification?.read) {
+                  const newCount = prev + 1
+                  console.log(`[useNotifications] Notification unmarked as read, unread count: ${prev} -> ${newCount}`)
+                  return newCount
                 }
                 return prev
               })

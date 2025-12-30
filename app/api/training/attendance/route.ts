@@ -199,23 +199,33 @@ export async function POST(request: NextRequest) {
           return null
         }
         
-        // Use explicit string matching to ensure exact value
+        // Use explicit string matching to ensure exact value - use string literals
         let finalStatus: 'P' | 'A' | 'X' | 'I'
-        if (status === 'P') finalStatus = 'P'
-        else if (status === 'A') finalStatus = 'A'
-        else if (status === 'X') finalStatus = 'X'
-        else if (status === 'I') finalStatus = 'I'
+        if (status === 'P') finalStatus = 'P' as const
+        else if (status === 'A') finalStatus = 'A' as const
+        else if (status === 'X') finalStatus = 'X' as const
+        else if (status === 'I') finalStatus = 'I' as const
         else {
-          console.error('Status mapping failed:', status)
+          console.error('Status mapping failed:', status, 'char codes:', Array.from(status).map(c => c.charCodeAt(0)))
           return null
         }
         
-        return {
+        // Create record with explicit string values
+        const record = {
           session_id: String(r.session_id),
           player_id: String(r.player_id),
           attendance_status: finalStatus,
           recorded_by: String(r.recorded_by),
         }
+        
+        // Final sanity check - ensure attendance_status is exactly one of the valid values
+        if (record.attendance_status !== 'P' && record.attendance_status !== 'A' && 
+            record.attendance_status !== 'X' && record.attendance_status !== 'I') {
+          console.error('Final sanity check failed - invalid status in record:', record)
+          return null
+        }
+        
+        return record
       })
       .filter((r): r is {
         session_id: string

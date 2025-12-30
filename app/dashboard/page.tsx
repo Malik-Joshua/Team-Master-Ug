@@ -333,7 +333,7 @@ export default function DashboardPage() {
                 setInjuries(playerInjuries || [])
                 setLoadingInjuries(false)
 
-                // Load player fixture selection via API
+                // Load player fixture selection via API (includes teammates)
                 setLoadingPlayerFixture(true)
                 try {
                   const response = await fetch(`/api/fixtures/team-selection?playerId=${authUser.id}`)
@@ -344,6 +344,7 @@ export default function DashboardPage() {
                         isSelected: true,
                         selection: data.selection,
                         match: data.match,
+                        teammates: data.teammates || [], // Include teammates
                       })
                     } else {
                       setPlayerFixtureSelection(null)
@@ -536,6 +537,36 @@ export default function DashboardPage() {
                       </div>
                     )}
                   </div>
+                  
+                  {/* Show Teammates */}
+                  {playerFixtureSelection.teammates && playerFixtureSelection.teammates.length > 0 && (
+                    <div className="mt-4 pt-4 border-t border-neutral-light">
+                      <h4 className="text-sm font-semibold text-neutral-text mb-3">Your Teammates ({playerFixtureSelection.teammates.length})</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                        {playerFixtureSelection.teammates.map((teammate: any) => (
+                          <div key={teammate.player_id} className="bg-neutral-light rounded-lg p-2 text-sm">
+                            <div className="flex items-center justify-between">
+                              <span className="font-medium text-neutral-text text-xs">{teammate.name}</span>
+                              {teammate.jersey_number && (
+                                <span className="bg-primary/20 text-primary px-1.5 py-0.5 rounded text-xs font-bold">#{teammate.jersey_number}</span>
+                              )}
+                            </div>
+                            {teammate.position && (
+                              <p className="text-xs text-neutral-medium mt-1 capitalize">{teammate.position.replace(/_/g, ' ')}</p>
+                            )}
+                            <div className="flex gap-1 mt-1">
+                              {teammate.is_starting && !teammate.is_substitute && (
+                                <span className="text-xs bg-success/20 text-success px-1.5 py-0.5 rounded">Starting</span>
+                              )}
+                              {teammate.is_substitute && (
+                                <span className="text-xs bg-warning/20 text-warning px-1.5 py-0.5 rounded">Sub</span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

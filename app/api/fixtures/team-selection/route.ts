@@ -67,6 +67,31 @@ export async function GET(request: NextRequest) {
         .single()
 
       if (selection) {
+        // Get all teammates for this match
+        const { data: allSelections } = await supabaseAdmin
+          .from('fixture_team_selections')
+          .select('player_id, is_starting, is_substitute, position, jersey_number')
+          .eq('match_id', nextMatch.id)
+          .neq('player_id', playerId) // Exclude the current player
+
+        // Get teammate names
+        let teammates: any[] = []
+        if (allSelections && allSelections.length > 0) {
+          const teammateIds = allSelections.map((s: any) => s.player_id)
+          const { data: teammateProfiles } = await supabaseAdmin
+            .from('user_profiles')
+            .select('user_id, name')
+            .in('user_id', teammateIds)
+
+          if (teammateProfiles) {
+            const profilesMap = new Map(teammateProfiles.map((p: any) => [p.user_id, p.name]))
+            teammates = allSelections.map((s: any) => ({
+              ...s,
+              name: profilesMap.get(s.player_id) || 'Unknown',
+            }))
+          }
+        }
+
         return NextResponse.json({
           isSelected: true,
           selection: {
@@ -75,7 +100,8 @@ export async function GET(request: NextRequest) {
             jersey_number: selection.jersey_number,
             position: selection.position,
           },
-          match: nextMatch
+          match: nextMatch,
+          teammates: teammates || [],
         })
       } else {
         return NextResponse.json({
@@ -155,13 +181,28 @@ export async function GET(request: NextRequest) {
         const playersMap = new Map((playersData || []).map((p: any) => [p.user_id, p.name]))
         selections.forEach((selection: any) => {
           selection.player_name = playersMap.get(selection.player_id) || 'Unknown'
+          selection.player = { name: playersMap.get(selection.player_id) || 'Unknown' }
         })
       }
     }
 
+    // Get match details
+    const { data: matchDetails } = await supabaseAdmin
+      .from('matches')
+      .select('id, match_date, opponent, venue, tournament_type')
+      .eq('id', matchId)
+      .single()
+
+    // Format selections into starting and substitutes
+    const starting = selections?.filter((s: any) => s.is_starting && !s.is_substitute) || []
+    const substitutes = selections?.filter((s: any) => s.is_substitute) || []
+
     return NextResponse.json({
       selections: selections || [],
-      count: selections?.length || 0
+      count: selections?.length || 0,
+      match: matchDetails,
+      starting: starting,
+      substitutes: substitutes,
     })
   } catch (error: any) {
     console.error('Team selection GET API error:', error)
@@ -212,9 +253,9 @@ export async function POST(request: NextRequest) {
       .eq('user_id', authUser.id)
       .single()
 
-    if (!profile || (profile.role !== 'coach' && profile.role !== 'admin')) {
+    if (!profile || (profile.role !== 'coach' && profile.role !== 'admin' && profile.role !== 'data_admin')) {
       return NextResponse.json(
-        { error: 'Only coaches and admins can select teams' },
+        { error: 'Only coaches, admins, and data managers can select teams' },
         { status: 403 }
       )
     }
@@ -352,6 +393,41 @@ export async function POST(request: NextRequest) {
         { error: `Failed to save team selection: ${insertError.message}` },
         { status: 500 }
       )
+    }
+
+    // Get match details for notification
+    const { data: matchDetails } = await supabaseAdmin
+      .from('matches')
+      .select('match_date, opponent, venue, tournament_type')
+      .eq('id', matchId)
+      .single()
+
+    // Send notifications to all selected players
+    if (newSelections && newSelections.length > 0 && matchDetails) {
+      try {
+        const { db } = await import('@/lib/db-helpers')
+        const selectedPlayerIds = newSelections.map((s: any) => s.player_id)
+        
+        const matchDate = new Date(matchDetails.match_date).toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        })
+        
+        await db.createNotificationForUsers(selectedPlayerIds, {
+          title: 'Team Selection',
+          message: `You have been selected for the match vs ${matchDetails.opponent} on ${matchDate}`,
+          type: 'info',
+          action_url: '/dashboard',
+          reference_id: matchId,
+          reference_type: 'fixture_team_selection',
+        })
+        
+        console.log(`Sent notifications to ${selectedPlayerIds.length} selected players`)
+      } catch (notifError) {
+        console.error('Error sending notifications:', notifError)
+        // Don't fail the request if notifications fail
+      }
     }
 
     return NextResponse.json({

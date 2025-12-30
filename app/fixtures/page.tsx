@@ -788,6 +788,89 @@ export default function FixturesPage() {
     loadDataForMatchStats()
   }, [selectedMatchForStats, showMatchForm])
 
+  // Load match summaries for admin
+  useEffect(() => {
+    const loadMatchSummaries = async () => {
+      // Only load if user is admin and matches are loaded
+      if (user?.role !== 'admin' || loading || matches.length === 0) {
+        if (user?.role === 'admin' && !loading) {
+          setLoadingSummaries(false)
+        }
+        return
+      }
+
+      setLoadingSummaries(true)
+      const today = new Date().toISOString().split('T')[0]
+      
+      try {
+        const supabase = createClient()
+        console.log('Loading match summaries for', matches.length, 'matches')
+        
+        const summaries = await Promise.all(
+          matches.map(async (match) => {
+            const isUpcoming = match.match_date >= today
+            
+            // Get match details
+            const { data: matchDetails, error: matchError } = await supabase
+              .from('matches')
+              .select('result, score_our_team, score_opponent')
+              .eq('id', match.id)
+              .single()
+
+            if (matchError) {
+              console.error('Error fetching match details:', matchError)
+            }
+
+            // Get match stats for played matches
+            let playersWithStats = 0
+            let totalTries = 0
+            let totalTackles = 0
+
+            if (!isUpcoming) {
+              const { data: stats, error: statsError } = await supabase
+                .from('match_stats')
+                .select('tries_scored, tackles_made')
+                .eq('match_id', match.id)
+
+              if (statsError) {
+                console.error('Error fetching match stats:', statsError)
+              } else if (stats) {
+                playersWithStats = stats.length
+                totalTries = stats.reduce((sum, s) => sum + (s.tries_scored || 0), 0)
+                totalTackles = stats.reduce((sum, s) => sum + (s.tackles_made || 0), 0)
+              }
+            }
+
+            return {
+              matchId: match.id,
+              matchDate: match.match_date,
+              opponent: match.opponent,
+              venue: match.venue,
+              tournamentType: match.tournament_type,
+              result: matchDetails?.result,
+              scoreOurTeam: matchDetails?.score_our_team,
+              scoreOpponent: matchDetails?.score_opponent,
+              playersWithStats,
+              totalTries,
+              totalTackles,
+              isUpcoming,
+            }
+          })
+        )
+
+        console.log('Loaded match summaries:', summaries.length)
+        setMatchSummaries(summaries)
+      } catch (error) {
+        console.error('Error loading match summaries:', error)
+        setMatchSummaries([])
+      } finally {
+        setLoadingSummaries(false)
+      }
+    }
+
+    loadMatchSummaries()
+  }, [matches, user?.role, loading])
+
   if (loading) {
     return (
       <Layout pageTitle="Fixture Team Selection">

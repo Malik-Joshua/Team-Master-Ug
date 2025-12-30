@@ -496,6 +496,25 @@ export default function PhysioDashboard() {
           </div>
         )}
 
+        {/* Show loading state */}
+        {loadingTeamSelection && (
+          <div className="bg-white rounded-card border border-neutral-light shadow-soft p-6">
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+          </div>
+        )}
+
+        {/* Show message when no team selection exists */}
+        {!loadingTeamSelection && !teamSelection && (
+          <div className="bg-white rounded-card border border-neutral-light shadow-soft p-6">
+            <div className="text-center py-8">
+              <Trophy className="w-12 h-12 mx-auto mb-4 text-neutral-light" />
+              <p className="text-neutral-medium">No upcoming fixture team selection available</p>
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <StatCard 
             title="Training Sessions Attended" 

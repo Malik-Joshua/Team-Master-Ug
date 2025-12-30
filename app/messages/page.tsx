@@ -227,6 +227,28 @@ export default function MessagesPage() {
     loadData()
   }, [])
 
+  // Auto-mark notification as read when message modal opens
+  useEffect(() => {
+    if (selectedMessage && !selectedMessage.read) {
+      // Mark message as read
+      markMessageAsRead(selectedMessage.id)
+      // Mark related notification as read
+      fetch('/api/notifications/mark-read', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          reference_id: selectedMessage.id,
+          reference_type: 'message',
+          action_url: '/messages',
+        }),
+      }).catch((error) => {
+        console.error('Error marking notification as read:', error)
+      })
+    }
+  }, [selectedMessage])
+
   // Helper function to fetch users directly (fallback)
   const fetchUsersDirectly = async (supabase: any, currentUserId: string, userRole: string) => {
     if (userRole === 'coach') {

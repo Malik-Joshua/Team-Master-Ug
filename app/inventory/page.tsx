@@ -56,8 +56,8 @@ export default function InventoryPage() {
         if (profile) {
           setUser(profile)
         
-        // Fetch inventory items - use API route for admin/data_admin to bypass RLS
-        if (profile.role === 'admin' || profile.role === 'data_admin') {
+        // Fetch inventory items - use API route for admin/data_admin/physio to bypass RLS
+        if (profile.role === 'admin' || profile.role === 'data_admin' || profile.role === 'physio') {
           try {
             console.log('Fetching inventory from API route for admin user...', profile.role)
             const response = await fetch('/api/admin/inventory', {
@@ -159,7 +159,7 @@ export default function InventoryPage() {
     
     setLoading(true)
     try {
-      if (user.role === 'admin' || user.role === 'data_admin') {
+      if (user.role === 'admin' || user.role === 'data_admin' || user.role === 'physio') {
         console.log('Refreshing inventory via API route...')
         const response = await fetch('/api/admin/inventory', {
           cache: 'no-store',
@@ -265,8 +265,8 @@ export default function InventoryPage() {
         description: newItem.description || '',
       }
 
-      // Refetch inventory items to ensure we have the latest data (especially for admin users)
-      if (user?.role === 'admin' || user?.role === 'data_admin') {
+      // Refetch inventory items to ensure we have the latest data (especially for admin/physio users)
+      if (user?.role === 'admin' || user?.role === 'data_admin' || user?.role === 'physio') {
         try {
           const response = await fetch('/api/admin/inventory')
           if (response.ok) {
@@ -431,8 +431,14 @@ export default function InventoryPage() {
         {/* Header */}
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-4xl font-extrabold text-club-gradient mb-2">Inventory Management</h1>
-            <p className="text-lg text-neutral-medium font-medium">Track and manage club equipment and supplies</p>
+            <h1 className="text-4xl font-extrabold text-club-gradient mb-2">
+              {user.role === 'physio' ? 'Medical Inventory' : 'Inventory Management'}
+            </h1>
+            <p className="text-lg text-neutral-medium font-medium">
+              {user.role === 'physio' 
+                ? 'Track and manage medical kit supplies and equipment' 
+                : 'Track and manage club equipment and supplies'}
+            </p>
           </div>
           <div className="flex gap-3">
             <button
@@ -443,6 +449,7 @@ export default function InventoryPage() {
               <Package className="w-5 h-5 mr-2" />
               Refresh
             </button>
+          {(user.role === 'admin' || user.role === 'data_admin') && (
           <button
             onClick={() => setShowAddModal(true)}
             className="bg-primary-gradient text-white px-6 py-3 rounded-button font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
@@ -450,6 +457,7 @@ export default function InventoryPage() {
             <Plus className="w-5 h-5 mr-2" />
             Add Item
           </button>
+          )}
           </div>
         </div>
 
@@ -589,6 +597,7 @@ export default function InventoryPage() {
                         {new Date(item.lastUpdated).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4">
+                        {(user.role === 'admin' || user.role === 'data_admin') && (
                         <div className="flex items-center space-x-2">
                           <button
                             onClick={() => handleEditItem(item)}
@@ -605,6 +614,10 @@ export default function InventoryPage() {
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
+                        )}
+                        {user.role === 'physio' && (
+                          <span className="text-sm text-neutral-medium">View Only</span>
+                        )}
                       </td>
                     </tr>
                   ))}

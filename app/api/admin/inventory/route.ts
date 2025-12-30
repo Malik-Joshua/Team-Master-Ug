@@ -23,9 +23,9 @@ export async function GET(request: NextRequest) {
       .eq('user_id', authUser.id)
       .single()
 
-    if (!profile || !['admin', 'data_admin'].includes(profile.role)) {
+    if (!profile || !['admin', 'data_admin', 'physio'].includes(profile.role)) {
       return NextResponse.json(
-        { error: 'Unauthorized: Admin/Data Admin access required' },
+        { error: 'Unauthorized: Admin/Data Admin/Physio access required' },
         { status: 403 }
       )
     }
@@ -52,11 +52,59 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Get all inventory items - use item_name column
-    const { data: items, error } = await supabaseAdmin
+    // Get all inventory items first
+    const { data: allItems, error: fetchError } = await supabaseAdmin
       .from('inventory')
       .select('*')
       .order('item_name', { ascending: true })
+    
+    if (fetchError) {
+      console.error('Error fetching inventory from Supabase:', fetchError)
+      console.error('Error details:', JSON.stringify(fetchError, null, 2))
+      return NextResponse.json(
+        { 
+          error: `Failed to fetch inventory items: ${fetchError.message}`,
+          details: process.env.NODE_ENV === 'development' ? fetchError : undefined,
+          code: fetchError.code,
+          hint: fetchError.hint
+        },
+        { status: 500 }
+      )
+    }
+    
+    // Filter items based on role
+    let items = allItems
+    
+    // For physio, only show medical/medical kit items
+    if (profile.role === 'physio') {
+      const medicalKeywords = [
+        'strap', 'straps', 'scissors', 'bandage', 'bandages', 'tape', 'gauze', 'ice', 
+        'medical', 'first aid', 'first-aid', 'splint', 'splints', 'brace', 'braces', 
+        'wrap', 'wraps', 'tensor', 'elastic', 'adhesive', 'plaster', 'plasters',
+        'cotton', 'alcohol', 'antiseptic', 'disinfectant', 'gloves', 'syringe',
+        'needle', 'needles', 'thermometer', 'stethoscope', 'sphygmomanometer',
+        'crutches', 'crutch', 'sling', 'slings', 'compression', 'cold pack',
+        'heat pack', 'ibuprofen', 'paracetamol', 'aspirin', 'antihistamine'
+      ]
+      
+      items = allItems?.filter((item: any) => {
+        const itemName = (item.item_name || '').toLowerCase()
+        const category = (item.category || '').toLowerCase()
+        const description = (item.description || '').toLowerCase()
+        
+        // Check if item matches medical keywords
+        return medicalKeywords.some(keyword => 
+          itemName.includes(keyword) || 
+          category.includes(keyword) || 
+          description.includes(keyword) ||
+          category === 'medical' ||
+          category === 'medical_kit' ||
+          category === 'first_aid' ||
+          category === 'medical supplies' ||
+          category === 'medical equipment'
+        )
+      }) || []
+    }
 
     if (error) {
       console.error('Error fetching inventory from Supabase:', error)
@@ -72,7 +120,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    console.log(`Fetched ${items?.length || 0} inventory items from database`)
+    console.log(`Fetched ${items?.length || 0} inventory items from database (${profile.role === 'physio' ? 'filtered for medical items' : 'all items'})`)
     if (items && items.length > 0) {
       console.log('Sample inventory item:', items[0])
     }

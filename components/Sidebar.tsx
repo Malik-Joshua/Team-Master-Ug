@@ -39,7 +39,7 @@ const navigationItems: NavItem[] = [
   { name: 'Fixtures', href: '/fixtures', icon: Trophy, roles: ['coach', 'data_admin', 'admin'] },
   { name: 'Injuries', href: '/dashboard/physio', icon: HeartPulse, roles: ['physio'] },
   { name: 'Finance', href: '/finance', icon: DollarSign, roles: ['finance_admin', 'admin'] },
-  { name: 'Inventory', href: '/inventory', icon: Package, roles: ['data_admin', 'admin'] },
+  { name: 'Inventory', href: '/inventory', icon: Package, roles: ['data_admin', 'admin', 'physio'] },
   { name: 'Messages', href: '/messages', icon: MessageSquare },
   { name: 'Reports', href: '/reports', icon: FileText, roles: ['data_admin', 'finance_admin', 'admin'] },
 ]

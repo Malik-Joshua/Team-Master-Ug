@@ -170,9 +170,26 @@ export async function POST(request: NextRequest) {
           return null
         }
         
-        const status = r.attendance_status.trim().toUpperCase()
+        // Trim and normalize - remove all whitespace including non-breaking spaces
+        const rawStatus = r.attendance_status
+        const status = rawStatus.replace(/[\s\u00A0\u2000-\u200B\u2028\u2029]/g, '').toUpperCase()
+        
+        // Log the raw and normalized values for debugging
+        console.log('Status validation:', {
+          raw: JSON.stringify(rawStatus),
+          rawLength: rawStatus.length,
+          normalized: JSON.stringify(status),
+          normalizedLength: status.length,
+          isValid: validStatuses.includes(status)
+        })
+        
         if (!status || status === '' || !validStatuses.includes(status)) {
-          console.error('Final validation failed - invalid status value:', r.attendance_status, '(normalized:', status, ')')
+          console.error('Final validation failed - invalid status value:', {
+            raw: JSON.stringify(rawStatus),
+            normalized: JSON.stringify(status),
+            validStatuses,
+            record: r
+          })
           return null
         }
         
@@ -182,10 +199,21 @@ export async function POST(request: NextRequest) {
           return null
         }
         
+        // Use explicit string matching to ensure exact value
+        let finalStatus: 'P' | 'A' | 'X' | 'I'
+        if (status === 'P') finalStatus = 'P'
+        else if (status === 'A') finalStatus = 'A'
+        else if (status === 'X') finalStatus = 'X'
+        else if (status === 'I') finalStatus = 'I'
+        else {
+          console.error('Status mapping failed:', status)
+          return null
+        }
+        
         return {
           session_id: String(r.session_id),
           player_id: String(r.player_id),
-          attendance_status: status as 'P' | 'A' | 'X' | 'I',
+          attendance_status: finalStatus,
           recorded_by: String(r.recorded_by),
         }
       })
@@ -206,18 +234,59 @@ export async function POST(request: NextRequest) {
 
     // Insert new attendance records (using final validated records)
     console.log('Inserting final validated records:', JSON.stringify(finalValidatedRecords, null, 2))
-    const { data: insertedRecords, error: insertError } = await supabaseAdmin
-      .from('training_attendance')
-      .insert(finalValidatedRecords)
-      .select()
-
-    if (insertError) {
-      console.error('Error inserting attendance:', insertError)
+    
+    // Log each record's attendance_status with character codes for debugging
+    finalValidatedRecords.forEach((r, idx) => {
+      const statusChars = Array.from(r.attendance_status).map(c => `${c} (${c.charCodeAt(0)})`).join(', ')
+      console.log(`Record ${idx}: attendance_status = "${r.attendance_status}" (chars: ${statusChars}, length: ${r.attendance_status.length})`)
+    })
+    
+    // Try inserting records one by one to identify which one fails
+    const insertedRecords: any[] = []
+    const errors: any[] = []
+    
+    for (let i = 0; i < finalValidatedRecords.length; i++) {
+      const record = finalValidatedRecords[i]
+      console.log(`Inserting record ${i + 1}/${finalValidatedRecords.length}:`, JSON.stringify(record))
+      
+      // Double-check the status one more time
+      if (record.attendance_status !== 'P' && record.attendance_status !== 'A' && 
+          record.attendance_status !== 'X' && record.attendance_status !== 'I') {
+        console.error(`Record ${i} has invalid status:`, record.attendance_status)
+        errors.push({ index: i, record, error: 'Invalid attendance_status' })
+        continue
+      }
+      
+      const { data, error } = await supabaseAdmin
+        .from('training_attendance')
+        .insert([record])
+        .select()
+      
+      if (error) {
+        console.error(`Error inserting record ${i}:`, error)
+        errors.push({ index: i, record, error })
+      } else if (data && data.length > 0) {
+        insertedRecords.push(...data)
+        console.log(`Successfully inserted record ${i}`)
+      }
+    }
+    
+    if (errors.length > 0) {
+      console.error('Errors during batch insert:', errors)
       return NextResponse.json(
-        { error: `Failed to save attendance: ${insertError.message}` },
+        { 
+          error: `Failed to save some attendance records. ${errors.length} record(s) failed.`,
+          details: errors.map(e => ({
+            index: e.index,
+            error: e.error.message || e.error,
+            record: e.record
+          }))
+        },
         { status: 500 }
       )
     }
+    
+    const insertError = errors.length > 0 ? errors[0].error : null
 
     return NextResponse.json({
       success: true,

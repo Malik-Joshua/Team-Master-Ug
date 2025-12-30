@@ -1682,11 +1682,27 @@ export default function MessagesPage() {
                     <Trash2 className="w-4 h-4" />
                   </button>
                   <div
-                    onClick={() => {
+                    onClick={async () => {
                       setSelectedMessage(message)
                       // Mark message as read when clicked
                       if (!message.read) {
-                        markMessageAsRead(message.id)
+                        await markMessageAsRead(message.id)
+                      }
+                      // Also mark related notification as read
+                      try {
+                        await fetch('/api/notifications/mark-read', {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                          },
+                          body: JSON.stringify({
+                            reference_id: message.id,
+                            reference_type: 'message',
+                            action_url: '/messages',
+                          }),
+                        })
+                      } catch (error) {
+                        console.error('Error marking notification as read:', error)
                       }
                     }}
                     className="flex items-start justify-between"

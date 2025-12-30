@@ -232,7 +232,11 @@ export default function MessagesPage() {
     if (selectedMessage && !selectedMessage.read) {
       // Mark message as read
       markMessageAsRead(selectedMessage.id)
-      // Mark related notification as read
+    }
+    
+    // Always try to mark related notification as read when message is viewed
+    if (selectedMessage) {
+      // Try by reference_id first (most accurate)
       fetch('/api/notifications/mark-read', {
         method: 'POST',
         headers: {
@@ -244,7 +248,20 @@ export default function MessagesPage() {
           action_url: '/messages',
         }),
       }).catch((error) => {
-        console.error('Error marking notification as read:', error)
+        console.error('Error marking notification as read by reference:', error)
+      })
+      
+      // Also try by action_url for older notifications without reference_id
+      fetch('/api/notifications/mark-read', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action_url: '/messages',
+        }),
+      }).catch((error) => {
+        console.error('Error marking notification as read by action_url:', error)
       })
     }
   }, [selectedMessage])

@@ -55,6 +55,7 @@ export async function POST(request: NextRequest) {
         .eq('reference_type', reference_type)
     } else if (action_url) {
       // Fallback: find by action_url (for older notifications without reference fields)
+      // Also check for notifications with matching action_url that might be related
       query = query.or(`action_url.eq.${action_url},action_url.ilike.%${action_url}%`)
     } else {
       return NextResponse.json(
@@ -62,6 +63,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+    
+    // Limit to most recent unread notifications to avoid marking too many
+    query = query.order('created_at', { ascending: false }).limit(10)
 
     const { data: notifications, error: fetchError } = await query
 

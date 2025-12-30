@@ -119,42 +119,61 @@ export function useNotifications() {
           .on(
             'postgres_changes',
             {
-              event: 'INSERT',
+              event: '*', // Listen to all changes (INSERT, UPDATE, DELETE)
               schema: 'public',
               table: 'notifications',
               filter: `user_id=eq.${user.id}`,
             },
             (payload) => {
-              console.log('[useNotifications] New notification received via real-time:', payload.new)
-              const newNotification = payload.new as Notification
-              // Ensure action_url and reference fields are included
-              const notificationWithActionUrl = {
-                ...newNotification,
-                action_url: (payload.new as any).action_url || null,
-                reference_id: (payload.new as any).reference_id || null,
-                reference_type: (payload.new as any).reference_type || null,
-              }
-              setNotifications((prev) => {
-                // Check if notification already exists to avoid duplicates
-                const exists = prev.some(n => n.id === notificationWithActionUrl.id)
-                if (exists) {
-                  console.log('[useNotifications] Notification already exists, skipping duplicate')
-                  return prev
+              // Handle INSERT events
+              if (payload.eventType === 'INSERT') {
+                console.log('[useNotifications] New notification received via real-time:', payload.new)
+                const newNotification = payload.new as Notification
+                // Ensure action_url and reference fields are included
+                const notificationWithActionUrl = {
+                  ...newNotification,
+                  action_url: (payload.new as any).action_url || null,
+                  reference_id: (payload.new as any).reference_id || null,
+                  reference_type: (payload.new as any).reference_type || null,
                 }
-                console.log('[useNotifications] Adding new notification to list')
-                return [notificationWithActionUrl, ...prev]
-              })
-              setUnreadCount((prev) => {
-                const newCount = prev + 1
-                console.log(`[useNotifications] Updated unread count: ${prev} -> ${newCount}`)
-                return newCount
-              })
-              
-              // Show browser notification if permission granted
-              if ('Notification' in window && Notification.permission === 'granted') {
-                new Notification(notificationWithActionUrl.title, {
-                  body: notificationWithActionUrl.message,
-                  icon: '/favicon.ico',
+                setNotifications((prev) => {
+                  // Check if notification already exists to avoid duplicates
+                  const exists = prev.some(n => n.id === notificationWithActionUrl.id)
+                  if (exists) {
+                    console.log('[useNotifications] Notification already exists, skipping duplicate')
+                    return prev
+                  }
+                  console.log('[useNotifications] Adding new notification to list')
+                  return [notificationWithActionUrl, ...prev]
+                })
+                setUnreadCount((prev) => {
+                  const newCount = prev + 1
+                  console.log(`[useNotifications] Updated unread count: ${prev} -> ${newCount}`)
+                  return newCount
+                })
+                
+                // Show browser notification if permission granted
+                if ('Notification' in window && Notification.permission === 'granted') {
+                  new Notification(notificationWithActionUrl.title, {
+                    body: notificationWithActionUrl.message,
+                    icon: '/favicon.ico',
+                  })
+                }
+              }
+              // Handle UPDATE events (when notification is marked as read)
+              else if (payload.eventType === 'UPDATE') {
+                console.log('[useNotifications] Notification updated via real-time:', payload.new)
+                const updatedNotification = payload.new as Notification
+                setNotifications((prev) =>
+                  prev.map((n) => (n.id === updatedNotification.id ? updatedNotification : n))
+                )
+                setUnreadCount((prev) => {
+                  if (updatedNotification.read && !(payload.old as any)?.read) {
+                    return Math.max(0, prev - 1)
+                  } else if (!updatedNotification.read && (payload.old as any)?.read) {
+                    return prev + 1
+                  }
+                  return prev
                 })
               }
             }

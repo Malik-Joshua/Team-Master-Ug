@@ -157,14 +157,19 @@ export default function TopBar({ title, userName, userRole, userAvatar }: TopBar
                     </div>
                     </div>
                     <div className="divide-y divide-neutral-light max-h-96 overflow-y-auto">
-                      {notifications.length === 0 ? (
+                      {notifications.filter((n) => !n.read).length === 0 ? (
                         <div className="p-8 text-center">
                           <Bell className="w-12 h-12 text-neutral-medium mx-auto mb-2 opacity-50" />
-                          <p className="text-sm text-neutral-medium">No notifications</p>
+                          <p className="text-sm text-neutral-medium">No unread notifications</p>
                         </div>
                       ) : (
                         notifications
-                          .filter((notification) => notification && typeof notification === 'object' && notification.id)
+                          .filter((notification) => 
+                            notification && 
+                            typeof notification === 'object' && 
+                            notification.id &&
+                            !notification.read // Only show unread notifications
+                          )
                           .map((notification) => {
                             // Ensure notification has required fields
                             const title = notification.title || 'Notification'

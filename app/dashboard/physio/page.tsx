@@ -303,11 +303,33 @@ export default function PhysioDashboard() {
             })
             
             const messageSubject = `Injury Recorded - ${injuryDate}`
-            const messageBody = `Dear ${playerName},\n\nAn injury has been recorded for you:\n\n` +
-              `Cause: ${injuryForm.cause}\n` +
-              (injuryForm.return_to_training_date ? `Return to Training: ${new Date(injuryForm.return_to_training_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}\n` : '') +
-              (injuryForm.return_to_play_date ? `Return to Play: ${new Date(injuryForm.return_to_play_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}\n` : '') +
-              `\nPlease follow the treatment plan and recovery guidelines provided.`
+            let messageBody = `Dear ${playerName},\n\nAn injury has been recorded for you with the following details:\n\n`
+            messageBody += `Injury Date: ${injuryDate}\n`
+            messageBody += `Cause: ${injuryForm.cause}\n`
+            messageBody += `Diagnosis: ${injuryForm.diagnosis}\n`
+            messageBody += `Action Taken: ${injuryForm.action_taken}\n`
+            
+            if (injuryForm.further_treatment) {
+              messageBody += `Further Treatment: ${injuryForm.further_treatment}\n`
+            }
+            
+            if (injuryForm.medication) {
+              messageBody += `Medication: ${injuryForm.medication}\n`
+            }
+            
+            if (injuryForm.return_to_training_date) {
+              messageBody += `Return to Training: ${new Date(injuryForm.return_to_training_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}\n`
+            }
+            
+            if (injuryForm.return_to_play_date) {
+              messageBody += `Return to Play: ${new Date(injuryForm.return_to_play_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}\n`
+            }
+            
+            if (injuryForm.notes) {
+              messageBody += `\nAdditional Notes: ${injuryForm.notes}\n`
+            }
+            
+            messageBody += `\nPlease follow the treatment plan and recovery guidelines provided. If you have any questions or concerns, please contact the physiotherapy team.`
 
             const { data: newMessage, error: messageError } = await supabase
               .from('messages')

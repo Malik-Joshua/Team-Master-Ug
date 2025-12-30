@@ -74,17 +74,25 @@ export async function POST(request: NextRequest) {
         }
         
         // Strictly check attendance_status - must be exactly one of the valid values
-        const status = r.attendance_status
-        if (!status || typeof status !== 'string' || status.trim() === '' || !validStatuses.includes(status)) {
-          console.error('Invalid attendance_status:', status, 'in record:', r)
+        // Trim whitespace and convert to uppercase to handle any case variations
+        const status = typeof r.attendance_status === 'string' 
+          ? r.attendance_status.trim().toUpperCase() 
+          : null
+        
+        // Validate the trimmed status
+        if (!status || status === '' || !validStatuses.includes(status)) {
+          console.error('Invalid attendance_status:', r.attendance_status, '(trimmed:', status, ') in record:', r)
           return null
         }
+        
+        // Ensure status is exactly one of the valid values (TypeScript type assertion)
+        const validStatus: 'P' | 'A' | 'X' | 'I' = status as 'P' | 'A' | 'X' | 'I'
         
         // Return validated record with only the fields we need
         return {
           session_id: String(r.session_id),
           player_id: String(r.player_id),
-          attendance_status: status as 'P' | 'A' | 'X' | 'I',
+          attendance_status: validStatus,
           recorded_by: String(r.recorded_by),
         }
       })
@@ -153,11 +161,39 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Insert new attendance records (using validated records)
-    console.log('Inserting validated records:', JSON.stringify(validatedRecords, null, 2))
+    // Final validation pass - ensure every record has valid attendance_status
+    const finalValidatedRecords = validatedRecords
+      .map((r) => {
+        const status = r.attendance_status?.trim().toUpperCase()
+        if (!status || !validStatuses.includes(status)) {
+          console.error('Final validation failed for record:', r)
+          return null
+        }
+        return {
+          ...r,
+          attendance_status: status as 'P' | 'A' | 'X' | 'I',
+        }
+      })
+      .filter((r): r is {
+        session_id: string
+        player_id: string
+        attendance_status: 'P' | 'A' | 'X' | 'I'
+        recorded_by: string
+      } => r !== null)
+
+    if (finalValidatedRecords.length === 0) {
+      console.error('No valid records after final validation')
+      return NextResponse.json(
+        { error: 'No valid attendance records after final validation' },
+        { status: 400 }
+      )
+    }
+
+    // Insert new attendance records (using final validated records)
+    console.log('Inserting final validated records:', JSON.stringify(finalValidatedRecords, null, 2))
     const { data: insertedRecords, error: insertError } = await supabaseAdmin
       .from('training_attendance')
-      .insert(validatedRecords)
+      .insert(finalValidatedRecords)
       .select()
 
     if (insertError) {

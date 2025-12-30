@@ -58,25 +58,57 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    // Validate attendance records
+    // Validate attendance records - strict validation
     const validStatuses = ['P', 'A', 'X', 'I']
-    const invalidRecords = attendanceRecords.filter((r: any) => 
-      !r.attendance_status || 
-      !validStatuses.includes(r.attendance_status) ||
-      !r.session_id ||
-      !r.player_id
-    )
+    
+    // Log all records for debugging
+    console.log('Received attendance records:', JSON.stringify(attendanceRecords, null, 2))
+    
+    // Filter and validate each record strictly
+    const validatedRecords = attendanceRecords
+      .map((r: any) => {
+        // Check if all required fields exist
+        if (!r.session_id || !r.player_id || !r.recorded_by) {
+          console.error('Missing required fields:', r)
+          return null
+        }
+        
+        // Strictly check attendance_status - must be exactly one of the valid values
+        const status = r.attendance_status
+        if (!status || typeof status !== 'string' || status.trim() === '' || !validStatuses.includes(status)) {
+          console.error('Invalid attendance_status:', status, 'in record:', r)
+          return null
+        }
+        
+        // Return validated record with only the fields we need
+        return {
+          session_id: String(r.session_id),
+          player_id: String(r.player_id),
+          attendance_status: status as 'P' | 'A' | 'X' | 'I',
+          recorded_by: String(r.recorded_by),
+        }
+      })
+      .filter((r: any): r is {
+        session_id: string
+        player_id: string
+        attendance_status: 'P' | 'A' | 'X' | 'I'
+        recorded_by: string
+      } => r !== null)
 
-    if (invalidRecords.length > 0) {
-      console.error('Invalid attendance records:', invalidRecords)
+    if (validatedRecords.length === 0) {
+      console.error('No valid attendance records after validation')
       return NextResponse.json(
-        { error: `Invalid attendance status values. Only 'P', 'A', 'X', 'I' are allowed. Found: ${invalidRecords.map((r: any) => r.attendance_status).join(', ')}` },
+        { error: 'No valid attendance records. Each record must have session_id, player_id, recorded_by, and attendance_status must be one of: P, A, X, I' },
         { status: 400 }
       )
     }
 
+    if (validatedRecords.length !== attendanceRecords.length) {
+      console.warn(`Filtered out ${attendanceRecords.length - validatedRecords.length} invalid records`)
+    }
+
     // Validate all player_ids exist
-    const playerIds = [...new Set(attendanceRecords.map((r: any) => r.player_id))]
+    const playerIds = [...new Set(validatedRecords.map((r) => r.player_id))]
     const { data: existingPlayers, error: playersError } = await supabaseAdmin
       .from('user_profiles')
       .select('user_id')
@@ -99,7 +131,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get session_id from first record
-    const sessionId = attendanceRecords[0]?.session_id
+    const sessionId = validatedRecords[0]?.session_id
     if (!sessionId) {
       return NextResponse.json(
         { error: 'Session ID is required' },
@@ -121,10 +153,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Insert new attendance records
+    // Insert new attendance records (using validated records)
+    console.log('Inserting validated records:', JSON.stringify(validatedRecords, null, 2))
     const { data: insertedRecords, error: insertError } = await supabaseAdmin
       .from('training_attendance')
-      .insert(attendanceRecords)
+      .insert(validatedRecords)
       .select()
 
     if (insertError) {

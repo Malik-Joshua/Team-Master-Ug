@@ -899,6 +899,21 @@ export default function TrainingPage() {
         return
       }
 
+      // Log what we're sending for debugging
+      console.log('Sending attendance records:', JSON.stringify(attendanceRecords, null, 2))
+      
+      // Double-check all records have valid attendance_status
+      const invalidRecords = attendanceRecords.filter(r => 
+        !r.attendance_status || 
+        (r.attendance_status !== 'P' && r.attendance_status !== 'A' && r.attendance_status !== 'X' && r.attendance_status !== 'I')
+      )
+      
+      if (invalidRecords.length > 0) {
+        console.error('Found invalid records before sending:', invalidRecords)
+        alert('Error: Some attendance records have invalid status. Please try again.')
+        return
+      }
+
       // Insert attendance records using API route to bypass RLS
       const response = await fetch('/api/training/attendance', {
         method: 'POST',

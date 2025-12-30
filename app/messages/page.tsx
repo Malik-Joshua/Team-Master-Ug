@@ -150,8 +150,8 @@ export default function MessagesPage() {
             setMessages([])
           }
 
-          // If user is a coach, admin, team manager, or finance admin, fetch users for messaging
-          if (['coach', 'admin', 'data_admin', 'finance_admin'].includes(profile.role)) {
+          // If user is a coach, admin, team manager, finance admin, or physio, fetch users for messaging
+          if (['coach', 'admin', 'data_admin', 'finance_admin', 'physio'].includes(profile.role)) {
             // Use API route to fetch all users (bypasses RLS)
             try {
               const usersResponse = await fetch('/api/messages/users')
@@ -1366,6 +1366,79 @@ export default function MessagesPage() {
                             {financeAdmins.map((finance) => (
                               <option key={finance.user_id} value={finance.user_id}>
                                 {finance.name} (Finance Admin)
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                      </select>
+                    </div>
+                  )}
+                </>
+              ) : user?.role === 'physio' ? (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-medium mb-2">
+                      Send To
+                    </label>
+                    <select
+                      value={composeData.recipientType}
+                      onChange={(e) => setComposeData({ ...composeData, recipientType: e.target.value, recipient: '', recipientId: '' })}
+                      className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                    >
+                      <option value="role">Send to Role Group</option>
+                      <option value="individual">Send to Individual</option>
+                    </select>
+                  </div>
+                  {composeData.recipientType === 'role' ? (
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-medium mb-2">
+                        Select Recipient Group
+                      </label>
+                      <select
+                        value={composeData.recipient}
+                        onChange={(e) => setComposeData({ ...composeData, recipient: e.target.value })}
+                        className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                      >
+                        <option value="">Select recipient group...</option>
+                        <option value="all_players">All Players</option>
+                        <option value="all_admins">All Administrators</option>
+                        <option value="all_coaches">All Coaches</option>
+                      </select>
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-medium mb-2">
+                        Select Individual Recipient
+                      </label>
+                      <select
+                        value={composeData.recipientId}
+                        onChange={(e) => setComposeData({ ...composeData, recipientId: e.target.value, recipient: '' })}
+                        className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                      >
+                        <option value="">Select recipient...</option>
+                        {players.length > 0 && (
+                        <optgroup label="Players">
+                          {players.map((player) => (
+                            <option key={player.user_id} value={player.user_id}>
+                              {player.name} (Player)
+                            </option>
+                          ))}
+                        </optgroup>
+                        )}
+                        {admins.length > 0 && (
+                        <optgroup label="Administrators">
+                          {admins.map((admin) => (
+                            <option key={admin.user_id} value={admin.user_id}>
+                              {admin.name} ({admin.role.replace('_', ' ')})
+                            </option>
+                          ))}
+                        </optgroup>
+                        )}
+                        {coaches.length > 0 && (
+                          <optgroup label="Coaches">
+                            {coaches.map((coach) => (
+                              <option key={coach.user_id} value={coach.user_id}>
+                                {coach.name} (Coach)
                               </option>
                             ))}
                           </optgroup>

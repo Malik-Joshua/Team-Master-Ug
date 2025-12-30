@@ -72,6 +72,7 @@ export default function PhysioDashboard() {
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'cleared' | 'healed'>('all')
   const [teamSelection, setTeamSelection] = useState<any>(null)
   const [loadingTeamSelection, setLoadingTeamSelection] = useState(false)
+  const [sendInjuryMessage, setSendInjuryMessage] = useState(false)
 
   const loadInjuries = async () => {
     const supabase = createClient()
@@ -290,6 +291,61 @@ export default function PhysioDashboard() {
         }
 
         await loadInjuries()
+        
+        // Send message to player if checkbox is checked
+        if (sendInjuryMessage && injuryForm.player_id) {
+          try {
+            const playerName = players.find(p => p.user_id === injuryForm.player_id)?.name || 'Player'
+            const injuryDate = new Date(injuryForm.injury_date).toLocaleDateString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+            })
+            
+            const messageSubject = `Injury Recorded - ${injuryDate}`
+            const messageBody = `Dear ${playerName},\n\nAn injury has been recorded for you:\n\n` +
+              `Cause: ${injuryForm.cause}\n` +
+              (injuryForm.return_to_training_date ? `Return to Training: ${new Date(injuryForm.return_to_training_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}\n` : '') +
+              (injuryForm.return_to_play_date ? `Return to Play: ${new Date(injuryForm.return_to_play_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}\n` : '') +
+              `\nPlease follow the treatment plan and recovery guidelines provided.`
+
+            const { data: newMessage, error: messageError } = await supabase
+              .from('messages')
+              .insert({
+                sender_id: authUser.id,
+                recipient_id: injuryForm.player_id,
+                recipient_role: 'player',
+                subject: messageSubject,
+                message: messageBody,
+              })
+              .select()
+              .single()
+
+            if (messageError) {
+              console.error('Error sending injury message:', messageError)
+            } else {
+              // Create notification for player
+              try {
+                const { db } = await import('@/lib/db-helpers')
+                await db.createNotification({
+                  user_id: injuryForm.player_id,
+                  title: 'Injury Recorded',
+                  message: `An injury has been recorded for you. Check your messages for details.`,
+                  type: 'info',
+                  action_url: '/messages',
+                  reference_id: newMessage.id,
+                  reference_type: 'message',
+                })
+              } catch (notifError) {
+                console.error('Error creating notification:', notifError)
+              }
+            }
+          } catch (messageError) {
+            console.error('Error sending injury message to player:', messageError)
+            // Don't fail the injury save if message fails
+          }
+        }
+        
         alert('Injury saved successfully!')
       }
 
@@ -306,6 +362,7 @@ export default function PhysioDashboard() {
         return_to_play_date: '',
         notes: '',
       })
+      setSendInjuryMessage(false)
       setShowInjuryForm(false)
       setEditingInjury(null)
     } catch (error: any) {
@@ -870,6 +927,21 @@ export default function PhysioDashboard() {
                     className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                 </div>
+                {injuryForm.player_id && (
+                  <div className="md:col-span-2 mt-4">
+                    <label className="flex items-center space-x-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={sendInjuryMessage}
+                        onChange={(e) => setSendInjuryMessage(e.target.checked)}
+                        className="w-4 h-4 text-primary border-neutral-light rounded focus:ring-primary"
+                      />
+                      <span className="text-sm text-neutral-text">
+                        Send injury information to player via message (player will only see: cause, return to training date, and return to play date)
+                      </span>
+                    </label>
+                  </div>
+                )}
               </div>
             </div>
             <div className="p-6 border-t border-neutral-light flex justify-end space-x-3">
@@ -877,6 +949,7 @@ export default function PhysioDashboard() {
                 onClick={() => {
                   setShowInjuryForm(false)
                   setEditingInjury(null)
+                  setSendInjuryMessage(false)
                 }}
                 className="px-6 py-2 border border-neutral-light rounded-button font-semibold text-neutral-text hover:bg-neutral-light transition-colors"
               >

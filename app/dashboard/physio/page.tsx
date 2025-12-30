@@ -76,20 +76,71 @@ export default function PhysioDashboard() {
 
   const loadInjuries = async () => {
     const supabase = createClient()
+    
+    // First, get all injuries
     const { data: injuriesData, error } = await supabase
       .from('injuries')
-      .select(`
-        *,
-        player:user_profiles!injuries_player_id_fkey(name)
-      `)
+      .select('*')
       .order('injury_date', { ascending: false })
 
     if (error) {
       console.error('Error loading injuries:', error)
-            return
+      return
     }
 
-    if (injuriesData) {
+    if (injuriesData && injuriesData.length > 0) {
+      // Get all unique player IDs
+      const playerIds = [...new Set(injuriesData.map((injury: any) => injury.player_id).filter(Boolean))]
+      
+      // Fetch player names using service role to bypass RLS
+      let playerNamesMap: Record<string, string> = {}
+      
+      if (playerIds.length > 0) {
+        try {
+          // Use API route to fetch players (bypasses RLS)
+          const playersResponse = await fetch('/api/admin/players', { cache: 'no-store' })
+          if (playersResponse.ok) {
+            const playersData = await playersResponse.json()
+            if (playersData.players && playersData.players.length > 0) {
+              playersData.players.forEach((player: any) => {
+                playerNamesMap[player.user_id] = player.name
+              })
+            }
+          }
+        } catch (apiError) {
+          console.error('Error fetching players from API:', apiError)
+          // Fallback: try direct query with service role
+          try {
+            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+            const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+            
+            if (supabaseUrl && supabaseServiceKey) {
+              const { createClient: createServiceClient } = await import('@supabase/supabase-js')
+              const supabaseAdmin = createServiceClient(supabaseUrl, supabaseServiceKey, {
+                auth: {
+                  autoRefreshToken: false,
+                  persistSession: false
+                }
+              })
+              
+              const { data: playerProfiles } = await supabaseAdmin
+                .from('user_profiles')
+                .select('user_id, name')
+                .in('user_id', playerIds)
+              
+              if (playerProfiles) {
+                playerProfiles.forEach((profile: any) => {
+                  playerNamesMap[profile.user_id] = profile.name
+                })
+              }
+            }
+          } catch (fallbackError) {
+            console.error('Error in fallback player name fetch:', fallbackError)
+          }
+        }
+      }
+
+      // Map injuries with player names
       const injuriesWithDetails = injuriesData.map((injury: any) => {
         const healingDuration = injury.return_to_play_date && injury.injury_date
           ? Math.ceil((new Date(injury.return_to_play_date).getTime() - new Date(injury.injury_date).getTime()) / (1000 * 60 * 60 * 24))
@@ -97,11 +148,13 @@ export default function PhysioDashboard() {
 
         return {
           ...injury,
-          player_name: injury.player?.name || 'Unknown Player',
+          player_name: playerNamesMap[injury.player_id] || 'Unknown Player',
           healing_duration: healingDuration,
         } as Injury
       })
       setInjuries(injuriesWithDetails)
+    } else {
+      setInjuries([])
     }
   }
 

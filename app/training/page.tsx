@@ -156,7 +156,7 @@ export default function TrainingPage() {
                 *,
                 coach:user_profiles!training_sessions_coach_id_fkey(name)
               `)
-              .order('session_date', { ascending: true })
+              .order('session_date', { ascending: false })
 
             if (sessionsData) {
               const formattedSessions: TrainingSession[] = sessionsData.map((s: any) => ({
@@ -169,6 +169,49 @@ export default function TrainingPage() {
                 coach_name: s.coach?.name || 'Coach',
               }))
               setSessions(formattedSessions)
+
+              // Fetch session summaries with attendance data for coaches, data admins, and admins
+              const summaries = await Promise.all(
+                sessionsData.map(async (session: any) => {
+                  // Use API route to bypass RLS for attendance data
+                  let attendanceData: any[] = []
+                  
+                  try {
+                    const response = await fetch(`/api/training/attendance?session_id=${session.id}`)
+                    if (response.ok) {
+                      const apiData = await response.json()
+                      attendanceData = apiData.attendance || []
+                    } else {
+                      console.warn(`Failed to fetch attendance for session ${session.id}:`, response.statusText)
+                    }
+                  } catch (err) {
+                    console.error('Error fetching attendance via API:', err)
+                  }
+
+                  const present = attendanceData?.filter((a: any) => a.attendance_status === 'P').length || 0
+                  const absent = attendanceData?.filter((a: any) => a.attendance_status === 'X').length || 0
+                  const justified = attendanceData?.filter((a: any) => a.attendance_status === 'A').length || 0
+                  const injured = attendanceData?.filter((a: any) => a.attendance_status === 'I').length || 0
+                  const total = attendanceData?.length || 0
+                  const attendanceRate = total > 0 ? Math.round((present / total) * 100 * 10) / 10 : 0
+
+                  return {
+                    sessionId: session.id,
+                    sessionDate: session.session_date,
+                    sessionTime: session.session_time,
+                    location: session.location,
+                    description: session.description,
+                    drills: session.description, // Using description as drills/activities
+                    present,
+                    absent,
+                    justified,
+                    injured,
+                    total,
+                    attendanceRate,
+                  }
+                })
+              )
+              setSessionSummaries(summaries)
             }
           } else if (profile.role === 'player') {
             // For players, fetch upcoming training sessions (from today onwards)
@@ -211,51 +254,6 @@ export default function TrainingPage() {
                 description: s.description,
               }))
               setSessions(formattedSessions)
-
-              // For admin, coach, and data_admin, fetch session summaries with attendance data
-              if (['admin', 'coach', 'data_admin'].includes(profile.role)) {
-                const summaries = await Promise.all(
-                  sessionsData.map(async (session: any) => {
-                    // Use API route to bypass RLS for attendance data
-                    let attendanceData: any[] = []
-                    
-                    try {
-                      const response = await fetch(`/api/training/attendance?session_id=${session.id}`)
-                      if (response.ok) {
-                        const apiData = await response.json()
-                        attendanceData = apiData.attendance || []
-                      } else {
-                        console.warn(`Failed to fetch attendance for session ${session.id}:`, response.statusText)
-                      }
-                    } catch (err) {
-                      console.error('Error fetching attendance via API:', err)
-                    }
-
-                    const present = attendanceData?.filter((a: any) => a.attendance_status === 'P').length || 0
-                    const absent = attendanceData?.filter((a: any) => a.attendance_status === 'X').length || 0
-                    const justified = attendanceData?.filter((a: any) => a.attendance_status === 'A').length || 0
-                    const injured = attendanceData?.filter((a: any) => a.attendance_status === 'I').length || 0
-                    const total = attendanceData?.length || 0
-                    const attendanceRate = total > 0 ? Math.round((present / total) * 100 * 10) / 10 : 0
-
-                    return {
-                      sessionId: session.id,
-                      sessionDate: session.session_date,
-                      sessionTime: session.session_time,
-                      location: session.location,
-                      description: session.description,
-                      drills: session.description, // Using description as drills/activities
-                      present,
-                      absent,
-                      justified,
-                      injured,
-                      total,
-                      attendanceRate,
-                    }
-                  })
-                )
-                setSessionSummaries(summaries)
-              }
             }
           }
         }

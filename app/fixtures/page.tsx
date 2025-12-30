@@ -119,9 +119,70 @@ export default function FixturesPage() {
 
         setUser(profile)
 
-        // Load matches - for data_admin and coach/admin, load all matches so they can see newly created fixtures
+        // Load matches - different logic for admin vs data_admin/coach
         let matchesData: Match[] = []
-        if (profile.role === 'data_admin' || profile.role === 'coach' || profile.role === 'admin') {
+        if (profile.role === 'admin') {
+          // For admin: Only show played matches with stats OR upcoming fixtures with team selections
+          const today = new Date().toISOString().split('T')[0]
+          
+          try {
+            // Get all matches first
+            const { data: allMatches, error: matchesError } = await supabase
+              .from('matches')
+              .select('id, match_date, opponent, venue, tournament_type')
+              .order('match_date', { ascending: false })
+            
+            if (matchesError) {
+              console.error('Error loading matches:', matchesError)
+              matchesData = []
+            } else if (allMatches && allMatches.length > 0) {
+              // Get match IDs that have stats (played matches with stats)
+              const { data: matchesWithStats } = await supabase
+                .from('match_stats')
+                .select('match_id')
+              
+              const matchIdsWithStats = new Set(matchesWithStats?.map((s: any) => s.match_id) || [])
+              
+              // Get match IDs that have team selections (upcoming fixtures with selections)
+              const { data: teamSelections } = await supabase
+                .from('fixture_team_selections')
+                .select('match_id')
+              
+              const matchIdsWithSelections = new Set(teamSelections?.map((s: any) => s.match_id) || [])
+              
+              // Filter matches:
+              // 1. Played matches (match_date < today) that have stats
+              // 2. Upcoming matches (match_date >= today) that have team selections
+              matchesData = allMatches
+                .filter((m: any) => {
+                  const isPlayed = m.match_date < today
+                  const isUpcoming = m.match_date >= today
+                  
+                  if (isPlayed) {
+                    // Only include if it has stats
+                    return matchIdsWithStats.has(m.id)
+                  } else if (isUpcoming) {
+                    // Only include if it has team selections
+                    return matchIdsWithSelections.has(m.id)
+                  }
+                  return false
+                })
+                .map((m: any) => ({
+                  id: m.id,
+                  match_date: m.match_date,
+                  opponent: m.opponent,
+                  venue: m.venue || undefined,
+                  tournament_type: m.tournament_type,
+                }))
+              
+              console.log(`Loaded ${matchesData.length} matches for admin (played with stats or upcoming with selections)`)
+            }
+          } catch (error) {
+            console.error('Error loading admin matches:', error)
+            matchesData = []
+          }
+        } else if (profile.role === 'data_admin' || profile.role === 'coach') {
+          // For data_admin and coach: load all matches so they can see newly created fixtures
           // Use API route with all=true parameter to get all matches (bypasses RLS)
           try {
             const matchesResponse = await fetch('/api/fixtures?all=true', { cache: 'no-store' })
@@ -1313,7 +1374,219 @@ export default function FixturesPage() {
     )
   }
 
-  // For coach/admin, show team selection interface
+  // For admin, show match summaries with stats
+  if (user?.role === 'admin') {
+    const [matchSummaries, setMatchSummaries] = useState<Array<{
+      matchId: string
+      matchDate: string
+      opponent: string
+      venue?: string
+      tournamentType: string
+      result?: string
+      scoreOurTeam?: number
+      scoreOpponent?: number
+      playersWithStats: number
+      totalTries: number
+      totalTackles: number
+      isUpcoming: boolean
+    }>>([])
+    const [loadingSummaries, setLoadingSummaries] = useState(true)
+
+    useEffect(() => {
+      const loadMatchSummaries = async () => {
+        if (matches.length === 0) {
+          setLoadingSummaries(false)
+          return
+        }
+
+        setLoadingSummaries(true)
+        const today = new Date().toISOString().split('T')[0]
+        
+        try {
+          const supabase = createClient()
+          const summaries = await Promise.all(
+            matches.map(async (match) => {
+              const isUpcoming = match.match_date >= today
+              
+              // Get match details
+              const { data: matchDetails } = await supabase
+                .from('matches')
+                .select('result, score_our_team, score_opponent')
+                .eq('id', match.id)
+                .single()
+
+              // Get match stats for played matches
+              let playersWithStats = 0
+              let totalTries = 0
+              let totalTackles = 0
+
+              if (!isUpcoming) {
+                const { data: stats } = await supabase
+                  .from('match_stats')
+                  .select('tries_scored, tackles_made')
+                  .eq('match_id', match.id)
+
+                if (stats) {
+                  playersWithStats = stats.length
+                  totalTries = stats.reduce((sum, s) => sum + (s.tries_scored || 0), 0)
+                  totalTackles = stats.reduce((sum, s) => sum + (s.tackles_made || 0), 0)
+                }
+              }
+
+              return {
+                matchId: match.id,
+                matchDate: match.match_date,
+                opponent: match.opponent,
+                venue: match.venue,
+                tournamentType: match.tournament_type,
+                result: matchDetails?.result,
+                scoreOurTeam: matchDetails?.score_our_team,
+                scoreOpponent: matchDetails?.score_opponent,
+                playersWithStats,
+                totalTries,
+                totalTackles,
+                isUpcoming,
+              }
+            })
+          )
+
+          setMatchSummaries(summaries)
+        } catch (error) {
+          console.error('Error loading match summaries:', error)
+        } finally {
+          setLoadingSummaries(false)
+        }
+      }
+
+      loadMatchSummaries()
+    }, [matches])
+
+    return (
+      <Layout pageTitle="Fixtures Summary">
+        <div className="space-y-6">
+          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+            <h2 className="text-2xl font-bold text-neutral-text flex items-center gap-2 mb-4">
+              <Trophy className="w-6 h-6 text-primary" />
+              Match Summaries
+            </h2>
+            <p className="text-neutral-medium mb-6">
+              Summary of played matches with stats and upcoming fixtures with team selections
+            </p>
+
+            {loadingSummaries ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+              </div>
+            ) : matchSummaries.length === 0 ? (
+              <div className="text-center py-12 text-neutral-medium">
+                <Trophy className="w-16 h-16 mx-auto mb-4 text-neutral-light" />
+                <p className="text-lg font-semibold">No matches found</p>
+                <p className="text-sm mt-2">
+                  Matches will appear here once they have stats (for played matches) or team selections (for upcoming fixtures)
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {matchSummaries.map((summary) => (
+                  <div
+                    key={summary.matchId}
+                    className="bg-gradient-to-br from-white to-blue-50/30 rounded-lg border border-neutral-light shadow-soft p-5 hover:shadow-medium transition-all"
+                  >
+                    {/* Match Header */}
+                    <div className="mb-4 pb-4 border-b border-neutral-light">
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="text-lg font-bold text-neutral-text">
+                          vs {summary.opponent}
+                        </h3>
+                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                          summary.isUpcoming
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-gray-100 text-gray-700'
+                        }`}>
+                          {summary.isUpcoming ? 'Upcoming' : 'Played'}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-2 text-xs text-neutral-medium">
+                        <div className="flex items-center">
+                          <Calendar className="w-3 h-3 mr-1" />
+                          {new Date(summary.matchDate).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                          })}
+                        </div>
+                        {summary.venue && (
+                          <div className="flex items-center">
+                            <MapPin className="w-3 h-3 mr-1" />
+                            {summary.venue}
+                          </div>
+                        )}
+                        <span className="px-2 py-1 bg-primary/10 text-primary rounded-full capitalize">
+                          {summary.tournamentType.replace('_', ' ')}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Match Result (for played matches) */}
+                    {!summary.isUpcoming && summary.result && (
+                      <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-semibold text-neutral-text">Result:</span>
+                          <span className={`text-sm font-bold capitalize ${
+                            summary.result === 'win' ? 'text-success' :
+                            summary.result === 'loss' ? 'text-secondary' : 'text-neutral-medium'
+                          }`}>
+                            {summary.result}
+                          </span>
+                        </div>
+                        {(summary.scoreOurTeam !== undefined && summary.scoreOpponent !== undefined) && (
+                          <div className="mt-2 text-center text-lg font-bold text-neutral-text">
+                            {summary.scoreOurTeam} - {summary.scoreOpponent}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Stats Summary (for played matches) */}
+                    {!summary.isUpcoming && (
+                      <div>
+                        <h4 className="text-sm font-semibold text-neutral-text mb-3">Match Statistics</h4>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="bg-green-50 rounded-lg p-2 border border-green-200">
+                            <div className="text-xs text-neutral-medium">Players with Stats</div>
+                            <div className="text-lg font-bold text-success">{summary.playersWithStats}</div>
+                          </div>
+                          <div className="bg-blue-50 rounded-lg p-2 border border-blue-200">
+                            <div className="text-xs text-neutral-medium">Total Tries</div>
+                            <div className="text-lg font-bold text-info">{summary.totalTries}</div>
+                          </div>
+                          <div className="bg-purple-50 rounded-lg p-2 border border-purple-200 md:col-span-2">
+                            <div className="text-xs text-neutral-medium">Total Tackles</div>
+                            <div className="text-lg font-bold text-primary">{summary.totalTackles}</div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Upcoming Fixture Note */}
+                    {summary.isUpcoming && (
+                      <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                        <p className="text-sm text-yellow-800">
+                          <strong>Upcoming:</strong> Team selection has been recorded for this fixture.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </Layout>
+    )
+  }
+
+  // For coach, show team selection interface
   return (
     <Layout pageTitle="Fixture Team Selection">
       <div className="space-y-6">

@@ -52,12 +52,43 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Get all players from user_profiles
-    const { data: players, error: playersError } = await supabaseAdmin
+    // Get player details from players table first (this is the source of truth)
+    let playerDetailsMap: Record<string, any> = {}
+    let playerUserIds: string[] = []
+    
+    try {
+      const { data: playerDetails, error: detailsError } = await supabaseAdmin
+        .from('players')
+        .select('*')
+      
+      if (!detailsError && playerDetails) {
+        playerDetails.forEach((detail: any) => {
+          playerDetailsMap[detail.user_id] = detail
+          playerUserIds.push(detail.user_id)
+        })
+        console.log(`Found ${playerDetails.length} players in players table`)
+      } else if (detailsError) {
+        console.error('Error fetching from players table:', detailsError)
+        // If players table doesn't exist or has an error, we'll fall back to user_profiles
+      }
+    } catch (err) {
+      // players table might not exist, that's okay
+      console.log('Note: players table not found or error accessing it:', err)
+    }
+
+    // Get user profiles for players that exist in the players table
+    // If no players in players table, get all players from user_profiles (for backward compatibility)
+    let query = supabaseAdmin
       .from('user_profiles')
       .select('*')
       .eq('role', 'player')
-      .order('name', { ascending: true })
+    
+    // Only include players that exist in players table if we have any
+    if (playerUserIds.length > 0) {
+      query = query.in('user_id', playerUserIds)
+    }
+    
+    const { data: players, error: playersError } = await query.order('name', { ascending: true })
 
     if (playersError) {
       console.error('Error fetching players from Supabase:', playersError)
@@ -73,30 +104,18 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    console.log(`Fetched ${players?.length || 0} players from database`)
-    if (players && players.length > 0) {
-      console.log('Sample player:', players[0])
+    // Filter to only include players that exist in players table (if we have any)
+    const validPlayers = playerUserIds.length > 0
+      ? players?.filter((p: any) => playerUserIds.includes(p.user_id)) || []
+      : players || []
+
+    console.log(`Fetched ${validPlayers.length} valid players (${playerUserIds.length} in players table, ${players?.length || 0} in user_profiles)`)
+    if (validPlayers && validPlayers.length > 0) {
+      console.log('Sample player:', validPlayers[0])
     }
 
-    // Get player details from players table if it exists
-    let playerDetailsMap: Record<string, any> = {}
-    try {
-      const { data: playerDetails, error: detailsError } = await supabaseAdmin
-        .from('players')
-        .select('*')
-      
-      if (!detailsError && playerDetails) {
-        playerDetails.forEach((detail: any) => {
-          playerDetailsMap[detail.user_id] = detail
-        })
-      }
-    } catch (err) {
-      // players table might not exist, that's okay
-      console.log('Note: players table not found or error accessing it:', err)
-    }
-
-    // Format players data
-    const formattedPlayers = players?.map((player: any) => {
+    // Format players data (using validPlayers instead of players)
+    const formattedPlayers = validPlayers.map((player: any) => {
       const details = playerDetailsMap[player.user_id] || {}
       return {
         id: player.user_id || player.id,

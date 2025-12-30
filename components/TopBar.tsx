@@ -16,8 +16,15 @@ interface TopBarProps {
 
 export default function TopBar({ title, userName, userRole, userAvatar }: TopBarProps) {
   const [notificationsOpen, setNotificationsOpen] = useState(false)
-  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications()
+  const { notifications, unreadCount, markAsRead, markAllAsRead, refreshNotifications } = useNotifications()
   const router = useRouter()
+  
+  // Refresh notifications when dropdown opens to ensure latest state
+  useEffect(() => {
+    if (notificationsOpen) {
+      refreshNotifications()
+    }
+  }, [notificationsOpen, refreshNotifications])
 
   const getNotificationLink = (notification: any): string | null => {
     // First, check if notification has an action_url (preferred method)

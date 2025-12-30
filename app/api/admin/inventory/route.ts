@@ -106,20 +106,6 @@ export async function GET(request: NextRequest) {
       }) || []
     }
 
-    if (error) {
-      console.error('Error fetching inventory from Supabase:', error)
-      console.error('Error details:', JSON.stringify(error, null, 2))
-      return NextResponse.json(
-        { 
-          error: `Failed to fetch inventory items: ${error.message}`,
-          details: process.env.NODE_ENV === 'development' ? error : undefined,
-          code: error.code,
-          hint: error.hint
-        },
-        { status: 500 }
-      )
-    }
-
     console.log(`Fetched ${items?.length || 0} inventory items from database (${profile.role === 'physio' ? 'filtered for medical items' : 'all items'})`)
     if (items && items.length > 0) {
       console.log('Sample inventory item:', items[0])

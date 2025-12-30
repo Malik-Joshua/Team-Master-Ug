@@ -124,31 +124,85 @@ export default function PhysioDashboard() {
         if (profile) {
           setUser(profile)
 
-          // Fetch players
-          const { data: playersData } = await supabase
-            .from('user_profiles')
-          .select('user_id, name, position, jersey_number')
-            .eq('role', 'player')
-            .order('name', { ascending: true })
+          // Fetch players using API route to get all registered players
+          try {
+            const playersResponse = await fetch('/api/admin/players', { cache: 'no-store' })
+            if (playersResponse.ok) {
+              const playersData = await playersResponse.json()
+              if (playersData.players && playersData.players.length > 0) {
+                const formattedPlayers = playersData.players.map((p: any) => ({
+                  user_id: p.user_id,
+                  name: p.name,
+                  position: p.players?.position || p.position,
+                  jersey_number: p.players?.jersey_number || p.jersey_number,
+                } as Player))
+                setPlayers(formattedPlayers)
+                console.log(`Loaded ${formattedPlayers.length} players for physio`)
+              } else {
+                setPlayers([])
+              }
+            } else {
+              console.error('Error fetching players from API, trying direct query')
+              // Fallback to direct query
+              const { data: playersData } = await supabase
+                .from('user_profiles')
+                .select('user_id, name')
+                .eq('role', 'player')
+                .order('name', { ascending: true })
 
-          if (playersData) {
-            // Fetch player details
-            const playersWithDetails = await Promise.all(
-              playersData.map(async (p) => {
-                const { data: playerData } = await supabase
-                  .from('players')
-                  .select('position, jersey_number')
-                  .eq('user_id', p.user_id)
-                  .single()
-                
-                return {
-                  ...p,
-                  position: playerData?.position,
-                  jersey_number: playerData?.jersey_number,
-                } as Player
-              })
-            )
-            setPlayers(playersWithDetails)
+              if (playersData) {
+                const playersWithDetails = await Promise.all(
+                  playersData.map(async (p) => {
+                    const { data: playerData } = await supabase
+                      .from('players')
+                      .select('position, jersey_number')
+                      .eq('user_id', p.user_id)
+                      .single()
+                    
+                    return {
+                      user_id: p.user_id,
+                      name: p.name,
+                      position: playerData?.position,
+                      jersey_number: playerData?.jersey_number,
+                    } as Player
+                  })
+                )
+                setPlayers(playersWithDetails)
+              }
+            }
+          } catch (error) {
+            console.error('Error loading players:', error)
+            // Fallback to direct query
+            try {
+              const { data: playersData } = await supabase
+                .from('user_profiles')
+                .select('user_id, name')
+                .eq('role', 'player')
+                .order('name', { ascending: true })
+
+              if (playersData) {
+                const playersWithDetails = await Promise.all(
+                  playersData.map(async (p) => {
+                    const { data: playerData } = await supabase
+                      .from('players')
+                      .select('position, jersey_number')
+                      .eq('user_id', p.user_id)
+                      .single()
+                    
+                    return {
+                      user_id: p.user_id,
+                      name: p.name,
+                      position: playerData?.position,
+                      jersey_number: playerData?.jersey_number,
+                    } as Player
+                  })
+                )
+                setPlayers(playersWithDetails)
+              }
+            } catch (fallbackError) {
+              console.error('Fallback query also failed:', fallbackError)
+              setPlayers([])
+            }
           }
 
           // Fetch injuries
@@ -949,21 +1003,23 @@ export default function PhysioDashboard() {
                     className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                 </div>
-                {injuryForm.player_id && (
-                  <div className="md:col-span-2 mt-4">
-                    <label className="flex items-center space-x-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={sendInjuryMessage}
-                        onChange={(e) => setSendInjuryMessage(e.target.checked)}
-                        className="w-4 h-4 text-primary border-neutral-light rounded focus:ring-primary"
-                      />
-                      <span className="text-sm text-neutral-text">
-                        Send injury information to player via message (player will only see: cause, return to training date, and return to play date)
-                      </span>
-                    </label>
-                  </div>
-                )}
+                <div className="md:col-span-2 mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={sendInjuryMessage}
+                      onChange={(e) => setSendInjuryMessage(e.target.checked)}
+                      disabled={!injuryForm.player_id}
+                      className="w-4 h-4 text-primary border-neutral-light rounded focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                    />
+                    <span className="text-sm text-neutral-text">
+                      <strong>Send complete injury information to player via message</strong>
+                      {!injuryForm.player_id && (
+                        <span className="block text-xs text-neutral-medium mt-1">(Select a player first)</span>
+                      )}
+                    </span>
+                  </label>
+                </div>
               </div>
             </div>
             <div className="p-6 border-t border-neutral-light flex justify-end space-x-3">

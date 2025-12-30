@@ -1134,7 +1134,9 @@ export default function MessagesPage() {
               {user?.role === 'admin'
                 ? 'Send messages to all team members and staff'
                 : user?.role === 'coach' 
-                ? 'Communicate with players and administrators' 
+                ? 'Communicate with players and administrators'
+                : user?.role === 'physio'
+                ? 'Communicate with players, administrators, and coaches'
                 : 'Communicate with coaches and administrators'}
             </p>
           </div>

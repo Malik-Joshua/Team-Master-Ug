@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { checkRoleLimit, getRoleLimitErrorMessage, ROLE_LIMITS } from '@/lib/role-limits'
 
 // This route requires service role for admin operations
 // In production, you should use environment variables for the service role key
@@ -30,6 +31,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Name, email, and position are required' },
         { status: 400 }
+      )
+    }
+
+    // Check role limit for players
+    const { count: currentPlayerCount, error: countError } = await supabase
+      .from('user_profiles')
+      .select('*', { count: 'exact', head: true })
+      .eq('role', 'player')
+
+    if (countError) {
+      console.error('Error counting players:', countError)
+      return NextResponse.json(
+        { error: 'Failed to check player limit' },
+        { status: 500 }
+      )
+    }
+
+    const limitCheck = checkRoleLimit(currentPlayerCount || 0, 'player')
+    if (!limitCheck.canAdd) {
+      return NextResponse.json(
+        { 
+          error: getRoleLimitErrorMessage('player', currentPlayerCount || 0),
+          limit: limitCheck.limit,
+          current: currentPlayerCount || 0,
+          remaining: limitCheck.remaining
+        },
+        { status: 403 }
       )
     }
 
@@ -116,6 +144,11 @@ export async function POST(request: NextRequest) {
         profile: profileData,
         player: playerRecord,
         tempPassword, // In production, send this via email instead
+        roleLimit: {
+          current: (currentPlayerCount || 0) + 1,
+          limit: limitCheck.limit,
+          remaining: limitCheck.remaining - 1,
+        }
       }
     })
   } catch (error: any) {

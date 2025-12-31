@@ -253,6 +253,8 @@ export default function DashboardPage() {
                     
                     if (gymSchedulesResponse.ok) {
                       const gymSchedulesData = await gymSchedulesResponse.json()
+                      console.log('Gym schedules API response:', gymSchedulesData)
+                      
                       if (gymSchedulesData.schedules && gymSchedulesData.schedules.length > 0) {
                         // Get the 5 most recent schedules
                         const recentSchedules = gymSchedulesData.schedules
@@ -261,51 +263,19 @@ export default function DashboardPage() {
                           )
                           .slice(0, 5)
                         setRecentGymSchedules(recentSchedules)
-                        console.log(`Loaded ${recentSchedules.length} gym schedule(s) for ${profile.role}`)
+                        console.log(`✅ Loaded ${recentSchedules.length} gym schedule(s) for ${profile.role}`, recentSchedules)
                       } else {
                         setRecentGymSchedules([])
-                        console.log('No gym schedules found')
+                        console.log('⚠️ No gym schedules found in API response')
                       }
                     } else {
-                      console.error('Error fetching gym schedules via API:', gymSchedulesResponse.status)
-                      // Fallback to direct query (may fail due to RLS)
-                      const { data: gymSchedules } = await supabase
-                        .from('gym_schedules')
-                        .select(`
-                          *,
-                          coach:user_profiles!gym_schedules_created_by_fkey(name)
-                        `)
-                        .order('schedule_date', { ascending: false })
-                        .limit(5)
-
-                      if (gymSchedules) {
-                        setRecentGymSchedules(gymSchedules)
-                      } else {
-                        setRecentGymSchedules([])
-                      }
-                    }
-                  } catch (gymError) {
-                    console.error('Error fetching gym schedules:', gymError)
-                    // Fallback to direct query
-                    try {
-                      const { data: gymSchedules } = await supabase
-                        .from('gym_schedules')
-                        .select(`
-                          *,
-                          coach:user_profiles!gym_schedules_created_by_fkey(name)
-                        `)
-                        .order('schedule_date', { ascending: false })
-                        .limit(5)
-
-                      if (gymSchedules) {
-                        setRecentGymSchedules(gymSchedules)
-                      } else {
-                        setRecentGymSchedules([])
-                      }
-                    } catch (fallbackError) {
-                      console.error('Fallback query also failed:', fallbackError)
+                      const errorData = await gymSchedulesResponse.json().catch(() => ({ error: 'Unknown error' }))
+                      console.error('❌ Error fetching gym schedules via API:', gymSchedulesResponse.status, errorData)
                       setRecentGymSchedules([])
                     }
+                  } catch (gymError) {
+                    console.error('❌ Error fetching gym schedules:', gymError)
+                    setRecentGymSchedules([])
                   }
                 }
                 

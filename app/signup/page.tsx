@@ -54,11 +54,12 @@ export default function SignupPage() {
 
       // Create auth user
       const supabase = createClient()
+      const redirectUrl = typeof window !== 'undefined' ? `${window.location.origin}/dashboard` : '/dashboard'
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
-          emailRedirectTo: `${window.location.origin}/dashboard`,
+          emailRedirectTo: redirectUrl,
         },
       })
 

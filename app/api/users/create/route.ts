@@ -131,15 +131,15 @@ export async function POST(request: NextRequest) {
     const tempPassword = `TempPassword${Math.random().toString(36).slice(-8)}`
 
     // Create auth user
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+    const { data: authData, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password: tempPassword,
       email_confirm: true,
     })
 
-    if (authError) {
+    if (createUserError) {
       return NextResponse.json(
-        { error: `Failed to create user: ${authError.message}` },
+        { error: `Failed to create user: ${createUserError.message}` },
         { status: 400 }
       )
     }

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Layout from '@/components/Layout'
-import { Calendar, Users, Save, Download, Plus, Clock, MapPin, FileText, X, Upload } from 'lucide-react'
+import { Calendar, Users, Save, Download, Plus, Clock, MapPin, FileText, X, Upload, Activity } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 interface Player {
@@ -75,6 +75,7 @@ export default function TrainingPage() {
     total: number
     attendanceRate: number
   }>>([])
+  const [gymSchedules, setGymSchedules] = useState<any[]>([])
 
   useEffect(() => {
     const loadData = async () => {
@@ -236,6 +237,44 @@ export default function TrainingPage() {
                 coach_name: s.coach?.name || 'Coach',
               }))
               setSessions(formattedSessions)
+            }
+
+            // Fetch gym schedules for players using API route
+            try {
+              const gymSchedulesResponse = await fetch('/api/gym-schedules', {
+                cache: 'no-store',
+              })
+              
+              if (gymSchedulesResponse.ok) {
+                const gymSchedulesData = await gymSchedulesResponse.json()
+                if (gymSchedulesData.schedules && gymSchedulesData.schedules.length > 0) {
+                  // Filter to show upcoming gym schedules (from today onwards)
+                  const todayDate = new Date()
+                  todayDate.setHours(0, 0, 0, 0)
+                  
+                  const upcomingGymSchedules = gymSchedulesData.schedules
+                    .filter((schedule: any) => {
+                      const scheduleDate = new Date(schedule.schedule_date)
+                      scheduleDate.setHours(0, 0, 0, 0)
+                      return scheduleDate >= todayDate
+                    })
+                    .sort((a: any, b: any) => 
+                      new Date(a.schedule_date).getTime() - new Date(b.schedule_date).getTime()
+                    )
+                  
+                  setGymSchedules(upcomingGymSchedules)
+                  console.log(`Loaded ${upcomingGymSchedules.length} upcoming gym schedule(s) for player`)
+                } else {
+                  setGymSchedules([])
+                  console.log('No gym schedules found')
+                }
+              } else {
+                console.error('Error fetching gym schedules via API:', gymSchedulesResponse.status)
+                setGymSchedules([])
+              }
+            } catch (gymError) {
+              console.error('Error fetching gym schedules:', gymError)
+              setGymSchedules([])
             }
           } else {
             // For other roles, fetch all sessions
@@ -1076,6 +1115,127 @@ export default function TrainingPage() {
                   <Calendar className="w-8 h-8" />
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Gym Schedules Section */}
+          {gymSchedules.length > 0 && (
+            <>
+              <div className="bg-club-gradient rounded-card p-6 text-white shadow-soft">
+                <div>
+                  <h2 className="text-3xl font-bold mb-2">Upcoming Gym Schedules</h2>
+                  <p className="text-blue-100">
+                    View your upcoming gym sessions and workout plans scheduled by your coach
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {gymSchedules.map((schedule: any) => {
+                  const scheduleDate = new Date(schedule.schedule_date)
+                  const isToday = scheduleDate.toDateString() === new Date().toDateString()
+                  const isTomorrow = scheduleDate.toDateString() === new Date(Date.now() + 86400000).toDateString()
+                  
+                  return (
+                    <div
+                      key={schedule.id}
+                      className="bg-white rounded-card border border-neutral-light shadow-soft hover:shadow-medium transition-all duration-300 overflow-hidden"
+                    >
+                      {/* Date Header */}
+                      <div className={`${isToday ? 'bg-secondary' : isTomorrow ? 'bg-info' : 'bg-purple-600'} p-4 text-white`}>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium opacity-90">
+                              {isToday ? 'Today' : isTomorrow ? 'Tomorrow' : scheduleDate.toLocaleDateString('en-US', { weekday: 'long' })}
+                            </p>
+                            <p className="text-2xl font-bold">
+                              {scheduleDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                            </p>
+                          </div>
+                          <Activity className="w-8 h-8 opacity-80" />
+                        </div>
+                      </div>
+
+                      {/* Schedule Details */}
+                      <div className="p-6 space-y-4">
+                        {/* Description */}
+                        <div>
+                          <h4 className="font-semibold text-neutral-text mb-2">{schedule.description}</h4>
+                          <span className="px-2 py-1 bg-secondary/10 text-secondary rounded text-xs font-medium">
+                            Gym Session
+                          </span>
+                        </div>
+
+                        {/* Time and Location */}
+                        {(schedule.schedule_time || schedule.location) && (
+                          <div className="space-y-2">
+                            {schedule.schedule_time && (
+                              <div className="flex items-center text-neutral-medium">
+                                <Clock className="w-4 h-4 mr-2" />
+                                <span className="text-sm font-medium">{schedule.schedule_time}</span>
+                              </div>
+                            )}
+                            {schedule.location && (
+                              <div className="flex items-center text-neutral-medium">
+                                <MapPin className="w-4 h-4 mr-2" />
+                                <span className="text-sm font-medium">{schedule.location}</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Coach Name */}
+                        {schedule.coach?.name && (
+                          <div className="pt-2 border-t border-neutral-light">
+                            <p className="text-xs text-neutral-medium mb-1">Created by</p>
+                            <p className="text-sm font-semibold text-neutral-text">{schedule.coach.name}</p>
+                          </div>
+                        )}
+
+                        {/* Exercises */}
+                        {schedule.exercises && (
+                          <div className="pt-2 border-t border-neutral-light">
+                            <p className="text-xs text-neutral-medium mb-2 font-semibold uppercase tracking-wide">
+                              Exercises & Workout Plan
+                            </p>
+                            <div className="bg-purple-50 rounded-lg p-3">
+                              <p className="text-sm text-neutral-text leading-relaxed whitespace-pre-line">
+                                {schedule.exercises}
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Gym Summary Card */}
+              <div className="bg-white rounded-card border border-neutral-light shadow-soft p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold text-neutral-text mb-1">Gym Schedule Summary</h3>
+                    <p className="text-sm text-neutral-medium">
+                      You have <span className="font-bold text-secondary">{gymSchedules.length}</span> upcoming gym session{gymSchedules.length !== 1 ? 's' : ''}
+                    </p>
+                  </div>
+                  <div className="bg-secondary rounded-lg p-4 text-white">
+                    <Activity className="w-8 h-8" />
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* No Gym Schedules Message */}
+          {gymSchedules.length === 0 && (
+            <div className="bg-white rounded-card border border-neutral-light shadow-soft p-12 text-center">
+              <Activity className="w-16 h-16 text-neutral-medium mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-neutral-text mb-2">No Upcoming Gym Schedules</h3>
+              <p className="text-neutral-medium">
+                There are no upcoming gym schedules at the moment. Check back later for updates.
+              </p>
             </div>
           )}
         </div>

@@ -30,15 +30,15 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Only allow admin, coach, data_admin (team manager), finance_admin, and physio to fetch users
-    if (!['admin', 'coach', 'data_admin', 'finance_admin', 'physio'].includes(profile.role)) {
+    // Only allow physio to fetch injured players
+    if (profile.role !== 'physio') {
       return NextResponse.json(
-        { error: 'Unauthorized: Admin/Coach/Team Manager/Finance Admin/Physio access required' },
+        { error: 'Unauthorized: Physio access required' },
         { status: 403 }
       )
     }
 
-    // Use service role to bypass RLS for fetching all users
+    // Use service role to bypass RLS for fetching injuries
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
@@ -56,43 +56,58 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Fetch all users except the current user
-    const { data: users, error } = await supabaseAdmin
-      .from('user_profiles')
-      .select('user_id, name, role, email')
-      .neq('user_id', authUser.id)
-      .order('name', { ascending: true })
+    // Fetch all injuries to get player IDs
+    const { data: injuries, error: injuriesError } = await supabaseAdmin
+      .from('injuries')
+      .select('player_id')
+      .order('injury_date', { ascending: false })
 
-    if (error) {
-      console.error('Error fetching users:', error)
+    if (injuriesError) {
+      console.error('Error fetching injuries:', injuriesError)
       return NextResponse.json(
-        { error: `Failed to fetch users: ${error.message}` },
+        { error: `Failed to fetch injuries: ${injuriesError.message}` },
         { status: 500 }
       )
     }
 
-    // Group users by role for easier client-side handling
-    const usersByRole: Record<string, typeof users> = {}
-    if (users) {
-      users.forEach((user) => {
-        if (!usersByRole[user.role]) {
-          usersByRole[user.role] = []
-        }
-        usersByRole[user.role].push(user)
-      })
+    // Get unique player IDs from injuries
+    const injuredPlayerIds = [...new Set(
+      (injuries || [])
+        .map((injury: any) => injury.player_id)
+        .filter(Boolean)
+    )]
+
+    // Fetch player profiles for injured players
+    let injuredPlayers: any[] = []
+    if (injuredPlayerIds.length > 0) {
+      const { data: players, error: playersError } = await supabaseAdmin
+        .from('user_profiles')
+        .select('user_id, name, role, email')
+        .in('user_id', injuredPlayerIds)
+        .eq('role', 'player')
+        .order('name', { ascending: true })
+
+      if (playersError) {
+        console.error('Error fetching injured players:', playersError)
+        return NextResponse.json(
+          { error: `Failed to fetch injured players: ${playersError.message}` },
+          { status: 500 }
+        )
+      }
+
+      injuredPlayers = players || []
     }
 
     return NextResponse.json({
-      users: users || [],
-      usersByRole,
-      count: users?.length || 0
+      injuredPlayerIds,
+      injuredPlayers,
+      count: injuredPlayers.length
     })
   } catch (error: any) {
-    console.error('Users API error:', error)
+    console.error('Injured players API error:', error)
     return NextResponse.json(
       { error: error.message || 'An unexpected error occurred' },
       { status: 500 }
     )
   }
 }
-

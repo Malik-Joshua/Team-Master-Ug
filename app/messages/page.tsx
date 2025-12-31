@@ -163,30 +163,42 @@ export default function MessagesPage() {
                   
                   // For physio, only fetch players who have injuries
                   if (profile.role === 'physio') {
-                    // Fetch injured players
-                    const { data: injuriesData } = await supabase
-                      .from('injuries')
-                      .select('player_id')
-                      .order('injury_date', { ascending: false })
-                    
-                    if (injuriesData && injuriesData.length > 0) {
-                      // Get unique player IDs from injuries
-                      const injuredPlayerIds = [...new Set(injuriesData.map((injury: any) => injury.player_id).filter(Boolean))]
+                    // Fetch injured players via API route (bypasses RLS)
+                    try {
+                      const injuredPlayersResponse = await fetch('/api/messages/injured-players', {
+                        cache: 'no-store',
+                      })
                       
-                      // Filter players to only those with injuries
-                      const injuredPlayers = allUsersList.filter(
-                        (u: UserProfile) => u.role === 'player' && injuredPlayerIds.includes(u.user_id)
-                      )
-                      setPlayers(injuredPlayers)
-                    } else {
-                      // No injuries found, set empty players list
-                      setPlayers([])
+                      if (injuredPlayersResponse.ok) {
+                        const injuredData = await injuredPlayersResponse.json()
+                        if (injuredData.injuredPlayers && injuredData.injuredPlayers.length > 0) {
+                          setPlayers(injuredData.injuredPlayers as UserProfile[])
+                          console.log(`Loaded ${injuredData.injuredPlayers.length} injured player(s) for physio`)
+                        } else {
+                          setPlayers([])
+                          console.log('No injured players found')
+                        }
+                      } else {
+                        console.error('Error fetching injured players via API:', injuredPlayersResponse.status)
+                        // Fallback: filter from all users list using player role
+                        // This won't filter by injuries but at least shows players
+                        const allPlayers = allUsersList.filter((u: UserProfile) => u.role === 'player')
+                        setPlayers(allPlayers)
+                      }
+                    } catch (injuredError) {
+                      console.error('Error fetching injured players:', injuredError)
+                      // Fallback: show all players (better than nothing)
+                      const allPlayers = allUsersList.filter((u: UserProfile) => u.role === 'player')
+                      setPlayers(allPlayers)
                     }
                     
                     // Physio can still message admins and coaches
-                    setCoaches(allUsersList.filter((u: UserProfile) => u.role === 'coach'))
-                    setPhysios(allUsersList.filter((u: UserProfile) => u.role === 'physio'))
-                    setAdmins(allUsersList.filter((u: UserProfile) => ['admin', 'data_admin', 'finance_admin'].includes(u.role)))
+                    const coachesList = allUsersList.filter((u: UserProfile) => u.role === 'coach')
+                    const adminsList = allUsersList.filter((u: UserProfile) => ['admin', 'data_admin', 'finance_admin'].includes(u.role))
+                    
+                    setCoaches(coachesList)
+                    setAdmins(adminsList)
+                    console.log(`Loaded ${coachesList.length} coach(es) and ${adminsList.length} admin(s) for physio`)
                   } else {
                     // For other roles, fetch all players
                     setPlayers(allUsersList.filter((u: UserProfile) => u.role === 'player'))
@@ -363,29 +375,56 @@ export default function MessagesPage() {
       }
     } else if (userRole === 'physio') {
       // Physio can only message players with injuries, admins, and coaches
-      // First, get all players with injuries
-      const { data: injuriesData } = await supabase
-        .from('injuries')
-        .select('player_id')
-        .order('injury_date', { ascending: false })
-
-      if (injuriesData && injuriesData.length > 0) {
-        // Get unique player IDs from injuries
-        const injuredPlayerIds = [...new Set(injuriesData.map((injury: any) => injury.player_id).filter(Boolean))]
+      // Try to fetch injured players via API route first (bypasses RLS)
+      try {
+        const injuredPlayersResponse = await fetch('/api/messages/injured-players', {
+          cache: 'no-store',
+        })
         
-        // Fetch only players with injuries
-        const { data: playersData } = await supabase
-          .from('user_profiles')
-          .select('user_id, name, role, email')
-          .eq('role', 'player')
-          .in('user_id', injuredPlayerIds)
-          .order('name', { ascending: true })
-
-        if (playersData) {
-          setPlayers(playersData as UserProfile[])
+        if (injuredPlayersResponse.ok) {
+          const injuredData = await injuredPlayersResponse.json()
+          if (injuredData.injuredPlayers && injuredData.injuredPlayers.length > 0) {
+            setPlayers(injuredData.injuredPlayers as UserProfile[])
+            console.log(`Fallback: Loaded ${injuredData.injuredPlayers.length} injured player(s) for physio`)
+          } else {
+            setPlayers([])
+            console.log('Fallback: No injured players found')
+          }
+        } else {
+          console.error('Fallback: Error fetching injured players via API:', injuredPlayersResponse.status)
+          setPlayers([])
         }
-      } else {
-        setPlayers([])
+      } catch (apiError) {
+        console.error('Fallback: Error fetching injured players via API:', apiError)
+        // Try direct query as last resort (may fail due to RLS)
+        try {
+          const { data: injuriesData } = await supabase
+            .from('injuries')
+            .select('player_id')
+            .order('injury_date', { ascending: false })
+
+          if (injuriesData && injuriesData.length > 0) {
+            const injuredPlayerIds = [...new Set(injuriesData.map((injury: any) => injury.player_id).filter(Boolean))]
+            
+            const { data: playersData } = await supabase
+              .from('user_profiles')
+              .select('user_id, name, role, email')
+              .eq('role', 'player')
+              .in('user_id', injuredPlayerIds)
+              .order('name', { ascending: true })
+
+            if (playersData) {
+              setPlayers(playersData as UserProfile[])
+            } else {
+              setPlayers([])
+            }
+          } else {
+            setPlayers([])
+          }
+        } catch (directError) {
+          console.error('Fallback: Direct query also failed:', directError)
+          setPlayers([])
+        }
       }
 
       // Fetch all admins
@@ -398,6 +437,9 @@ export default function MessagesPage() {
 
       if (adminsData) {
         setAdmins(adminsData as UserProfile[])
+        console.log(`Fallback: Loaded ${adminsData.length} admin(s) for physio`)
+      } else {
+        setAdmins([])
       }
 
       // Fetch all coaches
@@ -409,6 +451,9 @@ export default function MessagesPage() {
 
       if (coachesData) {
         setCoaches(coachesData as UserProfile[])
+        console.log(`Fallback: Loaded ${coachesData.length} coach(es) for physio`)
+      } else {
+        setCoaches([])
       }
     }
   }

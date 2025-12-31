@@ -7,37 +7,8 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient()
-    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
-
-    if (authError || !authUser) {
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      )
-    }
-
-    // Get user profile to verify role
-    const { data: profile } = await supabase
-      .from('user_profiles')
-      .select('role')
-      .eq('user_id', authUser.id)
-      .single()
-
-    if (!profile) {
-      return NextResponse.json(
-        { error: 'User profile not found' },
-        { status: 404 }
-      )
-    }
-
-    // Only admins can view role counts
-    if (profile.role !== 'admin') {
-      return NextResponse.json(
-        { error: 'Only administrators can view role counts' },
-        { status: 403 }
-      )
-    }
+    // Allow public access to role counts for signup page
+    // This helps users see available slots before signing up
 
     // Use service role to bypass RLS
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL

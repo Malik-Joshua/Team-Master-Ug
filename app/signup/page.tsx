@@ -1,10 +1,33 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { ArrowRight, Mail, Lock, User, Phone, AlertCircle, CheckCircle } from 'lucide-react'
+import { ArrowRight, Mail, Lock, User, Phone, AlertCircle, CheckCircle, Users, Shield, BarChart3, DollarSign, UserCheck, HeartPulse } from 'lucide-react'
 import Link from 'next/link'
+import { ROLE_LIMITS, type Role } from '@/lib/role-limits'
+
+const roleOptions = [
+  { value: 'player', label: 'Player', icon: Users, description: 'Join as a player', limit: ROLE_LIMITS.player },
+  { value: 'coach', label: 'Coach', icon: UserCheck, description: 'Join as a coach', limit: ROLE_LIMITS.coach },
+  { value: 'physio', label: 'Physiotherapist', icon: HeartPulse, description: 'Join as a physiotherapist', limit: ROLE_LIMITS.physio },
+  { value: 'data_admin', label: 'Team Manager', icon: BarChart3, description: 'Join as a team manager', limit: ROLE_LIMITS.data_admin },
+  { value: 'finance_admin', label: 'Finance Admin', icon: DollarSign, description: 'Join as a finance admin', limit: ROLE_LIMITS.finance_admin },
+  { value: 'admin', label: 'Administrator', icon: Shield, description: 'Join as an administrator', limit: ROLE_LIMITS.admin },
+] as const
+
+const playerPositions = [
+  { value: 'prop', label: 'Prop' },
+  { value: 'hooker', label: 'Hooker' },
+  { value: 'lock', label: 'Lock' },
+  { value: 'flanker', label: 'Flanker' },
+  { value: '8th_man', label: '8th Man' },
+  { value: 'scrum_half', label: 'Scrum Half' },
+  { value: 'fly_half', label: 'Fly Half' },
+  { value: 'inside_center', label: 'Inside Center' },
+  { value: 'outside_center', label: 'Outside Center' },
+  { value: 'winger', label: 'Winger' },
+]
 
 export default function SignupPage() {
   const router = useRouter()
@@ -14,10 +37,34 @@ export default function SignupPage() {
     password: '',
     confirmPassword: '',
     phone: '',
+    role: 'player' as Role,
+    position: '',
   })
+  const [roleCounts, setRoleCounts] = useState<Record<string, { current: number; limit: number; remaining: number; canAdd: boolean }>>({})
   const [loading, setLoading] = useState(false)
+  const [loadingCounts, setLoadingCounts] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+
+  // Load role counts on mount
+  useEffect(() => {
+    const loadRoleCounts = async () => {
+      try {
+        const response = await fetch('/api/users/role-counts')
+        if (response.ok) {
+          const data = await response.json()
+          if (data.roleCounts) {
+            setRoleCounts(data.roleCounts)
+          }
+        }
+      } catch (err) {
+        console.error('Error loading role counts:', err)
+      } finally {
+        setLoadingCounts(false)
+      }
+    }
+    loadRoleCounts()
+  }, [])
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -36,20 +83,21 @@ export default function SignupPage() {
       return
     }
 
+    // Validate position for players
+    if (formData.role === 'player' && !formData.position) {
+      setError('Please select a position for players')
+      return
+    }
+
     setLoading(true)
 
     try {
-      // Check player limit before signup
-      const limitCheckResponse = await fetch('/api/users/role-counts')
-      if (limitCheckResponse.ok) {
-        const limitData = await limitCheckResponse.json()
-        const playerCount = limitData.roleCounts?.player
-        
-        if (playerCount && playerCount.current >= playerCount.limit) {
-          setError(`Player registration is currently full. The limit is ${playerCount.limit} players and we have reached capacity. Please contact the club administrator.`)
-          setLoading(false)
-          return
-        }
+      // Check role limit before signup
+      const selectedRoleCount = roleCounts[formData.role]
+      if (selectedRoleCount && !selectedRoleCount.canAdd) {
+        setError(`Registration for ${roleOptions.find(r => r.value === formData.role)?.label || formData.role} is currently full. The limit is ${selectedRoleCount.limit} and we have reached capacity. Please contact the club administrator.`)
+        setLoading(false)
+        return
       }
 
       // Create auth user
@@ -75,7 +123,7 @@ export default function SignupPage() {
         return
       }
 
-      // Create user profile via API route (which will check limits and create player record)
+      // Create user profile via API route (which will check limits)
       const signupResponse = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: {
@@ -85,6 +133,8 @@ export default function SignupPage() {
           name: formData.name,
           email: formData.email,
           phone: formData.phone || null,
+          role: formData.role,
+          position: formData.role === 'player' ? formData.position : null,
           user_id: authData.user.id,
         }),
       })
@@ -117,7 +167,7 @@ export default function SignupPage() {
       <div className="max-w-md w-full bg-white rounded-card shadow-soft p-8">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-neutral-text mb-2">Join Mongers Rugby Club</h1>
-          <p className="text-neutral-medium">Create your player account</p>
+          <p className="text-neutral-medium">Create your account</p>
         </div>
 
         {error && (
@@ -140,6 +190,88 @@ export default function SignupPage() {
         )}
 
         <form onSubmit={handleSignup} className="space-y-6">
+          {/* Role Selection */}
+          <div>
+            <label htmlFor="role" className="block text-sm font-medium text-neutral-text mb-2">
+              Account Type <span className="text-red-500">*</span>
+            </label>
+            {loadingCounts ? (
+              <div className="flex items-center justify-center py-4">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {roleOptions.map((roleOption) => {
+                  const Icon = roleOption.icon
+                  const count = roleCounts[roleOption.value]
+                  const isSelected = formData.role === roleOption.value
+                  const isAvailable = count ? count.canAdd : true
+                  const remaining = count ? count.remaining : roleOption.limit
+
+                  return (
+                    <button
+                      key={roleOption.value}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, role: roleOption.value as Role, position: '' })}
+                      disabled={!isAvailable}
+                      className={`p-4 border-2 rounded-lg text-left transition-all ${
+                        isSelected
+                          ? 'border-primary bg-primary/5 shadow-soft'
+                          : isAvailable
+                          ? 'border-neutral-light hover:border-primary/50 hover:bg-neutral-light/50'
+                          : 'border-neutral-light bg-neutral-light/30 opacity-60 cursor-not-allowed'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-start gap-3 flex-1">
+                          <Icon className={`w-5 h-5 mt-0.5 ${isSelected ? 'text-primary' : 'text-neutral-medium'}`} />
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-semibold text-neutral-text">{roleOption.label}</h3>
+                              {isSelected && (
+                                <span className="px-2 py-0.5 bg-primary text-white text-xs rounded-full">Selected</span>
+                              )}
+                            </div>
+                            <p className="text-xs text-neutral-medium mt-1">{roleOption.description}</p>
+                            {count && (
+                              <p className={`text-xs mt-1 ${isAvailable ? 'text-success' : 'text-secondary'}`}>
+                                {isAvailable ? `${remaining} slot${remaining !== 1 ? 's' : ''} available` : 'Full'}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Position Selection for Players */}
+          {formData.role === 'player' && (
+            <div>
+              <label htmlFor="position" className="block text-sm font-medium text-neutral-text mb-2">
+                Position <span className="text-red-500">*</span>
+              </label>
+              <select
+                id="position"
+                value={formData.position}
+                onChange={(e) => setFormData({ ...formData, position: e.target.value })}
+                required
+                className="w-full px-4 py-3 border border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                disabled={loading || success}
+              >
+                <option value="">Select your position...</option>
+                {playerPositions.map((pos) => (
+                  <option key={pos.value} value={pos.value}>
+                    {pos.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div>
             <label htmlFor="name" className="block text-sm font-medium text-neutral-text mb-2">
               Full Name

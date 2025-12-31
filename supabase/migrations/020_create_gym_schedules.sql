@@ -60,3 +60,6 @@ CREATE POLICY "Coaches and admins can delete gym schedules"
     )
   );
 
+-- Trigger for updated_at
+CREATE TRIGGER update_gym_schedules_updated_at BEFORE UPDATE ON gym_schedules
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

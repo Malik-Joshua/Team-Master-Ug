@@ -1627,31 +1627,18 @@ export default function MessagesPage() {
                 <>
                   <div>
                     <label className="block text-sm font-medium text-neutral-medium mb-2">
-                      Send To
+                      Select Recipient
                     </label>
-                    <select
-                      value={composeData.recipientType}
-                      onChange={(e) => setComposeData({ ...composeData, recipientType: e.target.value, recipient: '', recipientId: '' })}
-                      className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
-                    >
-                      <option value="individual">Send to Individual</option>
-                    </select>
-                    <p className="text-xs text-neutral-medium mt-1">
+                    <p className="text-xs text-neutral-medium mb-2">
                       You can only message players with recorded injuries, administrators, and coaches
                     </p>
-                  </div>
-                  {composeData.recipientType === 'individual' ? (
-                    <div>
-                      <label className="block text-sm font-medium text-neutral-medium mb-2">
-                        Select Individual Recipient
-                      </label>
-                      <select
-                        value={composeData.recipientId}
-                        onChange={(e) => setComposeData({ ...composeData, recipientId: e.target.value, recipient: '' })}
-                        className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
-                      >
-                        <option value="">Select recipient...</option>
-                        {players.length > 0 && (
+                    <select
+                      value={composeData.recipientId}
+                      onChange={(e) => setComposeData({ ...composeData, recipientId: e.target.value, recipientType: 'individual', recipient: '' })}
+                      className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                    >
+                      <option value="">Select recipient...</option>
+                      {players.length > 0 && (
                         <optgroup label="Players with Injuries">
                           {players.map((player) => (
                             <option key={player.user_id} value={player.user_id}>
@@ -1659,11 +1646,11 @@ export default function MessagesPage() {
                             </option>
                           ))}
                         </optgroup>
-                        )}
-                        {players.length === 0 && (
-                          <option value="" disabled>No players with injuries found</option>
-                        )}
-                        {admins.length > 0 && (
+                      )}
+                      {players.length === 0 && (
+                        <option value="" disabled>No players with injuries found</option>
+                      )}
+                      {admins.length > 0 && (
                         <optgroup label="Administrators">
                           {admins.map((admin) => (
                             <option key={admin.user_id} value={admin.user_id}>
@@ -1671,24 +1658,23 @@ export default function MessagesPage() {
                             </option>
                           ))}
                         </optgroup>
-                        )}
-                        {coaches.length > 0 && (
-                          <optgroup label="Coaches">
-                            {coaches.map((coach) => (
-                              <option key={coach.user_id} value={coach.user_id}>
-                                {coach.name} (Coach)
-                              </option>
-                            ))}
-                          </optgroup>
-                        )}
-                      </select>
-                      {players.length > 0 && (
-                        <p className="text-xs text-neutral-medium mt-1">
-                          Only players with recorded injuries are shown
-                        </p>
                       )}
-                    </div>
-                  )}
+                      {coaches.length > 0 && (
+                        <optgroup label="Coaches">
+                          {coaches.map((coach) => (
+                            <option key={coach.user_id} value={coach.user_id}>
+                              {coach.name} (Coach)
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
+                    </select>
+                    {players.length > 0 && (
+                      <p className="text-xs text-neutral-medium mt-1">
+                        Only players with recorded injuries are shown
+                      </p>
+                    )}
+                  </div>
                 </>
               ) : user?.role === 'data_admin' ? (
                 <>

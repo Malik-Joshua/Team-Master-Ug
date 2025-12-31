@@ -41,7 +41,7 @@ function LayoutContent({ children, pageTitle }: LayoutProps) {
               }
             }
           }
-          router.push('/dev-login')
+          router.push('/login')
           return
         }
 

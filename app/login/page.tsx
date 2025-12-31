@@ -1,17 +1,25 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { ArrowRight, Mail, Lock, AlertCircle } from 'lucide-react'
+import { ArrowRight, Mail, Lock, AlertCircle, CheckCircle } from 'lucide-react'
 import Link from 'next/link'
 
 export default function LoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [signupSuccess, setSignupSuccess] = useState(false)
+
+  useEffect(() => {
+    if (searchParams?.get('signup') === 'success') {
+      setSignupSuccess(true)
+    }
+  }, [searchParams])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -70,6 +78,18 @@ export default function LoginPage() {
           <h1 className="text-3xl font-bold text-neutral-text mb-2">Mongers Rugby Club</h1>
           <p className="text-neutral-medium">Sign in to your account</p>
         </div>
+
+        {signupSuccess && (
+          <div className="mb-6 p-4 bg-success/10 border border-success/20 rounded-lg flex items-start gap-3">
+            <CheckCircle className="w-5 h-5 text-success flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-success mb-1">Account created successfully!</p>
+              <p className="text-sm text-success/80">
+                Please check your email to verify your account, then sign in below.
+              </p>
+            </div>
+          </div>
+        )}
 
         {error && (
           <div className="mb-6 p-4 bg-secondary/10 border border-secondary/20 rounded-lg flex items-start gap-3">
@@ -139,8 +159,8 @@ export default function LoginPage() {
         <div className="mt-6 text-center">
           <p className="text-sm text-neutral-medium">
             Don&apos;t have an account?{' '}
-            <Link href="/dev-login" className="text-primary hover:text-primary-dark font-medium">
-              Use Demo Login
+            <Link href="/signup" className="text-primary hover:text-primary-dark font-medium">
+              Sign Up
             </Link>
           </p>
         </div>

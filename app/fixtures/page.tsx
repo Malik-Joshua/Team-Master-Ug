@@ -118,7 +118,7 @@ export default function FixturesPage() {
         const { data: { user: authUser } } = await supabase.auth.getUser()
         
         if (!authUser) {
-          router.push('/dev-login')
+          router.push('/login')
           return
         }
 

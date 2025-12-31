@@ -160,12 +160,42 @@ export default function MessagesPage() {
                 if (usersData.users && usersData.users.length > 0) {
                   const allUsersList = usersData.users as UserProfile[]
                   setAllUsers(allUsersList)
-                  setPlayers(allUsersList.filter((u: UserProfile) => u.role === 'player'))
-                  setCoaches(allUsersList.filter((u: UserProfile) => u.role === 'coach'))
-                  setPhysios(allUsersList.filter((u: UserProfile) => u.role === 'physio'))
-                  setTeamManagers(allUsersList.filter((u: UserProfile) => u.role === 'data_admin'))
-                  setFinanceAdmins(allUsersList.filter((u: UserProfile) => u.role === 'finance_admin'))
-                  setAdmins(allUsersList.filter((u: UserProfile) => ['admin', 'data_admin', 'finance_admin'].includes(u.role)))
+                  
+                  // For physio, only fetch players who have injuries
+                  if (profile.role === 'physio') {
+                    // Fetch injured players
+                    const { data: injuriesData } = await supabase
+                      .from('injuries')
+                      .select('player_id')
+                      .order('injury_date', { ascending: false })
+                    
+                    if (injuriesData && injuriesData.length > 0) {
+                      // Get unique player IDs from injuries
+                      const injuredPlayerIds = [...new Set(injuriesData.map((injury: any) => injury.player_id).filter(Boolean))]
+                      
+                      // Filter players to only those with injuries
+                      const injuredPlayers = allUsersList.filter(
+                        (u: UserProfile) => u.role === 'player' && injuredPlayerIds.includes(u.user_id)
+                      )
+                      setPlayers(injuredPlayers)
+                    } else {
+                      // No injuries found, set empty players list
+                      setPlayers([])
+                    }
+                    
+                    // Physio can still message admins and coaches
+                    setCoaches(allUsersList.filter((u: UserProfile) => u.role === 'coach'))
+                    setPhysios(allUsersList.filter((u: UserProfile) => u.role === 'physio'))
+                    setAdmins(allUsersList.filter((u: UserProfile) => ['admin', 'data_admin', 'finance_admin'].includes(u.role)))
+                  } else {
+                    // For other roles, fetch all players
+                    setPlayers(allUsersList.filter((u: UserProfile) => u.role === 'player'))
+                    setCoaches(allUsersList.filter((u: UserProfile) => u.role === 'coach'))
+                    setPhysios(allUsersList.filter((u: UserProfile) => u.role === 'physio'))
+                    setTeamManagers(allUsersList.filter((u: UserProfile) => u.role === 'data_admin'))
+                    setFinanceAdmins(allUsersList.filter((u: UserProfile) => u.role === 'finance_admin'))
+                    setAdmins(allUsersList.filter((u: UserProfile) => ['admin', 'data_admin', 'finance_admin'].includes(u.role)))
+                  }
                 }
               } else {
                 console.error('Error fetching users via API:', usersResponse.status)
@@ -330,6 +360,55 @@ export default function MessagesPage() {
 
       if (adminsData) {
         setAdmins(adminsData as UserProfile[])
+      }
+    } else if (userRole === 'physio') {
+      // Physio can only message players with injuries, admins, and coaches
+      // First, get all players with injuries
+      const { data: injuriesData } = await supabase
+        .from('injuries')
+        .select('player_id')
+        .order('injury_date', { ascending: false })
+
+      if (injuriesData && injuriesData.length > 0) {
+        // Get unique player IDs from injuries
+        const injuredPlayerIds = [...new Set(injuriesData.map((injury: any) => injury.player_id).filter(Boolean))]
+        
+        // Fetch only players with injuries
+        const { data: playersData } = await supabase
+          .from('user_profiles')
+          .select('user_id, name, role, email')
+          .eq('role', 'player')
+          .in('user_id', injuredPlayerIds)
+          .order('name', { ascending: true })
+
+        if (playersData) {
+          setPlayers(playersData as UserProfile[])
+        }
+      } else {
+        setPlayers([])
+      }
+
+      // Fetch all admins
+      const { data: adminsData } = await supabase
+        .from('user_profiles')
+        .select('user_id, name, role, email')
+        .in('role', ['admin', 'data_admin', 'finance_admin'])
+        .neq('user_id', currentUserId)
+        .order('name', { ascending: true })
+
+      if (adminsData) {
+        setAdmins(adminsData as UserProfile[])
+      }
+
+      // Fetch all coaches
+      const { data: coachesData } = await supabase
+        .from('user_profiles')
+        .select('user_id, name, role, email')
+        .eq('role', 'coach')
+        .order('name', { ascending: true })
+
+      if (coachesData) {
+        setCoaches(coachesData as UserProfile[])
       }
     }
   }
@@ -964,8 +1043,137 @@ export default function MessagesPage() {
           console.error('Error reloading messages:', reloadError)
         }
         return
+      } else if (user?.role === 'physio') {
+        // Physio can only send to individual recipients (injured players, admins, coaches)
+        // Cannot send to "all players" or role groups
+        if (!composeData.recipientId) {
+          alert('Please select a recipient. You can only message players with recorded injuries, administrators, or coaches.')
+          return
+        }
+
+        // Verify the recipient is valid
+        // If it's a player, check they have injuries
+        const { data: recipientProfile } = await supabase
+          .from('user_profiles')
+          .select('role, user_id')
+          .eq('user_id', composeData.recipientId)
+          .single()
+
+        if (!recipientProfile) {
+          alert('Invalid recipient selected')
+          return
+        }
+
+        // If recipient is a player, verify they have injuries
+        if (recipientProfile.role === 'player') {
+          const { data: injuriesData } = await supabase
+            .from('injuries')
+            .select('id')
+            .eq('player_id', composeData.recipientId)
+            .limit(1)
+
+          if (!injuriesData || injuriesData.length === 0) {
+            alert('You can only message players with recorded injuries')
+            return
+          }
+        }
+
+        // Verify recipient is in allowed list (player with injuries, admin, or coach)
+        const isValidRecipient = 
+          (recipientProfile.role === 'player' && players.some(p => p.user_id === composeData.recipientId)) ||
+          (recipientProfile.role === 'admin' || recipientProfile.role === 'data_admin' || recipientProfile.role === 'finance_admin') ||
+          recipientProfile.role === 'coach'
+
+        if (!isValidRecipient) {
+          alert('Invalid recipient. You can only message players with recorded injuries, administrators, or coaches.')
+          return
+        }
+
+        // Send message to the recipient
+        const { data: newMessage, error } = await supabase
+          .from('messages')
+          .insert({
+            sender_id: authUser.id,
+            recipient_id: composeData.recipientId,
+            recipient_role: recipientProfile.role,
+            subject: composeData.subject,
+            message: composeData.message,
+          })
+          .select(`
+            *,
+            sender:user_profiles!messages_sender_id_fkey(name, role)
+          `)
+          .single()
+
+        if (error) throw error
+
+        // Create notification for recipient
+        try {
+          const { db } = await import('@/lib/db-helpers')
+          await db.createNotification({
+            user_id: composeData.recipientId,
+            title: 'New Message',
+            message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
+            type: 'info',
+            action_url: '/messages',
+            reference_id: newMessage.id,
+            reference_type: 'message',
+          })
+          console.log('Notification created for recipient:', composeData.recipientId)
+        } catch (notifError) {
+          console.error('Error creating notification:', notifError)
+        }
+
+        // Get recipient info for the sent message
+        let recipientName = 'Unknown'
+        let recipientRole = 'unknown'
+        if (composeData.recipientId) {
+          const { data: recipientProfileData } = await supabase
+            .from('user_profiles')
+            .select('name, role')
+            .eq('user_id', composeData.recipientId)
+            .single()
+          
+          if (recipientProfileData) {
+            recipientName = recipientProfileData.name
+            recipientRole = recipientProfileData.role
+          }
+        }
+        
+        // Add to local state (as a sent message)
+        const formattedMessage: Message = {
+          id: newMessage.id,
+          sender_id: authUser.id,
+          sender_name: user.name,
+          sender_role: user.role,
+          recipient_id: composeData.recipientId || '',
+          recipient_name: recipientName,
+          recipient_role: recipientRole,
+          subject: newMessage.subject || '',
+          message: newMessage.message,
+          read: false,
+          created_at: newMessage.created_at,
+          is_sent: true,
+        }
+
+        setMessages([formattedMessage, ...messages])
+        setComposeData({ recipientType: 'individual', recipient: '', recipientId: '', selectedRoles: [], subject: '', message: '' })
+        setShowCompose(false)
+        alert('Message sent successfully!')
+        
+        // Reload messages to ensure sync
+        try {
+          const response = await fetch('/api/messages', { cache: 'no-store' })
+          if (response.ok) {
+            const data = await response.json()
+            setMessages(data.messages || [])
+          }
+        } catch (reloadError) {
+          console.error('Error reloading messages:', reloadError)
+        }
+        return
       } else {
-        // For other roles (not admin, coach, finance_admin, or player)
+        // For other roles (not admin, coach, finance_admin, player, or physio)
         let recipientId: string | null = null
         let recipientRole: string | null = null
 
@@ -1175,7 +1383,7 @@ export default function MessagesPage() {
                 : user?.role === 'coach' 
                 ? 'Communicate with players and administrators'
                 : user?.role === 'physio'
-                ? 'Communicate with players, administrators, and coaches'
+                ? 'Communicate with injured players, administrators, and coaches'
                 : 'Communicate with coaches and administrators'}
             </p>
           </div>
@@ -1426,27 +1634,13 @@ export default function MessagesPage() {
                       onChange={(e) => setComposeData({ ...composeData, recipientType: e.target.value, recipient: '', recipientId: '' })}
                       className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                     >
-                      <option value="role">Send to Role Group</option>
                       <option value="individual">Send to Individual</option>
                     </select>
+                    <p className="text-xs text-neutral-medium mt-1">
+                      You can only message players with recorded injuries, administrators, and coaches
+                    </p>
                   </div>
-                  {composeData.recipientType === 'role' ? (
-                    <div>
-                      <label className="block text-sm font-medium text-neutral-medium mb-2">
-                        Select Recipient Group
-                      </label>
-                      <select
-                        value={composeData.recipient}
-                        onChange={(e) => setComposeData({ ...composeData, recipient: e.target.value })}
-                        className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
-                      >
-                        <option value="">Select recipient group...</option>
-                        <option value="all_players">All Players</option>
-                        <option value="all_admins">All Administrators</option>
-                        <option value="all_coaches">All Coaches</option>
-                      </select>
-                    </div>
-                  ) : (
+                  {composeData.recipientType === 'individual' ? (
                     <div>
                       <label className="block text-sm font-medium text-neutral-medium mb-2">
                         Select Individual Recipient
@@ -1458,13 +1652,16 @@ export default function MessagesPage() {
                       >
                         <option value="">Select recipient...</option>
                         {players.length > 0 && (
-                        <optgroup label="Players">
+                        <optgroup label="Players with Injuries">
                           {players.map((player) => (
                             <option key={player.user_id} value={player.user_id}>
                               {player.name} (Player)
                             </option>
                           ))}
                         </optgroup>
+                        )}
+                        {players.length === 0 && (
+                          <option value="" disabled>No players with injuries found</option>
                         )}
                         {admins.length > 0 && (
                         <optgroup label="Administrators">
@@ -1485,6 +1682,11 @@ export default function MessagesPage() {
                           </optgroup>
                         )}
                       </select>
+                      {players.length > 0 && (
+                        <p className="text-xs text-neutral-medium mt-1">
+                          Only players with recorded injuries are shown
+                        </p>
+                      )}
                     </div>
                   )}
                 </>

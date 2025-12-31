@@ -1096,42 +1096,32 @@ export default function MessagesPage() {
           return
         }
 
-        // Verify the recipient is valid
-        // If it's a player, check they have injuries
-        const { data: recipientProfile } = await supabase
-          .from('user_profiles')
-          .select('role, user_id')
-          .eq('user_id', composeData.recipientId)
-          .single()
+        // Verify the recipient is in the already-loaded lists (avoids RLS issues)
+        const isValidPlayer = players.some(p => p.user_id === composeData.recipientId)
+        const isValidAdmin = admins.some(a => a.user_id === composeData.recipientId)
+        const isValidCoach = coaches.some(c => c.user_id === composeData.recipientId)
 
-        if (!recipientProfile) {
-          alert('Invalid recipient selected')
+        if (!isValidPlayer && !isValidAdmin && !isValidCoach) {
+          alert('Invalid recipient selected. Please select a player with injuries, administrator, or coach from the dropdown.')
           return
         }
 
-        // If recipient is a player, verify they have injuries
-        if (recipientProfile.role === 'player') {
-          const { data: injuriesData } = await supabase
-            .from('injuries')
-            .select('id')
-            .eq('player_id', composeData.recipientId)
-            .limit(1)
-
-          if (!injuriesData || injuriesData.length === 0) {
-            alert('You can only message players with recorded injuries')
-            return
-          }
-        }
-
-        // Verify recipient is in allowed list (player with injuries, admin, or coach)
-        const isValidRecipient = 
-          (recipientProfile.role === 'player' && players.some(p => p.user_id === composeData.recipientId)) ||
-          (recipientProfile.role === 'admin' || recipientProfile.role === 'data_admin' || recipientProfile.role === 'finance_admin') ||
-          recipientProfile.role === 'coach'
-
-        if (!isValidRecipient) {
-          alert('Invalid recipient. You can only message players with recorded injuries, administrators, or coaches.')
-          return
+        // Determine recipient role and name from the already-loaded lists
+        let recipientRole = 'unknown'
+        let recipientName = 'Unknown'
+        
+        if (isValidPlayer) {
+          const player = players.find(p => p.user_id === composeData.recipientId)
+          recipientRole = 'player'
+          recipientName = player?.name || 'Unknown'
+        } else if (isValidAdmin) {
+          const admin = admins.find(a => a.user_id === composeData.recipientId)
+          recipientRole = admin?.role || 'admin'
+          recipientName = admin?.name || 'Unknown'
+        } else if (isValidCoach) {
+          const coach = coaches.find(c => c.user_id === composeData.recipientId)
+          recipientRole = 'coach'
+          recipientName = coach?.name || 'Unknown'
         }
 
         // Send message to the recipient
@@ -1140,7 +1130,7 @@ export default function MessagesPage() {
           .insert({
             sender_id: authUser.id,
             recipient_id: composeData.recipientId,
-            recipient_role: recipientProfile.role,
+            recipient_role: recipientRole,
             subject: composeData.subject,
             message: composeData.message,
           })
@@ -1167,22 +1157,6 @@ export default function MessagesPage() {
           console.log('Notification created for recipient:', composeData.recipientId)
         } catch (notifError) {
           console.error('Error creating notification:', notifError)
-        }
-
-        // Get recipient info for the sent message
-        let recipientName = 'Unknown'
-        let recipientRole = 'unknown'
-        if (composeData.recipientId) {
-          const { data: recipientProfileData } = await supabase
-            .from('user_profiles')
-            .select('name, role')
-            .eq('user_id', composeData.recipientId)
-            .single()
-          
-          if (recipientProfileData) {
-            recipientName = recipientProfileData.name
-            recipientRole = recipientProfileData.role
-          }
         }
         
         // Add to local state (as a sent message)

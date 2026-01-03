@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Layout from '@/components/Layout'
 import { Calendar, Users, Save, Download, Plus, Clock, MapPin, FileText, X, Upload, Activity } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import RefreshButton from '@/components/RefreshButton'
 
 interface Player {
   id: string
@@ -77,8 +78,7 @@ export default function TrainingPage() {
   }>>([])
   const [gymSchedules, setGymSchedules] = useState<any[]>([])
 
-  useEffect(() => {
-    const loadData = async () => {
+  const loadData = async () => {
       const supabase = createClient()
       const { data: { user: authUser } } = await supabase.auth.getUser()
       

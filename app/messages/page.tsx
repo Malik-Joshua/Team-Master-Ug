@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Layout from '@/components/Layout'
 import { MessageSquare, Send, User, Mail, Clock, X, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import RefreshButton from '@/components/RefreshButton'
 
 interface Message {
   id: string
@@ -50,7 +51,7 @@ export default function MessagesPage() {
   })
 
   useEffect(() => {
-    const loadData = async () => {
+  const loadData = async () => {
       const supabase = createClient()
       const { data: { user: authUser } } = await supabase.auth.getUser()
       
@@ -1394,6 +1395,10 @@ export default function MessagesPage() {
         <div className="flex justify-between items-center">
           <div className="mb-2">
             <h1 className="text-4xl font-extrabold text-club-gradient mb-2">Messages</h1>
+          </div>
+          <RefreshButton onRefresh={loadData} />
+        </div>
+        <div className="mb-2">
             <p className="text-lg text-neutral-medium font-medium">
               {user?.role === 'admin'
                 ? 'Send messages to all team members and staff'

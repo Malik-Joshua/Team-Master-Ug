@@ -2,6 +2,7 @@
 
 // Version: 2c7ddaf - TypeScript fix for fixture team selection state variables
 import { useEffect, useState } from 'react'
+import RefreshButton from '@/components/RefreshButton'
 import { useRouter } from 'next/navigation'
 import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
@@ -72,8 +73,7 @@ export default function DashboardPage() {
   const [recentGymSchedules, setRecentGymSchedules] = useState<any[]>([])
   const [topPerformers, setTopPerformers] = useState<any[]>([])
 
-  useEffect(() => {
-    const loadDashboard = async () => {
+  const loadDashboard = async () => {
 
       // Real authentication
       try {

@@ -1647,6 +1647,107 @@ export default function FixturesPage() {
             )}
           </div>
         </div>
+
+        {/* View Team Selection Modal */}
+        {showTeamViewModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+            <div className="bg-white rounded-card shadow-large max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-neutral-light">
+              <div className="p-6 border-b border-neutral-light sticky top-0 bg-white z-10">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-2xl font-bold text-neutral-text">Selected Team</h2>
+                  <button
+                    onClick={() => {
+                      setShowTeamViewModal(false)
+                      setViewingTeamForMatch('')
+                      setViewedTeamSelection([])
+                    }}
+                    className="text-neutral-medium hover:text-neutral-text"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+                {viewingTeamForMatch && (
+                  <p className="text-sm text-neutral-medium mt-2">
+                    {matches.find(m => m.id === viewingTeamForMatch)?.opponent && 
+                      `vs ${matches.find(m => m.id === viewingTeamForMatch)?.opponent} - ${new Date(matches.find(m => m.id === viewingTeamForMatch)?.match_date || '').toLocaleDateString()}`
+                    }
+                  </p>
+                )}
+              </div>
+              <div className="p-6">
+                {loadingTeamView ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                  </div>
+                ) : viewedTeamSelection.length === 0 ? (
+                  <div className="text-center py-12 text-neutral-medium">
+                    <Users className="w-16 h-16 mx-auto mb-4 text-neutral-light" />
+                    <p className="text-lg font-semibold">No team selected yet</p>
+                    <p className="text-sm mt-2">The coach has not selected a team for this fixture</p>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {/* Starting Lineup */}
+                    <div>
+                      <h3 className="text-lg font-bold text-neutral-text mb-4 flex items-center gap-2">
+                        <Check className="w-5 h-5 text-success" />
+                        Starting Lineup ({viewedTeamSelection.filter((s: any) => s.is_starting && !s.is_substitute).length})
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {viewedTeamSelection
+                          .filter((s: any) => s.is_starting && !s.is_substitute)
+                          .map((selection: any) => (
+                            <div key={selection.player_id} className="bg-neutral-light/50 rounded-lg p-3 border border-neutral-light">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="font-semibold text-neutral-text">{selection.player_name || 'Unknown Player'}</p>
+                                  <p className="text-sm text-neutral-medium">{selection.position || 'N/A'}</p>
+                                </div>
+                                {selection.jersey_number && (
+                                  <span className="px-3 py-1 bg-primary text-white rounded-full text-sm font-bold">
+                                    #{selection.jersey_number}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+
+                    {/* Substitutes */}
+                    {viewedTeamSelection.filter((s: any) => s.is_substitute).length > 0 && (
+                      <div>
+                        <h3 className="text-lg font-bold text-neutral-text mb-4 flex items-center gap-2">
+                          <Users className="w-5 h-5 text-primary" />
+                          Substitutes ({viewedTeamSelection.filter((s: any) => s.is_substitute).length})
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {viewedTeamSelection
+                            .filter((s: any) => s.is_substitute)
+                            .map((selection: any) => (
+                              <div key={selection.player_id} className="bg-neutral-light/50 rounded-lg p-3 border border-neutral-light">
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <p className="font-semibold text-neutral-text">{selection.player_name || 'Unknown Player'}</p>
+                                    <p className="text-sm text-neutral-medium">{selection.position || 'N/A'}</p>
+                                  </div>
+                                  {selection.jersey_number && (
+                                    <span className="px-3 py-1 bg-primary text-white rounded-full text-sm font-bold">
+                                      #{selection.jersey_number}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </Layout>
     )
   }

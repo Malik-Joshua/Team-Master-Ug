@@ -5,6 +5,7 @@ import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
 import { DollarSign, TrendingUp, TrendingDown, Plus, Filter, Calendar, Download, FileText, Send, X, CheckCircle, XCircle, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import RefreshButton from '@/components/RefreshButton'
 import {
   Chart as ChartJS,
   CategoryScale,

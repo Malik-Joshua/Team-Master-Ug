@@ -5,6 +5,7 @@ import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
 import { BarChart3, TrendingUp, TrendingDown, Trophy, Target, Activity, Calendar, Users, Award, AlertCircle, DollarSign, FileText, CheckCircle, Plus, Edit, Trash2, X, Save, Utensils, Dumbbell, PlayCircle, MapPin } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import RefreshButton from '@/components/RefreshButton'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -2223,9 +2224,12 @@ export default function PerformancePage() {
   return (
     <Layout pageTitle="Performance">
       <div className="space-y-6">
-        <div className="mb-2">
-          <h1 className="text-4xl font-extrabold text-club-gradient mb-2">My Performance</h1>
-          <p className="text-lg text-neutral-medium font-medium">Track your individual statistics and progress</p>
+        <div className="flex justify-between items-center mb-2">
+          <div>
+            <h1 className="text-4xl font-extrabold text-club-gradient mb-2">My Performance</h1>
+            <p className="text-lg text-neutral-medium font-medium">Track your individual statistics and progress</p>
+          </div>
+          <RefreshButton onRefresh={loadData} />
         </div>
 
         {/* Stats Overview */}

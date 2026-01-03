@@ -6,6 +6,7 @@ import StatCard from '@/components/StatCard'
 import { Activity, AlertCircle, CheckCircle, Clock, Plus, X, Save, Edit, Calendar, Pill, FileText, User, CalendarDays, Trophy } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
+import RefreshButton from '@/components/RefreshButton'
 
 interface Player {
   user_id: string

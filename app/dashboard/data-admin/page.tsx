@@ -5,6 +5,7 @@ import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
 import { Users, Activity, BarChart3, Calendar, Trophy, Plus, X, Save, MapPin } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import RefreshButton from '@/components/RefreshButton'
 
 interface Player {
   user_id: string

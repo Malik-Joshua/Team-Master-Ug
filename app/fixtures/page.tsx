@@ -1517,13 +1517,18 @@ export default function FixturesPage() {
       <Layout pageTitle="Fixtures Summary">
         <div className="space-y-6">
           <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
-            <h2 className="text-2xl font-bold text-neutral-text flex items-center gap-2 mb-4">
-              <Trophy className="w-6 h-6 text-primary" />
-              Match Summaries
-            </h2>
-            <p className="text-neutral-medium mb-6">
-              Summary of played matches with stats and upcoming fixtures with team selections
-            </p>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-2xl font-bold text-neutral-text flex items-center gap-2 mb-2">
+                  <Trophy className="w-6 h-6 text-primary" />
+                  Match Summaries
+                </h2>
+                <p className="text-neutral-medium">
+                  Summary of played matches with stats and upcoming fixtures with team selections
+                </p>
+              </div>
+              <RefreshButton onRefresh={loadData} />
+            </div>
 
             {loadingSummaries ? (
               <div className="flex items-center justify-center py-12">
@@ -1622,10 +1627,18 @@ export default function FixturesPage() {
 
                     {/* Upcoming Fixture Note */}
                     {summary.isUpcoming && (
-                      <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-                        <p className="text-sm text-yellow-800">
+                      <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-200 mb-4">
+                        <p className="text-sm text-yellow-800 mb-2">
                           <strong>Upcoming:</strong> Team selection has been recorded for this fixture.
                         </p>
+                        <button
+                          onClick={() => handleViewTeam(summary.matchId)}
+                          disabled={loadingTeamView && viewingTeamForMatch === summary.matchId}
+                          className="w-full px-4 py-2 bg-secondary text-white rounded-button font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center justify-center disabled:opacity-50"
+                        >
+                          <Eye className="w-4 h-4 mr-2" />
+                          {loadingTeamView && viewingTeamForMatch === summary.matchId ? 'Loading...' : 'View Selected Team'}
+                        </button>
                       </div>
                     )}
                   </div>

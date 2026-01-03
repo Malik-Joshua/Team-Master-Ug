@@ -6,6 +6,7 @@ import StatCard from '@/components/StatCard'
 import { Users, Activity, DollarSign, Package, Calendar, CheckCircle, XCircle, AlertCircle, FileText, X, Trophy, BarChart3 } from 'lucide-react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import RefreshButton from '@/components/RefreshButton'
 import {
   Chart as ChartJS,
   CategoryScale,

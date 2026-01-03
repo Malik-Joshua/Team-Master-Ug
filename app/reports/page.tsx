@@ -5,6 +5,7 @@ import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
 import { FileText, Download, Filter, Calendar, BarChart3, TrendingUp, Users, Trophy, ChevronDown, FileSpreadsheet } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import RefreshButton from '@/components/RefreshButton'
 import { generatePDFReport, generateExcelReport, generateCSVReport, downloadBlob, type ReportData } from '@/lib/report-export'
 
 interface Report {
@@ -281,6 +282,7 @@ export default function ReportsPage() {
             <p className="text-lg text-neutral-medium font-medium">Generate and manage data reports</p>
           </div>
           <div className="flex items-center space-x-3">
+            <RefreshButton onRefresh={loadData} />
             <button
               onClick={() => setShowFilter(!showFilter)}
               className="bg-white text-neutral-text px-6 py-3 rounded-button font-semibold hover:bg-neutral-light transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center border border-neutral-light"

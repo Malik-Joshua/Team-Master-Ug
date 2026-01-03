@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Layout from '@/components/Layout'
 import { User, Mail, Phone, Shield, Camera, Save } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import RefreshButton from '@/components/RefreshButton'
 
 export default function ProfilePage() {
   const [user, setUser] = useState<any>(null)
@@ -105,20 +106,67 @@ export default function ProfilePage() {
 
   if (!user) return null
 
+  const loadProfile = async () => {
+    if (typeof window !== 'undefined') {
+      const devUser = localStorage.getItem('dev_user')
+      if (devUser) {
+        try {
+          const userData = JSON.parse(devUser)
+          setUser(userData)
+          setFormData({
+            name: userData.name || '',
+            phone: userData.phone || '',
+            emergency_contact: userData.emergency_contact || '',
+            emergency_phone: userData.emergency_phone || '',
+          })
+          setLoading(false)
+          return
+        } catch (e) {
+          // Fall through
+        }
+      }
+    }
+
+    const supabase = createClient()
+    const { data: { user: authUser } } = await supabase.auth.getUser()
+
+    if (authUser) {
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('user_id', authUser.id)
+        .single()
+
+      if (profile) {
+        setUser(profile)
+        setFormData({
+          name: profile.name || '',
+          phone: profile.phone || '',
+          emergency_contact: profile.emergency_contact || '',
+          emergency_phone: profile.emergency_phone || '',
+        })
+      }
+    }
+    setLoading(false)
+  }
+
   return (
     <Layout pageTitle="My Profile">
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="bg-white rounded-card shadow-soft border border-neutral-light p-6 hover:shadow-medium transition-shadow">
           <div className="flex items-center justify-between mb-6">
             <h1 className="text-4xl font-extrabold text-club-gradient">My Profile</h1>
-            {!editing && (
-              <button
-                onClick={() => setEditing(true)}
-                className="px-6 py-3 bg-club-gradient text-white rounded-button font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium"
-              >
-                Edit Profile
-              </button>
-            )}
+            <div className="flex gap-3">
+              <RefreshButton onRefresh={loadProfile} />
+              {!editing && (
+                <button
+                  onClick={() => setEditing(true)}
+                  className="px-6 py-3 bg-club-gradient text-white rounded-button font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium"
+                >
+                  Edit Profile
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="flex flex-col md:flex-row gap-6">

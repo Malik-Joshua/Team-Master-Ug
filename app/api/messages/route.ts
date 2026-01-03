@@ -49,10 +49,21 @@ export async function GET(request: NextRequest) {
     })
 
     // Fetch messages for this user
-    const { data: messages, error: messagesError } = await supabaseAdmin
+    // For players: only show messages where they are the specific recipient or sender
+    // For other roles: can see role-based messages too
+    let messagesQuery = supabaseAdmin
       .from('messages')
       .select('*')
-      .or(`sender_id.eq.${authUser.id},recipient_id.eq.${authUser.id},recipient_role.eq.${profile.role}`)
+    
+    if (profile.role === 'player') {
+      // Players should only see messages specifically sent to them or sent by them
+      messagesQuery = messagesQuery.or(`sender_id.eq.${authUser.id},recipient_id.eq.${authUser.id}`)
+    } else {
+      // Admins, coaches, etc. can see role-based messages
+      messagesQuery = messagesQuery.or(`sender_id.eq.${authUser.id},recipient_id.eq.${authUser.id},recipient_role.eq.${profile.role}`)
+    }
+    
+    const { data: messages, error: messagesError } = await messagesQuery
       .order('created_at', { ascending: false })
 
     if (messagesError) {
@@ -90,26 +101,37 @@ export async function GET(request: NextRequest) {
     }
 
     // Format messages with sender and recipient info
-    const formattedMessages = messages.map((msg: any) => {
-      const sender = userProfilesMap[msg.sender_id]
-      const recipient = userProfilesMap[msg.recipient_id]
-      const isSent = msg.sender_id === authUser.id
-      
-      return {
-        id: msg.id,
-        sender_id: msg.sender_id,
-        sender_name: sender?.name || 'Unknown',
-        sender_role: sender?.role || 'unknown',
-        recipient_id: msg.recipient_id,
-        recipient_name: recipient?.name || 'Unknown',
-        recipient_role: recipient?.role || 'unknown',
-        subject: msg.subject || '',
-        message: msg.message,
-        read: msg.read || false,
-        created_at: msg.created_at,
-        is_sent: isSent,
-      }
-    })
+    // Filter out messages that don't belong to the user (extra safety check)
+    const formattedMessages = messages
+      .filter((msg: any) => {
+        // Only include messages where user is sender or specific recipient
+        // Exclude role-based messages for players
+        if (profile.role === 'player') {
+          return msg.sender_id === authUser.id || msg.recipient_id === authUser.id
+        }
+        // For other roles, include role-based messages too
+        return msg.sender_id === authUser.id || msg.recipient_id === authUser.id || msg.recipient_role === profile.role
+      })
+      .map((msg: any) => {
+        const sender = userProfilesMap[msg.sender_id]
+        const recipient = userProfilesMap[msg.recipient_id]
+        const isSent = msg.sender_id === authUser.id
+        
+        return {
+          id: msg.id,
+          sender_id: msg.sender_id,
+          sender_name: sender?.name || 'Unknown',
+          sender_role: sender?.role || 'unknown',
+          recipient_id: msg.recipient_id,
+          recipient_name: recipient?.name || 'Unknown',
+          recipient_role: recipient?.role || 'unknown',
+          subject: msg.subject || '',
+          message: msg.message,
+          read: msg.read || false,
+          created_at: msg.created_at,
+          is_sent: isSent,
+        }
+      })
 
     return NextResponse.json({ messages: formattedMessages })
   } catch (error: any) {

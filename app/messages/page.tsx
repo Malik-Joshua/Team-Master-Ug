@@ -81,10 +81,19 @@ export default function MessagesPage() {
             } else {
               console.error('Error fetching messages from API:', response.status)
               // Fallback to direct query
-          const { data: fetchedMessages } = await supabase
+          // For players: only show messages where they are the specific recipient or sender
+          // For other roles: can see role-based messages too
+          let messagesQuery = supabase
             .from('messages')
-                .select('*')
-            .or(`sender_id.eq.${authUser.id},recipient_id.eq.${authUser.id},recipient_role.eq.${profile.role}`)
+            .select('*')
+          
+          if (profile.role === 'player') {
+            messagesQuery = messagesQuery.or(`sender_id.eq.${authUser.id},recipient_id.eq.${authUser.id}`)
+          } else {
+            messagesQuery = messagesQuery.or(`sender_id.eq.${authUser.id},recipient_id.eq.${authUser.id},recipient_role.eq.${profile.role}`)
+          }
+          
+          const { data: fetchedMessages } = await messagesQuery
             .order('created_at', { ascending: false })
 
           if (fetchedMessages) {

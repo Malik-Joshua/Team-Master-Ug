@@ -443,6 +443,13 @@ export default function AdminDashboard() {
   return (
     <Layout pageTitle="Admin Control Panel">
       <div className="space-y-6">
+        <div className="flex justify-between items-center mb-4">
+          <div>
+            <h1 className="text-4xl font-extrabold text-club-gradient">Admin Dashboard</h1>
+            <p className="text-lg text-neutral-medium font-medium mt-2">Overview of club operations and statistics</p>
+          </div>
+          <RefreshButton onRefresh={loadData} />
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
           <StatCard title="Total Users" value={stats.totalUsers} icon={Users} iconColor="bg-primary" />
           <StatCard title="Total Players" value={stats.totalPlayers} icon={Users} iconColor="bg-primary" />

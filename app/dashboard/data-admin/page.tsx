@@ -528,6 +528,7 @@ export default function DataAdminDashboard() {
               <h1 className="text-3xl font-bold mb-2">Team Manager Control Center</h1>
               <p className="text-blue-100">Manage players, training attendance, and match statistics</p>
             </div>
+            <RefreshButton onRefresh={loadData} size="sm" className="bg-white/20 hover:bg-white/30 border-white/30 text-white" />
           </div>
         </div>
 

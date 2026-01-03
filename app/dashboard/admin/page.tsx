@@ -67,8 +67,7 @@ export default function AdminDashboard() {
   const [upcomingMatches, setUpcomingMatches] = useState<any[]>([])
   const [recentApprovals, setRecentApprovals] = useState<any[]>([])
 
-  useEffect(() => {
-    const loadData = async () => {
+  const loadData = async () => {
       if (typeof window !== 'undefined') {
         const devUser = localStorage.getItem('dev_user')
         if (devUser) {
@@ -318,6 +317,7 @@ export default function AdminDashboard() {
       setLoading(false)
     }
 
+  useEffect(() => {
     loadData()
   }, [])
 

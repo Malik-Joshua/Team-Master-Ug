@@ -160,22 +160,22 @@ export default function PhysioDashboard() {
   }
 
   const loadData = async () => {
-      const supabase = createClient()
-      const { data: { user: authUser } } = await supabase.auth.getUser()
+    const supabase = createClient()
+    const { data: { user: authUser } } = await supabase.auth.getUser()
 
-      if (!authUser) {
-        setLoading(false)
-        return
-      }
+    if (!authUser) {
+      setLoading(false)
+      return
+    }
 
-        const { data: profile } = await supabase
-          .from('user_profiles')
-          .select('*')
-          .eq('user_id', authUser.id)
-          .single()
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('user_id', authUser.id)
+      .single()
 
-        if (profile) {
-          setUser(profile)
+    if (profile) {
+      setUser(profile)
 
           // Fetch players using API route to get all registered players
           try {
@@ -258,68 +258,68 @@ export default function PhysioDashboard() {
             }
           }
 
-          // Fetch injuries
-          await loadInjuries()
+      // Fetch injuries
+      await loadInjuries()
 
-          // Load training sessions and games attended
-          try {
-            const { db } = await import('@/lib/db-helpers')
-            const sessionsCount = await db.getTotalTrainingSessions()
-            const matchesCount = await db.getTotalMatches()
-            setTrainingSessionsAttended(sessionsCount)
-            setGamesAttended(matchesCount)
-          } catch (error) {
-            console.error('Error loading physio stats:', error)
-          }
+      // Load training sessions and games attended
+      try {
+        const { db } = await import('@/lib/db-helpers')
+        const sessionsCount = await db.getTotalTrainingSessions()
+        const matchesCount = await db.getTotalMatches()
+        setTrainingSessionsAttended(sessionsCount)
+        setGamesAttended(matchesCount)
+      } catch (error) {
+        console.error('Error loading physio stats:', error)
+      }
 
-          // Load team selection for upcoming fixture
-          try {
-            setLoadingTeamSelection(true)
-            const matchesResponse = await fetch('/api/fixtures', { cache: 'no-store' })
-            if (matchesResponse.ok) {
-              const matchesData = await matchesResponse.json()
-              console.log('Physio dashboard - Matches data:', matchesData)
-              if (matchesData.fixtures && matchesData.fixtures.length > 0) {
-                const latestMatch = matchesData.fixtures[0]
-                console.log('Physio dashboard - Latest match:', latestMatch)
-                const selectionResponse = await fetch(`/api/fixtures/team-selection?matchId=${latestMatch.id}`, { cache: 'no-store' })
-                if (selectionResponse.ok) {
-                  const selectionData = await selectionResponse.json()
-                  console.log('Physio dashboard - Team selection data:', selectionData)
-                  // Ensure the data structure matches what the UI expects
-                  if (selectionData.match && (selectionData.starting || selectionData.substitutes)) {
-                    setTeamSelection(selectionData)
-                  } else if (selectionData.selections && selectionData.selections.length > 0) {
-                    // Fallback: if API returns old format, format it
-                    setTeamSelection({
-                      match: latestMatch,
-                      starting: selectionData.selections.filter((s: any) => s.is_starting && !s.is_substitute),
-                      substitutes: selectionData.selections.filter((s: any) => s.is_substitute),
-                    })
-                  } else {
-                    console.log('Physio dashboard - No team selection found for match')
-                    setTeamSelection(null)
-                  }
-                } else {
-                  const errorData = await selectionResponse.json().catch(() => ({ error: 'Unknown error' }))
-                  console.error('Physio dashboard - Team selection API error:', selectionResponse.status, errorData)
-                  setTeamSelection(null)
-                }
+      // Load team selection for upcoming fixture
+      try {
+        setLoadingTeamSelection(true)
+        const matchesResponse = await fetch('/api/fixtures', { cache: 'no-store' })
+        if (matchesResponse.ok) {
+          const matchesData = await matchesResponse.json()
+          console.log('Physio dashboard - Matches data:', matchesData)
+          if (matchesData.fixtures && matchesData.fixtures.length > 0) {
+            const latestMatch = matchesData.fixtures[0]
+            console.log('Physio dashboard - Latest match:', latestMatch)
+            const selectionResponse = await fetch(`/api/fixtures/team-selection?matchId=${latestMatch.id}`, { cache: 'no-store' })
+            if (selectionResponse.ok) {
+              const selectionData = await selectionResponse.json()
+              console.log('Physio dashboard - Team selection data:', selectionData)
+              // Ensure the data structure matches what the UI expects
+              if (selectionData.match && (selectionData.starting || selectionData.substitutes)) {
+                setTeamSelection(selectionData)
+              } else if (selectionData.selections && selectionData.selections.length > 0) {
+                // Fallback: if API returns old format, format it
+                setTeamSelection({
+                  match: latestMatch,
+                  starting: selectionData.selections.filter((s: any) => s.is_starting && !s.is_substitute),
+                  substitutes: selectionData.selections.filter((s: any) => s.is_substitute),
+                })
               } else {
-                console.log('Physio dashboard - No upcoming fixtures found')
+                console.log('Physio dashboard - No team selection found for match')
                 setTeamSelection(null)
               }
             } else {
-              const errorData = await matchesResponse.json().catch(() => ({ error: 'Unknown error' }))
-              console.error('Physio dashboard - Fixtures API error:', matchesResponse.status, errorData)
+              const errorData = await selectionResponse.json().catch(() => ({ error: 'Unknown error' }))
+              console.error('Physio dashboard - Team selection API error:', selectionResponse.status, errorData)
               setTeamSelection(null)
             }
-          } catch (error) {
-            console.error('Physio dashboard - Error loading team selection:', error)
+          } else {
+            console.log('Physio dashboard - No upcoming fixtures found')
             setTeamSelection(null)
-          } finally {
-            setLoadingTeamSelection(false)
           }
+        } else {
+          const errorData = await matchesResponse.json().catch(() => ({ error: 'Unknown error' }))
+          console.error('Physio dashboard - Fixtures API error:', matchesResponse.status, errorData)
+          setTeamSelection(null)
+        }
+      } catch (error) {
+        console.error('Physio dashboard - Error loading team selection:', error)
+        setTeamSelection(null)
+      } finally {
+        setLoadingTeamSelection(false)
+      }
     }
     setLoading(false)
   }

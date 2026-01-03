@@ -391,6 +391,7 @@ export default function PerformancePage() {
       setLoading(false)
     }
 
+  useEffect(() => {
     loadData()
   }, [])
 

@@ -143,6 +143,8 @@ export default function FinancePage() {
       }
       setLoading(false)
     }
+
+  useEffect(() => {
     loadData()
   }, [])
 

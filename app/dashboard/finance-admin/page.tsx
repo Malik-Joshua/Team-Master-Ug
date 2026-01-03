@@ -47,6 +47,35 @@ export default function FinanceAdminDashboard() {
   const [matchAttendance, setMatchAttendance] = useState<any>(null)
   const [loadingAttendance, setLoadingAttendance] = useState(false)
 
+  const loadData = async () => {
+    const supabase = createClient()
+    const { data: { user: authUser } } = await supabase.auth.getUser()
+    
+    if (!authUser) return
+
+    // Load training sessions
+    const { data: sessionsData } = await supabase
+      .from('training_sessions')
+      .select('id, session_date, session_time, description, location')
+      .order('session_date', { ascending: false })
+      .limit(50)
+    
+    if (sessionsData) {
+      setTrainingSessions(sessionsData)
+    }
+    
+    // Load matches
+    const { data: matchesData } = await supabase
+      .from('matches')
+      .select('id, match_date, opponent, venue, tournament_type')
+      .order('match_date', { ascending: false })
+      .limit(50)
+    
+    if (matchesData) {
+      setMatches(matchesData)
+    }
+  }
+
   useEffect(() => {
     loadData()
   }, [])

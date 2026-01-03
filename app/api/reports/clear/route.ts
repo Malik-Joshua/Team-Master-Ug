@@ -49,9 +49,12 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    return NextResponse.json({ success: true, message: 'All reports deleted successfully' })
+    return NextResponse.json({ 
+      success: true, 
+      message: 'All reports deleted successfully' 
+    })
   } catch (error: any) {
-    console.error('Error in DELETE all reports:', error)
+    console.error('Clear reports API error:', error)
     return NextResponse.json(
       { error: error.message || 'An unexpected error occurred' },
       { status: 500 }

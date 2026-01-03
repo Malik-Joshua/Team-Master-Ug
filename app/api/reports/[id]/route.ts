@@ -29,20 +29,6 @@ export async function DELETE(
       )
     }
 
-    // Get user profile
-    const { data: profile } = await supabase
-      .from('user_profiles')
-      .select('role')
-      .eq('user_id', authUser.id)
-      .single()
-
-    if (!profile) {
-      return NextResponse.json(
-        { error: 'User profile not found' },
-        { status: 404 }
-      )
-    }
-
     // Use service role to bypass RLS
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -61,14 +47,14 @@ export async function DELETE(
       }
     })
 
-    // Get report to verify ownership
-    const { data: report, error: reportError } = await supabaseAdmin
+    // First, verify the report exists and user has permission
+    const { data: report, error: fetchError } = await supabaseAdmin
       .from('reports')
-      .select('generated_by')
+      .select('id, generated_by')
       .eq('id', reportId)
       .single()
 
-    if (reportError || !report) {
+    if (fetchError || !report) {
       return NextResponse.json(
         { error: 'Report not found' },
         { status: 404 }
@@ -76,6 +62,20 @@ export async function DELETE(
     }
 
     // Check if user has permission (admin can delete any, others can only delete their own)
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('role')
+      .eq('user_id', authUser.id)
+      .single()
+
+    if (!profile) {
+      return NextResponse.json(
+        { error: 'User profile not found' },
+        { status: 404 }
+      )
+    }
+
+    // Only allow deletion if user is admin or the report owner
     if (profile.role !== 'admin' && report.generated_by !== authUser.id) {
       return NextResponse.json(
         { error: 'Unauthorized: You can only delete your own reports' },
@@ -97,9 +97,12 @@ export async function DELETE(
       )
     }
 
-    return NextResponse.json({ success: true, message: 'Report deleted successfully' })
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Report deleted successfully' 
+    })
   } catch (error: any) {
-    console.error('Error in DELETE report:', error)
+    console.error('Delete report API error:', error)
     return NextResponse.json(
       { error: error.message || 'An unexpected error occurred' },
       { status: 500 }

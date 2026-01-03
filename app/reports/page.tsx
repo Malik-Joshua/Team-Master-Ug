@@ -227,15 +227,7 @@ export default function ReportsPage() {
         reportTitle += ` - ${selectedMatch?.opponent || 'Match'} (${selectedMatch?.match_date ? new Date(selectedMatch.match_date).toLocaleDateString() : ''})`
       } else if (type === 'training' && reportFilters.selectedTrainingSession) {
         const selectedSession = trainingSessions.find(s => s.id === reportFilters.selectedTrainingSession)
-        if (selectedSession) {
-          const sessionDate = new Date(selectedSession.session_date).toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric'
-          })
-          // Store session ID in title for easier retrieval: "Training Report - Jan 5, 2026 [SESSION_ID:xxx]"
-          reportTitle += ` - ${sessionDate} [SESSION_ID:${selectedSession.id}]`
-        }
+        reportTitle += ` - ${selectedSession?.session_date ? new Date(selectedSession.session_date).toLocaleDateString() : 'Session'}`
       }
       
       if (dateFrom && dateTo) {
@@ -340,6 +332,8 @@ export default function ReportsPage() {
           dateFrom: reportDetails?.date_from || null,
           dateTo: reportDetails?.date_to || null,
           generatedBy: reportDetails?.generated_by || null,
+          summary: `This ${report.type} report contains detailed information.`,
+          details: 'Report data loaded from database.',
         },
       }
 
@@ -417,119 +411,148 @@ export default function ReportsPage() {
           }
         }
       } else if (report.type === 'training') {
-        // Extract session ID from title: "Training Report - Jan 5, 2026 [SESSION_ID:xxx]"
-        let selectedSession = null
-        
-        // First, try to extract session ID from title
-        const sessionIdMatch = report.title.match(/\[SESSION_ID:([a-f0-9-]+)\]/i)
-        if (sessionIdMatch && sessionIdMatch[1]) {
-          selectedSession = trainingSessions.find(s => s.id === sessionIdMatch[1])
-        }
-        
-        // If not found by ID, try to find by date matching
-        if (!selectedSession) {
-          const datePatterns = [
-            /Training Report - (.+?)(?:\s*\[|\(|$)/,  // "Training Report - Jan 5, 2026"
-          ]
+        // For training reports, always fetch all training sessions with attendance
+        try {
+          // Fetch all training sessions
+          const { data: allSessions } = await supabase
+            .from('training_sessions')
+            .select('*')
+            .order('session_date', { ascending: false })
+            .limit(50) // Limit to recent 50 sessions
           
-          for (const pattern of datePatterns) {
-            const sessionMatch = report.title.match(pattern)
-            if (sessionMatch && sessionMatch[1]) {
-              const sessionDateStr = sessionMatch[1].trim()
-              
-              // Try to find session by matching date in various formats
-              selectedSession = trainingSessions.find(s => {
-                const sessionDate = new Date(s.session_date)
-                const formats = [
-                  sessionDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-                  sessionDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
-                  sessionDate.toLocaleDateString('en-US'),
-                  new Date(s.session_date).toLocaleDateString(),
-                ]
-                return formats.some(f => f === sessionDateStr)
+          if (allSessions && allSessions.length > 0) {
+            // Fetch attendance for all sessions
+            const formattedSessions = await Promise.all(
+              allSessions.map(async (session: any) => {
+                // Fetch attendance for this session directly from database
+                const { data: attendanceData } = await supabase
+                  .from('training_attendance')
+                  .select('player_id, attendance_status')
+                  .eq('session_id', session.id)
+                
+                // Get player names for attendance
+                const attendanceWithNames = (attendanceData || []).map((att: any) => {
+                  const player = players.find(p => p.id === att.player_id)
+                  return {
+                    player: player?.name || 'Unknown',
+                    status: att.attendance_status === 'P' ? 'Present' : 
+                            att.attendance_status === 'A' ? 'Justified Absence' :
+                            att.attendance_status === 'X' ? 'Unjustified Absence' :
+                            att.attendance_status === 'I' ? 'Injured' : 'Unknown'
+                  }
+                })
+                
+                return {
+                  date: new Date(session.session_date).toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                  }),
+                  time: session.session_time || 'N/A',
+                  location: session.location || 'N/A',
+                  description: session.description || 'N/A',
+                  attendance: attendanceWithNames,
+                  summary: {
+                    total: attendanceWithNames.length,
+                    present: attendanceWithNames.filter((a: any) => a.status === 'Present').length,
+                    absent: attendanceWithNames.filter((a: any) => a.status === 'Unjustified Absence').length,
+                    justified: attendanceWithNames.filter((a: any) => a.status === 'Justified Absence').length,
+                    injured: attendanceWithNames.filter((a: any) => a.status === 'Injured').length,
+                  }
+                }
               })
-              
-              if (selectedSession) break
+            )
+            
+            // Calculate overall statistics
+            const totalPresent = formattedSessions.reduce((sum, s) => sum + s.summary.present, 0)
+            const totalPlayers = formattedSessions.reduce((sum, s) => sum + s.summary.total, 0)
+            const overallAttendanceRate = totalPlayers > 0 ? Math.round((totalPresent / totalPlayers) * 100) : 0
+            
+            reportData.data = {
+              formattedSessions,
+              summary: {
+                totalSessions: formattedSessions.length,
+                totalPlayers: players.length,
+                overallAttendanceRate
+              }
+            }
+          } else {
+            // No sessions found, show message
+            reportData.data = {
+              formattedSessions: [],
+              summary: {
+                totalSessions: 0,
+                totalPlayers: players.length,
+                overallAttendanceRate: 0
+              }
             }
           }
-        }
-        
-        // If still not found and we have training sessions, use the most recent one as fallback
-        if (!selectedSession && trainingSessions.length > 0) {
-          console.warn('Could not match session from title, using most recent session as fallback')
-          selectedSession = trainingSessions[0]
-        }
-          
-        if (selectedSession) {
-            // Fetch training session-specific data
-            try {
-              const { data: sessionDetails } = await supabase
-                .from('training_sessions')
-                .select('*')
-                .eq('id', selectedSession.id)
-                .single()
-              
-              // Fetch attendance for this session directly from database (with player_id)
-              const { data: attendanceRecords, error: attendanceError } = await supabase
-                .from('training_attendance')
-                .select('player_id, attendance_status')
-                .eq('session_id', selectedSession.id)
-              
-              if (attendanceError) {
-                console.error('Error fetching attendance:', attendanceError)
-              }
-              
-              // Get player names for attendance and format properly
-              const attendanceWithNames = (attendanceRecords || []).map((att: any) => {
-                const player = players.find(p => p.id === att.player_id)
-                return {
-                  player_id: att.player_id,
-                  playerName: player?.name || 'Unknown',
-                  attendance_status: att.attendance_status,
-                  statusLabel: att.attendance_status === 'P' ? 'Present' : 
-                              att.attendance_status === 'A' ? 'Justified Absence' :
-                              att.attendance_status === 'X' ? 'Unjustified Absence' :
-                              att.attendance_status === 'I' ? 'Injured' : 'Unknown'
+        } catch (err) {
+          console.error('Error fetching training session data:', err)
+          // Fallback: try to extract from title if available
+          const sessionMatch = report.title.match(/Training Report - (.+?)(?:\s*\(|$)/)
+          if (sessionMatch && sessionMatch[1]) {
+            const sessionDateStr = sessionMatch[1].trim()
+            const selectedSession = trainingSessions.find(s => 
+              new Date(s.session_date).toLocaleDateString() === sessionDateStr
+            )
+            
+            if (selectedSession) {
+              try {
+                const { data: sessionDetails } = await supabase
+                  .from('training_sessions')
+                  .select('*')
+                  .eq('id', selectedSession.id)
+                  .single()
+                
+                const { data: attendanceData } = await supabase
+                  .from('training_attendance')
+                  .select('player_id, attendance_status')
+                  .eq('session_id', selectedSession.id)
+                
+                const attendanceWithNames = (attendanceData || []).map((att: any) => {
+                  const player = players.find(p => p.id === att.player_id)
+                  return {
+                    player: player?.name || 'Unknown',
+                    status: att.attendance_status === 'P' ? 'Present' : 
+                            att.attendance_status === 'A' ? 'Justified Absence' :
+                            att.attendance_status === 'X' ? 'Unjustified Absence' :
+                            att.attendance_status === 'I' ? 'Injured' : 'Unknown'
+                  }
+                })
+                
+                const formattedSession = {
+                  date: new Date(selectedSession.session_date).toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                  }),
+                  time: sessionDetails?.session_time || 'N/A',
+                  location: sessionDetails?.location || 'N/A',
+                  description: sessionDetails?.description || 'N/A',
+                  attendance: attendanceWithNames,
+                  summary: {
+                    total: attendanceWithNames.length,
+                    present: attendanceWithNames.filter((a: any) => a.status === 'Present').length,
+                    absent: attendanceWithNames.filter((a: any) => a.status === 'Unjustified Absence').length,
+                    justified: attendanceWithNames.filter((a: any) => a.status === 'Justified Absence').length,
+                    injured: attendanceWithNames.filter((a: any) => a.status === 'Injured').length,
+                  }
                 }
-              })
-              
-              // Format session data similar to training export
-              const formattedSession = {
-                date: new Date(selectedSession.session_date).toLocaleDateString('en-US', { 
-                  year: 'numeric', 
-                  month: 'long', 
-                  day: 'numeric' 
-                }),
-                time: sessionDetails?.session_time || 'N/A',
-                location: sessionDetails?.location || 'N/A',
-                description: sessionDetails?.description || 'N/A',
-                attendance: attendanceWithNames.map((att: any) => ({
-                  player: att.playerName,
-                  status: att.statusLabel
-                })),
-                summary: {
-                  total: attendanceWithNames.length,
-                  present: attendanceWithNames.filter((a: any) => a.attendance_status === 'P').length,
-                  absent: attendanceWithNames.filter((a: any) => a.attendance_status === 'X').length,
-                  justified: attendanceWithNames.filter((a: any) => a.attendance_status === 'A').length,
-                  injured: attendanceWithNames.filter((a: any) => a.attendance_status === 'I').length,
+                
+                reportData.data = {
+                  formattedSessions: [formattedSession],
+                  summary: {
+                    totalSessions: 1,
+                    totalPlayers: players.length,
+                    overallAttendanceRate: attendanceWithNames.length > 0
+                      ? Math.round((formattedSession.summary.present / attendanceWithNames.length) * 100)
+                      : 0
+                  }
                 }
+              } catch (fallbackErr) {
+                console.error('Error in fallback training data fetch:', fallbackErr)
               }
-              
-              reportData.data = {
-                formattedSessions: [formattedSession],
-                summary: {
-                  totalSessions: 1,
-                  totalPlayers: players.length,
-                  overallAttendanceRate: attendanceWithNames.length > 0
-                    ? Math.round((formattedSession.summary.present / attendanceWithNames.length) * 100)
-                    : 0
-                },
-                sessionId: selectedSession.id,
-                sessionDetails: sessionDetails || {},
-              }
-            } catch (err) {
-              console.error('Error fetching training session data:', err)
             }
           }
         }
@@ -608,17 +631,14 @@ export default function ReportsPage() {
         method: 'DELETE',
       })
 
+      const result = await response.json()
+
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to delete report')
+        throw new Error(result.error || 'Failed to delete report')
       }
 
       // Remove from local state
       setReports((prev) => prev.filter((r) => r.id !== reportId))
-      
-      // Reload data to ensure consistency
-      await loadData()
-      
       alert('Report deleted successfully!')
     } catch (error: any) {
       console.error('Error deleting report:', error)
@@ -633,21 +653,18 @@ export default function ReportsPage() {
 
     try {
       // Use API route to delete all reports (bypasses RLS)
-      const response = await fetch('/api/reports/delete-all', {
+      const response = await fetch('/api/reports/clear', {
         method: 'DELETE',
       })
 
+      const result = await response.json()
+
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to delete reports')
+        throw new Error(result.error || 'Failed to delete reports')
       }
 
       // Clear local state
       setReports([])
-      
-      // Reload data to ensure consistency
-      await loadData()
-      
       alert('All reports deleted successfully!')
     } catch (error: any) {
       console.error('Error clearing reports:', error)

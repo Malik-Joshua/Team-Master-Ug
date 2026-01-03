@@ -869,6 +869,7 @@ export const db = {
     if (data.name) profileData.name = data.name
     if (data.email) profileData.email = data.email
     if (data.phone) profileData.phone = data.phone
+    if (data.status) profileData.status = data.status // Include status update
     
     if (Object.keys(profileData).length > 0) {
       const { error: profileError } = await supabase
@@ -930,10 +931,23 @@ export const db = {
       .update({ gym_stats: updatedStats })
       .eq('user_id', playerId)
       .select()
-      .single()
     
     if (error) throw error
-    return data
+    
+    // Return the first (and should be only) updated record
+    if (data && data.length > 0) {
+      return data[0]
+    }
+    
+    // If no data returned, fetch it to return
+    const { data: fetchedData, error: fetchError } = await supabase
+      .from('players')
+      .select('*')
+      .eq('user_id', playerId)
+      .single()
+    
+    if (fetchError) throw fetchError
+    return fetchedData
   },
 
   async saveFixtureTeamSelection(matchId: string, selections: any[]) {

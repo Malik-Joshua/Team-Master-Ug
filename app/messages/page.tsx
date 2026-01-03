@@ -904,24 +904,24 @@ export default function MessagesPage() {
           return
         }
 
-        // Verify the recipient is actually an admin
-        const { data: recipientProfile } = await supabase
-          .from('user_profiles')
-          .select('role')
-          .eq('user_id', composeData.recipientId)
-          .single()
-
-        if (!recipientProfile || recipientProfile.role !== 'admin') {
-          alert('You can only send messages to general administrators')
+        // Verify the recipient is in the already-loaded admins list (only general admins)
+        const isValidAdmin = admins.some(a => a.user_id === composeData.recipientId && a.role === 'admin')
+        
+        if (!isValidAdmin) {
+          alert('You can only send messages to general administrators. Please select a general admin from the dropdown.')
           return
         }
+
+        // Get recipient info from the list
+        const recipientAdmin = admins.find(a => a.user_id === composeData.recipientId)
+        const recipientRole = recipientAdmin?.role || 'admin'
 
         const { data: newMessage, error } = await supabase
           .from('messages')
           .insert({
             sender_id: authUser.id,
             recipient_id: composeData.recipientId,
-            recipient_role: 'admin',
+            recipient_role: recipientRole,
             subject: composeData.subject,
             message: composeData.message,
           })
@@ -953,19 +953,8 @@ export default function MessagesPage() {
           }
         }
 
-        // Get recipient info for the sent message
-        let recipientName = 'Unknown'
-        if (composeData.recipientId) {
-          const { data: recipientProfile } = await supabase
-            .from('user_profiles')
-            .select('name, role')
-            .eq('user_id', composeData.recipientId)
-            .single()
-          
-          if (recipientProfile) {
-            recipientName = recipientProfile.name
-          }
-        }
+        // Get recipient info from the already-loaded list
+        const recipientName = recipientAdmin?.name || 'Unknown'
         
         // Add to local state (as a sent message)
         const formattedMessage: Message = {
@@ -975,7 +964,7 @@ export default function MessagesPage() {
           sender_role: user.role,
           recipient_id: composeData.recipientId || '',
           recipient_name: recipientName,
-          recipient_role: 'admin',
+          recipient_role: recipientRole,
           subject: newMessage.subject || '',
           message: newMessage.message,
           read: false,

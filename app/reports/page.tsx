@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
-import { FileText, Download, Filter, Calendar, BarChart3, TrendingUp, Users, Trophy, ChevronDown, FileSpreadsheet } from 'lucide-react'
+import { FileText, Download, Filter, Calendar, BarChart3, TrendingUp, Users, Trophy, ChevronDown, FileSpreadsheet, Trash2, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import RefreshButton from '@/components/RefreshButton'
 import { generatePDFReport, generateExcelReport, generateCSVReport, downloadBlob, type ReportData } from '@/lib/report-export'
@@ -80,16 +80,40 @@ export default function ReportsPage() {
             .order('created_at', { ascending: false })
 
           if (reportsData && !reportsError) {
-            const formattedReports: Report[] = reportsData.map((r: any) => ({
-              id: r.id,
-              title: r.title,
-              type: r.report_type as Report['type'],
-              dateRange: r.date_from && r.date_to
-                ? `${new Date(r.date_from).toLocaleDateString()} - ${new Date(r.date_to).toLocaleDateString()}`
-                : new Date(r.created_at).toLocaleDateString(),
-              generatedAt: r.created_at,
-              status: r.status as Report['status'],
-            }))
+            // Fix any reports stuck in "generating" status (older than 5 minutes)
+            const now = new Date()
+            const stuckReports = reportsData.filter((r: any) => {
+              if (r.status === 'generating') {
+                const created = new Date(r.created_at)
+                const minutesAgo = (now.getTime() - created.getTime()) / (1000 * 60)
+                return minutesAgo > 5 // Stuck for more than 5 minutes
+              }
+              return false
+            })
+
+            // Update stuck reports to ready
+            if (stuckReports.length > 0) {
+              const stuckIds = stuckReports.map((r: any) => r.id)
+              await supabase
+                .from('reports')
+                .update({ status: 'ready' })
+                .in('id', stuckIds)
+            }
+
+            const formattedReports: Report[] = reportsData.map((r: any) => {
+              // If report was stuck, mark as ready in local state
+              const isStuck = stuckReports.some((sr: any) => sr.id === r.id)
+              return {
+                id: r.id,
+                title: r.title,
+                type: r.report_type as Report['type'],
+                dateRange: r.date_from && r.date_to
+                  ? `${new Date(r.date_from).toLocaleDateString()} - ${new Date(r.date_to).toLocaleDateString()}`
+                  : new Date(r.created_at).toLocaleDateString(),
+                generatedAt: r.created_at,
+                status: (isStuck ? 'ready' : r.status) as Report['status'],
+              }
+            })
             setReports(formattedReports)
           }
 
@@ -238,21 +262,33 @@ export default function ReportsPage() {
         selectedTrainingSession: '',
       })
       
-      // Simulate report generation (in production, this would be a background job)
-      setTimeout(async () => {
+      // Update status to ready immediately (reports are generated on-demand when downloaded)
+      try {
         const { error: updateError } = await supabase
           .from('reports')
           .update({ status: 'ready' })
           .eq('id', newReport.id)
 
         if (!updateError) {
+          setReports((prev) =>
+            prev.map((r) => (r.id === newReport.id ? { ...r, status: 'ready' as const } : r))
+          )
+        } else {
+          console.error('Error updating report status:', updateError)
+          // Set to ready in local state anyway
+          setReports((prev) =>
+            prev.map((r) => (r.id === newReport.id ? { ...r, status: 'ready' as const } : r))
+          )
+        }
+      } catch (updateErr) {
+        console.error('Error updating report status:', updateErr)
+        // Set to ready in local state anyway
         setReports((prev) =>
           prev.map((r) => (r.id === newReport.id ? { ...r, status: 'ready' as const } : r))
         )
-        }
-      }, 2000)
+      }
       
-      alert('Report generation started! It will be ready shortly.')
+      alert('Report generated successfully! You can now download it.')
     } catch (error: any) {
       console.error('Error generating report:', error)
       alert(`Error generating report: ${error.message}`)
@@ -471,6 +507,60 @@ export default function ReportsPage() {
     }
   }
 
+  const handleDeleteReport = async (reportId: string) => {
+    if (!confirm('Are you sure you want to delete this report?')) {
+      return
+    }
+
+    try {
+      const supabase = createClient()
+      const { error } = await supabase
+        .from('reports')
+        .delete()
+        .eq('id', reportId)
+
+      if (error) throw error
+
+      // Remove from local state
+      setReports((prev) => prev.filter((r) => r.id !== reportId))
+      alert('Report deleted successfully!')
+    } catch (error: any) {
+      console.error('Error deleting report:', error)
+      alert(`Error deleting report: ${error.message}`)
+    }
+  }
+
+  const handleClearAllReports = async () => {
+    if (!confirm('Are you sure you want to delete all reports? This action cannot be undone.')) {
+      return
+    }
+
+    try {
+      const supabase = createClient()
+      const { data: { user: authUser } } = await supabase.auth.getUser()
+      
+      if (!authUser) {
+        alert('Please log in to delete reports')
+        return
+      }
+
+      // Delete all reports generated by the current user
+      const { error } = await supabase
+        .from('reports')
+        .delete()
+        .eq('generated_by', authUser.id)
+
+      if (error) throw error
+
+      // Clear local state
+      setReports([])
+      alert('All reports deleted successfully!')
+    } catch (error: any) {
+      console.error('Error clearing reports:', error)
+      alert(`Error clearing reports: ${error.message}`)
+    }
+  }
+
   if (loading) {
     return (
       <Layout pageTitle="Reports">
@@ -676,8 +766,17 @@ export default function ReportsPage() {
 
         {/* Reports List */}
         <div className="bg-white rounded-card border border-neutral-light shadow-soft overflow-hidden">
-          <div className="p-6 border-b border-neutral-light">
+          <div className="p-6 border-b border-neutral-light flex justify-between items-center">
             <h2 className="text-2xl font-bold text-neutral-text">Generated Reports</h2>
+            {filteredReports.length > 0 && (
+              <button
+                onClick={handleClearAllReports}
+                className="px-4 py-2 bg-secondary text-white rounded-button font-medium hover:bg-secondary-dark transition-colors text-sm inline-flex items-center"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Clear All
+              </button>
+            )}
           </div>
           {filteredReports.length === 0 ? (
             <div className="p-12 text-center">
@@ -714,6 +813,13 @@ export default function ReportsPage() {
                         </div>
                       </div>
                       <div className="flex items-center space-x-3">
+                        <button
+                          onClick={() => handleDeleteReport(report.id)}
+                          className="px-3 py-2 text-secondary hover:bg-red-50 rounded-button transition-colors"
+                          title="Delete report"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                         {report.status === 'ready' && (
                           <div className="relative download-menu-container">
                           <button

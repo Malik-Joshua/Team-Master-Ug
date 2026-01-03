@@ -53,8 +53,16 @@ export async function POST(request: NextRequest) {
     doc.setFont('helvetica', 'bold')
     doc.setTextColor(26, 26, 26)
     const titleLines = doc.splitTextToSize(report.title, contentWidth)
-    doc.text(titleLines, pageWidth / 2, yPos, { align: 'center' })
-    yPos += titleLines.length * 7
+    // Ensure we handle array of strings correctly
+    if (Array.isArray(titleLines)) {
+      titleLines.forEach((line: string, idx: number) => {
+        doc.text(line, pageWidth / 2, yPos + (idx * 7), { align: 'center' })
+      })
+      yPos += titleLines.length * 7
+    } else {
+      doc.text(titleLines, pageWidth / 2, yPos, { align: 'center' })
+      yPos += 7
+    }
 
     // Report Details
     yPos += 10
@@ -127,8 +135,16 @@ export async function POST(request: NextRequest) {
         }
         if (session.description) {
           const descLines = doc.splitTextToSize(`Description: ${session.description}`, contentWidth - 10)
-          doc.text(descLines, margin + 5, yPos)
-          yPos += descLines.length * 5
+          // Handle array of strings correctly
+          if (Array.isArray(descLines)) {
+            descLines.forEach((line: string, idx: number) => {
+              doc.text(line, margin + 5, yPos + (idx * 5))
+            })
+            yPos += descLines.length * 5
+          } else {
+            doc.text(descLines, margin + 5, yPos)
+            yPos += 5
+          }
         }
         
         yPos += 3
@@ -208,16 +224,25 @@ export async function POST(request: NextRequest) {
           yPos += 6
         })
       } else {
-        // Fallback to JSON for complex data structures
-        const dataText = JSON.stringify(report.data, null, 2)
-        const dataLines = doc.splitTextToSize(dataText, contentWidth)
-        
-        if (yPos + (dataLines.length * 5) > pageHeight - margin) {
-          doc.addPage()
-          yPos = margin
+        // Fallback: show a message instead of raw JSON
+        doc.setFontSize(11)
+        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(51, 51, 51)
+        const message = 'Report data is available. Please use the download options to view detailed information.'
+        const messageLines = doc.splitTextToSize(message, contentWidth)
+        if (Array.isArray(messageLines)) {
+          messageLines.forEach((line: string, idx: number) => {
+            if (yPos > pageHeight - 20) {
+              doc.addPage()
+              yPos = margin
+            }
+            doc.text(line, margin, yPos + (idx * 5))
+          })
+          yPos += messageLines.length * 5
+        } else {
+          doc.text(messageLines, margin, yPos)
+          yPos += 5
         }
-        
-        doc.text(dataLines, margin, yPos)
       }
     } else {
       doc.setFontSize(12)
@@ -225,7 +250,15 @@ export async function POST(request: NextRequest) {
       doc.setTextColor(102, 102, 102)
       const defaultText = 'This report contains detailed information about the selected category.'
       const defaultLines = doc.splitTextToSize(defaultText, contentWidth)
-      doc.text(defaultLines, margin, yPos)
+      if (Array.isArray(defaultLines)) {
+        defaultLines.forEach((line: string, idx: number) => {
+          doc.text(line, margin, yPos + (idx * 5))
+        })
+        yPos += defaultLines.length * 5
+      } else {
+        doc.text(defaultLines, margin, yPos)
+        yPos += 5
+      }
     }
 
     // Footer

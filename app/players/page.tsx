@@ -377,6 +377,7 @@ export default function PlayersPage() {
             <h1 className="text-4xl font-extrabold text-club-gradient mb-2">Player Management</h1>
             <p className="text-lg text-neutral-medium font-medium">Manage and view all players</p>
           </div>
+          <RefreshButton onRefresh={loadData} />
           {(user?.role === 'coach' || user?.role === 'admin' || user?.role === 'data_admin') && (
             <button
               onClick={() => {

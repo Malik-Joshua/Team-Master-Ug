@@ -614,7 +614,6 @@ export default function PhysioDashboard() {
             </button>
           </div>
         </div>
-        </div>
 
         {/* Upcoming Fixture Team Selection */}
         {teamSelection && teamSelection.match && (

@@ -1365,7 +1365,7 @@ export default function MessagesPage() {
         alert('Message sent successfully!')
         }
       }
-
+      
       setComposeData({ recipientType: 'role', recipient: '', recipientId: '', selectedRoles: [], subject: '', message: '' })
       setShowCompose(false)
     } catch (error: any) {

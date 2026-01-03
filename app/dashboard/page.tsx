@@ -481,8 +481,9 @@ export default function DashboardPage() {
         console.error('Error loading dashboard:', error)
         router.push('/login')
       }
-    }
+  }
 
+  useEffect(() => {
     loadDashboard()
   }, [router])
 

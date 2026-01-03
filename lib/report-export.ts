@@ -49,8 +49,153 @@ export function generateExcelReport(report: ReportData): Blob {
 
   // Add report data if available
   if (report.data) {
+    // Format player reports
+    if (report.type === 'player' && report.data.playerName) {
+      metadata.push(['Player Performance Report'])
+      metadata.push(['Player Name', report.data.playerName])
+      metadata.push([])
+      
+      // Overall Statistics
+      const totalMatches = report.data.matchStats?.length || 0
+      const totalTries = report.data.matchStats?.reduce((sum: number, stat: any) => sum + (stat.tries_scored || 0), 0) || 0
+      const totalTackles = report.data.matchStats?.reduce((sum: number, stat: any) => sum + (stat.tackles_made || 0), 0) || 0
+      const totalMinutes = report.data.matchStats?.reduce((sum: number, stat: any) => sum + (stat.minutes_played || 0), 0) || 0
+      const avgTries = totalMatches > 0 ? (totalTries / totalMatches).toFixed(2) : 0
+      const avgTackles = totalMatches > 0 ? (totalTackles / totalMatches).toFixed(2) : 0
+      
+      metadata.push(['Overall Statistics'])
+      metadata.push(['Total Matches Played', totalMatches])
+      metadata.push(['Total Tries Scored', totalTries])
+      metadata.push(['Total Tackles Made', totalTackles])
+      metadata.push(['Total Minutes Played', totalMinutes])
+      metadata.push(['Average Tries per Match', avgTries])
+      metadata.push(['Average Tackles per Match', avgTackles])
+      metadata.push([])
+      
+      // Gym Statistics
+      if (report.data.gymStats && (report.data.gymStats.benchPressPB || report.data.gymStats.squatPB || report.data.gymStats.deadliftPB)) {
+        metadata.push(['Gym Statistics'])
+        metadata.push(['Exercise', 'Personal Best (kg)'])
+        if (report.data.gymStats.benchPressPB) {
+          metadata.push(['Bench Press', report.data.gymStats.benchPressPB])
+        }
+        if (report.data.gymStats.squatPB) {
+          metadata.push(['Squat', report.data.gymStats.squatPB])
+        }
+        if (report.data.gymStats.deadliftPB) {
+          metadata.push(['Deadlift', report.data.gymStats.deadliftPB])
+        }
+        metadata.push([])
+      }
+      
+      // Match Statistics
+      if (report.data.matchStats && report.data.matchStats.length > 0) {
+        metadata.push(['Match Statistics'])
+        metadata.push(['Date', 'Opponent', 'Tries', 'Tackles', 'Minutes'])
+        report.data.matchStats.forEach((stat: any) => {
+          const matchDate = stat.matches?.match_date 
+            ? new Date(stat.matches.match_date).toLocaleDateString()
+            : 'N/A'
+          metadata.push([
+            matchDate,
+            stat.matches?.opponent || 'N/A',
+            stat.tries_scored || 0,
+            stat.tackles_made || 0,
+            stat.minutes_played || 0
+          ])
+        })
+        metadata.push([])
+      }
+      
+      // Training Attendance
+      if (report.data.trainingAttendance && report.data.trainingAttendance.length > 0) {
+        const totalSessions = report.data.trainingAttendance.length
+        const presentCount = report.data.trainingAttendance.filter((att: any) => 
+          att.attendance_status === 'P' || att.training_sessions?.attendance_status === 'P'
+        ).length
+        const attendanceRate = totalSessions > 0 ? Math.round((presentCount / totalSessions) * 100) : 0
+        
+        metadata.push(['Training Attendance'])
+        metadata.push(['Total Training Sessions', totalSessions])
+        metadata.push(['Sessions Attended', presentCount])
+        metadata.push(['Attendance Rate', `${attendanceRate}%`])
+        metadata.push([])
+        
+        if (totalSessions > 0 && totalSessions <= 30) {
+          metadata.push(['Session Date', 'Location', 'Status'])
+          report.data.trainingAttendance.slice(0, 30).forEach((att: any) => {
+            const sessionDate = att.training_sessions?.session_date
+              ? new Date(att.training_sessions.session_date).toLocaleDateString()
+              : 'N/A'
+            const location = att.training_sessions?.location || 'N/A'
+            const status = att.attendance_status === 'P' ? 'Present' :
+                          att.attendance_status === 'A' ? 'Justified Absence' :
+                          att.attendance_status === 'X' ? 'Unjustified Absence' :
+                          att.attendance_status === 'I' ? 'Injured' : 'Unknown'
+            metadata.push([sessionDate, location, status])
+          })
+        }
+      }
+    }
+    // Format match reports
+    else if (report.type === 'match' && report.data.matchDetails) {
+      const match = report.data.matchDetails
+      metadata.push(['Match Statistics Report'])
+      metadata.push(['Match', match.opponent || 'Unknown'])
+      metadata.push(['Date', new Date(match.match_date).toLocaleDateString()])
+      if (match.venue) {
+        metadata.push(['Venue', match.venue])
+      }
+      if (match.score_our_team !== null && match.score_opponent !== null) {
+        metadata.push(['Final Score', `${match.score_our_team} - ${match.score_opponent}`])
+      }
+      metadata.push([])
+      
+      // Match Summary
+      if (report.data.playerStats && report.data.playerStats.length > 0) {
+        const totalPlayers = report.data.playerStats.length
+        const totalTries = report.data.playerStats.reduce((sum: number, stat: any) => sum + (stat.tries_scored || 0), 0)
+        const totalTackles = report.data.playerStats.reduce((sum: number, stat: any) => sum + (stat.tackles_made || 0), 0)
+        const totalMinutes = report.data.playerStats.reduce((sum: number, stat: any) => sum + (stat.minutes_played || 0), 0)
+        const topScorer = report.data.playerStats.reduce((top: any, stat: any) => 
+          (stat.tries_scored || 0) > (top.tries_scored || 0) ? stat : top, report.data.playerStats[0])
+        const topTackler = report.data.playerStats.reduce((top: any, stat: any) => 
+          (stat.tackles_made || 0) > (top.tackles_made || 0) ? stat : top, report.data.playerStats[0])
+        
+        metadata.push(['Match Summary'])
+        metadata.push(['Players Participated', totalPlayers])
+        metadata.push(['Total Tries Scored', totalTries])
+        metadata.push(['Total Tackles Made', totalTackles])
+        metadata.push(['Total Minutes Played', totalMinutes])
+        if (topScorer && topScorer.tries_scored > 0) {
+          const scorerName = topScorer.user_profiles?.name || 'Unknown'
+          metadata.push(['Top Scorer', `${scorerName} (${topScorer.tries_scored} tries)`])
+        }
+        if (topTackler && topTackler.tackles_made > 0) {
+          const tacklerName = topTackler.user_profiles?.name || 'Unknown'
+          metadata.push(['Top Tackler', `${tacklerName} (${topTackler.tackles_made} tackles)`])
+        }
+        metadata.push([])
+        
+        // Player Statistics Table
+        metadata.push(['Player Statistics'])
+        metadata.push(['Player Name', 'Tries', 'Tackles', 'Minutes'])
+        const sortedStats = [...report.data.playerStats].sort((a: any, b: any) => 
+          (b.tries_scored || 0) - (a.tries_scored || 0)
+        )
+        sortedStats.forEach((stat: any) => {
+          const playerName = stat.user_profiles?.name || 'Unknown'
+          metadata.push([
+            playerName,
+            stat.tries_scored || 0,
+            stat.tackles_made || 0,
+            stat.minutes_played || 0
+          ])
+        })
+      }
+    }
     // Format training attendance data specially
-    if (report.type === 'training' && report.data.formattedSessions) {
+    else if (report.type === 'training' && report.data.formattedSessions) {
       metadata.push(['Training Sessions Summary'])
       if (report.data.summary) {
         metadata.push(['Total Sessions', report.data.summary.totalSessions])
@@ -139,8 +284,156 @@ export function generateCSVReport(report: ReportData): Blob {
   lines.push('')
 
   if (report.data) {
+    // Format player reports
+    if (report.type === 'player' && report.data.playerName) {
+      lines.push('Player Performance Report')
+      lines.push('')
+      lines.push(`Player Name,${report.data.playerName}`)
+      lines.push('')
+      
+      // Overall Statistics
+      const totalMatches = report.data.matchStats?.length || 0
+      const totalTries = report.data.matchStats?.reduce((sum: number, stat: any) => sum + (stat.tries_scored || 0), 0) || 0
+      const totalTackles = report.data.matchStats?.reduce((sum: number, stat: any) => sum + (stat.tackles_made || 0), 0) || 0
+      const totalMinutes = report.data.matchStats?.reduce((sum: number, stat: any) => sum + (stat.minutes_played || 0), 0) || 0
+      const avgTries = totalMatches > 0 ? (totalTries / totalMatches).toFixed(2) : 0
+      const avgTackles = totalMatches > 0 ? (totalTackles / totalMatches).toFixed(2) : 0
+      
+      lines.push('Overall Statistics')
+      lines.push(`Total Matches Played,${totalMatches}`)
+      lines.push(`Total Tries Scored,${totalTries}`)
+      lines.push(`Total Tackles Made,${totalTackles}`)
+      lines.push(`Total Minutes Played,${totalMinutes}`)
+      lines.push(`Average Tries per Match,${avgTries}`)
+      lines.push(`Average Tackles per Match,${avgTackles}`)
+      lines.push('')
+      
+      // Gym Statistics
+      if (report.data.gymStats && (report.data.gymStats.benchPressPB || report.data.gymStats.squatPB || report.data.gymStats.deadliftPB)) {
+        lines.push('Gym Statistics')
+        lines.push('Exercise,Personal Best (kg)')
+        if (report.data.gymStats.benchPressPB) {
+          lines.push(`Bench Press,${report.data.gymStats.benchPressPB}`)
+        }
+        if (report.data.gymStats.squatPB) {
+          lines.push(`Squat,${report.data.gymStats.squatPB}`)
+        }
+        if (report.data.gymStats.deadliftPB) {
+          lines.push(`Deadlift,${report.data.gymStats.deadliftPB}`)
+        }
+        lines.push('')
+      }
+      
+      // Match Statistics
+      if (report.data.matchStats && report.data.matchStats.length > 0) {
+        lines.push('Match Statistics')
+        lines.push('Date,Opponent,Tries,Tackles,Minutes')
+        report.data.matchStats.forEach((stat: any) => {
+          const matchDate = stat.matches?.match_date 
+            ? new Date(stat.matches.match_date).toLocaleDateString()
+            : 'N/A'
+          const opponent = (stat.matches?.opponent || 'N/A').includes(',') 
+            ? `"${stat.matches?.opponent || 'N/A'}"` 
+            : (stat.matches?.opponent || 'N/A')
+          lines.push(`${matchDate},${opponent},${stat.tries_scored || 0},${stat.tackles_made || 0},${stat.minutes_played || 0}`)
+        })
+        lines.push('')
+      }
+      
+      // Training Attendance
+      if (report.data.trainingAttendance && report.data.trainingAttendance.length > 0) {
+        const totalSessions = report.data.trainingAttendance.length
+        const presentCount = report.data.trainingAttendance.filter((att: any) => 
+          att.attendance_status === 'P' || att.training_sessions?.attendance_status === 'P'
+        ).length
+        const attendanceRate = totalSessions > 0 ? Math.round((presentCount / totalSessions) * 100) : 0
+        
+        lines.push('Training Attendance')
+        lines.push(`Total Training Sessions,${totalSessions}`)
+        lines.push(`Sessions Attended,${presentCount}`)
+        lines.push(`Attendance Rate,${attendanceRate}%`)
+        lines.push('')
+        
+        if (totalSessions > 0 && totalSessions <= 30) {
+          lines.push('Session Date,Location,Status')
+          report.data.trainingAttendance.slice(0, 30).forEach((att: any) => {
+            const sessionDate = att.training_sessions?.session_date
+              ? new Date(att.training_sessions.session_date).toLocaleDateString()
+              : 'N/A'
+            const location = (att.training_sessions?.location || 'N/A').includes(',')
+              ? `"${att.training_sessions?.location || 'N/A'}"`
+              : (att.training_sessions?.location || 'N/A')
+            const status = att.attendance_status === 'P' ? 'Present' :
+                          att.attendance_status === 'A' ? 'Justified Absence' :
+                          att.attendance_status === 'X' ? 'Unjustified Absence' :
+                          att.attendance_status === 'I' ? 'Injured' : 'Unknown'
+            lines.push(`${sessionDate},${location},${status}`)
+          })
+        }
+      }
+    }
+    // Format match reports
+    else if (report.type === 'match' && report.data.matchDetails) {
+      const match = report.data.matchDetails
+      lines.push('Match Statistics Report')
+      lines.push('')
+      lines.push(`Match,${match.opponent || 'Unknown'}`)
+      lines.push(`Date,${new Date(match.match_date).toLocaleDateString()}`)
+      if (match.venue) {
+        const venue = match.venue.includes(',') ? `"${match.venue}"` : match.venue
+        lines.push(`Venue,${venue}`)
+      }
+      if (match.score_our_team !== null && match.score_opponent !== null) {
+        lines.push(`Final Score,${match.score_our_team} - ${match.score_opponent}`)
+      }
+      lines.push('')
+      
+      // Match Summary
+      if (report.data.playerStats && report.data.playerStats.length > 0) {
+        const totalPlayers = report.data.playerStats.length
+        const totalTries = report.data.playerStats.reduce((sum: number, stat: any) => sum + (stat.tries_scored || 0), 0)
+        const totalTackles = report.data.playerStats.reduce((sum: number, stat: any) => sum + (stat.tackles_made || 0), 0)
+        const totalMinutes = report.data.playerStats.reduce((sum: number, stat: any) => sum + (stat.minutes_played || 0), 0)
+        const topScorer = report.data.playerStats.reduce((top: any, stat: any) => 
+          (stat.tries_scored || 0) > (top.tries_scored || 0) ? stat : top, report.data.playerStats[0])
+        const topTackler = report.data.playerStats.reduce((top: any, stat: any) => 
+          (stat.tackles_made || 0) > (top.tackles_made || 0) ? stat : top, report.data.playerStats[0])
+        
+        lines.push('Match Summary')
+        lines.push(`Players Participated,${totalPlayers}`)
+        lines.push(`Total Tries Scored,${totalTries}`)
+        lines.push(`Total Tackles Made,${totalTackles}`)
+        lines.push(`Total Minutes Played,${totalMinutes}`)
+        if (topScorer && topScorer.tries_scored > 0) {
+          const scorerName = (topScorer.user_profiles?.name || 'Unknown').includes(',')
+            ? `"${topScorer.user_profiles?.name || 'Unknown'}"`
+            : (topScorer.user_profiles?.name || 'Unknown')
+          lines.push(`Top Scorer,${scorerName} (${topScorer.tries_scored} tries)`)
+        }
+        if (topTackler && topTackler.tackles_made > 0) {
+          const tacklerName = (topTackler.user_profiles?.name || 'Unknown').includes(',')
+            ? `"${topTackler.user_profiles?.name || 'Unknown'}"`
+            : (topTackler.user_profiles?.name || 'Unknown')
+          lines.push(`Top Tackler,${tacklerName} (${topTackler.tackles_made} tackles)`)
+        }
+        lines.push('')
+        
+        // Player Statistics Table
+        lines.push('Player Statistics')
+        lines.push('Player Name,Tries,Tackles,Minutes')
+        const sortedStats = [...report.data.playerStats].sort((a: any, b: any) => 
+          (b.tries_scored || 0) - (a.tries_scored || 0)
+        )
+        sortedStats.forEach((stat: any) => {
+          const playerName = (stat.user_profiles?.name || 'Unknown').includes(',')
+            ? `"${stat.user_profiles?.name || 'Unknown'}"`
+            : (stat.user_profiles?.name || 'Unknown')
+          lines.push(`${playerName},${stat.tries_scored || 0},${stat.tackles_made || 0},${stat.minutes_played || 0}`)
+        })
+      }
+    }
     // Format training attendance data specially
-    if (report.type === 'training' && report.data.formattedSessions) {
+    else if (report.type === 'training' && report.data.formattedSessions) {
       lines.push('Training Sessions Summary')
       lines.push('')
       if (report.data.summary) {

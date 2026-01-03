@@ -393,10 +393,26 @@ export default function ReportsPage() {
                 .eq('id', selectedMatch.id)
                 .single()
               
+              // Fetch match stats with player names
               const { data: matchStats } = await supabase
                 .from('match_stats')
-                .select('*, user_profiles(name)')
+                .select('*, players(user_profiles(name))')
                 .eq('match_id', selectedMatch.id)
+              
+              // If the join didn't work, fetch player names separately
+              if (matchStats && matchStats.length > 0) {
+                const playerIds = matchStats.map((stat: any) => stat.player_id)
+                const { data: playerProfiles } = await supabase
+                  .from('user_profiles')
+                  .select('user_id, name')
+                  .in('user_id', playerIds)
+                
+                // Map player names to stats
+                matchStats.forEach((stat: any) => {
+                  const player = playerProfiles?.find((p: any) => p.user_id === stat.player_id)
+                  stat.user_profiles = player ? { name: player.name } : { name: 'Unknown' }
+                })
+              }
               
               reportData.data = {
                 ...reportData.data,

@@ -466,6 +466,41 @@ export default function DashboardPage() {
     loadDashboard()
   }, [router])
 
+  // Refresh gym stats for players periodically (every 30 seconds) and on page visibility change
+  useEffect(() => {
+    if (user?.role === 'player') {
+      const refreshGymStats = async () => {
+        try {
+          const { db } = await import('@/lib/db-helpers')
+          const supabase = createClient()
+          const { data: { user: authUser } } = await supabase.auth.getUser()
+          if (authUser) {
+            const gymMetrics = await db.getPlayerGymStats(authUser.id)
+            setGymStats(gymMetrics)
+          }
+        } catch (error) {
+          console.error('Error refreshing gym metrics:', error)
+        }
+      }
+
+      // Refresh on page visibility change (when user switches back to tab)
+      const handleVisibilityChange = () => {
+        if (!document.hidden) {
+          refreshGymStats()
+        }
+      }
+      document.addEventListener('visibilitychange', handleVisibilityChange)
+
+      // Refresh every 30 seconds
+      const interval = setInterval(refreshGymStats, 30000)
+
+      return () => {
+        document.removeEventListener('visibilitychange', handleVisibilityChange)
+        clearInterval(interval)
+      }
+    }
+  }, [user])
+
   // Route to role-specific dashboards
   useEffect(() => {
     if (user && user.role) {

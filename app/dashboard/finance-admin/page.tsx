@@ -84,32 +84,25 @@ export default function FinanceAdminDashboard() {
     
     setLoadingAttendance(true)
     try {
-      const supabase = createClient()
-      const { data: attendanceData } = await supabase
-        .from('training_attendance')
-        .select('attendance_status, player_id, players!inner(user_id, user_profiles!inner(name))')
-        .eq('session_id', sessionId)
+      // Use API route to bypass RLS and get accurate attendance data
+      const response = await fetch(`/api/attendance/session/${sessionId}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+        }
+      })
       
-      if (attendanceData) {
-        const present = attendanceData.filter((a: any) => a.attendance_status === 'P').length
-        const absent = attendanceData.filter((a: any) => a.attendance_status === 'X').length
-        const justified = attendanceData.filter((a: any) => a.attendance_status === 'A').length
-        const injured = attendanceData.filter((a: any) => a.attendance_status === 'I').length
-        const total = attendanceData.length
-        const attendanceRate = total > 0 ? Math.round((present / total) * 100 * 10) / 10 : 0
-        
-        setSessionAttendance({
-          present,
-          absent,
-          justified,
-          injured,
-          total,
-          attendanceRate,
-          details: attendanceData,
-        })
+      if (response.ok) {
+        const attendanceData = await response.json()
+        setSessionAttendance(attendanceData)
+      } else {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        console.error('Error loading session attendance:', response.status, errorData)
+        setSessionAttendance(null)
       }
     } catch (error) {
       console.error('Error loading session attendance:', error)
+      setSessionAttendance(null)
     } finally {
       setLoadingAttendance(false)
     }

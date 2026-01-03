@@ -588,25 +588,25 @@ export default function PhysioDashboard() {
             <h1 className="text-3xl font-bold text-neutral-text">Injury Management</h1>
             <p className="text-lg text-neutral-medium font-medium mt-2">Manage injuries and player health</p>
           </div>
-          <RefreshButton onRefresh={loadData} />
-        </div>
-          <button
-            onClick={() => {
-              setEditingInjury(null)
-              setInjuryForm({
-                player_id: '',
-                injury_date: new Date().toISOString().split('T')[0],
-                cause: '',
-                diagnosis: '',
-                action_taken: '',
-                further_treatment: '',
-                medication: '',
-                return_to_training_date: '',
-                return_to_play_date: '',
-                notes: '',
-              })
-              setShowInjuryForm(true)
-            }}
+          <div className="flex gap-3">
+            <RefreshButton onRefresh={loadData} />
+            <button
+              onClick={() => {
+                setEditingInjury(null)
+                setInjuryForm({
+                  player_id: '',
+                  injury_date: new Date().toISOString().split('T')[0],
+                  cause: '',
+                  diagnosis: '',
+                  action_taken: '',
+                  further_treatment: '',
+                  medication: '',
+                  return_to_training_date: '',
+                  return_to_play_date: '',
+                  notes: '',
+                })
+                setShowInjuryForm(true)
+              }}
             className="flex items-center space-x-2 px-4 py-2 bg-primary text-white rounded-button font-semibold hover:bg-primary-dark transition-colors"
           >
             <Plus className="w-5 h-5" />

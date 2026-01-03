@@ -53,6 +53,18 @@ export default function ReportsPage() {
     }
   }, [showDownloadMenu])
 
+  useEffect(() => {
+    // Close download menu on scroll
+    const handleScroll = () => {
+      if (showDownloadMenu) {
+        setShowDownloadMenu(null)
+      }
+    }
+
+    window.addEventListener('scroll', handleScroll)
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [showDownloadMenu])
+
   const loadData = async () => {
       const supabase = createClient()
       const { data: { user: authUser } } = await supabase.auth.getUser()
@@ -420,23 +432,56 @@ export default function ReportsPage() {
               const attendanceResponse = await fetch(`/api/training/attendance?session_id=${selectedSession.id}`)
               const attendanceData = attendanceResponse.ok ? await attendanceResponse.json() : { attendance: [] }
               
-              // Get player names for attendance
+              // Get player names for attendance and format properly
               const attendanceWithNames = await Promise.all(
                 (attendanceData.attendance || []).map(async (att: any) => {
                   const player = players.find(p => p.id === att.player_id)
                   return {
-                    ...att,
+                    player_id: att.player_id,
                     playerName: player?.name || 'Unknown',
+                    attendance_status: att.attendance_status,
+                    statusLabel: att.attendance_status === 'P' ? 'Present' : 
+                                att.attendance_status === 'A' ? 'Justified Absence' :
+                                att.attendance_status === 'X' ? 'Unjustified Absence' :
+                                att.attendance_status === 'I' ? 'Injured' : 'Unknown'
                   }
                 })
               )
               
+              // Format session data similar to training export
+              const formattedSession = {
+                date: new Date(selectedSession.session_date).toLocaleDateString('en-US', { 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric' 
+                }),
+                time: sessionDetails?.session_time || 'N/A',
+                location: sessionDetails?.location || 'N/A',
+                description: sessionDetails?.description || 'N/A',
+                attendance: attendanceWithNames.map((att: any) => ({
+                  player: att.playerName,
+                  status: att.statusLabel
+                })),
+                summary: {
+                  total: attendanceWithNames.length,
+                  present: attendanceWithNames.filter((a: any) => a.attendance_status === 'P').length,
+                  absent: attendanceWithNames.filter((a: any) => a.attendance_status === 'X').length,
+                  justified: attendanceWithNames.filter((a: any) => a.attendance_status === 'A').length,
+                  injured: attendanceWithNames.filter((a: any) => a.attendance_status === 'I').length,
+                }
+              }
+              
               reportData.data = {
-                ...reportData.data,
+                formattedSessions: [formattedSession],
+                summary: {
+                  totalSessions: 1,
+                  totalPlayers: players.length,
+                  overallAttendanceRate: attendanceWithNames.length > 0
+                    ? Math.round((formattedSession.summary.present / attendanceWithNames.length) * 100)
+                    : 0
+                },
                 sessionId: selectedSession.id,
                 sessionDetails: sessionDetails || {},
-                attendance: attendanceWithNames,
-                summary: `Training attendance report for session on ${new Date(selectedSession.session_date).toLocaleDateString()}.`,
               }
             } catch (err) {
               console.error('Error fetching training session data:', err)
@@ -841,27 +886,27 @@ export default function ReportsPage() {
                               )}
                             </button>
                             {showDownloadMenu === report.id && (
-                              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-neutral-light z-10">
+                              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-neutral-light z-50 overflow-hidden">
                                 <button
                                   onClick={() => handleDownload(report, 'pdf')}
-                                  className="w-full text-left px-4 py-3 hover:bg-neutral-light transition-colors flex items-center space-x-2 rounded-t-lg"
+                                  className="w-full text-left px-4 py-3 hover:bg-neutral-light transition-colors flex items-center space-x-2 text-neutral-text"
                                 >
                                   <FileText className="w-4 h-4 text-primary" />
-                                  <span>Download as PDF</span>
+                                  <span className="text-neutral-text">Download as PDF</span>
                                 </button>
                                 <button
                                   onClick={() => handleDownload(report, 'excel')}
-                                  className="w-full text-left px-4 py-3 hover:bg-neutral-light transition-colors flex items-center space-x-2"
+                                  className="w-full text-left px-4 py-3 hover:bg-neutral-light transition-colors flex items-center space-x-2 text-neutral-text border-t border-neutral-light"
                                 >
                                   <FileSpreadsheet className="w-4 h-4 text-success" />
-                                  <span>Download as Excel</span>
+                                  <span className="text-neutral-text">Download as Excel</span>
                                 </button>
                                 <button
                                   onClick={() => handleDownload(report, 'csv')}
-                                  className="w-full text-left px-4 py-3 hover:bg-neutral-light transition-colors flex items-center space-x-2 rounded-b-lg"
+                                  className="w-full text-left px-4 py-3 hover:bg-neutral-light transition-colors flex items-center space-x-2 text-neutral-text border-t border-neutral-light"
                                 >
                                   <FileText className="w-4 h-4 text-info" />
-                                  <span>Download as CSV</span>
+                                  <span className="text-neutral-text">Download as CSV</span>
                           </button>
                               </div>
                             )}

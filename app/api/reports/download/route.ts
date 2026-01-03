@@ -213,8 +213,129 @@ export async function POST(request: NextRequest) {
       doc.setFont('helvetica', 'normal')
       doc.setTextColor(51, 51, 51)
       
+      // Format player reports
+      if (report.type === 'player' && report.data.playerName) {
+        doc.setFontSize(12)
+        doc.setFont('helvetica', 'bold')
+        doc.text(`Player: ${report.data.playerName}`, margin, yPos)
+        yPos += 8
+        
+        doc.setFontSize(10)
+        doc.setFont('helvetica', 'normal')
+        
+        if (report.data.gymStats) {
+          doc.setFont('helvetica', 'bold')
+          doc.text('Gym Statistics:', margin, yPos)
+          yPos += 6
+          doc.setFont('helvetica', 'normal')
+          if (report.data.gymStats.benchPressPB) {
+            doc.text(`Bench Press PB: ${report.data.gymStats.benchPressPB} kg`, margin + 5, yPos)
+            yPos += 5
+          }
+          if (report.data.gymStats.squatPB) {
+            doc.text(`Squat PB: ${report.data.gymStats.squatPB} kg`, margin + 5, yPos)
+            yPos += 5
+          }
+          if (report.data.gymStats.deadliftPB) {
+            doc.text(`Deadlift PB: ${report.data.gymStats.deadliftPB} kg`, margin + 5, yPos)
+            yPos += 5
+          }
+          yPos += 3
+        }
+        
+        if (report.data.matchStats && report.data.matchStats.length > 0) {
+          doc.setFont('helvetica', 'bold')
+          doc.text('Match Statistics:', margin, yPos)
+          yPos += 6
+          doc.setFont('helvetica', 'normal')
+          doc.setFontSize(9)
+          doc.text('Match Date', margin + 5, yPos)
+          doc.text('Tries', margin + 50, yPos)
+          doc.text('Tackles', margin + 70, yPos)
+          doc.text('Minutes', margin + 90, yPos)
+          yPos += 5
+          doc.setDrawColor(200, 200, 200)
+          doc.setLineWidth(0.2)
+          doc.line(margin + 5, yPos, pageWidth - margin - 5, yPos)
+          yPos += 3
+          
+          report.data.matchStats.slice(0, 10).forEach((stat: any) => {
+            if (yPos > pageHeight - 20) {
+              doc.addPage()
+              yPos = margin
+            }
+            const matchDate = stat.matches?.match_date 
+              ? new Date(stat.matches.match_date).toLocaleDateString()
+              : 'N/A'
+            doc.text(matchDate.substring(0, 10), margin + 5, yPos)
+            doc.text(String(stat.tries_scored || 0), margin + 50, yPos)
+            doc.text(String(stat.tackles_made || 0), margin + 70, yPos)
+            doc.text(String(stat.minutes_played || 0), margin + 90, yPos)
+            yPos += 5
+          })
+          yPos += 3
+        }
+        
+        if (report.data.trainingAttendance && report.data.trainingAttendance.length > 0) {
+          doc.setFontSize(10)
+          doc.setFont('helvetica', 'bold')
+          doc.text(`Training Sessions Attended: ${report.data.trainingAttendance.length}`, margin, yPos)
+          yPos += 6
+        }
+      }
+      // Format match reports
+      else if (report.type === 'match' && report.data.matchDetails) {
+        doc.setFontSize(12)
+        doc.setFont('helvetica', 'bold')
+        const match = report.data.matchDetails
+        doc.text(`Match: ${match.opponent || 'Unknown'}`, margin, yPos)
+        yPos += 6
+        doc.setFontSize(10)
+        doc.setFont('helvetica', 'normal')
+        doc.text(`Date: ${new Date(match.match_date).toLocaleDateString()}`, margin, yPos)
+        yPos += 5
+        if (match.venue) {
+          doc.text(`Venue: ${match.venue}`, margin, yPos)
+          yPos += 5
+        }
+        if (match.score_our_team !== null && match.score_opponent !== null) {
+          doc.text(`Score: ${match.score_our_team} - ${match.score_opponent}`, margin, yPos)
+          yPos += 5
+        }
+        yPos += 3
+        
+        if (report.data.playerStats && report.data.playerStats.length > 0) {
+          doc.setFont('helvetica', 'bold')
+          doc.text('Player Statistics:', margin, yPos)
+          yPos += 6
+          doc.setFont('helvetica', 'normal')
+          doc.setFontSize(9)
+          doc.text('Player', margin + 5, yPos)
+          doc.text('Tries', margin + 60, yPos)
+          doc.text('Tackles', margin + 75, yPos)
+          doc.text('Minutes', margin + 90, yPos)
+          yPos += 5
+          doc.setDrawColor(200, 200, 200)
+          doc.setLineWidth(0.2)
+          doc.line(margin + 5, yPos, pageWidth - margin - 5, yPos)
+          yPos += 3
+          
+          report.data.playerStats.forEach((stat: any) => {
+            if (yPos > pageHeight - 20) {
+              doc.addPage()
+              yPos = margin
+            }
+            const playerName = stat.user_profiles?.name || 'Unknown'
+            doc.text(playerName.substring(0, 25), margin + 5, yPos)
+            doc.text(String(stat.tries_scored || 0), margin + 60, yPos)
+            doc.text(String(stat.tackles_made || 0), margin + 75, yPos)
+            doc.text(String(stat.minutes_played || 0), margin + 90, yPos)
+            yPos += 5
+          })
+        }
+      }
       // For other report types, show formatted data if available
-      if (report.data.summary) {
+      else if (report.data.summary) {
         Object.entries(report.data.summary).forEach(([key, value]) => {
           if (yPos > pageHeight - 20) {
             doc.addPage()

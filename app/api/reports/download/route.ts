@@ -77,7 +77,116 @@ export async function POST(request: NextRequest) {
 
     // Report Content
     yPos += 10
-    if (report.data) {
+    
+    // Format training attendance data properly
+    if (report.type === 'training' && report.data?.formattedSessions) {
+      doc.setFontSize(14)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(26, 26, 26)
+      doc.text('Training Sessions Summary', margin, yPos)
+      yPos += 8
+      
+      // Overall summary
+      if (report.data.summary) {
+        doc.setFontSize(11)
+        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(51, 51, 51)
+        doc.text(`Total Sessions: ${report.data.summary.totalSessions}`, margin, yPos)
+        yPos += 6
+        doc.text(`Total Players: ${report.data.summary.totalPlayers}`, margin, yPos)
+        yPos += 6
+        doc.text(`Overall Attendance Rate: ${report.data.summary.overallAttendanceRate}%`, margin, yPos)
+        yPos += 10
+      }
+      
+      // Each session
+      report.data.formattedSessions.forEach((session: any, index: number) => {
+        // Check if we need a new page
+        if (yPos > pageHeight - 60) {
+          doc.addPage()
+          yPos = margin
+        }
+        
+        doc.setFontSize(12)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(26, 26, 26)
+        doc.text(`Session ${index + 1}: ${session.date}`, margin, yPos)
+        yPos += 7
+        
+        doc.setFontSize(10)
+        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(51, 51, 51)
+        
+        if (session.time && session.time !== 'N/A') {
+          doc.text(`Time: ${session.time}`, margin + 5, yPos)
+          yPos += 5
+        }
+        if (session.location) {
+          doc.text(`Location: ${session.location}`, margin + 5, yPos)
+          yPos += 5
+        }
+        if (session.description) {
+          const descLines = doc.splitTextToSize(`Description: ${session.description}`, contentWidth - 10)
+          doc.text(descLines, margin + 5, yPos)
+          yPos += descLines.length * 5
+        }
+        
+        yPos += 3
+        
+        // Attendance table header
+        doc.setFontSize(10)
+        doc.setFont('helvetica', 'bold')
+        doc.text('Attendance:', margin + 5, yPos)
+        yPos += 6
+        
+        // Table headers
+        doc.setFontSize(9)
+        doc.setFont('helvetica', 'bold')
+        doc.text('Player Name', margin + 10, yPos)
+        doc.text('Status', margin + 80, yPos)
+        yPos += 5
+        
+        // Draw table line
+        doc.setDrawColor(200, 200, 200)
+        doc.setLineWidth(0.2)
+        doc.line(margin + 10, yPos, pageWidth - margin - 10, yPos)
+        yPos += 3
+        
+        // Attendance rows
+        doc.setFont('helvetica', 'normal')
+        if (session.attendance && session.attendance.length > 0) {
+          session.attendance.forEach((att: any) => {
+            if (yPos > pageHeight - 20) {
+              doc.addPage()
+              yPos = margin
+            }
+            doc.text(att.player || 'Unknown', margin + 10, yPos)
+            doc.text(att.status || 'N/A', margin + 80, yPos)
+            yPos += 5
+          })
+        } else {
+          doc.text('No attendance recorded', margin + 10, yPos)
+          yPos += 5
+        }
+        
+        yPos += 3
+        
+        // Session summary
+        if (session.summary) {
+          doc.setFontSize(9)
+          doc.setFont('helvetica', 'bold')
+          doc.text(`Summary: Present: ${session.summary.present}, Absent: ${session.summary.absent}, Justified: ${session.summary.justified}, Injured: ${session.summary.injured}`, margin + 5, yPos)
+          yPos += 6
+        }
+        
+        yPos += 5
+        // Separator line
+        doc.setDrawColor(220, 220, 220)
+        doc.setLineWidth(0.3)
+        doc.line(margin, yPos, pageWidth - margin, yPos)
+        yPos += 8
+      })
+    } else if (report.data) {
       doc.setFontSize(14)
       doc.setFont('helvetica', 'bold')
       doc.setTextColor(26, 26, 26)
@@ -88,16 +197,28 @@ export async function POST(request: NextRequest) {
       doc.setFont('helvetica', 'normal')
       doc.setTextColor(51, 51, 51)
       
-      const dataText = JSON.stringify(report.data, null, 2)
-      const dataLines = doc.splitTextToSize(dataText, contentWidth)
-      
-      // Check if we need a new page
-      if (yPos + (dataLines.length * 5) > pageHeight - margin) {
-        doc.addPage()
-        yPos = margin
+      // For other report types, show formatted data if available
+      if (report.data.summary) {
+        Object.entries(report.data.summary).forEach(([key, value]) => {
+          if (yPos > pageHeight - 20) {
+            doc.addPage()
+            yPos = margin
+          }
+          doc.text(`${key.charAt(0).toUpperCase() + key.slice(1)}: ${value}`, margin, yPos)
+          yPos += 6
+        })
+      } else {
+        // Fallback to JSON for complex data structures
+        const dataText = JSON.stringify(report.data, null, 2)
+        const dataLines = doc.splitTextToSize(dataText, contentWidth)
+        
+        if (yPos + (dataLines.length * 5) > pageHeight - margin) {
+          doc.addPage()
+          yPos = margin
+        }
+        
+        doc.text(dataLines, margin, yPos)
       }
-      
-      doc.text(dataLines, margin, yPos)
     } else {
       doc.setFontSize(12)
       doc.setFont('helvetica', 'normal')

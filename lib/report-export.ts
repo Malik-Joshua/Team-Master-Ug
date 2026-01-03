@@ -49,9 +49,49 @@ export function generateExcelReport(report: ReportData): Blob {
 
   // Add report data if available
   if (report.data) {
-    metadata.push(['Report Data'])
-    if (Array.isArray(report.data)) {
+    // Format training attendance data specially
+    if (report.type === 'training' && report.data.formattedSessions) {
+      metadata.push(['Training Sessions Summary'])
+      if (report.data.summary) {
+        metadata.push(['Total Sessions', report.data.summary.totalSessions])
+        metadata.push(['Total Players', report.data.summary.totalPlayers])
+        metadata.push(['Overall Attendance Rate', `${report.data.summary.overallAttendanceRate}%`])
+      }
+      metadata.push([])
+      
+      // Add each session
+      report.data.formattedSessions.forEach((session: any, index: number) => {
+        metadata.push([`Session ${index + 1}: ${session.date}`])
+        if (session.time && session.time !== 'N/A') {
+          metadata.push(['Time', session.time])
+        }
+        if (session.location) {
+          metadata.push(['Location', session.location])
+        }
+        if (session.description) {
+          metadata.push(['Description', session.description])
+        }
+        metadata.push([])
+        metadata.push(['Player Name', 'Attendance Status'])
+        
+        if (session.attendance && session.attendance.length > 0) {
+          session.attendance.forEach((att: any) => {
+            metadata.push([att.player || 'Unknown', att.status || 'N/A'])
+          })
+        } else {
+          metadata.push(['No attendance recorded', ''])
+        }
+        
+        metadata.push([])
+        if (session.summary) {
+          metadata.push(['Summary', `Present: ${session.summary.present}, Absent: ${session.summary.absent}, Justified: ${session.summary.justified}, Injured: ${session.summary.injured}`])
+        }
+        metadata.push([])
+        metadata.push([]) // Extra spacing between sessions
+      })
+    } else if (Array.isArray(report.data)) {
       // If data is an array, add headers and rows
+      metadata.push(['Report Data'])
       if (report.data.length > 0) {
         const headers = Object.keys(report.data[0])
         metadata.push(headers)
@@ -61,8 +101,13 @@ export function generateExcelReport(report: ReportData): Blob {
       }
     } else {
       // If data is an object, add key-value pairs
+      metadata.push(['Report Data'])
       Object.entries(report.data).forEach(([key, value]) => {
-        metadata.push([key, String(value)])
+        if (typeof value === 'object' && value !== null) {
+          metadata.push([key, JSON.stringify(value)])
+        } else {
+          metadata.push([key, String(value)])
+        }
       })
     }
   }
@@ -94,7 +139,52 @@ export function generateCSVReport(report: ReportData): Blob {
   lines.push('')
 
   if (report.data) {
-    if (Array.isArray(report.data)) {
+    // Format training attendance data specially
+    if (report.type === 'training' && report.data.formattedSessions) {
+      lines.push('Training Sessions Summary')
+      lines.push('')
+      if (report.data.summary) {
+        lines.push(`Total Sessions,${report.data.summary.totalSessions}`)
+        lines.push(`Total Players,${report.data.summary.totalPlayers}`)
+        lines.push(`Overall Attendance Rate,${report.data.summary.overallAttendanceRate}%`)
+      }
+      lines.push('')
+      
+      // Add each session
+      report.data.formattedSessions.forEach((session: any, index: number) => {
+        lines.push(`Session ${index + 1}: ${session.date}`)
+        if (session.time && session.time !== 'N/A') {
+          lines.push(`Time,${session.time}`)
+        }
+        if (session.location) {
+          const location = session.location.includes(',') ? `"${session.location}"` : session.location
+          lines.push(`Location,${location}`)
+        }
+        if (session.description) {
+          const desc = session.description.includes(',') ? `"${session.description}"` : session.description
+          lines.push(`Description,${desc}`)
+        }
+        lines.push('')
+        lines.push('Player Name,Attendance Status')
+        
+        if (session.attendance && session.attendance.length > 0) {
+          session.attendance.forEach((att: any) => {
+            const player = (att.player || 'Unknown').includes(',') ? `"${att.player || 'Unknown'}"` : (att.player || 'Unknown')
+            const status = (att.status || 'N/A').includes(',') ? `"${att.status || 'N/A'}"` : (att.status || 'N/A')
+            lines.push(`${player},${status}`)
+          })
+        } else {
+          lines.push('No attendance recorded,')
+        }
+        
+        lines.push('')
+        if (session.summary) {
+          lines.push(`Summary,Present: ${session.summary.present}, Absent: ${session.summary.absent}, Justified: ${session.summary.justified}, Injured: ${session.summary.injured}`)
+        }
+        lines.push('')
+        lines.push('') // Extra spacing between sessions
+      })
+    } else if (Array.isArray(report.data)) {
       if (report.data.length > 0) {
         const headers = Object.keys(report.data[0])
         lines.push(headers.join(','))
@@ -111,7 +201,9 @@ export function generateCSVReport(report: ReportData): Blob {
       }
     } else {
       Object.entries(report.data).forEach(([key, value]) => {
-        lines.push(`${key},${value}`)
+        const val = typeof value === 'object' ? JSON.stringify(value) : String(value)
+        const escapedVal = val.includes(',') ? `"${val.replace(/"/g, '""')}"` : val
+        lines.push(`${key},${escapedVal}`)
       })
     }
   }

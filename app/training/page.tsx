@@ -1024,6 +1024,33 @@ export default function TrainingPage() {
         })
       }
 
+      // Create formatted report data for better presentation
+      const formattedSessions = exportData.map(session => ({
+        date: new Date(session.sessionDate).toLocaleDateString('en-US', { 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
+        }),
+        time: session.sessionTime || 'N/A',
+        location: session.location,
+        description: session.description,
+        attendance: session.attendance.map((att: any) => ({
+          player: att.playerName,
+          status: att.statusLabel
+        })),
+        summary: {
+          total: session.totalPlayers,
+          present: session.present,
+          absent: session.absent,
+          justified: session.justified,
+          injured: session.injured
+        }
+      }))
+
+      const totalPresent = exportData.reduce((sum, s) => sum + s.present, 0)
+      const totalPlayers = exportData.reduce((sum, s) => sum + s.totalPlayers, 0)
+      const overallAttendanceRate = totalPlayers > 0 ? Math.round((totalPresent / totalPlayers) * 100) : 0
+
       // Create report data
       const reportData: ReportData = {
         id: 'training-export',
@@ -1034,14 +1061,11 @@ export default function TrainingPage() {
           : new Date().toLocaleDateString(),
         generatedAt: new Date().toISOString(),
         data: {
-          sessions: exportData,
+          formattedSessions,
           summary: {
             totalSessions: sessions.length,
             totalPlayers: players.length,
-            overallAttendanceRate: exportData.length > 0
-              ? Math.round((exportData.reduce((sum, s) => sum + s.present, 0) / 
-                           exportData.reduce((sum, s) => sum + s.totalPlayers, 0)) * 100)
-              : 0
+            overallAttendanceRate
           }
         }
       }
@@ -1060,23 +1084,8 @@ export default function TrainingPage() {
           filename = `${safeTitle}.xlsx`
           break
         case 'csv':
-          // Create CSV with detailed attendance data
-          const csvLines: string[] = []
-          csvLines.push('Training Attendance Report')
-          csvLines.push('')
-          csvLines.push('Session Date,Session Time,Location,Description,Player Name,Attendance Status')
-          
-          exportData.forEach(session => {
-            if (session.attendance.length === 0) {
-              csvLines.push(`${session.sessionDate},${session.sessionTime},${session.location},${session.description},No attendance recorded,`)
-            } else {
-              session.attendance.forEach((att: any) => {
-                csvLines.push(`${session.sessionDate},${session.sessionTime},${session.location},${session.description},${att.playerName},${att.statusLabel}`)
-              })
-            }
-          })
-          
-          blob = new Blob([csvLines.join('\n')], { type: 'text/csv' })
+          // Use the library function which formats the data properly
+          blob = generateCSVReport(reportData)
           filename = `${safeTitle}.csv`
           break
         default:
@@ -1451,27 +1460,27 @@ export default function TrainingPage() {
                   )}
                 </button>
                 {showExportMenu && !exporting && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-neutral-light z-10">
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-neutral-light z-50">
                     <button
                       onClick={() => handleExportTraining('pdf')}
-                      className="w-full text-left px-4 py-3 hover:bg-neutral-light transition-colors flex items-center space-x-2 rounded-t-lg"
+                      className="w-full text-left px-4 py-3 hover:bg-neutral-light transition-colors flex items-center space-x-2 rounded-t-lg text-neutral-text"
                     >
                       <FileText className="w-4 h-4 text-primary" />
-                      <span>Export as PDF</span>
+                      <span className="text-neutral-text">Export as PDF</span>
                     </button>
                     <button
                       onClick={() => handleExportTraining('excel')}
-                      className="w-full text-left px-4 py-3 hover:bg-neutral-light transition-colors flex items-center space-x-2"
+                      className="w-full text-left px-4 py-3 hover:bg-neutral-light transition-colors flex items-center space-x-2 text-neutral-text"
                     >
                       <FileSpreadsheet className="w-4 h-4 text-success" />
-                      <span>Export as Excel</span>
+                      <span className="text-neutral-text">Export as Excel</span>
                     </button>
                     <button
                       onClick={() => handleExportTraining('csv')}
-                      className="w-full text-left px-4 py-3 hover:bg-neutral-light transition-colors flex items-center space-x-2 rounded-b-lg"
+                      className="w-full text-left px-4 py-3 hover:bg-neutral-light transition-colors flex items-center space-x-2 rounded-b-lg text-neutral-text"
                     >
                       <FileText className="w-4 h-4 text-info" />
-                      <span>Export as CSV</span>
+                      <span className="text-neutral-text">Export as CSV</span>
                     </button>
                   </div>
                 )}

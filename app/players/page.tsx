@@ -171,19 +171,29 @@ export default function PlayersPage() {
     try {
 
       const playerId = selectedPlayer.user_id || selectedPlayer.id
-      const { db } = await import('@/lib/db-helpers')
-      await db.updatePlayer(playerId, {
-        name: playerForm.name,
-        email: playerForm.email,
-        phone: playerForm.phone,
-        position: playerForm.position,
-        category: playerForm.category,
-        jersey_number: playerForm.jersey_number ? parseInt(playerForm.jersey_number) : undefined,
-        date_of_birth: playerForm.date_of_birth || undefined,
-        height_cm: playerForm.height_cm ? parseInt(playerForm.height_cm) : undefined,
-        weight_kg: playerForm.weight_kg ? parseFloat(playerForm.weight_kg) : undefined,
-        status: playerForm.status,
+      
+      // Use API route to update player (bypasses RLS)
+      const response = await fetch(`/api/players/${playerId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: playerForm.name,
+          email: playerForm.email,
+          phone: playerForm.phone,
+          position: playerForm.position,
+          category: playerForm.category,
+          jersey_number: playerForm.jersey_number ? parseInt(playerForm.jersey_number) : undefined,
+          date_of_birth: playerForm.date_of_birth || undefined,
+          height_cm: playerForm.height_cm ? parseInt(playerForm.height_cm) : undefined,
+          weight_kg: playerForm.weight_kg ? parseFloat(playerForm.weight_kg) : undefined,
+          status: playerForm.status,
+        }),
       })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to update player')
+      }
 
       // Reload players using the same method as initial load
       const supabase = createClient()

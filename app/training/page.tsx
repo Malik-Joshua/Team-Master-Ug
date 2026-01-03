@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import Layout from '@/components/Layout'
-import { Calendar, Users, Save, Download, Plus, Clock, MapPin, FileText, X, Upload, Activity } from 'lucide-react'
+import { Calendar, Users, Save, Download, Plus, Clock, MapPin, FileText, X, Upload, Activity, ChevronDown, FileSpreadsheet } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import RefreshButton from '@/components/RefreshButton'
+import { generatePDFReport, generateExcelReport, generateCSVReport, downloadBlob, type ReportData } from '@/lib/report-export'
 
 interface Player {
   id: string
@@ -77,6 +78,8 @@ export default function TrainingPage() {
     attendanceRate: number
   }>>([])
   const [gymSchedules, setGymSchedules] = useState<any[]>([])
+  const [showExportMenu, setShowExportMenu] = useState(false)
+  const [exporting, setExporting] = useState(false)
 
   const loadData = async () => {
       const supabase = createClient()
@@ -303,6 +306,21 @@ export default function TrainingPage() {
   useEffect(() => {
     loadData()
   }, [])
+
+  useEffect(() => {
+    // Close export menu when clicking outside
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement
+      if (showExportMenu && !target.closest('.export-menu-container')) {
+        setShowExportMenu(false)
+      }
+    }
+
+    if (showExportMenu) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showExportMenu])
 
   const parseTextFile = async (file: File): Promise<Array<{
     date: string
@@ -961,6 +979,121 @@ export default function TrainingPage() {
     }
   }
 
+  const handleExportTraining = async (format: 'pdf' | 'excel' | 'csv') => {
+    try {
+      setExporting(true)
+      const supabase = createClient()
+      
+      // Get all training sessions with attendance data
+      const exportData: any[] = []
+      
+      for (const session of sessions) {
+        // Fetch attendance for this session directly from database
+        const supabase = createClient()
+        const { data: fullAttendance } = await supabase
+          .from('training_attendance')
+          .select('player_id, attendance_status')
+          .eq('session_id', session.id)
+        
+        // Get player names for attendance records
+        const attendanceWithNames = (fullAttendance || []).map((att: any) => {
+          const player = players.find(p => p.id === att.player_id)
+          return {
+            playerName: player?.name || 'Unknown',
+            playerId: att.player_id,
+            status: att.attendance_status,
+            statusLabel: att.attendance_status === 'P' ? 'Present' : 
+                        att.attendance_status === 'A' ? 'Justified Absence' :
+                        att.attendance_status === 'X' ? 'Unjustified Absence' :
+                        att.attendance_status === 'I' ? 'Injured' : 'Unknown'
+          }
+        })
+
+        exportData.push({
+          sessionId: session.id,
+          sessionDate: session.date,
+          sessionTime: session.session_time || 'N/A',
+          location: session.location || 'N/A',
+          description: session.description || 'N/A',
+          attendance: attendanceWithNames,
+          totalPlayers: attendanceWithNames.length,
+          present: attendanceWithNames.filter((a: any) => a.status === 'P').length,
+          absent: attendanceWithNames.filter((a: any) => a.status === 'X').length,
+          justified: attendanceWithNames.filter((a: any) => a.status === 'A').length,
+          injured: attendanceWithNames.filter((a: any) => a.status === 'I').length,
+        })
+      }
+
+      // Create report data
+      const reportData: ReportData = {
+        id: 'training-export',
+        title: 'Training Attendance Report',
+        type: 'training',
+        dateRange: sessions.length > 0 
+          ? `${new Date(sessions[sessions.length - 1].date).toLocaleDateString()} - ${new Date(sessions[0].date).toLocaleDateString()}`
+          : new Date().toLocaleDateString(),
+        generatedAt: new Date().toISOString(),
+        data: {
+          sessions: exportData,
+          summary: {
+            totalSessions: sessions.length,
+            totalPlayers: players.length,
+            overallAttendanceRate: exportData.length > 0
+              ? Math.round((exportData.reduce((sum, s) => sum + s.present, 0) / 
+                           exportData.reduce((sum, s) => sum + s.totalPlayers, 0)) * 100)
+              : 0
+          }
+        }
+      }
+
+      let blob: Blob
+      let filename: string
+      const safeTitle = 'training_attendance_report'
+
+      switch (format) {
+        case 'pdf':
+          blob = await generatePDFReport(reportData)
+          filename = `${safeTitle}.pdf`
+          break
+        case 'excel':
+          blob = generateExcelReport(reportData)
+          filename = `${safeTitle}.xlsx`
+          break
+        case 'csv':
+          // Create CSV with detailed attendance data
+          const csvLines: string[] = []
+          csvLines.push('Training Attendance Report')
+          csvLines.push('')
+          csvLines.push('Session Date,Session Time,Location,Description,Player Name,Attendance Status')
+          
+          exportData.forEach(session => {
+            if (session.attendance.length === 0) {
+              csvLines.push(`${session.sessionDate},${session.sessionTime},${session.location},${session.description},No attendance recorded,`)
+            } else {
+              session.attendance.forEach((att: any) => {
+                csvLines.push(`${session.sessionDate},${session.sessionTime},${session.location},${session.description},${att.playerName},${att.statusLabel}`)
+              })
+            }
+          })
+          
+          blob = new Blob([csvLines.join('\n')], { type: 'text/csv' })
+          filename = `${safeTitle}.csv`
+          break
+        default:
+          throw new Error('Unsupported format')
+      }
+
+      downloadBlob(blob, filename)
+      setShowExportMenu(false)
+      alert(`Training attendance exported as ${format.toUpperCase()}!`)
+    } catch (error: any) {
+      console.error('Error exporting training data:', error)
+      alert(`Error exporting training data: ${error.message}`)
+    } finally {
+      setExporting(false)
+    }
+  }
+
   if (loading) {
     return (
       <Layout pageTitle="Training">
@@ -1298,10 +1431,51 @@ export default function TrainingPage() {
                   </button>
                 </>
               )}
-              <button className="bg-white/20 text-white px-6 py-3 rounded-button font-semibold hover:bg-white/30 transition-all duration-300 inline-flex items-center border border-white/30">
-                <Download className="w-5 h-5 mr-2" />
-                Export
-              </button>
+              <div className="relative export-menu-container">
+                <button
+                  onClick={() => setShowExportMenu(!showExportMenu)}
+                  disabled={exporting || sessions.length === 0}
+                  className="bg-white/20 text-white px-6 py-3 rounded-button font-semibold hover:bg-white/30 transition-all duration-300 inline-flex items-center border border-white/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {exporting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Exporting...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-5 h-5 mr-2" />
+                      Export
+                      <ChevronDown className="w-4 h-4 ml-2" />
+                    </>
+                  )}
+                </button>
+                {showExportMenu && !exporting && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-neutral-light z-10">
+                    <button
+                      onClick={() => handleExportTraining('pdf')}
+                      className="w-full text-left px-4 py-3 hover:bg-neutral-light transition-colors flex items-center space-x-2 rounded-t-lg"
+                    >
+                      <FileText className="w-4 h-4 text-primary" />
+                      <span>Export as PDF</span>
+                    </button>
+                    <button
+                      onClick={() => handleExportTraining('excel')}
+                      className="w-full text-left px-4 py-3 hover:bg-neutral-light transition-colors flex items-center space-x-2"
+                    >
+                      <FileSpreadsheet className="w-4 h-4 text-success" />
+                      <span>Export as Excel</span>
+                    </button>
+                    <button
+                      onClick={() => handleExportTraining('csv')}
+                      className="w-full text-left px-4 py-3 hover:bg-neutral-light transition-colors flex items-center space-x-2 rounded-b-lg"
+                    >
+                      <FileText className="w-4 h-4 text-info" />
+                      <span>Export as CSV</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

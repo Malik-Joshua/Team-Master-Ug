@@ -29,6 +29,14 @@ export default function ReportsPage() {
   })
   const [downloadingReport, setDownloadingReport] = useState<string | null>(null)
   const [showDownloadMenu, setShowDownloadMenu] = useState<string | null>(null)
+  const [players, setPlayers] = useState<Array<{ id: string; name: string }>>([])
+  const [matches, setMatches] = useState<Array<{ id: string; opponent: string; match_date: string }>>([])
+  const [trainingSessions, setTrainingSessions] = useState<Array<{ id: string; session_date: string; description?: string }>>([])
+  const [reportFilters, setReportFilters] = useState({
+    selectedPlayer: '',
+    selectedMatch: '',
+    selectedTrainingSession: '',
+  })
 
   useEffect(() => {
     // Close download menu when clicking outside
@@ -84,6 +92,57 @@ export default function ReportsPage() {
             }))
             setReports(formattedReports)
           }
+
+          // Load players for player reports
+          try {
+            const playersResponse = await fetch('/api/admin/players')
+            if (playersResponse.ok) {
+              const playersData = await playersResponse.json()
+              if (playersData.players && Array.isArray(playersData.players)) {
+                setPlayers(playersData.players.map((p: any) => ({
+                  id: p.user_id || p.id,
+                  name: p.name || 'Unknown',
+                })))
+              }
+            }
+          } catch (err) {
+            console.error('Error loading players:', err)
+          }
+
+          // Load matches for match reports
+          try {
+            const matchesResponse = await fetch('/api/fixtures?all=true')
+            if (matchesResponse.ok) {
+              const matchesData = await matchesResponse.json()
+              if (matchesData.fixtures && Array.isArray(matchesData.fixtures)) {
+                setMatches(matchesData.fixtures.map((m: any) => ({
+                  id: m.id,
+                  opponent: m.opponent || 'Unknown',
+                  match_date: m.match_date,
+                })))
+              }
+            }
+          } catch (err) {
+            console.error('Error loading matches:', err)
+          }
+
+          // Load training sessions for training reports
+          try {
+            const { data: sessionsData } = await supabase
+              .from('training_sessions')
+              .select('id, session_date, description')
+              .order('session_date', { ascending: false })
+            
+            if (sessionsData) {
+              setTrainingSessions(sessionsData.map((s: any) => ({
+                id: s.id,
+                session_date: s.session_date,
+                description: s.description,
+              })))
+            }
+          } catch (err) {
+            console.error('Error loading training sessions:', err)
+          }
         }
       }
       setLoading(false)
@@ -103,16 +162,45 @@ export default function ReportsPage() {
         return
       }
 
+      // Validate filters based on report type
+      if (type === 'player' && !reportFilters.selectedPlayer) {
+        alert('Please select a player for the player performance report')
+        return
+      }
+      if (type === 'match' && !reportFilters.selectedMatch) {
+        alert('Please select a match for the match stats report')
+        return
+      }
+      if (type === 'training' && !reportFilters.selectedTrainingSession) {
+        alert('Please select a training session for the training report')
+        return
+      }
+
       // Determine date range
       const dateFrom = filterData.dateFrom ? new Date(filterData.dateFrom).toISOString().split('T')[0] : null
       const dateTo = filterData.dateTo ? new Date(filterData.dateTo).toISOString().split('T')[0] : null
 
-      // Create report title
-      const reportTitle = `${type.charAt(0).toUpperCase() + type.slice(1)} Report - ${dateFrom && dateTo
-        ? `${new Date(dateFrom).toLocaleDateString()} to ${new Date(dateTo).toLocaleDateString()}`
-        : new Date().toLocaleDateString()}`
+      // Create report title with selected filters
+      let reportTitle = `${type.charAt(0).toUpperCase() + type.slice(1)} Report`
+      
+      if (type === 'player' && reportFilters.selectedPlayer) {
+        const selectedPlayer = players.find(p => p.id === reportFilters.selectedPlayer)
+        reportTitle += ` - ${selectedPlayer?.name || 'Player'}`
+      } else if (type === 'match' && reportFilters.selectedMatch) {
+        const selectedMatch = matches.find(m => m.id === reportFilters.selectedMatch)
+        reportTitle += ` - ${selectedMatch?.opponent || 'Match'} (${selectedMatch?.match_date ? new Date(selectedMatch.match_date).toLocaleDateString() : ''})`
+      } else if (type === 'training' && reportFilters.selectedTrainingSession) {
+        const selectedSession = trainingSessions.find(s => s.id === reportFilters.selectedTrainingSession)
+        reportTitle += ` - ${selectedSession?.session_date ? new Date(selectedSession.session_date).toLocaleDateString() : 'Session'}`
+      }
+      
+      if (dateFrom && dateTo) {
+        reportTitle += ` (${new Date(dateFrom).toLocaleDateString()} to ${new Date(dateTo).toLocaleDateString()})`
+      } else {
+        reportTitle += ` - ${new Date().toLocaleDateString()}`
+      }
 
-      // Create report in database
+      // Create report in database with filter metadata
       const { data: newReport, error } = await supabase
         .from('reports')
         .insert({
@@ -122,6 +210,7 @@ export default function ReportsPage() {
           date_to: dateTo,
           generated_by: authUser.id,
           status: 'generating',
+          // Store filter selections in metadata (if you have a metadata column, otherwise we'll handle it in the data)
         })
         .select()
         .single()
@@ -141,6 +230,13 @@ export default function ReportsPage() {
       }
 
       setReports([formattedReport, ...reports])
+      
+      // Reset filters after generating report
+      setReportFilters({
+        selectedPlayer: '',
+        selectedMatch: '',
+        selectedTrainingSession: '',
+      })
       
       // Simulate report generation (in production, this would be a background job)
       setTimeout(async () => {
@@ -175,22 +271,142 @@ export default function ReportsPage() {
         .eq('id', report.id)
         .single()
 
-      const reportData: ReportData = {
+      // Extract filter information from report title (we stored it there)
+      let reportData: ReportData = {
         id: report.id,
         title: report.title,
         type: report.type,
         dateRange: report.dateRange,
         generatedAt: report.generatedAt,
         data: {
-          // Report metadata
           reportId: report.id,
           reportType: report.type,
           dateFrom: reportDetails?.date_from || null,
           dateTo: reportDetails?.date_to || null,
           generatedBy: reportDetails?.generated_by || null,
-          summary: `This ${report.type} report contains detailed information for the selected period.`,
-          details: 'Additional report details would be loaded from the database based on report type.',
+          summary: `This ${report.type} report contains detailed information.`,
+          details: 'Report data loaded from database.',
         },
+      }
+
+      // Fetch specific data based on report type and title (which contains filter info)
+      if (report.type === 'player') {
+        // Extract player name from title (format: "Player Report - PlayerName")
+        const playerMatch = report.title.match(/Player Report - (.+?)(?:\s*\(|$)/)
+        if (playerMatch && playerMatch[1]) {
+          const playerName = playerMatch[1].trim()
+          const selectedPlayer = players.find(p => p.name === playerName)
+          
+          if (selectedPlayer) {
+            // Fetch player-specific data
+            try {
+              const playerResponse = await fetch(`/api/players/${selectedPlayer.id}/gym-stats`)
+              const gymStats = playerResponse.ok ? await playerResponse.json() : {}
+              
+              // Fetch match stats for this player
+              const { data: matchStats } = await supabase
+                .from('match_stats')
+                .select('*, matches(*)')
+                .eq('player_id', selectedPlayer.id)
+              
+              // Fetch training attendance for this player
+              const { data: attendance } = await supabase
+                .from('training_attendance')
+                .select('*, training_sessions(*)')
+                .eq('player_id', selectedPlayer.id)
+              
+              reportData.data = {
+                ...reportData.data,
+                playerId: selectedPlayer.id,
+                playerName: selectedPlayer.name,
+                gymStats,
+                matchStats: matchStats || [],
+                trainingAttendance: attendance || [],
+                summary: `Performance report for ${selectedPlayer.name} including match statistics, training attendance, and gym metrics.`,
+              }
+            } catch (err) {
+              console.error('Error fetching player data:', err)
+            }
+          }
+        }
+      } else if (report.type === 'match') {
+        // Extract match info from title
+        const matchMatch = report.title.match(/Match Report - (.+?)\s*\(/)
+        if (matchMatch && matchMatch[1]) {
+          const matchOpponent = matchMatch[1].trim()
+          const selectedMatch = matches.find(m => m.opponent === matchOpponent)
+          
+          if (selectedMatch) {
+            // Fetch match-specific data
+            try {
+              const { data: matchDetails } = await supabase
+                .from('matches')
+                .select('*')
+                .eq('id', selectedMatch.id)
+                .single()
+              
+              const { data: matchStats } = await supabase
+                .from('match_stats')
+                .select('*, user_profiles(name)')
+                .eq('match_id', selectedMatch.id)
+              
+              reportData.data = {
+                ...reportData.data,
+                matchId: selectedMatch.id,
+                matchDetails: matchDetails || {},
+                playerStats: matchStats || [],
+                summary: `Match statistics report for ${matchDetails?.opponent || matchOpponent} on ${new Date(selectedMatch.match_date).toLocaleDateString()}.`,
+              }
+            } catch (err) {
+              console.error('Error fetching match data:', err)
+            }
+          }
+        }
+      } else if (report.type === 'training') {
+        // Extract training session info from title
+        const sessionMatch = report.title.match(/Training Report - (.+?)(?:\s*\(|$)/)
+        if (sessionMatch && sessionMatch[1]) {
+          const sessionDateStr = sessionMatch[1].trim()
+          const selectedSession = trainingSessions.find(s => 
+            new Date(s.session_date).toLocaleDateString() === sessionDateStr
+          )
+          
+          if (selectedSession) {
+            // Fetch training session-specific data
+            try {
+              const { data: sessionDetails } = await supabase
+                .from('training_sessions')
+                .select('*')
+                .eq('id', selectedSession.id)
+                .single()
+              
+              // Fetch attendance for this session
+              const attendanceResponse = await fetch(`/api/training/attendance?session_id=${selectedSession.id}`)
+              const attendanceData = attendanceResponse.ok ? await attendanceResponse.json() : { attendance: [] }
+              
+              // Get player names for attendance
+              const attendanceWithNames = await Promise.all(
+                (attendanceData.attendance || []).map(async (att: any) => {
+                  const player = players.find(p => p.id === att.player_id)
+                  return {
+                    ...att,
+                    playerName: player?.name || 'Unknown',
+                  }
+                })
+              )
+              
+              reportData.data = {
+                ...reportData.data,
+                sessionId: selectedSession.id,
+                sessionDetails: sessionDetails || {},
+                attendance: attendanceWithNames,
+                summary: `Training attendance report for session on ${new Date(selectedSession.session_date).toLocaleDateString()}.`,
+              }
+            } catch (err) {
+              console.error('Error fetching training session data:', err)
+            }
+          }
+        }
       }
 
       let blob: Blob
@@ -337,7 +553,7 @@ export default function ReportsPage() {
 
         {/* Quick Generate Reports */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft hover-lift cursor-pointer">
+          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft hover-lift">
             <div className="flex items-center space-x-4 mb-4">
               <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center">
                 <Users className="w-6 h-6 text-white" />
@@ -347,15 +563,31 @@ export default function ReportsPage() {
                 <p className="text-sm text-neutral-medium">Performance & stats</p>
               </div>
             </div>
+            <div className="mb-3">
+              <label className="block text-xs font-medium text-neutral-medium mb-1">Select Player</label>
+              <select
+                value={reportFilters.selectedPlayer}
+                onChange={(e) => setReportFilters({ ...reportFilters, selectedPlayer: e.target.value })}
+                className="w-full px-3 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all text-sm"
+              >
+                <option value="">Choose a player...</option>
+                {players.map((player) => (
+                  <option key={player.id} value={player.id}>
+                    {player.name}
+                  </option>
+                ))}
+              </select>
+            </div>
             <button
               onClick={() => handleGenerateReport('player')}
-              className="w-full px-4 py-2 bg-primary text-white rounded-button font-medium hover:bg-primary-dark transition-colors text-sm"
+              disabled={!reportFilters.selectedPlayer}
+              className="w-full px-4 py-2 bg-primary text-white rounded-button font-medium hover:bg-primary-dark transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Generate
             </button>
           </div>
 
-          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft hover-lift cursor-pointer">
+          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft hover-lift">
             <div className="flex items-center space-x-4 mb-4">
               <div className="w-12 h-12 bg-secondary rounded-xl flex items-center justify-center">
                 <Trophy className="w-6 h-6 text-white" />
@@ -365,15 +597,31 @@ export default function ReportsPage() {
                 <p className="text-sm text-neutral-medium">Match statistics</p>
               </div>
             </div>
+            <div className="mb-3">
+              <label className="block text-xs font-medium text-neutral-medium mb-1">Select Match</label>
+              <select
+                value={reportFilters.selectedMatch}
+                onChange={(e) => setReportFilters({ ...reportFilters, selectedMatch: e.target.value })}
+                className="w-full px-3 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-secondary focus:border-secondary transition-all text-sm"
+              >
+                <option value="">Choose a match...</option>
+                {matches.map((match) => (
+                  <option key={match.id} value={match.id}>
+                    {match.opponent} - {new Date(match.match_date).toLocaleDateString()}
+                  </option>
+                ))}
+              </select>
+            </div>
             <button
               onClick={() => handleGenerateReport('match')}
-              className="w-full px-4 py-2 bg-secondary text-white rounded-button font-medium hover:bg-secondary-dark transition-colors text-sm"
+              disabled={!reportFilters.selectedMatch}
+              className="w-full px-4 py-2 bg-secondary text-white rounded-button font-medium hover:bg-secondary-dark transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Generate
             </button>
           </div>
 
-          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft hover-lift cursor-pointer">
+          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft hover-lift">
             <div className="flex items-center space-x-4 mb-4">
               <div className="w-12 h-12 bg-info rounded-xl flex items-center justify-center">
                 <Calendar className="w-6 h-6 text-white" />
@@ -383,9 +631,25 @@ export default function ReportsPage() {
                 <p className="text-sm text-neutral-medium">Attendance & sessions</p>
               </div>
             </div>
+            <div className="mb-3">
+              <label className="block text-xs font-medium text-neutral-medium mb-1">Select Training Session</label>
+              <select
+                value={reportFilters.selectedTrainingSession}
+                onChange={(e) => setReportFilters({ ...reportFilters, selectedTrainingSession: e.target.value })}
+                className="w-full px-3 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-info focus:border-info transition-all text-sm"
+              >
+                <option value="">Choose a session...</option>
+                {trainingSessions.map((session) => (
+                  <option key={session.id} value={session.id}>
+                    {new Date(session.session_date).toLocaleDateString()} {session.description ? `- ${session.description.substring(0, 30)}...` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
             <button
               onClick={() => handleGenerateReport('training')}
-              className="w-full px-4 py-2 bg-info text-white rounded-button font-medium hover:bg-info-dark transition-colors text-sm"
+              disabled={!reportFilters.selectedTrainingSession}
+              className="w-full px-4 py-2 bg-info text-white rounded-button font-medium hover:bg-info-dark transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Generate
             </button>

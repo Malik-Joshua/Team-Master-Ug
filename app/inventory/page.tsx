@@ -38,8 +38,7 @@ export default function InventoryPage() {
     description: '',
   })
 
-  useEffect(() => {
-    const loadData = async () => {
+  const loadData = async () => {
       const supabase = createClient()
       const { data: { user: authUser } } = await supabase.auth.getUser()
 
@@ -151,6 +150,7 @@ export default function InventoryPage() {
       setLoading(false)
     }
 
+  useEffect(() => {
     loadData()
   }, [])
 

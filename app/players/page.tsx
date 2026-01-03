@@ -671,14 +671,22 @@ export default function PlayersPage() {
                   try {
                     const playerId = selectedPlayerForGym.user_id || selectedPlayerForGym.id
                     
-
-                    const { db } = await import('@/lib/db-helpers')
-                    await db.updatePlayerGymStats(playerId, {
-                      benchPressPB: gymMetricsForm.benchPressPB && gymMetricsForm.benchPressPB.trim() !== '' ? parseFloat(gymMetricsForm.benchPressPB) : null,
-                      squatPB: gymMetricsForm.squatPB && gymMetricsForm.squatPB.trim() !== '' ? parseFloat(gymMetricsForm.squatPB) : null,
-                      deadliftPB: gymMetricsForm.deadliftPB && gymMetricsForm.deadliftPB.trim() !== '' ? parseFloat(gymMetricsForm.deadliftPB) : null,
-                      pullUpPB: gymMetricsForm.pullUpPB && gymMetricsForm.pullUpPB.trim() !== '' ? parseInt(gymMetricsForm.pullUpPB) : null,
+                    // Use API route to update gym stats (bypasses RLS)
+                    const response = await fetch(`/api/players/${playerId}/gym-stats`, {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        benchPressPB: gymMetricsForm.benchPressPB && gymMetricsForm.benchPressPB.trim() !== '' ? parseFloat(gymMetricsForm.benchPressPB) : null,
+                        squatPB: gymMetricsForm.squatPB && gymMetricsForm.squatPB.trim() !== '' ? parseFloat(gymMetricsForm.squatPB) : null,
+                        deadliftPB: gymMetricsForm.deadliftPB && gymMetricsForm.deadliftPB.trim() !== '' ? parseFloat(gymMetricsForm.deadliftPB) : null,
+                        pullUpPB: gymMetricsForm.pullUpPB && gymMetricsForm.pullUpPB.trim() !== '' ? parseInt(gymMetricsForm.pullUpPB) : null,
+                      }),
                     })
+
+                    if (!response.ok) {
+                      const error = await response.json()
+                      throw new Error(error.error || 'Failed to update gym metrics')
+                    }
 
                     alert('Gym metrics updated successfully!')
                     setShowGymMetricsModal(false)

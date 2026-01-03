@@ -322,18 +322,38 @@ export default function DashboardPage() {
                 const { db } = await import('@/lib/db-helpers')
                 const sessionsAttended = await db.getPlayerTrainingSessionsAttended(authUser.id)
                 
-                // Load gym metrics - refresh function
-                const loadGymMetrics = async () => {
-                  try {
-                    const gymMetrics = await db.getPlayerGymStats(authUser.id)
+                // Load gym metrics using API route (bypasses RLS and ensures fresh data)
+                try {
+                  const gymStatsResponse = await fetch(`/api/players/${authUser.id}/gym-stats`, {
+                    cache: 'no-store',
+                    headers: {
+                      'Cache-Control': 'no-cache',
+                    }
+                  })
+                  
+                  if (gymStatsResponse.ok) {
+                    const gymMetrics = await gymStatsResponse.json()
                     setGymStats(gymMetrics)
-                  } catch (error) {
-                    console.error('Error loading gym metrics:', error)
+                  } else {
+                    console.error('Failed to load gym stats:', gymStatsResponse.status)
+                    // Fallback to empty stats
+                    setGymStats({
+                      benchPressPB: null,
+                      squatPB: null,
+                      deadliftPB: null,
+                      pullUpPB: null,
+                    })
                   }
+                } catch (gymError) {
+                  console.error('Error loading gym metrics:', gymError)
+                  // Fallback to empty stats
+                  setGymStats({
+                    benchPressPB: null,
+                    squatPB: null,
+                    deadliftPB: null,
+                    pullUpPB: null,
+                  })
                 }
-                
-                // Load initial gym metrics
-                await loadGymMetrics()
                 
                 // Load player match stats - only count games where stats have been entered
                 const { data: playerMatchStats } = await supabase
@@ -469,14 +489,26 @@ export default function DashboardPage() {
   // Refresh gym stats for players periodically (every 30 seconds) and on page visibility change
   useEffect(() => {
     if (user?.role === 'player') {
+      const supabase = createClient()
+      
       const refreshGymStats = async () => {
         try {
-          const { db } = await import('@/lib/db-helpers')
-          const supabase = createClient()
           const { data: { user: authUser } } = await supabase.auth.getUser()
           if (authUser) {
-            const gymMetrics = await db.getPlayerGymStats(authUser.id)
-            setGymStats(gymMetrics)
+            // Use API route to get fresh gym stats (bypasses RLS and caching)
+            const response = await fetch(`/api/players/${authUser.id}/gym-stats`, {
+              cache: 'no-store',
+              headers: {
+                'Cache-Control': 'no-cache',
+              }
+            })
+            
+            if (response.ok) {
+              const gymMetrics = await response.json()
+              setGymStats(gymMetrics)
+            } else {
+              console.error('Failed to refresh gym stats:', response.status)
+            }
           }
         } catch (error) {
           console.error('Error refreshing gym metrics:', error)

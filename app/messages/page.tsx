@@ -50,7 +50,6 @@ export default function MessagesPage() {
     message: '',
   })
 
-  useEffect(() => {
   const loadData = async () => {
       const supabase = createClient()
       const { data: { user: authUser } } = await supabase.auth.getUser()
@@ -274,8 +273,9 @@ export default function MessagesPage() {
         }
       }
       setLoading(false)
-    }
+  }
 
+  useEffect(() => {
     loadData()
   }, [])
 

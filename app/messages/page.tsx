@@ -1392,13 +1392,9 @@ export default function MessagesPage() {
   return (
     <Layout pageTitle="Messages">
       <div className="max-w-6xl mx-auto space-y-6">
-        <div className="flex justify-between items-center">
-          <div className="mb-2">
+        <div className="flex justify-between items-center mb-6">
+          <div>
             <h1 className="text-4xl font-extrabold text-club-gradient mb-2">Messages</h1>
-          </div>
-          <RefreshButton onRefresh={loadData} />
-        </div>
-        <div className="mb-2">
             <p className="text-lg text-neutral-medium font-medium">
               {user?.role === 'admin'
                 ? 'Send messages to all team members and staff'
@@ -1409,6 +1405,8 @@ export default function MessagesPage() {
                 : 'Communicate with coaches and administrators'}
             </p>
           </div>
+          <RefreshButton onRefresh={loadData} />
+        </div>
           <button
             onClick={() => setShowCompose(!showCompose)}
             className="bg-club-gradient text-white px-6 py-3 rounded-button font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"

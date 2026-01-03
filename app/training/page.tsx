@@ -1001,18 +1001,14 @@ export default function TrainingPage() {
         <div className="space-y-6">
           {/* Header */}
           <div className="bg-club-gradient rounded-card p-6 text-white shadow-soft">
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center mb-4">
               <div>
-                <h1 className="text-4xl font-extrabold mb-2">Training Schedule</h1>
+                <h1 className="text-3xl font-bold mb-2">Upcoming Training Sessions</h1>
+                <p className="text-blue-100">
+                  View your upcoming training sessions, drills, and activities scheduled by your coach
+                </p>
               </div>
               <RefreshButton onRefresh={loadData} size="sm" className="bg-white/20 hover:bg-white/30 border-white/30 text-white" />
-            </div>
-            <div>
-            <div>
-              <h1 className="text-3xl font-bold mb-2">Upcoming Training Sessions</h1>
-              <p className="text-blue-100">
-                View your upcoming training sessions, drills, and activities scheduled by your coach
-              </p>
             </div>
           </div>
 

@@ -1230,43 +1230,43 @@ export default function MessagesPage() {
                     .single()
                 )
 
-              const messageResults = await Promise.all(messagePromises)
-              
-              // Create notifications for recipients with message references
-              try {
-                const { db } = await import('@/lib/db-helpers')
-                // Create individual notifications with message IDs
-                const notificationPromises = messageResults.map((result: any) => {
-                  if (result.data && result.data.id) {
-                    return db.createNotification({
-                      user_id: result.data.recipient_id,
-                      title: 'New Message',
-                      message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
-                      type: 'info',
-                      action_url: '/messages',
-                      reference_id: result.data.id,
-                      reference_type: 'message',
-                    })
-                  }
-                  return Promise.resolve(null)
-                })
+                const messageResults = await Promise.all(messagePromises)
                 
-                await Promise.all(notificationPromises)
-                console.log(`Notifications created successfully for ${messageResults.length} messages`)
-              } catch (notifError) {
-                console.error('Error creating notifications:', notifError)
-                console.error('Notification error details:', JSON.stringify(notifError, null, 2))
-                // Don't fail the message send if notification creation fails
+                // Create notifications for recipients with message references
+                try {
+                  const { db } = await import('@/lib/db-helpers')
+                  // Create individual notifications with message IDs
+                  const notificationPromises = messageResults.map((result: any) => {
+                    if (result.data && result.data.id) {
+                      return db.createNotification({
+                        user_id: result.data.recipient_id,
+                        title: 'New Message',
+                        message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
+                        type: 'info',
+                        action_url: '/messages',
+                        reference_id: result.data.id,
+                        reference_type: 'message',
+                      })
+                    }
+                    return Promise.resolve(null)
+                  })
+                  
+                  await Promise.all(notificationPromises)
+                  console.log(`Notifications created successfully for ${messageResults.length} messages`)
+                } catch (notifError) {
+                  console.error('Error creating notifications:', notifError)
+                  console.error('Notification error details:', JSON.stringify(notifError, null, 2))
+                  // Don't fail the message send if notification creation fails
+                }
+                
+                alert(`Message sent successfully to ${recipients.length} recipient(s)!`)
+                setComposeData({ recipientType: 'role', recipient: '', recipientId: '', selectedRoles: [], subject: '', message: '' })
+                setShowCompose(false)
+                return
+              } else {
+                alert('No recipients found for selected role')
+                return
               }
-              
-              alert(`Message sent successfully to ${recipients.length} recipient(s)!`)
-              setComposeData({ recipientType: 'role', recipient: '', recipientId: '', selectedRoles: [], subject: '', message: '' })
-              setShowCompose(false)
-              return
-            } else {
-              alert('No recipients found for selected role')
-              return
-            }
             } catch (fetchError: any) {
               console.error('Error fetching recipients:', fetchError)
               alert(`Error fetching recipients: ${fetchError.message || 'Unknown error'}`)

@@ -702,8 +702,8 @@ export default function MessagesPage() {
         }
       } else if (user?.role === 'coach') {
         // Coach can send to players or admins
-      let recipientId: string | null = null
-      let recipientRole: string | null = null
+        let recipientId: string | null = null
+        let recipientRole: string | null = null
 
         if (composeData.recipientType === 'role') {
           // Send to all players, all admins, all coaches, or all physios
@@ -733,61 +733,61 @@ export default function MessagesPage() {
             const data = await response.json()
             const recipients = data.recipients || []
 
-        if (recipients && recipients.length > 0) {
-          // Send message to each recipient
-            const messagePromises = recipients.map((recipient: { user_id: string }) =>
-            supabase
-              .from('messages')
-              .insert({
-                sender_id: authUser.id,
-                recipient_id: recipient.user_id,
-                subject: composeData.subject,
-                message: composeData.message,
-              })
-              .select('id, recipient_id')
-              .single()
-          )
-
-          const messageResults = await Promise.all(messagePromises)
-            
-            // Create notifications for recipients with message references
-            try {
-              const { db } = await import('@/lib/db-helpers')
-              // Create individual notifications with message IDs
-              const notificationPromises = messageResults.map((result: any) => {
-                if (result.data && result.data.id) {
-                  return db.createNotification({
-                    user_id: result.data.recipient_id,
-                    title: 'New Message',
-                    message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
-                    type: 'info',
-                    action_url: '/messages',
-                    reference_id: result.data.id,
-                    reference_type: 'message',
+            if (recipients && recipients.length > 0) {
+              // Send message to each recipient
+              const messagePromises = recipients.map((recipient: { user_id: string }) =>
+                supabase
+                  .from('messages')
+                  .insert({
+                    sender_id: authUser.id,
+                    recipient_id: recipient.user_id,
+                    subject: composeData.subject,
+                    message: composeData.message,
                   })
-                }
-                return Promise.resolve(null)
-              })
+                  .select('id, recipient_id')
+                  .single()
+              )
+
+              const messageResults = await Promise.all(messagePromises)
               
-              await Promise.all(notificationPromises)
-              console.log(`Notifications created for ${recipients.length} recipient(s)`)
-            } catch (notifError) {
-              console.error('Error creating notifications:', notifError)
-              // Don't fail the message send if notification creation fails
-            }
-            
+              // Create notifications for recipients with message references
+              try {
+                const { db } = await import('@/lib/db-helpers')
+                // Create individual notifications with message IDs
+                const notificationPromises = messageResults.map((result: any) => {
+                  if (result.data && result.data.id) {
+                    return db.createNotification({
+                      user_id: result.data.recipient_id,
+                      title: 'New Message',
+                      message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
+                      type: 'info',
+                      action_url: '/messages',
+                      reference_id: result.data.id,
+                      reference_type: 'message',
+                    })
+                  }
+                  return Promise.resolve(null)
+                })
+                
+                await Promise.all(notificationPromises)
+                console.log(`Notifications created for ${recipients.length} recipient(s)`)
+              } catch (notifError) {
+                console.error('Error creating notifications:', notifError)
+                // Don't fail the message send if notification creation fails
+              }
+              
               const roleName = recipientRole === 'player' ? 'players' : recipientRole === 'physio' ? 'physiotherapists' : 'administrators'
               alert(`Message sent successfully to ${recipients.length} ${roleName}!`)
               setComposeData({ recipientType: 'role', recipient: '', recipientId: '', selectedRoles: [], subject: '', message: '' })
               setShowCompose(false)
               // Reload messages
-              const response = await fetch('/api/messages', { cache: 'no-store' })
-              if (response.ok) {
-                const data = await response.json()
-                setMessages(data.messages || [])
+              const reloadResponse = await fetch('/api/messages', { cache: 'no-store' })
+              if (reloadResponse.ok) {
+                const reloadData = await reloadResponse.json()
+                setMessages(reloadData.messages || [])
               }
               return
-        } else {
+            } else {
               const roleName = recipientRole === 'player' ? 'players' : recipientRole === 'physio' ? 'physiotherapists' : 'administrators'
               alert(`No ${roleName} found`)
               return
@@ -795,10 +795,10 @@ export default function MessagesPage() {
           } catch (fetchError: any) {
             console.error('Error fetching recipients:', fetchError)
             alert(`Error fetching recipients: ${fetchError.message || 'Unknown error'}`)
-          return
-        }
-      } else {
-        // Send to individual recipient
+            return
+          }
+        } else {
+          // Send to individual recipient
           // Get recipient role for the message
           let recipientRoleForMessage: string | null = null
           if (recipientId) {
@@ -813,11 +813,11 @@ export default function MessagesPage() {
             }
           }
           
-        const { data: newMessage, error } = await supabase
-          .from('messages')
-          .insert({
-            sender_id: authUser.id,
-            recipient_id: recipientId,
+          const { data: newMessage, error } = await supabase
+            .from('messages')
+            .insert({
+              sender_id: authUser.id,
+              recipient_id: recipientId,
               recipient_role: recipientRoleForMessage,
               subject: composeData.subject,
               message: composeData.message,

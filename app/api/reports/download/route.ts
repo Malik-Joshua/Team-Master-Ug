@@ -101,9 +101,13 @@ export async function POST(request: NextRequest) {
     
     // Format training attendance data properly
     // Check for both formattedSessions (from training export) and attendance (from reports page)
-    if (report.type === 'training' && (report.data?.formattedSessions || report.data?.attendance)) {
+    if (report.type === 'training') {
+      // If we have formattedSessions, use them directly
+      if (report.data?.formattedSessions && Array.isArray(report.data.formattedSessions) && report.data.formattedSessions.length > 0) {
+        // Use the formatted sessions directly
+      } 
       // If we have attendance but not formattedSessions, format it
-      if (!report.data.formattedSessions && report.data.attendance && report.data.sessionDetails) {
+      else if (report.data?.attendance && report.data?.sessionDetails) {
         const session = report.data.sessionDetails
         const attendance = report.data.attendance || []
         report.data.formattedSessions = [{
@@ -127,7 +131,7 @@ export async function POST(request: NextRequest) {
             injured: attendance.filter((a: any) => (a.attendance_status || a.status) === 'I').length,
           }
         }]
-        report.data.summary = report.data.summary || {
+        report.data.summary = {
           totalSessions: 1,
           totalPlayers: attendance.length,
           overallAttendanceRate: attendance.length > 0
@@ -136,7 +140,8 @@ export async function POST(request: NextRequest) {
         }
       }
       
-      if (report.data?.formattedSessions) {
+      // Now render the formatted sessions if we have them
+      if (report.data?.formattedSessions && Array.isArray(report.data.formattedSessions) && report.data.formattedSessions.length > 0) {
       doc.setFontSize(14)
       doc.setFont('helvetica', 'bold')
       doc.setTextColor(26, 26, 26)

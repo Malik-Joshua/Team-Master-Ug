@@ -227,7 +227,15 @@ export default function ReportsPage() {
         reportTitle += ` - ${selectedMatch?.opponent || 'Match'} (${selectedMatch?.match_date ? new Date(selectedMatch.match_date).toLocaleDateString() : ''})`
       } else if (type === 'training' && reportFilters.selectedTrainingSession) {
         const selectedSession = trainingSessions.find(s => s.id === reportFilters.selectedTrainingSession)
-        reportTitle += ` - ${selectedSession?.session_date ? new Date(selectedSession.session_date).toLocaleDateString() : 'Session'}`
+        if (selectedSession) {
+          const sessionDate = new Date(selectedSession.session_date).toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+          })
+          // Store session ID in title for easier retrieval: "Training Report - Jan 5, 2026 [SESSION_ID:xxx]"
+          reportTitle += ` - ${sessionDate} [SESSION_ID:${selectedSession.id}]`
+        }
       }
       
       if (dateFrom && dateTo) {
@@ -332,8 +340,6 @@ export default function ReportsPage() {
           dateFrom: reportDetails?.date_from || null,
           dateTo: reportDetails?.date_to || null,
           generatedBy: reportDetails?.generated_by || null,
-          summary: `This ${report.type} report contains detailed information.`,
-          details: 'Report data loaded from database.',
         },
       }
 
@@ -411,15 +417,50 @@ export default function ReportsPage() {
           }
         }
       } else if (report.type === 'training') {
-        // Extract training session info from title
-        const sessionMatch = report.title.match(/Training Report - (.+?)(?:\s*\(|$)/)
-        if (sessionMatch && sessionMatch[1]) {
-          const sessionDateStr = sessionMatch[1].trim()
-          const selectedSession = trainingSessions.find(s => 
-            new Date(s.session_date).toLocaleDateString() === sessionDateStr
-          )
+        // Extract session ID from title: "Training Report - Jan 5, 2026 [SESSION_ID:xxx]"
+        let selectedSession = null
+        
+        // First, try to extract session ID from title
+        const sessionIdMatch = report.title.match(/\[SESSION_ID:([a-f0-9-]+)\]/i)
+        if (sessionIdMatch && sessionIdMatch[1]) {
+          selectedSession = trainingSessions.find(s => s.id === sessionIdMatch[1])
+        }
+        
+        // If not found by ID, try to find by date matching
+        if (!selectedSession) {
+          const datePatterns = [
+            /Training Report - (.+?)(?:\s*\[|\(|$)/,  // "Training Report - Jan 5, 2026"
+          ]
           
-          if (selectedSession) {
+          for (const pattern of datePatterns) {
+            const sessionMatch = report.title.match(pattern)
+            if (sessionMatch && sessionMatch[1]) {
+              const sessionDateStr = sessionMatch[1].trim()
+              
+              // Try to find session by matching date in various formats
+              selectedSession = trainingSessions.find(s => {
+                const sessionDate = new Date(s.session_date)
+                const formats = [
+                  sessionDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                  sessionDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+                  sessionDate.toLocaleDateString('en-US'),
+                  new Date(s.session_date).toLocaleDateString(),
+                ]
+                return formats.some(f => f === sessionDateStr)
+              })
+              
+              if (selectedSession) break
+            }
+          }
+        }
+        
+        // If still not found and we have training sessions, use the most recent one as fallback
+        if (!selectedSession && trainingSessions.length > 0) {
+          console.warn('Could not match session from title, using most recent session as fallback')
+          selectedSession = trainingSessions[0]
+        }
+          
+        if (selectedSession) {
             // Fetch training session-specific data
             try {
               const { data: sessionDetails } = await supabase
@@ -428,25 +469,29 @@ export default function ReportsPage() {
                 .eq('id', selectedSession.id)
                 .single()
               
-              // Fetch attendance for this session
-              const attendanceResponse = await fetch(`/api/training/attendance?session_id=${selectedSession.id}`)
-              const attendanceData = attendanceResponse.ok ? await attendanceResponse.json() : { attendance: [] }
+              // Fetch attendance for this session directly from database (with player_id)
+              const { data: attendanceRecords, error: attendanceError } = await supabase
+                .from('training_attendance')
+                .select('player_id, attendance_status')
+                .eq('session_id', selectedSession.id)
+              
+              if (attendanceError) {
+                console.error('Error fetching attendance:', attendanceError)
+              }
               
               // Get player names for attendance and format properly
-              const attendanceWithNames = await Promise.all(
-                (attendanceData.attendance || []).map(async (att: any) => {
-                  const player = players.find(p => p.id === att.player_id)
-                  return {
-                    player_id: att.player_id,
-                    playerName: player?.name || 'Unknown',
-                    attendance_status: att.attendance_status,
-                    statusLabel: att.attendance_status === 'P' ? 'Present' : 
-                                att.attendance_status === 'A' ? 'Justified Absence' :
-                                att.attendance_status === 'X' ? 'Unjustified Absence' :
-                                att.attendance_status === 'I' ? 'Injured' : 'Unknown'
-                  }
-                })
-              )
+              const attendanceWithNames = (attendanceRecords || []).map((att: any) => {
+                const player = players.find(p => p.id === att.player_id)
+                return {
+                  player_id: att.player_id,
+                  playerName: player?.name || 'Unknown',
+                  attendance_status: att.attendance_status,
+                  statusLabel: att.attendance_status === 'P' ? 'Present' : 
+                              att.attendance_status === 'A' ? 'Justified Absence' :
+                              att.attendance_status === 'X' ? 'Unjustified Absence' :
+                              att.attendance_status === 'I' ? 'Injured' : 'Unknown'
+                }
+              })
               
               // Format session data similar to training export
               const formattedSession = {
@@ -558,16 +603,22 @@ export default function ReportsPage() {
     }
 
     try {
-      const supabase = createClient()
-      const { error } = await supabase
-        .from('reports')
-        .delete()
-        .eq('id', reportId)
+      // Use API route to delete report (bypasses RLS)
+      const response = await fetch(`/api/reports/${reportId}`, {
+        method: 'DELETE',
+      })
 
-      if (error) throw error
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to delete report')
+      }
 
       // Remove from local state
       setReports((prev) => prev.filter((r) => r.id !== reportId))
+      
+      // Reload data to ensure consistency
+      await loadData()
+      
       alert('Report deleted successfully!')
     } catch (error: any) {
       console.error('Error deleting report:', error)
@@ -581,24 +632,22 @@ export default function ReportsPage() {
     }
 
     try {
-      const supabase = createClient()
-      const { data: { user: authUser } } = await supabase.auth.getUser()
-      
-      if (!authUser) {
-        alert('Please log in to delete reports')
-        return
+      // Use API route to delete all reports (bypasses RLS)
+      const response = await fetch('/api/reports/delete-all', {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to delete reports')
       }
-
-      // Delete all reports generated by the current user
-      const { error } = await supabase
-        .from('reports')
-        .delete()
-        .eq('generated_by', authUser.id)
-
-      if (error) throw error
 
       // Clear local state
       setReports([])
+      
+      // Reload data to ensure consistency
+      await loadData()
+      
       alert('All reports deleted successfully!')
     } catch (error: any) {
       console.error('Error clearing reports:', error)

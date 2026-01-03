@@ -321,7 +321,19 @@ export default function DashboardPage() {
               try {
                 const { db } = await import('@/lib/db-helpers')
                 const sessionsAttended = await db.getPlayerTrainingSessionsAttended(authUser.id)
-                const gymMetrics = await db.getPlayerGymStats(authUser.id)
+                
+                // Load gym metrics - refresh function
+                const loadGymMetrics = async () => {
+                  try {
+                    const gymMetrics = await db.getPlayerGymStats(authUser.id)
+                    setGymStats(gymMetrics)
+                  } catch (error) {
+                    console.error('Error loading gym metrics:', error)
+                  }
+                }
+                
+                // Load initial gym metrics
+                await loadGymMetrics()
                 
                 // Load player match stats - only count games where stats have been entered
                 const { data: playerMatchStats } = await supabase
@@ -345,7 +357,6 @@ export default function DashboardPage() {
                   totalTackles: totalTackles,
                   avgMinutes: avgMinutes,
                 }))
-                setGymStats(gymMetrics)
                 
                 // Load player injuries
                 setLoadingInjuries(true)

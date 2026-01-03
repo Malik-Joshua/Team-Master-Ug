@@ -753,21 +753,87 @@ export const db = {
   async getActiveInjuries() {
     const supabase = createClient()
     
-    const { data, error } = await supabase
+    // First get all active injuries
+    const { data: injuriesData, error } = await supabase
       .from('injuries')
-      .select(`
-        *,
-        player:user_profiles!injuries_player_id_fkey(name, user_id)
-      `)
+      .select('*')
       .eq('status', 'active')
       .order('injury_date', { ascending: false })
     
     if (error) throw error
     
-    return (data || []).map((injury: any) => ({
+    if (!injuriesData || injuriesData.length === 0) {
+      return []
+    }
+    
+    // Get all unique player IDs
+    const playerIds = [...new Set(injuriesData.map((injury: any) => injury.player_id).filter(Boolean))]
+    
+    // Fetch player names - use service role to bypass RLS if available
+    let playerNamesMap: Record<string, string> = {}
+    
+    if (playerIds.length > 0) {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+      const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+      
+      if (supabaseUrl && supabaseServiceKey) {
+        try {
+          const { createClient: createServiceClient } = await import('@supabase/supabase-js')
+          const supabaseAdmin = createServiceClient(supabaseUrl, supabaseServiceKey, {
+            auth: {
+              autoRefreshToken: false,
+              persistSession: false
+            }
+          })
+          
+          const { data: playersData } = await supabaseAdmin
+            .from('user_profiles')
+            .select('user_id, name')
+            .in('user_id', playerIds)
+          
+          if (playersData) {
+            playersData.forEach((player: any) => {
+              playerNamesMap[player.user_id] = player.name
+            })
+          }
+        } catch (adminError) {
+          console.error('Error fetching player names with service role:', adminError)
+          // Fallback to regular query
+          const { data: playersData } = await supabase
+            .from('user_profiles')
+            .select('user_id, name')
+            .in('user_id', playerIds)
+          
+          if (playersData) {
+            playersData.forEach((player: any) => {
+              playerNamesMap[player.user_id] = player.name
+            })
+          }
+        }
+      } else {
+        // Fallback to regular query
+        const { data: playersData } = await supabase
+          .from('user_profiles')
+          .select('user_id, name')
+          .in('user_id', playerIds)
+        
+        if (playersData) {
+          playersData.forEach((player: any) => {
+            playerNamesMap[player.user_id] = player.name
+          })
+        }
+      }
+    }
+    
+    // Map injuries with player names
+    return injuriesData.map((injury: any) => ({
       ...injury,
-      player_name: injury.player?.name || 'Unknown Player',
-      player_id: injury.player?.user_id || injury.player_id,
+      player: {
+        name: playerNamesMap[injury.player_id] || 'Unknown Player',
+        user_id: injury.player_id,
+      },
+      player_name: playerNamesMap[injury.player_id] || 'Unknown Player',
+      player_id: injury.player_id,
     }))
   },
 

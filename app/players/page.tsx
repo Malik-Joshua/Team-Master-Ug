@@ -463,7 +463,6 @@ export default function PlayersPage() {
                   <select value={playerForm.status} onChange={(e) => setPlayerForm({ ...playerForm, status: e.target.value })} className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
                     <option value="active">Active</option>
                     <option value="injured">Injured</option>
-                    <option value="suspended">Suspended</option>
                     <option value="inactive">Inactive</option>
                   </select>
                 </div>
@@ -512,7 +511,6 @@ export default function PlayersPage() {
                   <select value={playerForm.status} onChange={(e) => setPlayerForm({ ...playerForm, status: e.target.value })} className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
                     <option value="active">Active</option>
                     <option value="injured">Injured</option>
-                    <option value="suspended">Suspended</option>
                     <option value="inactive">Inactive</option>
                   </select>
                 </div>

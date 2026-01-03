@@ -159,8 +159,7 @@ export default function PhysioDashboard() {
     }
   }
 
-  useEffect(() => {
-    const loadData = async () => {
+  const loadData = async () => {
       const supabase = createClient()
       const { data: { user: authUser } } = await supabase.auth.getUser()
 
@@ -321,10 +320,11 @@ export default function PhysioDashboard() {
           } finally {
             setLoadingTeamSelection(false)
           }
-      }
-      setLoading(false)
     }
+    setLoading(false)
+  }
 
+  useEffect(() => {
     loadData()
   }, [])
 

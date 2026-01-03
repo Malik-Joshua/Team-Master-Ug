@@ -1215,20 +1215,20 @@ export default function MessagesPage() {
               const recipients = data.recipients || []
 
               if (recipients && recipients.length > 0) {
-              // Send message to each recipient and capture message IDs
-              const messagePromises = recipients.map((recipient: { user_id: string }) =>
-                supabase
-                  .from('messages')
-                  .insert({
-                    sender_id: authUser.id,
-                    recipient_id: recipient.user_id, // Always set recipient_id
-            recipient_role: recipientRole,
-                    subject: composeData.subject,
-                    message: composeData.message,
-                  })
-                  .select('id, recipient_id')
-                  .single()
-              )
+                // Send message to each recipient and capture message IDs
+                const messagePromises = recipients.map((recipient: { user_id: string }) =>
+                  supabase
+                    .from('messages')
+                    .insert({
+                      sender_id: authUser.id,
+                      recipient_id: recipient.user_id, // Always set recipient_id
+                      recipient_role: recipientRole,
+                      subject: composeData.subject,
+                      message: composeData.message,
+                    })
+                    .select('id, recipient_id')
+                    .single()
+                )
 
               const messageResults = await Promise.all(messagePromises)
               

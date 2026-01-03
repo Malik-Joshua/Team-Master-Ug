@@ -940,13 +940,13 @@ export const db = {
     }
     
     // If no data returned, fetch it to return
-    const { data: fetchedData, error: fetchError } = await supabase
+    const { data: fetchedData, error: refetchError } = await supabase
       .from('players')
       .select('*')
       .eq('user_id', playerId)
       .single()
     
-    if (fetchError) throw fetchError
+    if (refetchError) throw refetchError
     return fetchedData
   },
 

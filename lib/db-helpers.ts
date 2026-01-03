@@ -868,8 +868,8 @@ export const db = {
     const profileData: any = {}
     if (data.name) profileData.name = data.name
     if (data.email) profileData.email = data.email
-    if (data.phone) profileData.phone = data.phone
-    if (data.status) profileData.status = data.status // Include status update
+    if (data.phone !== undefined) profileData.phone = data.phone
+    if (data.status !== undefined) profileData.status = data.status // Include status update (even if empty string)
     
     if (Object.keys(profileData).length > 0) {
       const { error: profileError } = await supabase

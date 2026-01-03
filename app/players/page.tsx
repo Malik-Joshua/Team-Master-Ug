@@ -185,9 +185,53 @@ export default function PlayersPage() {
         status: playerForm.status,
       })
 
+      // Reload players using the same method as initial load
       const supabase = createClient()
-      const { data: playersData } = await supabase.from('user_profiles').select('*').eq('role', 'player')
-      if (playersData) setPlayers(playersData as Player[])
+      const { data: { user: authUser } } = await supabase.auth.getUser()
+      
+      if (authUser) {
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('role')
+          .eq('user_id', authUser.id)
+          .single()
+        
+        if (profile && (profile.role === 'admin' || profile.role === 'coach' || profile.role === 'data_admin')) {
+          // Use API route for admin/coach/data_admin (same as initial load)
+          try {
+            const response = await fetch('/api/admin/players', {
+              cache: 'no-store',
+            })
+            if (response.ok) {
+              const data = await response.json()
+              setPlayers(data.players || [])
+            } else {
+              // Fallback to direct query
+              const { data: playersData } = await supabase
+                .from('user_profiles')
+                .select('*')
+                .eq('role', 'player')
+              if (playersData) setPlayers(playersData as Player[])
+            }
+          } catch (error) {
+            console.error('Error reloading players:', error)
+            // Fallback to direct query
+            const { data: playersData } = await supabase
+              .from('user_profiles')
+              .select('*')
+              .eq('role', 'player')
+            if (playersData) setPlayers(playersData as Player[])
+          }
+        } else {
+          // For other roles, use direct query
+          const { data: playersData } = await supabase
+            .from('user_profiles')
+            .select('*')
+            .eq('role', 'player')
+          if (playersData) setPlayers(playersData as Player[])
+        }
+      }
+      
       setShowEditModal(false)
       alert('Player updated successfully!')
     } catch (error: any) {

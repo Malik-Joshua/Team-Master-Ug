@@ -60,14 +60,14 @@ export function generateExcelReport(report: ReportData): Blob {
       const totalTries = report.data.matchStats?.reduce((sum: number, stat: any) => sum + (stat.tries_scored || 0), 0) || 0
       const totalTackles = report.data.matchStats?.reduce((sum: number, stat: any) => sum + (stat.tackles_made || 0), 0) || 0
       const totalMinutes = report.data.matchStats?.reduce((sum: number, stat: any) => sum + (stat.minutes_played || 0), 0) || 0
-      const avgTries = totalMatches > 0 ? (totalTries / totalMatches).toFixed(2) : 0
-      const avgTackles = totalMatches > 0 ? (totalTackles / totalMatches).toFixed(2) : 0
+      const avgTries = totalMatches > 0 ? String((totalTries / totalMatches).toFixed(2)) : '0.00'
+      const avgTackles = totalMatches > 0 ? String((totalTackles / totalMatches).toFixed(2)) : '0.00'
       
       metadata.push(['Overall Statistics'])
-      metadata.push(['Total Matches Played', totalMatches])
-      metadata.push(['Total Tries Scored', totalTries])
-      metadata.push(['Total Tackles Made', totalTackles])
-      metadata.push(['Total Minutes Played', totalMinutes])
+      metadata.push(['Total Matches Played', String(totalMatches)])
+      metadata.push(['Total Tries Scored', String(totalTries)])
+      metadata.push(['Total Tackles Made', String(totalTackles)])
+      metadata.push(['Total Minutes Played', String(totalMinutes)])
       metadata.push(['Average Tries per Match', avgTries])
       metadata.push(['Average Tackles per Match', avgTackles])
       metadata.push([])
@@ -296,8 +296,8 @@ export function generateCSVReport(report: ReportData): Blob {
       const totalTries = report.data.matchStats?.reduce((sum: number, stat: any) => sum + (stat.tries_scored || 0), 0) || 0
       const totalTackles = report.data.matchStats?.reduce((sum: number, stat: any) => sum + (stat.tackles_made || 0), 0) || 0
       const totalMinutes = report.data.matchStats?.reduce((sum: number, stat: any) => sum + (stat.minutes_played || 0), 0) || 0
-      const avgTries = totalMatches > 0 ? (totalTries / totalMatches).toFixed(2) : 0
-      const avgTackles = totalMatches > 0 ? (totalTackles / totalMatches).toFixed(2) : 0
+      const avgTries = totalMatches > 0 ? (totalTries / totalMatches).toFixed(2) : '0.00'
+      const avgTackles = totalMatches > 0 ? (totalTackles / totalMatches).toFixed(2) : '0.00'
       
       lines.push('Overall Statistics')
       lines.push(`Total Matches Played,${totalMatches}`)

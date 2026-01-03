@@ -81,22 +81,22 @@ export default function MessagesPage() {
             } else {
               console.error('Error fetching messages from API:', response.status)
               // Fallback to direct query
-          // For players: only show messages where they are the specific recipient or sender
-          // For other roles: can see role-based messages too
-          let messagesQuery = supabase
-            .from('messages')
-            .select('*')
-          
-          if (profile.role === 'player') {
-            messagesQuery = messagesQuery.or(`sender_id.eq.${authUser.id},recipient_id.eq.${authUser.id}`)
-          } else {
-            messagesQuery = messagesQuery.or(`sender_id.eq.${authUser.id},recipient_id.eq.${authUser.id},recipient_role.eq.${profile.role}`)
-          }
-          
-          const { data: fetchedMessages } = await messagesQuery
-            .order('created_at', { ascending: false })
+              // For players: only show messages where they are the specific recipient or sender
+              // For other roles: can see role-based messages too
+              let messagesQuery = supabase
+                .from('messages')
+                .select('*')
+              
+              if (profile.role === 'player') {
+                messagesQuery = messagesQuery.or(`sender_id.eq.${authUser.id},recipient_id.eq.${authUser.id}`)
+              } else {
+                messagesQuery = messagesQuery.or(`sender_id.eq.${authUser.id},recipient_id.eq.${authUser.id},recipient_role.eq.${profile.role}`)
+              }
+              
+              const { data: fetchedMessages } = await messagesQuery
+                .order('created_at', { ascending: false })
 
-          if (fetchedMessages) {
+              if (fetchedMessages) {
                 // Try to get sender info even with RLS limitations
                 const senderIds = [...new Set(fetchedMessages.map((msg: any) => msg.sender_id).filter(Boolean))]
                 let userProfilesMap: Record<string, any> = {}
@@ -135,21 +135,21 @@ export default function MessagesPage() {
                   const isSent = msg.sender_id === authUser.id
                   
                   return {
-              id: msg.id,
+                    id: msg.id,
                     sender_id: msg.sender_id,
                     sender_name: sender?.name || 'Unknown',
                     sender_role: sender?.role || 'unknown',
                     recipient_id: msg.recipient_id,
                     recipient_name: recipient?.name || 'Unknown',
                     recipient_role: recipient?.role || 'unknown',
-              subject: msg.subject || '',
-              message: msg.message,
-              read: msg.read || false,
-              created_at: msg.created_at,
+                    subject: msg.subject || '',
+                    message: msg.message,
+                    read: msg.read || false,
+                    created_at: msg.created_at,
                     is_sent: isSent,
                   }
                 })
-            setMessages(formattedMessages)
+                setMessages(formattedMessages)
               } else {
                 setMessages([])
               }

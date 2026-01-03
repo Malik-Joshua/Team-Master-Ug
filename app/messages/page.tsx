@@ -1367,6 +1367,7 @@ export default function MessagesPage() {
       }
       
       // Reset compose form after successful send (only if we didn't return early)
+      // Note: This will only execute if none of the role-specific branches returned early
       setComposeData({ recipientType: 'role', recipient: '', recipientId: '', selectedRoles: [], subject: '', message: '' })
       setShowCompose(false)
     } catch (error: any) {
@@ -1408,6 +1409,7 @@ export default function MessagesPage() {
           </div>
           <RefreshButton onRefresh={loadData} />
         </div>
+        <div className="mb-6">
           <button
             onClick={() => setShowCompose(!showCompose)}
             className="bg-club-gradient text-white px-6 py-3 rounded-button font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"

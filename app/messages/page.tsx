@@ -1301,16 +1301,16 @@ export default function MessagesPage() {
               sender_id: authUser.id,
               recipient_id: recipientId, // Always set recipient_id for specific recipients
               recipient_role: recipientRoleForMessage,
-            subject: composeData.subject,
-            message: composeData.message,
-          })
-          .select(`
-            *,
-            sender:user_profiles!messages_sender_id_fkey(name, role)
-          `)
-          .single()
+              subject: composeData.subject,
+              message: composeData.message,
+            })
+            .select(`
+              *,
+              sender:user_profiles!messages_sender_id_fkey(name, role)
+            `)
+            .single()
 
-        if (error) throw error
+          if (error) throw error
 
           // Create notification for recipient
           try {
@@ -1346,26 +1346,27 @@ export default function MessagesPage() {
           }
           
           // Add to local state (as a sent message)
-        const formattedMessage: Message = {
-          id: newMessage.id,
+          const formattedMessage: Message = {
+            id: newMessage.id,
             sender_id: authUser.id,
             sender_name: user.name,
             sender_role: user.role,
             recipient_id: recipientId || '',
             recipient_name: recipientName,
             recipient_role: recipientRole,
-          subject: newMessage.subject || '',
-          message: newMessage.message,
-          read: false,
-          created_at: newMessage.created_at,
+            subject: newMessage.subject || '',
+            message: newMessage.message,
+            read: false,
+            created_at: newMessage.created_at,
             is_sent: true,
-        }
+          }
 
-        setMessages([formattedMessage, ...messages])
-        alert('Message sent successfully!')
+          setMessages([formattedMessage, ...messages])
+          alert('Message sent successfully!')
         }
       }
       
+      // Reset compose form after successful send (only if we didn't return early)
       setComposeData({ recipientType: 'role', recipient: '', recipientId: '', selectedRoles: [], subject: '', message: '' })
       setShowCompose(false)
     } catch (error: any) {

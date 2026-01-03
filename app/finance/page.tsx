@@ -91,8 +91,7 @@ export default function FinancePage() {
   const [matchAttendance, setMatchAttendance] = useState<any>(null)
   const [loadingAttendance, setLoadingAttendance] = useState(false)
 
-  useEffect(() => {
-    const loadData = async () => {
+  const loadData = async () => {
       const supabase = createClient()
       const { data: { user: authUser } } = await supabase.auth.getUser()
       

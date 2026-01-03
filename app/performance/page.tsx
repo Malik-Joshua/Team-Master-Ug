@@ -95,8 +95,7 @@ export default function PerformancePage() {
     console.log('showResourceModal changed:', showResourceModal)
   }, [showResourceModal])
 
-  useEffect(() => {
-    const loadData = async () => {
+  const loadData = async () => {
       setLoading(true)
       
       // Check for dev mode

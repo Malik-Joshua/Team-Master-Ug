@@ -45,8 +45,7 @@ export default function ReportsPage() {
     }
   }, [showDownloadMenu])
 
-  useEffect(() => {
-    const loadData = async () => {
+  const loadData = async () => {
       const supabase = createClient()
       const { data: { user: authUser } } = await supabase.auth.getUser()
       
@@ -90,6 +89,7 @@ export default function ReportsPage() {
       setLoading(false)
     }
 
+  useEffect(() => {
     loadData()
   }, [])
 

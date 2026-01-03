@@ -70,8 +70,7 @@ export default function DataAdminDashboard() {
   const [selectedMatchForView, setSelectedMatchForView] = useState<string>('')
   const [loadingTeamSelection, setLoadingTeamSelection] = useState(false)
 
-  useEffect(() => {
-    const loadData = async () => {
+  const loadData = async () => {
       const supabase = createClient()
       const { data: { user: authUser } } = await supabase.auth.getUser()
       
@@ -216,11 +215,12 @@ export default function DataAdminDashboard() {
           } catch (matchesErr) {
             console.error('Error in matches loading:', matchesErr)
           }
-        }
       }
-      setLoading(false)
     }
+    setLoading(false)
+  }
 
+  useEffect(() => {
     loadData()
   }, [])
 

@@ -299,7 +299,8 @@ export default function TrainingPage() {
       }
       setLoading(false)
     }
-
+  
+  useEffect(() => {
     loadData()
   }, [])
 

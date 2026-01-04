@@ -359,44 +359,67 @@ export default function ReportsPage() {
 
       // Fetch specific data based on report type and title (which contains filter info)
       if (report.type === 'player') {
-        // Extract player name from title (format: "Player Report - PlayerName")
-        const playerMatch = report.title.match(/Player Report - (.+?)(?:\s*\(|$)/)
-        let selectedPlayer: { id: string; name: string } | null = null
+        // Extract player name from title (format: "Player Report - PlayerName - Date" or "Player Report - PlayerName (Date)")
+        // Try multiple patterns to handle different title formats
+        let playerName: string | null = null
         
-        if (playerMatch && playerMatch[1]) {
-          const playerName = playerMatch[1].trim()
-          // Use playersToUse which includes freshly loaded players if needed
-          selectedPlayer = playersToUse.find(p => p.name === playerName) || null
+        // Pattern 1: "Player Report - PlayerName - Date"
+        const pattern1 = report.title.match(/Player Report - (.+?) - \d{1,2}\/\d{1,2}\/\d{4}/)
+        if (pattern1 && pattern1[1]) {
+          playerName = pattern1[1].trim()
         }
         
-        // If player not found in local array, try multiple search strategies
-        if (!selectedPlayer && playerMatch && playerMatch[1]) {
+        // Pattern 2: "Player Report - PlayerName (Date)"
+        if (!playerName) {
+          const pattern2 = report.title.match(/Player Report - (.+?)\s*\(/)
+          if (pattern2 && pattern2[1]) {
+            playerName = pattern2[1].trim()
+          }
+        }
+        
+        // Pattern 3: "Player Report - PlayerName" (no date)
+        if (!playerName) {
+          const pattern3 = report.title.match(/Player Report - (.+?)$/)
+          if (pattern3 && pattern3[1]) {
+            playerName = pattern3[1].trim()
+          }
+        }
+        
+        console.log('Extracted player name from title:', { title: report.title, playerName })
+        
+        let selectedPlayer: { id: string; name: string } | null = null
+        
+        if (playerName) {
+          // Try case-insensitive match in local array first
+          selectedPlayer = playersToUse.find(p => 
+            p.name.toLowerCase().trim() === playerName.toLowerCase().trim()
+          ) || null
+          
+          // If not found, try partial match
+          if (!selectedPlayer) {
+            selectedPlayer = playersToUse.find(p => 
+              p.name.toLowerCase().trim().includes(playerName.toLowerCase().trim()) ||
+              playerName.toLowerCase().trim().includes(p.name.toLowerCase().trim())
+            ) || null
+          }
+        }
+        
+        // If player not found in local array, try database search
+        if (!selectedPlayer && playerName) {
           try {
-            const playerName = playerMatch[1].trim()
-            
-            // Try exact match first
+            // Try exact match (case-insensitive)
             let { data: playerProfiles } = await supabase
               .from('user_profiles')
               .select('user_id, name')
-              .eq('name', playerName)
+              .ilike('name', playerName.trim())
               .limit(1)
             
-            // If no exact match, try case-insensitive match
-            if (!playerProfiles || playerProfiles.length === 0) {
-              const { data: caseInsensitive } = await supabase
-                .from('user_profiles')
-                .select('user_id, name')
-                .ilike('name', playerName)
-                .limit(1)
-              playerProfiles = caseInsensitive
-            }
-            
-            // If still no match, try partial match
+            // If no exact match, try partial match
             if (!playerProfiles || playerProfiles.length === 0) {
               const { data: partialMatch } = await supabase
                 .from('user_profiles')
                 .select('user_id, name')
-                .ilike('name', `%${playerName}%`)
+                .ilike('name', `%${playerName.trim()}%`)
                 .limit(1)
               playerProfiles = partialMatch
             }
@@ -407,6 +430,8 @@ export default function ReportsPage() {
                 name: playerProfiles[0].name
               }
               console.log('Found player via database search:', selectedPlayer)
+            } else {
+              console.warn('Player not found in database:', playerName)
             }
           } catch (err) {
             console.error('Error searching for player:', err)
@@ -416,9 +441,73 @@ export default function ReportsPage() {
         if (selectedPlayer) {
           // Fetch player-specific data
           try {
-            // Fetch gym stats
-            const playerResponse = await fetch(`/api/players/${selectedPlayer.id}/gym-stats`)
-            const gymStats = playerResponse.ok ? await playerResponse.json() : {}
+            console.log('Fetching data for player:', selectedPlayer.name, 'ID:', selectedPlayer.id)
+            
+            // First, try direct query to players table (most reliable)
+            let gymStats = {}
+            try {
+              const { data: playerData, error: playerError } = await supabase
+                .from('players')
+                .select('gym_stats')
+                .eq('user_id', selectedPlayer.id)
+                .maybeSingle()
+              
+              if (!playerError && playerData) {
+                console.log('Raw player data from database:', playerData)
+                const rawStats = playerData.gym_stats as any
+                if (rawStats && typeof rawStats === 'object') {
+                  gymStats = {
+                    benchPressPB: rawStats.bench_press_pb ?? rawStats.benchPressPB ?? rawStats['bench-press-pb'] ?? null,
+                    squatPB: rawStats.squat_pb ?? rawStats.squatPB ?? rawStats['squat-pb'] ?? null,
+                    deadliftPB: rawStats.deadlift_pb ?? rawStats.deadliftPB ?? rawStats['deadlift-pb'] ?? null,
+                    pullUpPB: rawStats.pull_up_pb ?? rawStats.pullUpPB ?? rawStats.pull_up_PB ?? rawStats.pullUp_PB ?? rawStats['pull-up-pb'] ?? null,
+                  }
+                  // Convert to numbers if they're strings
+                  if (gymStats.benchPressPB !== null) gymStats.benchPressPB = Number(gymStats.benchPressPB)
+                  if (gymStats.squatPB !== null) gymStats.squatPB = Number(gymStats.squatPB)
+                  if (gymStats.deadliftPB !== null) gymStats.deadliftPB = Number(gymStats.deadliftPB)
+                  if (gymStats.pullUpPB !== null) gymStats.pullUpPB = Number(gymStats.pullUpPB)
+                  console.log('Gym stats processed from direct query:', selectedPlayer.name, gymStats)
+                } else {
+                  console.warn('No gym_stats found in player record:', {
+                    playerId: selectedPlayer.id,
+                    hasGymStats: !!rawStats,
+                    gymStatsType: typeof rawStats
+                  })
+                }
+              } else {
+                console.warn('Player not found in players table:', {
+                  playerId: selectedPlayer.id,
+                  error: playerError
+                })
+              }
+            } catch (directQueryError) {
+              console.error('Error in direct gym stats query:', directQueryError)
+            }
+            
+            // Also try API route as backup/verification
+            try {
+              const playerResponse = await fetch(`/api/players/${selectedPlayer.id}/gym-stats`, {
+                cache: 'no-store',
+                headers: {
+                  'Cache-Control': 'no-cache',
+                }
+              })
+              
+              if (playerResponse.ok) {
+                const apiGymStats = await playerResponse.json()
+                console.log('Gym stats from API (for verification):', selectedPlayer.name, apiGymStats)
+                // Use API stats if direct query didn't return data
+                if (!gymStats || Object.keys(gymStats).length === 0 || 
+                    (!(gymStats as any).benchPressPB && !(gymStats as any).squatPB && 
+                      !(gymStats as any).deadliftPB && !(gymStats as any).pullUpPB)) {
+                  gymStats = apiGymStats
+                  console.log('Using API gym stats as fallback')
+                }
+              }
+            } catch (apiError) {
+              console.error('Error fetching gym stats via API:', apiError)
+            }
             
             // Fetch match stats for this player with matches relationship
             const { data: matchStats, error: matchStatsError } = await supabase
@@ -469,11 +558,18 @@ export default function ReportsPage() {
               summary: `Performance report for ${selectedPlayer.name} including match statistics, training attendance, and gym metrics.`,
             }
             
+            const gymStatsForLog = (gymStats || {}) as any
             console.log('Player report data loaded:', {
               playerName: selectedPlayer.name,
+              playerId: selectedPlayer.id,
               matchStatsCount: matchStats?.length || 0,
               attendanceCount: attendance?.length || 0,
-              hasGymStats: !!gymStats && Object.keys(gymStats).length > 0
+              gymStats: gymStats,
+              hasGymStats: !!gymStats && Object.keys(gymStats).length > 0,
+              gymStatsKeys: Object.keys(gymStats || {}),
+              benchPressPB: gymStatsForLog.benchPressPB,
+              squatPB: gymStatsForLog.squatPB,
+              deadliftPB: gymStatsForLog.deadliftPB
             })
           } catch (err) {
             console.error('Error fetching player data:', err)
@@ -489,15 +585,20 @@ export default function ReportsPage() {
             }
           }
         } else {
-          console.warn('Player not found for report:', report.title)
+          console.warn('Player not found for report:', {
+            title: report.title,
+            extractedName: playerName,
+            availablePlayers: playersToUse.map(p => p.name),
+            playersCount: playersToUse.length
+          })
           // Set empty data structure so report still generates
           reportData.data = {
             ...reportData.data,
-            playerName: playerMatch?.[1]?.trim() || 'Unknown Player',
+            playerName: playerName || 'Unknown Player',
             gymStats: {},
             matchStats: [],
             trainingAttendance: [],
-            summary: 'Player data could not be loaded.',
+            summary: `Player data could not be loaded for ${playerName || 'unknown player'}.`,
           }
         }
       } else if (report.type === 'match') {

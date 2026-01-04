@@ -40,28 +40,53 @@ export async function GET(
       }
     })
 
+    // First check if player exists in players table
     const { data, error } = await supabaseAdmin
       .from('players')
       .select('gym_stats')
       .eq('user_id', playerId)
-      .single()
+      .maybeSingle()
 
-    if (error) {
-      console.error('Error fetching gym stats:', error)
-      return NextResponse.json(
-        { error: `Failed to fetch gym stats: ${error.message}` },
-        { status: 500 }
-      )
+    // If player doesn't exist in players table, return empty stats
+    if (error || !data) {
+      if (error && error.code !== 'PGRST116') { // PGRST116 is "not found" error
+        console.error('Error fetching gym stats:', error)
+        return NextResponse.json(
+          { error: `Failed to fetch gym stats: ${error.message}` },
+          { status: 500 }
+        )
+      }
+      // Player not found in players table - return empty stats
+      console.log(`Player ${playerId} not found in players table, returning empty gym stats`)
+      return NextResponse.json({
+        benchPressPB: null,
+        squatPB: null,
+        deadliftPB: null,
+        pullUpPB: null,
+      })
     }
 
     const gymStats = data?.gym_stats || {}
+    
+    // Log the raw gym_stats for debugging
+    console.log(`Gym stats for player ${playerId}:`, JSON.stringify(gymStats))
 
-    return NextResponse.json({
-      benchPressPB: gymStats.bench_press_pb || gymStats.benchPressPB || null,
-      squatPB: gymStats.squat_pb || gymStats.squatPB || null,
-      deadliftPB: gymStats.deadlift_pb || gymStats.deadliftPB || null,
-      pullUpPB: gymStats.pull_up_pb || gymStats.pullUpPB || null,
-    })
+    // Try all possible field name variations
+    const benchPressPB = gymStats.bench_press_pb ?? gymStats.benchPressPB ?? gymStats['bench-press-pb'] ?? null
+    const squatPB = gymStats.squat_pb ?? gymStats.squatPB ?? gymStats['squat-pb'] ?? null
+    const deadliftPB = gymStats.deadlift_pb ?? gymStats.deadliftPB ?? gymStats['deadlift-pb'] ?? null
+    const pullUpPB = gymStats.pull_up_pb ?? gymStats.pullUpPB ?? gymStats.pull_up_PB ?? gymStats.pullUp_PB ?? gymStats['pull-up-pb'] ?? null
+
+    const result = {
+      benchPressPB: benchPressPB !== undefined && benchPressPB !== null ? Number(benchPressPB) : null,
+      squatPB: squatPB !== undefined && squatPB !== null ? Number(squatPB) : null,
+      deadliftPB: deadliftPB !== undefined && deadliftPB !== null ? Number(deadliftPB) : null,
+      pullUpPB: pullUpPB !== undefined && pullUpPB !== null ? Number(pullUpPB) : null,
+    }
+    
+    console.log(`Processed gym stats for player ${playerId}:`, JSON.stringify(result))
+    
+    return NextResponse.json(result)
   } catch (error: any) {
     console.error('Error in GET gym stats:', error)
     return NextResponse.json(

@@ -435,9 +435,21 @@ export default function DashboardPage() {
             if (profile.role === 'coach' || profile.role === 'admin' || profile.role === 'data_admin') {
               try {
                 setLoadingActiveInjuries(true)
-                const { db } = await import('@/lib/db-helpers')
-                const injuries = await db.getActiveInjuries()
-                setActiveInjuriesView(injuries || [])
+                const response = await fetch('/api/admin/injuries', {
+                  cache: 'no-store',
+                  headers: {
+                    'Cache-Control': 'no-cache',
+                  }
+                })
+                if (response.ok) {
+                  const data = await response.json()
+                  setActiveInjuriesView(data.injuries || [])
+                  console.log('Loaded active injuries from API:', data.injuries)
+                } else {
+                  const error = await response.json()
+                  console.error('Error fetching active injuries:', error)
+                  setActiveInjuriesView([])
+                }
               } catch (error) {
                 console.error('Error loading active injuries:', error)
                 setActiveInjuriesView([])

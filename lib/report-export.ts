@@ -489,14 +489,7 @@ export function generateCSVReport(report: ReportData): Blob {
         lines.push(`Justified Absence,${justifiedCount}`)
         lines.push(`Injured,${injuredCount}`)
         lines.push(`Overall Attendance Rate,${attendanceRate}%`)
-      } else {
-        lines.push('No training attendance recorded')
-        lines.push('Metric,Value')
-        lines.push('Total Sessions,0')
-        lines.push('Present,0')
-        lines.push('Overall Attendance Rate,0%')
-      }
-      lines.push('')
+        lines.push('')
         
         if (totalSessions > 0 && totalSessions <= 30) {
           lines.push('Session Date,Location,Status')
@@ -514,7 +507,14 @@ export function generateCSVReport(report: ReportData): Blob {
             lines.push(`${sessionDate},${location},${status}`)
           })
         }
+      } else {
+        lines.push('No training attendance recorded')
+        lines.push('Metric,Value')
+        lines.push('Total Sessions,0')
+        lines.push('Present,0')
+        lines.push('Overall Attendance Rate,0%')
       }
+      lines.push('')
     }
     // Format match reports
     else if (report.type === 'match' && report.data.matchDetails) {

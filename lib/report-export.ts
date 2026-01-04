@@ -98,9 +98,9 @@ export function generateExcelReport(report: ReportData): Blob {
         metadata.push([])
       }
       
-      // Gym Statistics
+      // Gym Statistics - Always show, even if empty
+      metadata.push(['GYM STATISTICS'])
       if (report.data.gymStats && (report.data.gymStats.benchPressPB || report.data.gymStats.squatPB || report.data.gymStats.deadliftPB)) {
-        metadata.push(['Gym Statistics'])
         metadata.push(['Exercise', 'Personal Best (kg)'])
         if (report.data.gymStats.benchPressPB) {
           metadata.push(['Bench Press', report.data.gymStats.benchPressPB])
@@ -111,12 +111,14 @@ export function generateExcelReport(report: ReportData): Blob {
         if (report.data.gymStats.deadliftPB) {
           metadata.push(['Deadlift', report.data.gymStats.deadliftPB])
         }
-        metadata.push([])
+      } else {
+        metadata.push(['No gym statistics recorded'])
       }
+      metadata.push([])
       
-      // Match Statistics
+      // Match Statistics - Always show, even if empty
+      metadata.push(['MATCH-BY-MATCH PERFORMANCE'])
       if (report.data.matchStats && report.data.matchStats.length > 0) {
-        metadata.push(['MATCH-BY-MATCH PERFORMANCE'])
         metadata.push([`Showing ${totalMatches} match${totalMatches !== 1 ? 'es' : ''} | Sorted by date (most recent first)`])
         metadata.push([])
         metadata.push(['Date', 'Opponent', 'Tries', 'Tackles', 'Minutes'])
@@ -140,10 +142,13 @@ export function generateExcelReport(report: ReportData): Blob {
             stat.minutes_played || 0
           ])
         })
-        metadata.push([])
+      } else {
+        metadata.push(['No match statistics recorded'])
       }
+      metadata.push([])
       
-      // Training Attendance
+      // Training Attendance - Always show, even if empty
+      metadata.push(['TRAINING ATTENDANCE SUMMARY'])
       if (report.data.trainingAttendance && report.data.trainingAttendance.length > 0) {
         const totalSessions = report.data.trainingAttendance.length
         const presentCount = report.data.trainingAttendance.filter((att: any) => 
@@ -160,7 +165,6 @@ export function generateExcelReport(report: ReportData): Blob {
         ).length
         const attendanceRate = totalSessions > 0 ? Math.round((presentCount / totalSessions) * 100) : 0
         
-        metadata.push(['TRAINING ATTENDANCE SUMMARY'])
         metadata.push(['Metric', 'Value'])
         metadata.push(['Total Sessions', totalSessions])
         metadata.push(['Present', presentCount])
@@ -168,7 +172,14 @@ export function generateExcelReport(report: ReportData): Blob {
         metadata.push(['Justified Absence', justifiedCount])
         metadata.push(['Injured', injuredCount])
         metadata.push(['Overall Attendance Rate', `${attendanceRate}%`])
-        metadata.push([])
+      } else {
+        metadata.push(['No training attendance recorded'])
+        metadata.push(['Metric', 'Value'])
+        metadata.push(['Total Sessions', 0])
+        metadata.push(['Present', 0])
+        metadata.push(['Overall Attendance Rate', '0%'])
+      }
+      metadata.push([])
         
         if (totalSessions > 0 && totalSessions <= 30) {
           metadata.push(['Session Date', 'Location', 'Status'])
@@ -237,23 +248,31 @@ export function generateExcelReport(report: ReportData): Blob {
         }
         metadata.push([])
         
-        // Player Statistics Table
+        // Player Statistics Table - Always show, even if empty
         metadata.push(['INDIVIDUAL PLAYER STATISTICS'])
-        metadata.push([`Showing ${totalPlayers} player${totalPlayers !== 1 ? 's' : ''} | Sorted by tries scored (highest first)`])
-        metadata.push([])
-        metadata.push(['Player Name', 'Tries', 'Tackles', 'Minutes'])
-        const sortedStats = [...report.data.playerStats].sort((a: any, b: any) => 
-          (b.tries_scored || 0) - (a.tries_scored || 0)
-        )
-        sortedStats.forEach((stat: any) => {
-          const playerName = stat.user_profiles?.name || 'Unknown'
-          metadata.push([
-            playerName,
-            stat.tries_scored || 0,
-            stat.tackles_made || 0,
-            stat.minutes_played || 0
-          ])
-        })
+        if (report.data.playerStats && report.data.playerStats.length > 0) {
+          metadata.push([`Showing ${totalPlayers} player${totalPlayers !== 1 ? 's' : ''} | Sorted by tries scored (highest first)`])
+          metadata.push([])
+          metadata.push(['Player Name', 'Tries', 'Tackles', 'Minutes'])
+          const sortedStats = [...report.data.playerStats].sort((a: any, b: any) => 
+            (b.tries_scored || 0) - (a.tries_scored || 0)
+          )
+          sortedStats.forEach((stat: any) => {
+            const playerName = stat.user_profiles?.name || 'Unknown'
+            metadata.push([
+              playerName,
+              stat.tries_scored || 0,
+              stat.tackles_made || 0,
+              stat.minutes_played || 0
+            ])
+          })
+        } else {
+          metadata.push(['No player statistics recorded for this match'])
+          metadata.push(['Players Participated', 0])
+          metadata.push(['Total Tries', 0])
+          metadata.push(['Total Tackles', 0])
+          metadata.push(['Total Minutes', 0])
+        }
       }
     }
     // Format training attendance data specially
@@ -397,9 +416,9 @@ export function generateCSVReport(report: ReportData): Blob {
         lines.push('')
       }
       
-      // Gym Statistics
+      // Gym Statistics - Always show, even if empty
+      lines.push('GYM STATISTICS')
       if (report.data.gymStats && (report.data.gymStats.benchPressPB || report.data.gymStats.squatPB || report.data.gymStats.deadliftPB)) {
-        lines.push('Gym Statistics')
         lines.push('Exercise,Personal Best (kg)')
         if (report.data.gymStats.benchPressPB) {
           lines.push(`Bench Press,${report.data.gymStats.benchPressPB}`)
@@ -410,12 +429,14 @@ export function generateCSVReport(report: ReportData): Blob {
         if (report.data.gymStats.deadliftPB) {
           lines.push(`Deadlift,${report.data.gymStats.deadliftPB}`)
         }
-        lines.push('')
+      } else {
+        lines.push('No gym statistics recorded')
       }
+      lines.push('')
       
-      // Match Statistics
+      // Match Statistics - Always show, even if empty
+      lines.push('MATCH-BY-MATCH PERFORMANCE')
       if (report.data.matchStats && report.data.matchStats.length > 0) {
-        lines.push('MATCH-BY-MATCH PERFORMANCE')
         lines.push(`Showing ${totalMatches} match${totalMatches !== 1 ? 'es' : ''} | Sorted by date (most recent first)`)
         lines.push('')
         lines.push('Date,Opponent,Tries,Tackles,Minutes')
@@ -436,10 +457,13 @@ export function generateCSVReport(report: ReportData): Blob {
             : (stat.matches?.opponent || 'N/A')
           lines.push(`${matchDate},${opponent},${stat.tries_scored || 0},${stat.tackles_made || 0},${stat.minutes_played || 0}`)
         })
-        lines.push('')
+      } else {
+        lines.push('No match statistics recorded')
       }
+      lines.push('')
       
-      // Training Attendance
+      // Training Attendance - Always show, even if empty
+      lines.push('TRAINING ATTENDANCE SUMMARY')
       if (report.data.trainingAttendance && report.data.trainingAttendance.length > 0) {
         const totalSessions = report.data.trainingAttendance.length
         const presentCount = report.data.trainingAttendance.filter((att: any) => 
@@ -456,7 +480,6 @@ export function generateCSVReport(report: ReportData): Blob {
         ).length
         const attendanceRate = totalSessions > 0 ? Math.round((presentCount / totalSessions) * 100) : 0
         
-        lines.push('TRAINING ATTENDANCE SUMMARY')
         lines.push('Metric,Value')
         lines.push(`Total Sessions,${totalSessions}`)
         lines.push(`Present,${presentCount}`)
@@ -464,7 +487,14 @@ export function generateCSVReport(report: ReportData): Blob {
         lines.push(`Justified Absence,${justifiedCount}`)
         lines.push(`Injured,${injuredCount}`)
         lines.push(`Overall Attendance Rate,${attendanceRate}%`)
-        lines.push('')
+      } else {
+        lines.push('No training attendance recorded')
+        lines.push('Metric,Value')
+        lines.push('Total Sessions,0')
+        lines.push('Present,0')
+        lines.push('Overall Attendance Rate,0%')
+      }
+      lines.push('')
         
         if (totalSessions > 0 && totalSessions <= 30) {
           lines.push('Session Date,Location,Status')
@@ -541,20 +571,28 @@ export function generateCSVReport(report: ReportData): Blob {
         }
         lines.push('')
         
-        // Player Statistics Table
+        // Player Statistics Table - Always show, even if empty
         lines.push('INDIVIDUAL PLAYER STATISTICS')
-        lines.push(`Showing ${totalPlayers} player${totalPlayers !== 1 ? 's' : ''} | Sorted by tries scored (highest first)`)
-        lines.push('')
-        lines.push('Player Name,Tries,Tackles,Minutes')
-        const sortedStats = [...report.data.playerStats].sort((a: any, b: any) => 
-          (b.tries_scored || 0) - (a.tries_scored || 0)
-        )
-        sortedStats.forEach((stat: any) => {
-          const playerName = (stat.user_profiles?.name || 'Unknown').includes(',')
-            ? `"${stat.user_profiles?.name || 'Unknown'}"`
-            : (stat.user_profiles?.name || 'Unknown')
-          lines.push(`${playerName},${stat.tries_scored || 0},${stat.tackles_made || 0},${stat.minutes_played || 0}`)
-        })
+        if (report.data.playerStats && report.data.playerStats.length > 0) {
+          lines.push(`Showing ${totalPlayers} player${totalPlayers !== 1 ? 's' : ''} | Sorted by tries scored (highest first)`)
+          lines.push('')
+          lines.push('Player Name,Tries,Tackles,Minutes')
+          const sortedStats = [...report.data.playerStats].sort((a: any, b: any) => 
+            (b.tries_scored || 0) - (a.tries_scored || 0)
+          )
+          sortedStats.forEach((stat: any) => {
+            const playerName = (stat.user_profiles?.name || 'Unknown').includes(',')
+              ? `"${stat.user_profiles?.name || 'Unknown'}"`
+              : (stat.user_profiles?.name || 'Unknown')
+            lines.push(`${playerName},${stat.tries_scored || 0},${stat.tackles_made || 0},${stat.minutes_played || 0}`)
+          })
+        } else {
+          lines.push('No player statistics recorded for this match')
+          lines.push('Players Participated,0')
+          lines.push('Total Tries,0')
+          lines.push('Total Tackles,0')
+          lines.push('Total Minutes,0')
+        }
       }
     }
     // Format training attendance data specially

@@ -379,17 +379,18 @@ export async function POST(request: NextRequest) {
         doc.line(margin, yPos, pageWidth - margin, yPos)
         yPos += 10
         
-        // Gym Statistics
+        // Gym Statistics - Always show, even if empty
+        if (yPos > pageHeight - 50) {
+          doc.addPage()
+          yPos = margin
+        }
+        doc.setFontSize(12)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(26, 26, 26)
+        safeText('GYM STATISTICS', margin, yPos)
+        yPos += 8
+        
         if (report.data.gymStats && (report.data.gymStats.benchPressPB || report.data.gymStats.squatPB || report.data.gymStats.deadliftPB)) {
-          if (yPos > pageHeight - 50) {
-            doc.addPage()
-            yPos = margin
-          }
-          doc.setFontSize(11)
-          doc.setFont('helvetica', 'bold')
-          doc.setTextColor(26, 26, 26)
-          safeText('Gym Statistics:', margin, yPos)
-          yPos += 7
           doc.setFontSize(10)
           doc.setFont('helvetica', 'normal')
           doc.setTextColor(51, 51, 51)
@@ -421,23 +422,34 @@ export async function POST(request: NextRequest) {
             safeText(`${report.data.gymStats.deadliftPB} kg`, margin + 60, yPos)
             yPos += 6
           }
-          yPos += 8
+        } else {
+          doc.setFontSize(10)
+          doc.setFont('helvetica', 'normal')
+          doc.setTextColor(102, 102, 102)
+          safeText('No gym statistics recorded', margin + 5, yPos)
+        }
+        yPos += 10
+        
+        // Draw separator
+        doc.setDrawColor(220, 220, 220)
+        doc.setLineWidth(0.3)
+        doc.line(margin, yPos, pageWidth - margin, yPos)
+        yPos += 10
+        
+        // Match Statistics Table - Always show, even if empty
+        if (yPos > pageHeight - 50) {
+          doc.addPage()
+          yPos = margin
         }
         
-        // Match Statistics Table
+        // Section header
+        doc.setFontSize(12)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(26, 26, 26)
+        safeText('MATCH-BY-MATCH PERFORMANCE', margin, yPos)
+        yPos += 8
+        
         if (report.data.matchStats && report.data.matchStats.length > 0) {
-          if (yPos > pageHeight - 50) {
-            doc.addPage()
-            yPos = margin
-          }
-          
-          // Section header
-          doc.setFontSize(12)
-          doc.setFont('helvetica', 'bold')
-          doc.setTextColor(26, 26, 26)
-          safeText('MATCH-BY-MATCH PERFORMANCE', margin, yPos)
-          yPos += 8
-          
           // Summary before table
           doc.setFontSize(9)
           doc.setFont('helvetica', 'normal')
@@ -530,28 +542,33 @@ export async function POST(request: NextRequest) {
             safeText(String(stat.minutes_played || 0), margin + 100, yPos)
             yPos += 5
           })
-          yPos += 10
+        } else {
+          doc.setFontSize(10)
+          doc.setFont('helvetica', 'normal')
+          doc.setTextColor(102, 102, 102)
+          safeText('No match statistics recorded', margin + 5, yPos)
+        }
+        yPos += 10
+        
+        // Draw separator
+        doc.setDrawColor(220, 220, 220)
+        doc.setLineWidth(0.3)
+        doc.line(margin, yPos, pageWidth - margin, yPos)
+        yPos += 10
+        
+        // Training Attendance - Always show, even if empty
+        if (yPos > pageHeight - 50) {
+          doc.addPage()
+          yPos = margin
         }
         
-        // Training Attendance
+        doc.setFontSize(12)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(26, 26, 26)
+        safeText('TRAINING ATTENDANCE SUMMARY', margin, yPos)
+        yPos += 8
+        
         if (report.data.trainingAttendance && report.data.trainingAttendance.length > 0) {
-          if (yPos > pageHeight - 50) {
-            doc.addPage()
-            yPos = margin
-          }
-          
-          // Draw separator
-          doc.setDrawColor(220, 220, 220)
-          doc.setLineWidth(0.3)
-          doc.line(margin, yPos, pageWidth - margin, yPos)
-          yPos += 10
-          
-          doc.setFontSize(12)
-          doc.setFont('helvetica', 'bold')
-          doc.setTextColor(26, 26, 26)
-          safeText('TRAINING ATTENDANCE SUMMARY', margin, yPos)
-          yPos += 8
-          
           // Calculate comprehensive attendance statistics
           const totalSessions = report.data.trainingAttendance.length
           const presentCount = report.data.trainingAttendance.filter((att: any) => 
@@ -636,6 +653,17 @@ export async function POST(request: NextRequest) {
               yPos += 5
             })
           }
+        } else {
+          doc.setFontSize(10)
+          doc.setFont('helvetica', 'normal')
+          doc.setTextColor(102, 102, 102)
+          safeText('No training attendance recorded', margin + 5, yPos)
+          yPos += 6
+          safeText('Total Sessions: 0', margin + 5, yPos)
+          yPos += 6
+          safeText('Present: 0', margin + 5, yPos)
+          yPos += 6
+          safeText('Overall Attendance Rate: 0%', margin + 5, yPos)
         }
       }
       // Format match reports
@@ -744,25 +772,25 @@ export async function POST(request: NextRequest) {
           yPos += 8
         }
         
-        // Player Statistics Table
+        // Player Statistics Table - Always show, even if empty
+        if (yPos > pageHeight - 50) {
+          doc.addPage()
+          yPos = margin
+        }
+        
+        // Draw separator
+        doc.setDrawColor(220, 220, 220)
+        doc.setLineWidth(0.3)
+        doc.line(margin, yPos, pageWidth - margin, yPos)
+        yPos += 10
+        
+        doc.setFontSize(12)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(26, 26, 26)
+        safeText('INDIVIDUAL PLAYER STATISTICS', margin, yPos)
+        yPos += 8
+        
         if (report.data.playerStats && report.data.playerStats.length > 0) {
-          if (yPos > pageHeight - 50) {
-            doc.addPage()
-            yPos = margin
-          }
-          
-          // Draw separator
-          doc.setDrawColor(220, 220, 220)
-          doc.setLineWidth(0.3)
-          doc.line(margin, yPos, pageWidth - margin, yPos)
-          yPos += 10
-          
-          doc.setFontSize(12)
-          doc.setFont('helvetica', 'bold')
-          doc.setTextColor(26, 26, 26)
-          safeText('INDIVIDUAL PLAYER STATISTICS', margin, yPos)
-          yPos += 8
-          
           // Summary before table
           doc.setFontSize(9)
           doc.setFont('helvetica', 'normal')
@@ -857,7 +885,15 @@ export async function POST(request: NextRequest) {
           doc.setFontSize(10)
           doc.setFont('helvetica', 'normal')
           doc.setTextColor(102, 102, 102)
-          safeText('No player statistics available for this match.', margin, yPos)
+          safeText('No player statistics recorded for this match', margin + 5, yPos)
+          yPos += 6
+          safeText('Players Participated: 0', margin + 5, yPos)
+          yPos += 6
+          safeText('Total Tries: 0', margin + 5, yPos)
+          yPos += 6
+          safeText('Total Tackles: 0', margin + 5, yPos)
+          yPos += 6
+          safeText('Total Minutes: 0', margin + 5, yPos)
         }
       }
       // For other report types, show formatted data if available

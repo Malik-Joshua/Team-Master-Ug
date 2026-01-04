@@ -319,6 +319,26 @@ export default function ReportsPage() {
         .eq('id', report.id)
         .single()
 
+      // Ensure players are loaded before processing player reports
+      let playersToUse = players
+      if (report.type === 'player' && players.length === 0) {
+        try {
+          const playersResponse = await fetch('/api/admin/players')
+          if (playersResponse.ok) {
+            const playersData = await playersResponse.json()
+            if (playersData.players && Array.isArray(playersData.players)) {
+              playersToUse = playersData.players.map((p: any) => ({
+                id: p.user_id || p.id,
+                name: p.name || 'Unknown',
+              }))
+              setPlayers(playersToUse) // Update state for future use
+            }
+          }
+        } catch (err) {
+          console.error('Error loading players for download:', err)
+        }
+      }
+
       // Extract filter information from report title (we stored it there)
       let reportData: ReportData = {
         id: report.id,
@@ -345,24 +365,48 @@ export default function ReportsPage() {
         
         if (playerMatch && playerMatch[1]) {
           const playerName = playerMatch[1].trim()
-          selectedPlayer = players.find(p => p.name === playerName) || null
+          // Use playersToUse which includes freshly loaded players if needed
+          selectedPlayer = playersToUse.find(p => p.name === playerName) || null
         }
         
-        // If player not found in local array, try to fetch from database
+        // If player not found in local array, try multiple search strategies
         if (!selectedPlayer && playerMatch && playerMatch[1]) {
           try {
             const playerName = playerMatch[1].trim()
-            const { data: playerProfiles } = await supabase
+            
+            // Try exact match first
+            let { data: playerProfiles } = await supabase
               .from('user_profiles')
               .select('user_id, name')
-              .ilike('name', `%${playerName}%`)
+              .eq('name', playerName)
               .limit(1)
+            
+            // If no exact match, try case-insensitive match
+            if (!playerProfiles || playerProfiles.length === 0) {
+              const { data: caseInsensitive } = await supabase
+                .from('user_profiles')
+                .select('user_id, name')
+                .ilike('name', playerName)
+                .limit(1)
+              playerProfiles = caseInsensitive
+            }
+            
+            // If still no match, try partial match
+            if (!playerProfiles || playerProfiles.length === 0) {
+              const { data: partialMatch } = await supabase
+                .from('user_profiles')
+                .select('user_id, name')
+                .ilike('name', `%${playerName}%`)
+                .limit(1)
+              playerProfiles = partialMatch
+            }
             
             if (playerProfiles && playerProfiles.length > 0) {
               selectedPlayer = {
                 id: playerProfiles[0].user_id,
                 name: playerProfiles[0].name
               }
+              console.log('Found player via database search:', selectedPlayer)
             }
           } catch (err) {
             console.error('Error searching for player:', err)

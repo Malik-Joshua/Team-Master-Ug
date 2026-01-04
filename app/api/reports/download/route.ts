@@ -308,7 +308,20 @@ export async function POST(request: NextRequest) {
       }
       
       // Format player reports
-      if (report.type === 'player' && report.data.playerName) {
+      if (report.type === 'player') {
+        // Log for debugging
+        console.log('Processing player report:', {
+          hasPlayerName: !!report.data?.playerName,
+          playerName: report.data?.playerName,
+          hasMatchStats: !!(report.data?.matchStats?.length),
+          matchStatsCount: report.data?.matchStats?.length || 0,
+          hasGymStats: !!report.data?.gymStats,
+          hasTrainingAttendance: !!(report.data?.trainingAttendance?.length),
+          trainingAttendanceCount: report.data?.trainingAttendance?.length || 0
+        })
+        
+        const playerName = report.data?.playerName || 'Unknown Player'
+        
         doc.setFontSize(16)
         doc.setFont('helvetica', 'bold')
         doc.setTextColor(26, 26, 26)
@@ -318,7 +331,7 @@ export async function POST(request: NextRequest) {
         doc.setFontSize(13)
         doc.setFont('helvetica', 'bold')
         doc.setTextColor(51, 51, 51)
-        safeText(`Player: ${report.data.playerName}`, pageWidth / 2, yPos, { align: 'center' })
+        safeText(`Player: ${playerName}`, pageWidth / 2, yPos, { align: 'center' })
         yPos += 12
         
         // Draw separator line

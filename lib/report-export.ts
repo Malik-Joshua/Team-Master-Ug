@@ -191,8 +191,8 @@ export function generateExcelReport(report: ReportData): Blob {
       } else {
         metadata.push(['No training attendance recorded'])
         metadata.push(['Metric', 'Value'])
-        metadata.push(['Total Sessions', 0])
-        metadata.push(['Present', 0])
+        metadata.push(['Total Sessions', '0'])
+        metadata.push(['Present', '0'])
         metadata.push(['Overall Attendance Rate', '0%'])
       }
       metadata.push([])
@@ -271,10 +271,10 @@ export function generateExcelReport(report: ReportData): Blob {
         })
       } else {
         metadata.push(['No player statistics recorded for this match'])
-        metadata.push(['Players Participated', 0])
-        metadata.push(['Total Tries', 0])
-        metadata.push(['Total Tackles', 0])
-        metadata.push(['Total Minutes', 0])
+        metadata.push(['Players Participated', '0'])
+        metadata.push(['Total Tries', '0'])
+        metadata.push(['Total Tackles', '0'])
+        metadata.push(['Total Minutes', '0'])
       }
     }
     // Format training attendance data specially

@@ -444,7 +444,17 @@ export default function ReportsPage() {
             console.log('Fetching data for player:', selectedPlayer.name, 'ID:', selectedPlayer.id)
             
             // First, try direct query to players table (most reliable)
-            let gymStats = {}
+            let gymStats: {
+              benchPressPB: number | null;
+              squatPB: number | null;
+              deadliftPB: number | null;
+              pullUpPB: number | null;
+            } = {
+              benchPressPB: null,
+              squatPB: null,
+              deadliftPB: null,
+              pullUpPB: null,
+            }
             try {
               const { data: playerData, error: playerError } = await supabase
                 .from('players')
@@ -495,12 +505,16 @@ export default function ReportsPage() {
               })
               
               if (playerResponse.ok) {
-                const apiGymStats = await playerResponse.json()
+                const apiGymStats = await playerResponse.json() as {
+                  benchPressPB: number | null;
+                  squatPB: number | null;
+                  deadliftPB: number | null;
+                  pullUpPB: number | null;
+                }
                 console.log('Gym stats from API (for verification):', selectedPlayer.name, apiGymStats)
                 // Use API stats if direct query didn't return data
-                if (!gymStats || Object.keys(gymStats).length === 0 || 
-                    (!(gymStats as any).benchPressPB && !(gymStats as any).squatPB && 
-                      !(gymStats as any).deadliftPB && !(gymStats as any).pullUpPB)) {
+                if (!gymStats.benchPressPB && !gymStats.squatPB && 
+                    !gymStats.deadliftPB && !gymStats.pullUpPB) {
                   gymStats = apiGymStats
                   console.log('Using API gym stats as fallback')
                 }

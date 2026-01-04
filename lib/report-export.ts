@@ -172,14 +172,7 @@ export function generateExcelReport(report: ReportData): Blob {
         metadata.push(['Justified Absence', justifiedCount])
         metadata.push(['Injured', injuredCount])
         metadata.push(['Overall Attendance Rate', `${attendanceRate}%`])
-      } else {
-        metadata.push(['No training attendance recorded'])
-        metadata.push(['Metric', 'Value'])
-        metadata.push(['Total Sessions', 0])
-        metadata.push(['Present', 0])
-        metadata.push(['Overall Attendance Rate', '0%'])
-      }
-      metadata.push([])
+        metadata.push([])
         
         if (totalSessions > 0 && totalSessions <= 30) {
           metadata.push(['Session Date', 'Location', 'Status'])
@@ -195,7 +188,15 @@ export function generateExcelReport(report: ReportData): Blob {
             metadata.push([sessionDate, location, status])
           })
         }
+      } else {
+        metadata.push(['No training attendance recorded'])
+        metadata.push(['Metric', 'Value'])
+        metadata.push(['Total Sessions', 0])
+        metadata.push(['Present', 0])
+        metadata.push(['Overall Attendance Rate', '0%'])
       }
+      metadata.push([])
+    }
     }
     // Format match reports
     else if (report.type === 'match' && report.data.matchDetails) {

@@ -532,32 +532,34 @@ export function generateCSVReport(report: ReportData): Blob {
       }
       lines.push('')
       
-      // Match Summary
+      // Calculate match statistics (always show, even if empty)
+      const totalPlayers = report.data.playerStats?.length || 0
+      const totalTries = report.data.playerStats?.reduce((sum: number, stat: any) => sum + (stat.tries_scored || 0), 0) || 0
+      const totalTackles = report.data.playerStats?.reduce((sum: number, stat: any) => sum + (stat.tackles_made || 0), 0) || 0
+      const totalMinutes = report.data.playerStats?.reduce((sum: number, stat: any) => sum + (stat.minutes_played || 0), 0) || 0
+      const avgTriesPerPlayer = totalPlayers > 0 ? (totalTries / totalPlayers).toFixed(2) : '0.00'
+      const avgTacklesPerPlayer = totalPlayers > 0 ? (totalTackles / totalPlayers).toFixed(2) : '0.00'
+      const avgMinutesPerPlayer = totalPlayers > 0 ? (totalMinutes / totalPlayers).toFixed(1) : '0.0'
+      
+      // Match Summary Statistics - Always show
+      lines.push('MATCH SUMMARY STATISTICS')
+      lines.push('Metric,Value')
+      lines.push(`Players Participated,${totalPlayers}`)
+      lines.push(`Total Tries Scored,${totalTries}`)
+      lines.push(`Total Tackles Made,${totalTackles}`)
+      lines.push(`Total Minutes Played,${totalMinutes}`)
+      lines.push(`Average Tries per Player,${avgTriesPerPlayer}`)
+      lines.push(`Average Tackles per Player,${avgTacklesPerPlayer}`)
+      lines.push(`Average Minutes per Player,${avgMinutesPerPlayer}`)
+      lines.push('')
+      
+      // Top Performers
       if (report.data.playerStats && report.data.playerStats.length > 0) {
-        const totalPlayers = report.data.playerStats.length
-        const totalTries = report.data.playerStats.reduce((sum: number, stat: any) => sum + (stat.tries_scored || 0), 0)
-        const totalTackles = report.data.playerStats.reduce((sum: number, stat: any) => sum + (stat.tackles_made || 0), 0)
-        const totalMinutes = report.data.playerStats.reduce((sum: number, stat: any) => sum + (stat.minutes_played || 0), 0)
-        const avgTriesPerPlayer = totalPlayers > 0 ? (totalTries / totalPlayers).toFixed(2) : '0.00'
-        const avgTacklesPerPlayer = totalPlayers > 0 ? (totalTackles / totalPlayers).toFixed(2) : '0.00'
-        const avgMinutesPerPlayer = totalPlayers > 0 ? (totalMinutes / totalPlayers).toFixed(1) : '0.0'
         const topScorer = report.data.playerStats.reduce((top: any, stat: any) => 
           (stat.tries_scored || 0) > (top.tries_scored || 0) ? stat : top, report.data.playerStats[0])
         const topTackler = report.data.playerStats.reduce((top: any, stat: any) => 
           (stat.tackles_made || 0) > (top.tackles_made || 0) ? stat : top, report.data.playerStats[0])
         
-        lines.push('MATCH SUMMARY STATISTICS')
-        lines.push('Metric,Value')
-        lines.push(`Players Participated,${totalPlayers}`)
-        lines.push(`Total Tries Scored,${totalTries}`)
-        lines.push(`Total Tackles Made,${totalTackles}`)
-        lines.push(`Total Minutes Played,${totalMinutes}`)
-        lines.push(`Average Tries per Player,${avgTriesPerPlayer}`)
-        lines.push(`Average Tackles per Player,${avgTacklesPerPlayer}`)
-        lines.push(`Average Minutes per Player,${avgMinutesPerPlayer}`)
-        lines.push('')
-        
-        // Top Performers
         lines.push('Top Performers')
         if (topScorer && topScorer.tries_scored > 0) {
           const scorerName = (topScorer.user_profiles?.name || 'Unknown').includes(',')
@@ -572,29 +574,29 @@ export function generateCSVReport(report: ReportData): Blob {
           lines.push(`Top Tackler,${tacklerName} (${topTackler.tackles_made} tackles)`)
         }
         lines.push('')
-        
-        // Player Statistics Table - Always show, even if empty
-        lines.push('INDIVIDUAL PLAYER STATISTICS')
-        if (report.data.playerStats && report.data.playerStats.length > 0) {
-          lines.push(`Showing ${totalPlayers} player${totalPlayers !== 1 ? 's' : ''} | Sorted by tries scored (highest first)`)
-          lines.push('')
-          lines.push('Player Name,Tries,Tackles,Minutes')
-          const sortedStats = [...report.data.playerStats].sort((a: any, b: any) => 
-            (b.tries_scored || 0) - (a.tries_scored || 0)
-          )
-          sortedStats.forEach((stat: any) => {
-            const playerName = (stat.user_profiles?.name || 'Unknown').includes(',')
-              ? `"${stat.user_profiles?.name || 'Unknown'}"`
-              : (stat.user_profiles?.name || 'Unknown')
-            lines.push(`${playerName},${stat.tries_scored || 0},${stat.tackles_made || 0},${stat.minutes_played || 0}`)
-          })
-        } else {
-          lines.push('No player statistics recorded for this match')
-          lines.push('Players Participated,0')
-          lines.push('Total Tries,0')
-          lines.push('Total Tackles,0')
-          lines.push('Total Minutes,0')
-        }
+      }
+      
+      // Player Statistics Table - Always show, even if empty
+      lines.push('INDIVIDUAL PLAYER STATISTICS')
+      if (report.data.playerStats && report.data.playerStats.length > 0) {
+        lines.push(`Showing ${totalPlayers} player${totalPlayers !== 1 ? 's' : ''} | Sorted by tries scored (highest first)`)
+        lines.push('')
+        lines.push('Player Name,Tries,Tackles,Minutes')
+        const sortedStats = [...report.data.playerStats].sort((a: any, b: any) => 
+          (b.tries_scored || 0) - (a.tries_scored || 0)
+        )
+        sortedStats.forEach((stat: any) => {
+          const playerName = (stat.user_profiles?.name || 'Unknown').includes(',')
+            ? `"${stat.user_profiles?.name || 'Unknown'}"`
+            : (stat.user_profiles?.name || 'Unknown')
+          lines.push(`${playerName},${stat.tries_scored || 0},${stat.tackles_made || 0},${stat.minutes_played || 0}`)
+        })
+      } else {
+        lines.push('No player statistics recorded for this match')
+        lines.push('Players Participated,0')
+        lines.push('Total Tries,0')
+        lines.push('Total Tackles,0')
+        lines.push('Total Minutes,0')
       }
     }
     // Format training attendance data specially

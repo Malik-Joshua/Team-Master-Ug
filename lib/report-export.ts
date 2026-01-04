@@ -36,14 +36,23 @@ export async function generatePDFReport(report: ReportData): Promise<Blob> {
 export function generateExcelReport(report: ReportData): Blob {
   const workbook = XLSX.utils.book_new()
 
-  // Create a worksheet with report metadata
+  // Create a worksheet with professional report metadata
   const metadata = [
-    ['Mongers Rugby Club - Official Report'],
+    ['MONGERS RUGBY CLUB'],
+    ['Official Performance Report'],
     [],
+    ['Report Information'],
     ['Report Title', report.title],
-    ['Report Type', report.type.charAt(0).toUpperCase() + report.type.slice(1)],
-    ['Date Range', report.dateRange],
-    ['Generated At', new Date(report.generatedAt).toLocaleString()],
+    ['Report Type', report.type.charAt(0).toUpperCase() + report.type.slice(1) + ' Report'],
+    ['Date Range', report.dateRange || 'All Time'],
+    ['Generated At', new Date(report.generatedAt).toLocaleString('en-US', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric', 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    })],
+    ['Report ID', report.id || 'N/A'],
     [],
   ]
 
@@ -51,6 +60,9 @@ export function generateExcelReport(report: ReportData): Blob {
   if (report.data) {
     // Format player reports
     if (report.type === 'player' && report.data.playerName) {
+      metadata.push(['EXECUTIVE SUMMARY'])
+      metadata.push([`This report provides a comprehensive analysis of ${report.data.playerName}'s performance, including match statistics, training attendance, and physical fitness metrics. The data presented reflects the player's contribution to the team and overall development.`])
+      metadata.push([])
       metadata.push(['PLAYER PERFORMANCE REPORT'])
       metadata.push(['Player Name', report.data.playerName])
       metadata.push([])
@@ -81,6 +93,16 @@ export function generateExcelReport(report: ReportData): Blob {
       metadata.push(['Average Tries per Match', avgTries])
       metadata.push(['Average Tackles per Match', avgTackles])
       metadata.push(['Average Minutes per Match', avgMinutes])
+      metadata.push([])
+      
+      // Data Completeness Indicator
+      const hasMatchStats = (report.data.matchStats?.length || 0) > 0
+      const hasGymStats = report.data.gymStats && (report.data.gymStats.benchPressPB || report.data.gymStats.squatPB || report.data.gymStats.deadliftPB)
+      const hasTrainingData = (report.data.trainingAttendance?.length || 0) > 0
+      metadata.push(['Data Completeness'])
+      metadata.push(['Match Statistics', hasMatchStats ? 'Available' : 'Not Available'])
+      metadata.push(['Gym Statistics', hasGymStats ? 'Available' : 'Not Available'])
+      metadata.push(['Training Attendance', hasTrainingData ? 'Available' : 'Not Available'])
       metadata.push([])
       
       // Best Performance
@@ -200,9 +222,18 @@ export function generateExcelReport(report: ReportData): Blob {
     // Format match reports
     else if (report.type === 'match' && report.data.matchDetails) {
       const match = report.data.matchDetails
+      metadata.push(['EXECUTIVE SUMMARY'])
+      metadata.push([`This report provides a detailed analysis of the match against ${match.opponent || 'Opponent'}, including team performance metrics, individual player contributions, and key statistics. The data presented offers insights into team dynamics and player effectiveness during this match.`])
+      metadata.push([])
       metadata.push(['MATCH STATISTICS REPORT'])
-      metadata.push(['Match', match.opponent || 'Unknown'])
-      metadata.push(['Date', new Date(match.match_date).toLocaleDateString()])
+      metadata.push(['MATCH DETAILS'])
+      metadata.push(['Opponent', match.opponent || 'Unknown'])
+      metadata.push(['Date', new Date(match.match_date).toLocaleDateString('en-US', { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      })])
       if (match.venue) {
         metadata.push(['Venue', match.venue])
       }
@@ -358,17 +389,29 @@ export function generateExcelReport(report: ReportData): Blob {
 export function generateCSVReport(report: ReportData): Blob {
   const lines: string[] = []
   
-  lines.push('Mongers Rugby Club - Official Report')
+  lines.push('MONGERS RUGBY CLUB')
+  lines.push('Official Performance Report')
   lines.push('')
+  lines.push('Report Information')
   lines.push(`Report Title,${report.title}`)
-  lines.push(`Report Type,${report.type.charAt(0).toUpperCase() + report.type.slice(1)}`)
-  lines.push(`Date Range,${report.dateRange}`)
-  lines.push(`Generated At,${new Date(report.generatedAt).toLocaleString()}`)
+  lines.push(`Report Type,${report.type.charAt(0).toUpperCase() + report.type.slice(1)} Report`)
+  lines.push(`Date Range,${report.dateRange || 'All Time'}`)
+  lines.push(`Generated At,${new Date(report.generatedAt).toLocaleString('en-US', { 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric', 
+    hour: '2-digit', 
+    minute: '2-digit' 
+  })}`)
+  lines.push(`Report ID,${report.id || 'N/A'}`)
   lines.push('')
 
   if (report.data) {
     // Format player reports
     if (report.type === 'player' && report.data.playerName) {
+      lines.push('EXECUTIVE SUMMARY')
+      lines.push(`This report provides a comprehensive analysis of ${report.data.playerName}'s performance, including match statistics, training attendance, and physical fitness metrics. The data presented reflects the player's contribution to the team and overall development.`)
+      lines.push('')
       lines.push('PLAYER PERFORMANCE REPORT')
       lines.push('')
       lines.push(`Player Name,${report.data.playerName}`)
@@ -400,6 +443,16 @@ export function generateCSVReport(report: ReportData): Blob {
       lines.push(`Average Tries per Match,${avgTries}`)
       lines.push(`Average Tackles per Match,${avgTackles}`)
       lines.push(`Average Minutes per Match,${avgMinutes}`)
+      lines.push('')
+      
+      // Data Completeness Indicator
+      const hasMatchStats = (report.data.matchStats?.length || 0) > 0
+      const hasGymStats = report.data.gymStats && (report.data.gymStats.benchPressPB || report.data.gymStats.squatPB || report.data.gymStats.deadliftPB)
+      const hasTrainingData = (report.data.trainingAttendance?.length || 0) > 0
+      lines.push('Data Completeness')
+      lines.push(`Match Statistics,${hasMatchStats ? 'Available' : 'Not Available'}`)
+      lines.push(`Gym Statistics,${hasGymStats ? 'Available' : 'Not Available'}`)
+      lines.push(`Training Attendance,${hasTrainingData ? 'Available' : 'Not Available'}`)
       lines.push('')
       
       // Best Performance
@@ -519,10 +572,18 @@ export function generateCSVReport(report: ReportData): Blob {
     // Format match reports
     else if (report.type === 'match' && report.data.matchDetails) {
       const match = report.data.matchDetails
-      lines.push('MATCH STATISTICS REPORT')
+      lines.push('EXECUTIVE SUMMARY')
+      lines.push(`This report provides a detailed analysis of the match against ${match.opponent || 'Opponent'}, including team performance metrics, individual player contributions, and key statistics. The data presented offers insights into team dynamics and player effectiveness during this match.`)
       lines.push('')
-      lines.push(`Match,${match.opponent || 'Unknown'}`)
-      lines.push(`Date,${new Date(match.match_date).toLocaleDateString()}`)
+      lines.push('MATCH STATISTICS REPORT')
+      lines.push('MATCH DETAILS')
+      lines.push(`Opponent,${match.opponent || 'Unknown'}`)
+      lines.push(`Date,${new Date(match.match_date).toLocaleDateString('en-US', { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      })}`)
       if (match.venue) {
         const venue = match.venue.includes(',') ? `"${match.venue}"` : match.venue
         lines.push(`Venue,${venue}`)

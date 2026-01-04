@@ -116,13 +116,13 @@ export default function ReportsPage() {
               // If report was stuck, mark as ready in local state
               const isStuck = stuckReports.some((sr: any) => sr.id === r.id)
               return {
-                id: r.id,
-                title: r.title,
-                type: r.report_type as Report['type'],
-                dateRange: r.date_from && r.date_to
-                  ? `${new Date(r.date_from).toLocaleDateString()} - ${new Date(r.date_to).toLocaleDateString()}`
-                  : new Date(r.created_at).toLocaleDateString(),
-                generatedAt: r.created_at,
+              id: r.id,
+              title: r.title,
+              type: r.report_type as Report['type'],
+              dateRange: r.date_from && r.date_to
+                ? `${new Date(r.date_from).toLocaleDateString()} - ${new Date(r.date_to).toLocaleDateString()}`
+                : new Date(r.created_at).toLocaleDateString(),
+              generatedAt: r.created_at,
                 status: (isStuck ? 'ready' : r.status) as Report['status'],
               }
             })
@@ -282,9 +282,9 @@ export default function ReportsPage() {
           .eq('id', newReport.id)
 
         if (!updateError) {
-          setReports((prev) =>
-            prev.map((r) => (r.id === newReport.id ? { ...r, status: 'ready' as const } : r))
-          )
+        setReports((prev) =>
+          prev.map((r) => (r.id === newReport.id ? { ...r, status: 'ready' as const } : r))
+        )
         } else {
           console.error('Error updating report status:', updateError)
           // Set to ready in local state anyway
@@ -341,40 +341,119 @@ export default function ReportsPage() {
       if (report.type === 'player') {
         // Extract player name from title (format: "Player Report - PlayerName")
         const playerMatch = report.title.match(/Player Report - (.+?)(?:\s*\(|$)/)
+        let selectedPlayer: { id: string; name: string } | null = null
+        
         if (playerMatch && playerMatch[1]) {
           const playerName = playerMatch[1].trim()
-          const selectedPlayer = players.find(p => p.name === playerName)
-          
-          if (selectedPlayer) {
-            // Fetch player-specific data
-            try {
-              const playerResponse = await fetch(`/api/players/${selectedPlayer.id}/gym-stats`)
-              const gymStats = playerResponse.ok ? await playerResponse.json() : {}
-              
-              // Fetch match stats for this player
-              const { data: matchStats } = await supabase
-                .from('match_stats')
-                .select('*, matches(*)')
-                .eq('player_id', selectedPlayer.id)
-              
-              // Fetch training attendance for this player
-              const { data: attendance } = await supabase
-                .from('training_attendance')
-                .select('*, training_sessions(*)')
-                .eq('player_id', selectedPlayer.id)
-              
-              reportData.data = {
-                ...reportData.data,
-                playerId: selectedPlayer.id,
-                playerName: selectedPlayer.name,
-                gymStats,
-                matchStats: matchStats || [],
-                trainingAttendance: attendance || [],
-                summary: `Performance report for ${selectedPlayer.name} including match statistics, training attendance, and gym metrics.`,
+          selectedPlayer = players.find(p => p.name === playerName) || null
+        }
+        
+        // If player not found in local array, try to fetch from database
+        if (!selectedPlayer && playerMatch && playerMatch[1]) {
+          try {
+            const playerName = playerMatch[1].trim()
+            const { data: playerProfiles } = await supabase
+              .from('user_profiles')
+              .select('user_id, name')
+              .ilike('name', `%${playerName}%`)
+              .limit(1)
+            
+            if (playerProfiles && playerProfiles.length > 0) {
+              selectedPlayer = {
+                id: playerProfiles[0].user_id,
+                name: playerProfiles[0].name
               }
-            } catch (err) {
-              console.error('Error fetching player data:', err)
             }
+          } catch (err) {
+            console.error('Error searching for player:', err)
+          }
+        }
+        
+        if (selectedPlayer) {
+          // Fetch player-specific data
+          try {
+            // Fetch gym stats
+            const playerResponse = await fetch(`/api/players/${selectedPlayer.id}/gym-stats`)
+            const gymStats = playerResponse.ok ? await playerResponse.json() : {}
+            
+            // Fetch match stats for this player with matches relationship
+            const { data: matchStats, error: matchStatsError } = await supabase
+              .from('match_stats')
+              .select(`
+                *,
+                matches (
+                  id,
+                  match_date,
+                  opponent,
+                  venue,
+                  score_our_team,
+                  score_opponent
+                )
+              `)
+              .eq('player_id', selectedPlayer.id)
+            
+            if (matchStatsError) {
+              console.error('Error fetching match stats:', matchStatsError)
+            }
+            
+            // Fetch training attendance for this player
+            const { data: attendance, error: attendanceError } = await supabase
+              .from('training_attendance')
+              .select(`
+                *,
+                training_sessions (
+                  id,
+                  session_date,
+                  session_time,
+                  location,
+                  description
+                )
+              `)
+              .eq('player_id', selectedPlayer.id)
+            
+            if (attendanceError) {
+              console.error('Error fetching training attendance:', attendanceError)
+            }
+            
+            reportData.data = {
+              ...reportData.data,
+              playerId: selectedPlayer.id,
+              playerName: selectedPlayer.name,
+              gymStats: gymStats || {},
+              matchStats: matchStats || [],
+              trainingAttendance: attendance || [],
+              summary: `Performance report for ${selectedPlayer.name} including match statistics, training attendance, and gym metrics.`,
+            }
+            
+            console.log('Player report data loaded:', {
+              playerName: selectedPlayer.name,
+              matchStatsCount: matchStats?.length || 0,
+              attendanceCount: attendance?.length || 0,
+              hasGymStats: !!gymStats && Object.keys(gymStats).length > 0
+            })
+          } catch (err) {
+            console.error('Error fetching player data:', err)
+            // Still set player name even if data fetch fails
+            reportData.data = {
+              ...reportData.data,
+              playerId: selectedPlayer.id,
+              playerName: selectedPlayer.name,
+              gymStats: {},
+              matchStats: [],
+              trainingAttendance: [],
+              summary: `Performance report for ${selectedPlayer.name}.`,
+            }
+          }
+        } else {
+          console.warn('Player not found for report:', report.title)
+          // Set empty data structure so report still generates
+          reportData.data = {
+            ...reportData.data,
+            playerName: playerMatch?.[1]?.trim() || 'Unknown Player',
+            gymStats: {},
+            matchStats: [],
+            trainingAttendance: [],
+            summary: 'Player data could not be loaded.',
           }
         }
       } else if (report.type === 'match') {
@@ -393,13 +472,13 @@ export default function ReportsPage() {
                 .eq('id', selectedMatch.id)
                 .single()
               
-              // Fetch match stats with player names
+              // Fetch match stats
               const { data: matchStats } = await supabase
                 .from('match_stats')
-                .select('*, players(user_profiles(name))')
+                .select('*')
                 .eq('match_id', selectedMatch.id)
               
-              // If the join didn't work, fetch player names separately
+              // Fetch player names separately and map them
               if (matchStats && matchStats.length > 0) {
                 const playerIds = matchStats.map((stat: any) => stat.player_id)
                 const { data: playerProfiles } = await supabase

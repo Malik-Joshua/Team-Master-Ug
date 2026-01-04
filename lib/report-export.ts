@@ -51,26 +51,52 @@ export function generateExcelReport(report: ReportData): Blob {
   if (report.data) {
     // Format player reports
     if (report.type === 'player' && report.data.playerName) {
-      metadata.push(['Player Performance Report'])
+      metadata.push(['PLAYER PERFORMANCE REPORT'])
       metadata.push(['Player Name', report.data.playerName])
       metadata.push([])
       
-      // Overall Statistics
+      // Calculate comprehensive statistics
       const totalMatches = report.data.matchStats?.length || 0
       const totalTries = report.data.matchStats?.reduce((sum: number, stat: any) => sum + (stat.tries_scored || 0), 0) || 0
       const totalTackles = report.data.matchStats?.reduce((sum: number, stat: any) => sum + (stat.tackles_made || 0), 0) || 0
       const totalMinutes = report.data.matchStats?.reduce((sum: number, stat: any) => sum + (stat.minutes_played || 0), 0) || 0
       const avgTries = totalMatches > 0 ? String((totalTries / totalMatches).toFixed(2)) : '0.00'
       const avgTackles = totalMatches > 0 ? String((totalTackles / totalMatches).toFixed(2)) : '0.00'
+      const avgMinutes = totalMatches > 0 ? String((totalMinutes / totalMatches).toFixed(1)) : '0.0'
       
-      metadata.push(['Overall Statistics'])
-      metadata.push(['Total Matches Played', String(totalMatches)])
-      metadata.push(['Total Tries Scored', String(totalTries)])
-      metadata.push(['Total Tackles Made', String(totalTackles)])
-      metadata.push(['Total Minutes Played', String(totalMinutes)])
+      // Find best performance
+      const bestMatch = report.data.matchStats?.reduce((best: any, stat: any) => {
+        const bestScore = (best?.tries_scored || 0) + (best?.tackles_made || 0)
+        const currentScore = (stat.tries_scored || 0) + (stat.tackles_made || 0)
+        return currentScore > bestScore ? stat : best
+      }, null)
+      
+      // Key Performance Indicators
+      metadata.push(['KEY PERFORMANCE INDICATORS'])
+      metadata.push(['Metric', 'Value'])
+      metadata.push(['Total Matches', String(totalMatches)])
+      metadata.push(['Total Tries', String(totalTries)])
+      metadata.push(['Total Tackles', String(totalTackles)])
+      metadata.push(['Total Minutes', String(totalMinutes)])
       metadata.push(['Average Tries per Match', avgTries])
       metadata.push(['Average Tackles per Match', avgTackles])
+      metadata.push(['Average Minutes per Match', avgMinutes])
       metadata.push([])
+      
+      // Best Performance
+      if (bestMatch && totalMatches > 0) {
+        const bestOpponent = bestMatch.matches?.opponent || 'Unknown'
+        const bestDate = bestMatch.matches?.match_date 
+          ? new Date(bestMatch.matches.match_date).toLocaleDateString()
+          : 'N/A'
+        metadata.push(['Best Performance'])
+        metadata.push(['Date', bestDate])
+        metadata.push(['Opponent', bestOpponent])
+        metadata.push(['Tries', String(bestMatch.tries_scored || 0)])
+        metadata.push(['Tackles', String(bestMatch.tackles_made || 0)])
+        metadata.push(['Minutes', String(bestMatch.minutes_played || 0)])
+        metadata.push([])
+      }
       
       // Gym Statistics
       if (report.data.gymStats && (report.data.gymStats.benchPressPB || report.data.gymStats.squatPB || report.data.gymStats.deadliftPB)) {
@@ -90,9 +116,19 @@ export function generateExcelReport(report: ReportData): Blob {
       
       // Match Statistics
       if (report.data.matchStats && report.data.matchStats.length > 0) {
-        metadata.push(['Match Statistics'])
+        metadata.push(['MATCH-BY-MATCH PERFORMANCE'])
+        metadata.push([`Showing ${totalMatches} match${totalMatches !== 1 ? 'es' : ''} | Sorted by date (most recent first)`])
+        metadata.push([])
         metadata.push(['Date', 'Opponent', 'Tries', 'Tackles', 'Minutes'])
-        report.data.matchStats.forEach((stat: any) => {
+        
+        // Sort matches by date (most recent first)
+        const sortedMatchStats = [...(report.data.matchStats || [])].sort((a: any, b: any) => {
+          const dateA = a.matches?.match_date ? new Date(a.matches.match_date).getTime() : 0
+          const dateB = b.matches?.match_date ? new Date(b.matches.match_date).getTime() : 0
+          return dateB - dateA
+        })
+        
+        sortedMatchStats.forEach((stat: any) => {
           const matchDate = stat.matches?.match_date 
             ? new Date(stat.matches.match_date).toLocaleDateString()
             : 'N/A'
@@ -113,12 +149,25 @@ export function generateExcelReport(report: ReportData): Blob {
         const presentCount = report.data.trainingAttendance.filter((att: any) => 
           att.attendance_status === 'P' || att.training_sessions?.attendance_status === 'P'
         ).length
+        const absentCount = report.data.trainingAttendance.filter((att: any) => 
+          att.attendance_status === 'X' || att.training_sessions?.attendance_status === 'X'
+        ).length
+        const justifiedCount = report.data.trainingAttendance.filter((att: any) => 
+          att.attendance_status === 'A' || att.training_sessions?.attendance_status === 'A'
+        ).length
+        const injuredCount = report.data.trainingAttendance.filter((att: any) => 
+          att.attendance_status === 'I' || att.training_sessions?.attendance_status === 'I'
+        ).length
         const attendanceRate = totalSessions > 0 ? Math.round((presentCount / totalSessions) * 100) : 0
         
-        metadata.push(['Training Attendance'])
-        metadata.push(['Total Training Sessions', totalSessions])
-        metadata.push(['Sessions Attended', presentCount])
-        metadata.push(['Attendance Rate', `${attendanceRate}%`])
+        metadata.push(['TRAINING ATTENDANCE SUMMARY'])
+        metadata.push(['Metric', 'Value'])
+        metadata.push(['Total Sessions', totalSessions])
+        metadata.push(['Present', presentCount])
+        metadata.push(['Absent (Unjustified)', absentCount])
+        metadata.push(['Justified Absence', justifiedCount])
+        metadata.push(['Injured', injuredCount])
+        metadata.push(['Overall Attendance Rate', `${attendanceRate}%`])
         metadata.push([])
         
         if (totalSessions > 0 && totalSessions <= 30) {
@@ -140,7 +189,7 @@ export function generateExcelReport(report: ReportData): Blob {
     // Format match reports
     else if (report.type === 'match' && report.data.matchDetails) {
       const match = report.data.matchDetails
-      metadata.push(['Match Statistics Report'])
+      metadata.push(['MATCH STATISTICS REPORT'])
       metadata.push(['Match', match.opponent || 'Unknown'])
       metadata.push(['Date', new Date(match.match_date).toLocaleDateString()])
       if (match.venue) {
@@ -157,16 +206,27 @@ export function generateExcelReport(report: ReportData): Blob {
         const totalTries = report.data.playerStats.reduce((sum: number, stat: any) => sum + (stat.tries_scored || 0), 0)
         const totalTackles = report.data.playerStats.reduce((sum: number, stat: any) => sum + (stat.tackles_made || 0), 0)
         const totalMinutes = report.data.playerStats.reduce((sum: number, stat: any) => sum + (stat.minutes_played || 0), 0)
+        const avgTriesPerPlayer = totalPlayers > 0 ? (totalTries / totalPlayers).toFixed(2) : '0.00'
+        const avgTacklesPerPlayer = totalPlayers > 0 ? (totalTackles / totalPlayers).toFixed(2) : '0.00'
+        const avgMinutesPerPlayer = totalPlayers > 0 ? (totalMinutes / totalPlayers).toFixed(1) : '0.0'
         const topScorer = report.data.playerStats.reduce((top: any, stat: any) => 
           (stat.tries_scored || 0) > (top.tries_scored || 0) ? stat : top, report.data.playerStats[0])
         const topTackler = report.data.playerStats.reduce((top: any, stat: any) => 
           (stat.tackles_made || 0) > (top.tackles_made || 0) ? stat : top, report.data.playerStats[0])
         
-        metadata.push(['Match Summary'])
+        metadata.push(['MATCH SUMMARY STATISTICS'])
+        metadata.push(['Metric', 'Value'])
         metadata.push(['Players Participated', totalPlayers])
         metadata.push(['Total Tries Scored', totalTries])
         metadata.push(['Total Tackles Made', totalTackles])
         metadata.push(['Total Minutes Played', totalMinutes])
+        metadata.push(['Average Tries per Player', avgTriesPerPlayer])
+        metadata.push(['Average Tackles per Player', avgTacklesPerPlayer])
+        metadata.push(['Average Minutes per Player', avgMinutesPerPlayer])
+        metadata.push([])
+        
+        // Top Performers
+        metadata.push(['Top Performers'])
         if (topScorer && topScorer.tries_scored > 0) {
           const scorerName = topScorer.user_profiles?.name || 'Unknown'
           metadata.push(['Top Scorer', `${scorerName} (${topScorer.tries_scored} tries)`])
@@ -178,7 +238,9 @@ export function generateExcelReport(report: ReportData): Blob {
         metadata.push([])
         
         // Player Statistics Table
-        metadata.push(['Player Statistics'])
+        metadata.push(['INDIVIDUAL PLAYER STATISTICS'])
+        metadata.push([`Showing ${totalPlayers} player${totalPlayers !== 1 ? 's' : ''} | Sorted by tries scored (highest first)`])
+        metadata.push([])
         metadata.push(['Player Name', 'Tries', 'Tackles', 'Minutes'])
         const sortedStats = [...report.data.playerStats].sort((a: any, b: any) => 
           (b.tries_scored || 0) - (a.tries_scored || 0)
@@ -286,27 +348,54 @@ export function generateCSVReport(report: ReportData): Blob {
   if (report.data) {
     // Format player reports
     if (report.type === 'player' && report.data.playerName) {
-      lines.push('Player Performance Report')
+      lines.push('PLAYER PERFORMANCE REPORT')
       lines.push('')
       lines.push(`Player Name,${report.data.playerName}`)
       lines.push('')
       
-      // Overall Statistics
+      // Calculate comprehensive statistics
       const totalMatches = report.data.matchStats?.length || 0
       const totalTries = report.data.matchStats?.reduce((sum: number, stat: any) => sum + (stat.tries_scored || 0), 0) || 0
       const totalTackles = report.data.matchStats?.reduce((sum: number, stat: any) => sum + (stat.tackles_made || 0), 0) || 0
       const totalMinutes = report.data.matchStats?.reduce((sum: number, stat: any) => sum + (stat.minutes_played || 0), 0) || 0
       const avgTries = totalMatches > 0 ? (totalTries / totalMatches).toFixed(2) : '0.00'
       const avgTackles = totalMatches > 0 ? (totalTackles / totalMatches).toFixed(2) : '0.00'
+      const avgMinutes = totalMatches > 0 ? (totalMinutes / totalMatches).toFixed(1) : '0.0'
       
-      lines.push('Overall Statistics')
-      lines.push(`Total Matches Played,${totalMatches}`)
-      lines.push(`Total Tries Scored,${totalTries}`)
-      lines.push(`Total Tackles Made,${totalTackles}`)
-      lines.push(`Total Minutes Played,${totalMinutes}`)
+      // Find best performance
+      const bestMatch = report.data.matchStats?.reduce((best: any, stat: any) => {
+        const bestScore = (best?.tries_scored || 0) + (best?.tackles_made || 0)
+        const currentScore = (stat.tries_scored || 0) + (stat.tackles_made || 0)
+        return currentScore > bestScore ? stat : best
+      }, null)
+      
+      // Key Performance Indicators
+      lines.push('KEY PERFORMANCE INDICATORS')
+      lines.push('Metric,Value')
+      lines.push(`Total Matches,${totalMatches}`)
+      lines.push(`Total Tries,${totalTries}`)
+      lines.push(`Total Tackles,${totalTackles}`)
+      lines.push(`Total Minutes,${totalMinutes}`)
       lines.push(`Average Tries per Match,${avgTries}`)
       lines.push(`Average Tackles per Match,${avgTackles}`)
+      lines.push(`Average Minutes per Match,${avgMinutes}`)
       lines.push('')
+      
+      // Best Performance
+      if (bestMatch && totalMatches > 0) {
+        const bestOpponent = bestMatch.matches?.opponent || 'Unknown'
+        const bestDate = bestMatch.matches?.match_date 
+          ? new Date(bestMatch.matches.match_date).toLocaleDateString()
+          : 'N/A'
+        lines.push('Best Performance')
+        lines.push(`Date,${bestDate}`)
+        const opponent = bestOpponent.includes(',') ? `"${bestOpponent}"` : bestOpponent
+        lines.push(`Opponent,${opponent}`)
+        lines.push(`Tries,${bestMatch.tries_scored || 0}`)
+        lines.push(`Tackles,${bestMatch.tackles_made || 0}`)
+        lines.push(`Minutes,${bestMatch.minutes_played || 0}`)
+        lines.push('')
+      }
       
       // Gym Statistics
       if (report.data.gymStats && (report.data.gymStats.benchPressPB || report.data.gymStats.squatPB || report.data.gymStats.deadliftPB)) {
@@ -326,9 +415,19 @@ export function generateCSVReport(report: ReportData): Blob {
       
       // Match Statistics
       if (report.data.matchStats && report.data.matchStats.length > 0) {
-        lines.push('Match Statistics')
+        lines.push('MATCH-BY-MATCH PERFORMANCE')
+        lines.push(`Showing ${totalMatches} match${totalMatches !== 1 ? 'es' : ''} | Sorted by date (most recent first)`)
+        lines.push('')
         lines.push('Date,Opponent,Tries,Tackles,Minutes')
-        report.data.matchStats.forEach((stat: any) => {
+        
+        // Sort matches by date (most recent first)
+        const sortedMatchStats = [...(report.data.matchStats || [])].sort((a: any, b: any) => {
+          const dateA = a.matches?.match_date ? new Date(a.matches.match_date).getTime() : 0
+          const dateB = b.matches?.match_date ? new Date(b.matches.match_date).getTime() : 0
+          return dateB - dateA
+        })
+        
+        sortedMatchStats.forEach((stat: any) => {
           const matchDate = stat.matches?.match_date 
             ? new Date(stat.matches.match_date).toLocaleDateString()
             : 'N/A'
@@ -346,12 +445,25 @@ export function generateCSVReport(report: ReportData): Blob {
         const presentCount = report.data.trainingAttendance.filter((att: any) => 
           att.attendance_status === 'P' || att.training_sessions?.attendance_status === 'P'
         ).length
+        const absentCount = report.data.trainingAttendance.filter((att: any) => 
+          att.attendance_status === 'X' || att.training_sessions?.attendance_status === 'X'
+        ).length
+        const justifiedCount = report.data.trainingAttendance.filter((att: any) => 
+          att.attendance_status === 'A' || att.training_sessions?.attendance_status === 'A'
+        ).length
+        const injuredCount = report.data.trainingAttendance.filter((att: any) => 
+          att.attendance_status === 'I' || att.training_sessions?.attendance_status === 'I'
+        ).length
         const attendanceRate = totalSessions > 0 ? Math.round((presentCount / totalSessions) * 100) : 0
         
-        lines.push('Training Attendance')
-        lines.push(`Total Training Sessions,${totalSessions}`)
-        lines.push(`Sessions Attended,${presentCount}`)
-        lines.push(`Attendance Rate,${attendanceRate}%`)
+        lines.push('TRAINING ATTENDANCE SUMMARY')
+        lines.push('Metric,Value')
+        lines.push(`Total Sessions,${totalSessions}`)
+        lines.push(`Present,${presentCount}`)
+        lines.push(`Absent (Unjustified),${absentCount}`)
+        lines.push(`Justified Absence,${justifiedCount}`)
+        lines.push(`Injured,${injuredCount}`)
+        lines.push(`Overall Attendance Rate,${attendanceRate}%`)
         lines.push('')
         
         if (totalSessions > 0 && totalSessions <= 30) {
@@ -375,7 +487,7 @@ export function generateCSVReport(report: ReportData): Blob {
     // Format match reports
     else if (report.type === 'match' && report.data.matchDetails) {
       const match = report.data.matchDetails
-      lines.push('Match Statistics Report')
+      lines.push('MATCH STATISTICS REPORT')
       lines.push('')
       lines.push(`Match,${match.opponent || 'Unknown'}`)
       lines.push(`Date,${new Date(match.match_date).toLocaleDateString()}`)
@@ -394,16 +506,27 @@ export function generateCSVReport(report: ReportData): Blob {
         const totalTries = report.data.playerStats.reduce((sum: number, stat: any) => sum + (stat.tries_scored || 0), 0)
         const totalTackles = report.data.playerStats.reduce((sum: number, stat: any) => sum + (stat.tackles_made || 0), 0)
         const totalMinutes = report.data.playerStats.reduce((sum: number, stat: any) => sum + (stat.minutes_played || 0), 0)
+        const avgTriesPerPlayer = totalPlayers > 0 ? (totalTries / totalPlayers).toFixed(2) : '0.00'
+        const avgTacklesPerPlayer = totalPlayers > 0 ? (totalTackles / totalPlayers).toFixed(2) : '0.00'
+        const avgMinutesPerPlayer = totalPlayers > 0 ? (totalMinutes / totalPlayers).toFixed(1) : '0.0'
         const topScorer = report.data.playerStats.reduce((top: any, stat: any) => 
           (stat.tries_scored || 0) > (top.tries_scored || 0) ? stat : top, report.data.playerStats[0])
         const topTackler = report.data.playerStats.reduce((top: any, stat: any) => 
           (stat.tackles_made || 0) > (top.tackles_made || 0) ? stat : top, report.data.playerStats[0])
         
-        lines.push('Match Summary')
+        lines.push('MATCH SUMMARY STATISTICS')
+        lines.push('Metric,Value')
         lines.push(`Players Participated,${totalPlayers}`)
         lines.push(`Total Tries Scored,${totalTries}`)
         lines.push(`Total Tackles Made,${totalTackles}`)
         lines.push(`Total Minutes Played,${totalMinutes}`)
+        lines.push(`Average Tries per Player,${avgTriesPerPlayer}`)
+        lines.push(`Average Tackles per Player,${avgTacklesPerPlayer}`)
+        lines.push(`Average Minutes per Player,${avgMinutesPerPlayer}`)
+        lines.push('')
+        
+        // Top Performers
+        lines.push('Top Performers')
         if (topScorer && topScorer.tries_scored > 0) {
           const scorerName = (topScorer.user_profiles?.name || 'Unknown').includes(',')
             ? `"${topScorer.user_profiles?.name || 'Unknown'}"`
@@ -419,7 +542,9 @@ export function generateCSVReport(report: ReportData): Blob {
         lines.push('')
         
         // Player Statistics Table
-        lines.push('Player Statistics')
+        lines.push('INDIVIDUAL PLAYER STATISTICS')
+        lines.push(`Showing ${totalPlayers} player${totalPlayers !== 1 ? 's' : ''} | Sorted by tries scored (highest first)`)
+        lines.push('')
         lines.push('Player Name,Tries,Tackles,Minutes')
         const sortedStats = [...report.data.playerStats].sort((a: any, b: any) => 
           (b.tries_scored || 0) - (a.tries_scored || 0)

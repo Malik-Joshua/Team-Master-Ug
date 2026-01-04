@@ -289,44 +289,94 @@ export async function POST(request: NextRequest) {
       
       // Format player reports
       if (report.type === 'player' && report.data.playerName) {
-        doc.setFontSize(14)
+        doc.setFontSize(16)
         doc.setFont('helvetica', 'bold')
         doc.setTextColor(26, 26, 26)
-        safeText('Player Performance Report', margin, yPos)
-        yPos += 8
+        safeText('PLAYER PERFORMANCE REPORT', pageWidth / 2, yPos, { align: 'center' })
+        yPos += 10
         
-        doc.setFontSize(12)
+        doc.setFontSize(13)
         doc.setFont('helvetica', 'bold')
-        safeText(`Player: ${report.data.playerName}`, margin, yPos)
-        yPos += 8
+        doc.setTextColor(51, 51, 51)
+        safeText(`Player: ${report.data.playerName}`, pageWidth / 2, yPos, { align: 'center' })
+        yPos += 12
         
-        // Calculate summary statistics
+        // Draw separator line
+        doc.setDrawColor(200, 200, 200)
+        doc.setLineWidth(0.5)
+        doc.line(margin, yPos, pageWidth - margin, yPos)
+        yPos += 10
+        
+        // Calculate comprehensive statistics
         const totalMatches = report.data.matchStats?.length || 0
         const totalTries = report.data.matchStats?.reduce((sum: number, stat: any) => sum + (stat.tries_scored || 0), 0) || 0
         const totalTackles = report.data.matchStats?.reduce((sum: number, stat: any) => sum + (stat.tackles_made || 0), 0) || 0
         const totalMinutes = report.data.matchStats?.reduce((sum: number, stat: any) => sum + (stat.minutes_played || 0), 0) || 0
-        const avgTries = totalMatches > 0 ? (totalTries / totalMatches).toFixed(2) : 0
-        const avgTackles = totalMatches > 0 ? (totalTackles / totalMatches).toFixed(2) : 0
+        const avgTries = totalMatches > 0 ? parseFloat((totalTries / totalMatches).toFixed(2)) : 0
+        const avgTackles = totalMatches > 0 ? parseFloat((totalTackles / totalMatches).toFixed(2)) : 0
+        const avgMinutes = totalMatches > 0 ? parseFloat((totalMinutes / totalMatches).toFixed(1)) : 0
         
-        // Overall Statistics Summary
-        doc.setFontSize(11)
+        // Find best performance
+        const bestMatch = report.data.matchStats?.reduce((best: any, stat: any) => {
+          const bestScore = (best?.tries_scored || 0) + (best?.tackles_made || 0)
+          const currentScore = (stat.tries_scored || 0) + (stat.tackles_made || 0)
+          return currentScore > bestScore ? stat : best
+        }, null)
+        
+        // Key Performance Indicators Section
+        doc.setFontSize(12)
         doc.setFont('helvetica', 'bold')
-        safeText('Overall Statistics:', margin, yPos)
-        yPos += 7
+        doc.setTextColor(26, 26, 26)
+        safeText('KEY PERFORMANCE INDICATORS', margin, yPos)
+        yPos += 8
+        
+        // Create a two-column layout for KPIs
+        const kpiLeftX = margin + 5
+        const kpiRightX = pageWidth / 2 + 10
+        const kpiLineHeight = 6
+        
         doc.setFontSize(10)
         doc.setFont('helvetica', 'normal')
         doc.setTextColor(51, 51, 51)
-        safeText(`Total Matches Played: ${totalMatches}`, margin + 5, yPos)
-        yPos += 6
-        safeText(`Total Tries Scored: ${totalTries}`, margin + 5, yPos)
-        yPos += 6
-        safeText(`Total Tackles Made: ${totalTackles}`, margin + 5, yPos)
-        yPos += 6
-        safeText(`Total Minutes Played: ${totalMinutes}`, margin + 5, yPos)
-        yPos += 6
-        safeText(`Average Tries per Match: ${avgTries}`, margin + 5, yPos)
-        yPos += 6
-        safeText(`Average Tackles per Match: ${avgTackles}`, margin + 5, yPos)
+        
+        // Left column
+        safeText(`Total Matches: ${totalMatches}`, kpiLeftX, yPos)
+        yPos += kpiLineHeight
+        safeText(`Total Tries: ${totalTries}`, kpiLeftX, yPos)
+        yPos += kpiLineHeight
+        safeText(`Total Tackles: ${totalTackles}`, kpiLeftX, yPos)
+        yPos += kpiLineHeight
+        safeText(`Total Minutes: ${totalMinutes}`, kpiLeftX, yPos)
+        
+        // Right column
+        const rightYStart = yPos - (kpiLineHeight * 3)
+        safeText(`Avg Tries/Match: ${avgTries}`, kpiRightX, rightYStart)
+        safeText(`Avg Tackles/Match: ${avgTackles}`, kpiRightX, rightYStart + kpiLineHeight)
+        safeText(`Avg Minutes/Match: ${avgMinutes}`, kpiRightX, rightYStart + (kpiLineHeight * 2))
+        
+        yPos += kpiLineHeight + 8
+        
+        // Best Performance Highlight
+        if (bestMatch && totalMatches > 0) {
+          doc.setFontSize(10)
+          doc.setFont('helvetica', 'bold')
+          doc.setTextColor(26, 26, 26)
+          const bestOpponent = bestMatch.matches?.opponent || 'Unknown'
+          const bestDate = bestMatch.matches?.match_date 
+            ? new Date(bestMatch.matches.match_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+            : 'N/A'
+          safeText(`Best Performance: ${bestDate} vs ${bestOpponent}`, margin + 5, yPos)
+          yPos += 6
+          doc.setFont('helvetica', 'normal')
+          doc.setTextColor(51, 51, 51)
+          safeText(`  Tries: ${bestMatch.tries_scored || 0} | Tackles: ${bestMatch.tackles_made || 0} | Minutes: ${bestMatch.minutes_played || 0}`, margin + 5, yPos)
+          yPos += 10
+        }
+        
+        // Draw separator
+        doc.setDrawColor(220, 220, 220)
+        doc.setLineWidth(0.3)
+        doc.line(margin, yPos, pageWidth - margin, yPos)
         yPos += 10
         
         // Gym Statistics
@@ -380,57 +430,107 @@ export async function POST(request: NextRequest) {
             doc.addPage()
             yPos = margin
           }
-          doc.setFontSize(11)
+          
+          // Section header
+          doc.setFontSize(12)
           doc.setFont('helvetica', 'bold')
           doc.setTextColor(26, 26, 26)
-          safeText('Match Statistics:', margin, yPos)
+          safeText('MATCH-BY-MATCH PERFORMANCE', margin, yPos)
+          yPos += 8
+          
+          // Summary before table
+          doc.setFontSize(9)
+          doc.setFont('helvetica', 'normal')
+          doc.setTextColor(102, 102, 102)
+          safeText(`Showing ${totalMatches} match${totalMatches !== 1 ? 'es' : ''} | Sorted by date (most recent first)`, margin + 5, yPos)
           yPos += 7
           
+          // Table header with background
+          doc.setFillColor(240, 240, 240)
+          doc.rect(margin + 5, yPos - 4, pageWidth - (margin * 2) - 10, 6, 'F')
           doc.setFontSize(9)
           doc.setFont('helvetica', 'bold')
-          safeText('Date', margin + 5, yPos)
-          safeText('Opponent', margin + 35, yPos)
+          doc.setTextColor(26, 26, 26)
+          safeText('Date', margin + 8, yPos)
+          safeText('Opponent', margin + 38, yPos)
           safeText('Tries', margin + 75, yPos)
           safeText('Tackles', margin + 85, yPos)
           safeText('Minutes', margin + 100, yPos)
-          yPos += 5
+          yPos += 6
           doc.setDrawColor(200, 200, 200)
-          doc.setLineWidth(0.2)
+          doc.setLineWidth(0.3)
           doc.line(margin + 5, yPos, pageWidth - margin - 5, yPos)
           yPos += 4
           
+          // Sort matches by date (most recent first)
+          const sortedMatchStats = [...(report.data.matchStats || [])].sort((a: any, b: any) => {
+            const dateA = a.matches?.match_date ? new Date(a.matches.match_date).getTime() : 0
+            const dateB = b.matches?.match_date ? new Date(b.matches.match_date).getTime() : 0
+            return dateB - dateA
+          })
+          
           doc.setFont('helvetica', 'normal')
-          report.data.matchStats.forEach((stat: any) => {
+          doc.setFontSize(9)
+          sortedMatchStats.forEach((stat: any, index: number) => {
             if (yPos > pageHeight - 20) {
               doc.addPage()
               yPos = margin
               // Re-add headers on new page
+              doc.setFillColor(240, 240, 240)
+              doc.rect(margin + 5, yPos - 4, pageWidth - (margin * 2) - 10, 6, 'F')
               doc.setFontSize(9)
               doc.setFont('helvetica', 'bold')
-              safeText('Date', margin + 5, yPos)
-              safeText('Opponent', margin + 35, yPos)
+              doc.setTextColor(26, 26, 26)
+              safeText('Date', margin + 8, yPos)
+              safeText('Opponent', margin + 38, yPos)
               safeText('Tries', margin + 75, yPos)
               safeText('Tackles', margin + 85, yPos)
               safeText('Minutes', margin + 100, yPos)
-              yPos += 5
+              yPos += 6
               doc.setDrawColor(200, 200, 200)
-              doc.setLineWidth(0.2)
+              doc.setLineWidth(0.3)
               doc.line(margin + 5, yPos, pageWidth - margin - 5, yPos)
               yPos += 4
               doc.setFont('helvetica', 'normal')
+              doc.setFontSize(9)
             }
+            
+            // Alternate row background for readability
+            if (index % 2 === 0) {
+              doc.setFillColor(250, 250, 250)
+              doc.rect(margin + 5, yPos - 3, pageWidth - (margin * 2) - 10, 5, 'F')
+            }
+            
             const matchDate = stat.matches?.match_date 
               ? new Date(stat.matches.match_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
               : 'N/A'
             const opponent = stat.matches?.opponent || 'N/A'
-            safeText(matchDate.substring(0, 12), margin + 5, yPos)
-            safeText(opponent.substring(0, 20), margin + 35, yPos)
+            doc.setTextColor(51, 51, 51)
+            safeText(matchDate.substring(0, 12), margin + 8, yPos)
+            safeText(opponent.substring(0, 22), margin + 38, yPos)
+            // Highlight tries and tackles in bold if they're above average
+            if ((stat.tries_scored || 0) >= avgTries) {
+              doc.setFont('helvetica', 'bold')
+              doc.setTextColor(26, 26, 26)
+            } else {
+              doc.setFont('helvetica', 'normal')
+              doc.setTextColor(102, 102, 102)
+            }
             safeText(String(stat.tries_scored || 0), margin + 75, yPos)
+            if ((stat.tackles_made || 0) >= avgTackles) {
+              doc.setFont('helvetica', 'bold')
+              doc.setTextColor(26, 26, 26)
+            } else {
+              doc.setFont('helvetica', 'normal')
+              doc.setTextColor(102, 102, 102)
+            }
             safeText(String(stat.tackles_made || 0), margin + 85, yPos)
+            doc.setFont('helvetica', 'normal')
+            doc.setTextColor(51, 51, 51)
             safeText(String(stat.minutes_played || 0), margin + 100, yPos)
             yPos += 5
           })
-          yPos += 8
+          yPos += 10
         }
         
         // Training Attendance
@@ -439,28 +539,69 @@ export async function POST(request: NextRequest) {
             doc.addPage()
             yPos = margin
           }
-          doc.setFontSize(11)
+          
+          // Draw separator
+          doc.setDrawColor(220, 220, 220)
+          doc.setLineWidth(0.3)
+          doc.line(margin, yPos, pageWidth - margin, yPos)
+          yPos += 10
+          
+          doc.setFontSize(12)
           doc.setFont('helvetica', 'bold')
           doc.setTextColor(26, 26, 26)
-          safeText('Training Attendance:', margin, yPos)
-          yPos += 7
+          safeText('TRAINING ATTENDANCE SUMMARY', margin, yPos)
+          yPos += 8
           
-          // Calculate attendance statistics
+          // Calculate comprehensive attendance statistics
           const totalSessions = report.data.trainingAttendance.length
           const presentCount = report.data.trainingAttendance.filter((att: any) => 
             att.attendance_status === 'P' || att.training_sessions?.attendance_status === 'P'
           ).length
+          const absentCount = report.data.trainingAttendance.filter((att: any) => 
+            att.attendance_status === 'X' || att.training_sessions?.attendance_status === 'X'
+          ).length
+          const justifiedCount = report.data.trainingAttendance.filter((att: any) => 
+            att.attendance_status === 'A' || att.training_sessions?.attendance_status === 'A'
+          ).length
+          const injuredCount = report.data.trainingAttendance.filter((att: any) => 
+            att.attendance_status === 'I' || att.training_sessions?.attendance_status === 'I'
+          ).length
           const attendanceRate = totalSessions > 0 ? Math.round((presentCount / totalSessions) * 100) : 0
+          
+          // Attendance statistics in two columns
+          const attLeftX = margin + 5
+          const attRightX = pageWidth / 2 + 10
+          const attLineHeight = 6
           
           doc.setFontSize(10)
           doc.setFont('helvetica', 'normal')
           doc.setTextColor(51, 51, 51)
-          safeText(`Total Training Sessions: ${totalSessions}`, margin + 5, yPos)
-          yPos += 6
-          safeText(`Sessions Attended: ${presentCount}`, margin + 5, yPos)
-          yPos += 6
-          safeText(`Attendance Rate: ${attendanceRate}%`, margin + 5, yPos)
-          yPos += 8
+          
+          safeText(`Total Sessions: ${totalSessions}`, attLeftX, yPos)
+          yPos += attLineHeight
+          safeText(`Present: ${presentCount}`, attLeftX, yPos)
+          yPos += attLineHeight
+          safeText(`Absent (Unjustified): ${absentCount}`, attLeftX, yPos)
+          
+          const attRightYStart = yPos - (attLineHeight * 2)
+          safeText(`Justified Absence: ${justifiedCount}`, attRightX, attRightYStart)
+          safeText(`Injured: ${injuredCount}`, attRightX, attRightYStart + attLineHeight)
+          
+          yPos += attLineHeight + 6
+          
+          // Attendance rate with visual indicator
+          doc.setFont('helvetica', 'bold')
+          doc.setFontSize(11)
+          if (attendanceRate >= 80) {
+            doc.setTextColor(34, 139, 34) // Green for good attendance
+          } else if (attendanceRate >= 60) {
+            doc.setTextColor(255, 140, 0) // Orange for moderate
+          } else {
+            doc.setTextColor(220, 20, 60) // Red for poor
+          }
+          safeText(`Overall Attendance Rate: ${attendanceRate}%`, margin + 5, yPos)
+          doc.setTextColor(51, 51, 51)
+          yPos += 10
           
           // Training sessions table
           if (totalSessions > 0 && totalSessions <= 20) {
@@ -539,35 +680,63 @@ export async function POST(request: NextRequest) {
           const totalTries = report.data.playerStats.reduce((sum: number, stat: any) => sum + (stat.tries_scored || 0), 0)
           const totalTackles = report.data.playerStats.reduce((sum: number, stat: any) => sum + (stat.tackles_made || 0), 0)
           const totalMinutes = report.data.playerStats.reduce((sum: number, stat: any) => sum + (stat.minutes_played || 0), 0)
+          const avgTriesPerPlayer = totalPlayers > 0 ? parseFloat((totalTries / totalPlayers).toFixed(2)) : 0
+          const avgTacklesPerPlayer = totalPlayers > 0 ? parseFloat((totalTackles / totalPlayers).toFixed(2)) : 0
+          const avgMinutesPerPlayer = totalPlayers > 0 ? parseFloat((totalMinutes / totalPlayers).toFixed(1)) : 0
+          
           const topScorer = report.data.playerStats.reduce((top: any, stat: any) => 
             (stat.tries_scored || 0) > (top.tries_scored || 0) ? stat : top, report.data.playerStats[0])
           const topTackler = report.data.playerStats.reduce((top: any, stat: any) => 
             (stat.tackles_made || 0) > (top.tackles_made || 0) ? stat : top, report.data.playerStats[0])
           
-          doc.setFontSize(11)
+          // Draw separator
+          doc.setDrawColor(200, 200, 200)
+          doc.setLineWidth(0.5)
+          doc.line(margin, yPos, pageWidth - margin, yPos)
+          yPos += 10
+          
+          doc.setFontSize(12)
           doc.setFont('helvetica', 'bold')
           doc.setTextColor(26, 26, 26)
-          safeText('Match Summary:', margin, yPos)
-          yPos += 7
+          safeText('MATCH SUMMARY STATISTICS', margin, yPos)
+          yPos += 8
+          
+          // Two-column layout for match stats
+          const matchLeftX = margin + 5
+          const matchRightX = pageWidth / 2 + 10
+          const matchLineHeight = 6
+          
           doc.setFontSize(10)
           doc.setFont('helvetica', 'normal')
           doc.setTextColor(51, 51, 51)
-          safeText(`Players Participated: ${totalPlayers}`, margin + 5, yPos)
-          yPos += 6
-          safeText(`Total Tries Scored: ${totalTries}`, margin + 5, yPos)
-          yPos += 6
-          safeText(`Total Tackles Made: ${totalTackles}`, margin + 5, yPos)
-          yPos += 6
-          safeText(`Total Minutes Played: ${totalMinutes}`, margin + 5, yPos)
-          yPos += 6
+          
+          safeText(`Players Participated: ${totalPlayers}`, matchLeftX, yPos)
+          yPos += matchLineHeight
+          safeText(`Total Tries Scored: ${totalTries}`, matchLeftX, yPos)
+          yPos += matchLineHeight
+          safeText(`Total Tackles Made: ${totalTackles}`, matchLeftX, yPos)
+          yPos += matchLineHeight
+          safeText(`Total Minutes Played: ${totalMinutes}`, matchLeftX, yPos)
+          
+          const matchRightYStart = yPos - (matchLineHeight * 3)
+          safeText(`Avg Tries/Player: ${avgTriesPerPlayer}`, matchRightX, matchRightYStart)
+          safeText(`Avg Tackles/Player: ${avgTacklesPerPlayer}`, matchRightX, matchRightYStart + matchLineHeight)
+          safeText(`Avg Minutes/Player: ${avgMinutesPerPlayer}`, matchRightX, matchRightYStart + (matchLineHeight * 2))
+          
+          yPos += matchLineHeight + 8
+          
+          // Top performers highlight
+          doc.setFontSize(10)
+          doc.setFont('helvetica', 'bold')
+          doc.setTextColor(26, 26, 26)
           if (topScorer && topScorer.tries_scored > 0) {
             const scorerName = topScorer.user_profiles?.name || 'Unknown'
-            safeText(`Top Scorer: ${scorerName} (${topScorer.tries_scored} tries)`, margin + 5, yPos)
+            safeText(`🏆 Top Scorer: ${scorerName} (${topScorer.tries_scored} tries)`, margin + 5, yPos)
             yPos += 6
           }
           if (topTackler && topTackler.tackles_made > 0) {
             const tacklerName = topTackler.user_profiles?.name || 'Unknown'
-            safeText(`Top Tackler: ${tacklerName} (${topTackler.tackles_made} tackles)`, margin + 5, yPos)
+            safeText(`🏆 Top Tackler: ${tacklerName} (${topTackler.tackles_made} tackles)`, margin + 5, yPos)
             yPos += 6
           }
           yPos += 8
@@ -579,21 +748,39 @@ export async function POST(request: NextRequest) {
             doc.addPage()
             yPos = margin
           }
-          doc.setFontSize(11)
+          
+          // Draw separator
+          doc.setDrawColor(220, 220, 220)
+          doc.setLineWidth(0.3)
+          doc.line(margin, yPos, pageWidth - margin, yPos)
+          yPos += 10
+          
+          doc.setFontSize(12)
           doc.setFont('helvetica', 'bold')
           doc.setTextColor(26, 26, 26)
-          safeText('Player Statistics:', margin, yPos)
+          safeText('INDIVIDUAL PLAYER STATISTICS', margin, yPos)
+          yPos += 8
+          
+          // Summary before table
+          doc.setFontSize(9)
+          doc.setFont('helvetica', 'normal')
+          doc.setTextColor(102, 102, 102)
+          safeText(`Showing ${report.data.playerStats.length} player${report.data.playerStats.length !== 1 ? 's' : ''} | Sorted by tries scored (highest first)`, margin + 5, yPos)
           yPos += 7
           
+          // Table header with background
+          doc.setFillColor(240, 240, 240)
+          doc.rect(margin + 5, yPos - 4, pageWidth - (margin * 2) - 10, 6, 'F')
           doc.setFontSize(9)
           doc.setFont('helvetica', 'bold')
-          safeText('Player Name', margin + 5, yPos)
+          doc.setTextColor(26, 26, 26)
+          safeText('Player Name', margin + 8, yPos)
           safeText('Tries', margin + 70, yPos)
           safeText('Tackles', margin + 80, yPos)
           safeText('Minutes', margin + 95, yPos)
-          yPos += 5
+          yPos += 6
           doc.setDrawColor(200, 200, 200)
-          doc.setLineWidth(0.2)
+          doc.setLineWidth(0.3)
           doc.line(margin + 5, yPos, pageWidth - margin - 5, yPos)
           yPos += 4
           
@@ -603,28 +790,64 @@ export async function POST(request: NextRequest) {
             (b.tries_scored || 0) - (a.tries_scored || 0)
           )
           
-          sortedStats.forEach((stat: any) => {
+          // Calculate averages for highlighting
+          const avgTries = totalPlayers > 0 ? totalTries / totalPlayers : 0
+          const avgTackles = totalPlayers > 0 ? totalTackles / totalPlayers : 0
+          
+          sortedStats.forEach((stat: any, index: number) => {
             if (yPos > pageHeight - 20) {
               doc.addPage()
               yPos = margin
               // Re-add headers on new page
+              doc.setFillColor(240, 240, 240)
+              doc.rect(margin + 5, yPos - 4, pageWidth - (margin * 2) - 10, 6, 'F')
               doc.setFontSize(9)
               doc.setFont('helvetica', 'bold')
-              safeText('Player Name', margin + 5, yPos)
+              doc.setTextColor(26, 26, 26)
+              safeText('Player Name', margin + 8, yPos)
               safeText('Tries', margin + 70, yPos)
               safeText('Tackles', margin + 80, yPos)
               safeText('Minutes', margin + 95, yPos)
-              yPos += 5
+              yPos += 6
               doc.setDrawColor(200, 200, 200)
-              doc.setLineWidth(0.2)
+              doc.setLineWidth(0.3)
               doc.line(margin + 5, yPos, pageWidth - margin - 5, yPos)
               yPos += 4
               doc.setFont('helvetica', 'normal')
+              doc.setFontSize(9)
             }
+            
+            // Alternate row background
+            if (index % 2 === 0) {
+              doc.setFillColor(250, 250, 250)
+              doc.rect(margin + 5, yPos - 3, pageWidth - (margin * 2) - 10, 5, 'F')
+            }
+            
             const playerName = stat.user_profiles?.name || 'Unknown'
-            safeText(playerName.substring(0, 50), margin + 5, yPos)
+            doc.setTextColor(51, 51, 51)
+            safeText(playerName.substring(0, 48), margin + 8, yPos)
+            
+            // Highlight above-average performers
+            if ((stat.tries_scored || 0) >= avgTries) {
+              doc.setFont('helvetica', 'bold')
+              doc.setTextColor(26, 26, 26)
+            } else {
+              doc.setFont('helvetica', 'normal')
+              doc.setTextColor(102, 102, 102)
+            }
             safeText(String(stat.tries_scored || 0), margin + 70, yPos)
+            
+            if ((stat.tackles_made || 0) >= avgTackles) {
+              doc.setFont('helvetica', 'bold')
+              doc.setTextColor(26, 26, 26)
+            } else {
+              doc.setFont('helvetica', 'normal')
+              doc.setTextColor(102, 102, 102)
+            }
             safeText(String(stat.tackles_made || 0), margin + 80, yPos)
+            
+            doc.setFont('helvetica', 'normal')
+            doc.setTextColor(51, 51, 51)
             safeText(String(stat.minutes_played || 0), margin + 95, yPos)
             yPos += 5
           })

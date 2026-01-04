@@ -674,12 +674,14 @@ export async function POST(request: NextRequest) {
         }
         yPos += 5
         
+        // Calculate match statistics (available for both summary and table sections)
+        const totalPlayers = report.data.playerStats?.length || 0
+        const totalTries = report.data.playerStats?.reduce((sum: number, stat: any) => sum + (stat.tries_scored || 0), 0) || 0
+        const totalTackles = report.data.playerStats?.reduce((sum: number, stat: any) => sum + (stat.tackles_made || 0), 0) || 0
+        const totalMinutes = report.data.playerStats?.reduce((sum: number, stat: any) => sum + (stat.minutes_played || 0), 0) || 0
+        
         // Match Summary Statistics
         if (report.data.playerStats && report.data.playerStats.length > 0) {
-          const totalPlayers = report.data.playerStats.length
-          const totalTries = report.data.playerStats.reduce((sum: number, stat: any) => sum + (stat.tries_scored || 0), 0)
-          const totalTackles = report.data.playerStats.reduce((sum: number, stat: any) => sum + (stat.tackles_made || 0), 0)
-          const totalMinutes = report.data.playerStats.reduce((sum: number, stat: any) => sum + (stat.minutes_played || 0), 0)
           const avgTriesPerPlayer = totalPlayers > 0 ? parseFloat((totalTries / totalPlayers).toFixed(2)) : 0
           const avgTacklesPerPlayer = totalPlayers > 0 ? parseFloat((totalTackles / totalPlayers).toFixed(2)) : 0
           const avgMinutesPerPlayer = totalPlayers > 0 ? parseFloat((totalMinutes / totalPlayers).toFixed(1)) : 0

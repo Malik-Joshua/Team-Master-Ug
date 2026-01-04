@@ -279,8 +279,29 @@ export default function PerformancePage() {
               // Training sessions attended (where team manager recorded attendance)
               const trainingSessions = await db.getTeamManagerTrainingSessionsAttended(authUser.id)
               
-              // Injury reports
-              const injuries = await db.getInjuryReports()
+              // Injury reports - use API route to bypass RLS
+              let injuries: any[] = []
+              try {
+                const injuryResponse = await fetch('/api/admin/injury-reports', {
+                  cache: 'no-store',
+                  headers: {
+                    'Cache-Control': 'no-cache',
+                  }
+                })
+                if (injuryResponse.ok) {
+                  const injuryData = await injuryResponse.json()
+                  injuries = injuryData.injuries || []
+                  console.log('Loaded injury reports from API:', injuries.length)
+                } else {
+                  console.error('Error fetching injury reports:', await injuryResponse.json())
+                  // Fallback to db helper
+                  injuries = await db.getInjuryReports()
+                }
+              } catch (injuryError) {
+                console.error('Error loading injury reports:', injuryError)
+                // Fallback to db helper
+                injuries = await db.getInjuryReports()
+              }
               
               // Matches created by team manager
               const matches = await db.getTeamManagerMatches(authUser.id)

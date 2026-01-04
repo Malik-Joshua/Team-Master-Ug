@@ -317,14 +317,46 @@ export const db = {
     const supabase = createClient()
     const today = new Date().toISOString().split('T')[0]
     
-    const { data, error } = await supabase
+    // Get all matches with date >= today
+    const { data: allMatches, error } = await supabase
       .from('matches')
-      .select('*')
+      .select('id, match_date')
       .gte('match_date', today)
       .order('match_date', { ascending: true })
     
     if (error) throw error
-    return data || []
+    if (!allMatches || allMatches.length === 0) return []
+    
+    // Get match IDs that have stats entered (already played)
+    const matchIds = allMatches.map(m => m.id)
+    const { data: matchesWithStats } = await supabase
+      .from('match_stats')
+      .select('match_id')
+      .in('match_id', matchIds)
+    
+    const playedMatchIds = new Set(matchesWithStats?.map((s: any) => s.match_id) || [])
+    
+    // Filter out matches that have been played (date passed OR stats exist)
+    const upcomingMatches = allMatches.filter((match: any) => {
+      const matchDate = new Date(match.match_date)
+      const todayDate = new Date(today)
+      const isDatePassed = matchDate < todayDate
+      const hasStats = playedMatchIds.has(match.id)
+      return !isDatePassed && !hasStats
+    })
+    
+    // Get full match details for upcoming matches
+    if (upcomingMatches.length === 0) return []
+    
+    const upcomingMatchIds = upcomingMatches.map(m => m.id)
+    const { data: fullMatches, error: fullError } = await supabase
+      .from('matches')
+      .select('*')
+      .in('id', upcomingMatchIds)
+      .order('match_date', { ascending: true })
+    
+    if (fullError) throw fullError
+    return fullMatches || []
   },
 
   async getAvailablePlayers() {

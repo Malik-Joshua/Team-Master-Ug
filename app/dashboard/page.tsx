@@ -398,7 +398,11 @@ export default function DashboardPage() {
                         teammates: data.teammates || [], // Include teammates
                       })
                     } else {
-                      setPlayerFixtureSelection(null)
+                      // Player not selected, but show match info
+                      setPlayerFixtureSelection({
+                        isSelected: false,
+                        match: data.match,
+                      })
                     }
                   } else {
                     setPlayerFixtureSelection(null)
@@ -588,7 +592,8 @@ export default function DashboardPage() {
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
               </div>
             </div>
-          ) : playerFixtureSelection && playerFixtureSelection.isSelected ? (
+          ) : playerFixtureSelection && playerFixtureSelection.match ? (
+            playerFixtureSelection.isSelected ? (
             <div className="bg-white rounded-card p-6 border-2 border-primary shadow-soft">
               <div className="flex items-start gap-4">
                 <div className="flex-shrink-0">
@@ -681,6 +686,54 @@ export default function DashboardPage() {
                 </div>
               </div>
             </div>
+            ) : (
+              <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0">
+                    <div className="w-16 h-16 rounded-full bg-neutral-light flex items-center justify-center">
+                      <Trophy className="w-8 h-8 text-neutral-medium" />
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-xl font-bold text-neutral-text mb-3">Upcoming Fixture</h3>
+                    <div className="bg-neutral-light rounded-lg p-4 mb-4">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <p className="text-xs font-semibold text-neutral-medium uppercase mb-1">Match Date</p>
+                          <p className="text-sm font-semibold text-neutral-text">
+                            {new Date(playerFixtureSelection.match.match_date).toLocaleDateString('en-US', {
+                              weekday: 'long',
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric',
+                            })}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-neutral-medium uppercase mb-1">Opponent</p>
+                          <p className="text-sm font-semibold text-neutral-text">{playerFixtureSelection.match.opponent}</p>
+                        </div>
+                        {playerFixtureSelection.match.venue && (
+                          <div>
+                            <p className="text-xs font-semibold text-neutral-medium uppercase mb-1">Venue</p>
+                            <p className="text-sm font-semibold text-neutral-text">{playerFixtureSelection.match.venue}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="bg-warning/10 border border-warning/20 rounded-lg p-4">
+                      <div className="flex items-center gap-3">
+                        <Trophy className="w-5 h-5 text-warning" />
+                        <div>
+                          <h4 className="text-sm font-semibold text-neutral-text mb-1">You have not been selected</h4>
+                          <p className="text-xs text-neutral-medium">Check back later for updates on team selection.</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )
           ) : (
             <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
               <div className="flex items-center gap-4">
@@ -690,8 +743,8 @@ export default function DashboardPage() {
                   </div>
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-neutral-text mb-1">No Selection Yet</h3>
-                  <p className="text-sm text-neutral-medium">You haven&apos;t been selected for the upcoming fixture. Check back later for updates.</p>
+                  <h3 className="text-lg font-semibold text-neutral-text mb-1">No Upcoming Fixtures</h3>
+                  <p className="text-sm text-neutral-medium">There are no upcoming fixtures scheduled at this time.</p>
                 </div>
               </div>
             </div>

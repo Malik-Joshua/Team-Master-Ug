@@ -52,13 +52,14 @@ export async function GET(request: NextRequest) {
     })
 
     // Get matches - all matches if requested, otherwise just upcoming
+    const today = new Date().toISOString().split('T')[0]
     let query = supabaseAdmin
       .from('matches')
       .select('*')
     
     if (!allMatches) {
-      // Only upcoming matches
-      query = query.gte('match_date', new Date().toISOString().split('T')[0])
+      // Only matches with date >= today
+      query = query.gte('match_date', today)
     }
     
     query = query.order('match_date', { ascending: true })
@@ -71,6 +72,39 @@ export async function GET(request: NextRequest) {
         { error: `Failed to fetch fixtures: ${error.message}` },
         { status: 500 }
       )
+    }
+
+    if (!fixtures || fixtures.length === 0) {
+      return NextResponse.json({ 
+        fixtures: [],
+        count: 0
+      })
+    }
+
+    // Filter out matches that have been played (date passed OR match stats exist)
+    if (!allMatches) {
+      // Get match IDs that have stats entered (already played)
+      const matchIds = fixtures.map((m: any) => m.id)
+      const { data: matchesWithStats } = await supabaseAdmin
+        .from('match_stats')
+        .select('match_id')
+        .in('match_id', matchIds)
+      
+      const playedMatchIds = new Set(matchesWithStats?.map((s: any) => s.match_id) || [])
+      
+      // Filter out matches that have been played
+      const upcomingFixtures = fixtures.filter((match: any) => {
+        const matchDate = new Date(match.match_date)
+        const todayDate = new Date(today)
+        const isDatePassed = matchDate < todayDate
+        const hasStats = playedMatchIds.has(match.id)
+        return !isDatePassed && !hasStats
+      })
+      
+      return NextResponse.json({ 
+        fixtures: upcomingFixtures,
+        count: upcomingFixtures.length
+      })
     }
 
     return NextResponse.json({ 

@@ -40,16 +40,39 @@ export async function GET(request: NextRequest) {
         }
       })
 
-      // Get upcoming matches
+      // Get upcoming matches (not played yet)
       const today = new Date().toISOString().split('T')[0]
-      const { data: upcomingMatches } = await supabaseAdmin
+      const { data: allMatches } = await supabaseAdmin
         .from('matches')
         .select('id, match_date, opponent, venue, tournament_type')
         .gte('match_date', today)
         .order('match_date', { ascending: true })
-        .limit(1)
 
-      if (!upcomingMatches || upcomingMatches.length === 0) {
+      if (!allMatches || allMatches.length === 0) {
+        return NextResponse.json({
+          isSelected: false,
+          message: 'No upcoming matches found'
+        })
+      }
+
+      // Filter out matches that have been played (date passed OR match stats exist)
+      const matchIds = allMatches.map((m: any) => m.id)
+      const { data: matchesWithStats } = await supabaseAdmin
+        .from('match_stats')
+        .select('match_id')
+        .in('match_id', matchIds)
+      
+      const playedMatchIds = new Set(matchesWithStats?.map((s: any) => s.match_id) || [])
+      
+      const upcomingMatches = allMatches.filter((match: any) => {
+        const matchDate = new Date(match.match_date)
+        const todayDate = new Date(today)
+        const isDatePassed = matchDate < todayDate
+        const hasStats = playedMatchIds.has(match.id)
+        return !isDatePassed && !hasStats
+      })
+
+      if (upcomingMatches.length === 0) {
         return NextResponse.json({
           isSelected: false,
           message: 'No upcoming matches found'

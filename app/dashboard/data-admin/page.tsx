@@ -6,6 +6,7 @@ import StatCard from '@/components/StatCard'
 import { Users, Activity, BarChart3, Calendar, Trophy, Plus, X, Save, MapPin } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import RefreshButton from '@/components/RefreshButton'
+import { isActivityPast } from '@/lib/utils'
 
 interface Player {
   user_id: string
@@ -235,6 +236,12 @@ export default function DataAdminDashboard() {
       return
     }
 
+    // Validate that the match date has passed
+    if (!isActivityPast(matchForm.match_date, null)) {
+      alert('Cannot enter match stats for a future match. The match must have occurred before stats can be entered.')
+      return
+    }
+
     setSaving(true)
     try {
       const supabase = createClient()
@@ -245,7 +252,7 @@ export default function DataAdminDashboard() {
         return
       }
 
-      // Update existing match record with stats
+      // Update existing match record with stats and mark as played
       const { error: matchError } = await supabase
         .from('matches')
         .update({
@@ -257,6 +264,7 @@ export default function DataAdminDashboard() {
           score_our_team: parseInt(matchForm.score_our_team) || 0,
           score_opponent: parseInt(matchForm.score_opponent) || 0,
           notes: matchForm.notes || null,
+          status: 'played', // Mark match as played when stats are entered
         })
         .eq('id', selectedMatchForStats)
 

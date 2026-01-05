@@ -310,12 +310,18 @@ export async function POST(request: NextRequest) {
       // Format player reports
       if (report.type === 'player') {
         // Log for debugging
+        const gymStatsForLog = (report.data?.gymStats || {}) as any
         console.log('Processing player report:', {
           hasPlayerName: !!report.data?.playerName,
           playerName: report.data?.playerName,
           hasMatchStats: !!(report.data?.matchStats?.length),
           matchStatsCount: report.data?.matchStats?.length || 0,
           hasGymStats: !!report.data?.gymStats,
+          gymStats: report.data?.gymStats,
+          gymStatsKeys: report.data?.gymStats ? Object.keys(report.data.gymStats) : [],
+          benchPressPB: gymStatsForLog.benchPressPB,
+          squatPB: gymStatsForLog.squatPB,
+          deadliftPB: gymStatsForLog.deadliftPB,
           hasTrainingAttendance: !!(report.data?.trainingAttendance?.length),
           trainingAttendanceCount: report.data?.trainingAttendance?.length || 0
         })
@@ -442,7 +448,10 @@ export async function POST(request: NextRequest) {
         doc.setFont('helvetica', 'normal')
         doc.setTextColor(102, 102, 102)
         const hasMatchStats = (report.data.matchStats?.length || 0) > 0
-        const hasGymStats = report.data.gymStats && (report.data.gymStats.benchPressPB || report.data.gymStats.squatPB || report.data.gymStats.deadliftPB)
+        const gymStatsForCompleteness = (report.data.gymStats || {}) as any
+        const hasGymStats = (gymStatsForCompleteness.benchPressPB !== null && gymStatsForCompleteness.benchPressPB !== undefined && gymStatsForCompleteness.benchPressPB > 0) ||
+                           (gymStatsForCompleteness.squatPB !== null && gymStatsForCompleteness.squatPB !== undefined && gymStatsForCompleteness.squatPB > 0) ||
+                           (gymStatsForCompleteness.deadliftPB !== null && gymStatsForCompleteness.deadliftPB !== undefined && gymStatsForCompleteness.deadliftPB > 0)
         const hasTrainingData = (report.data.trainingAttendance?.length || 0) > 0
         const dataCompleteness = [
           hasMatchStats ? '✓ Match Statistics' : '○ Match Statistics',
@@ -469,7 +478,13 @@ export async function POST(request: NextRequest) {
         safeText('GYM STATISTICS', margin, yPos)
         yPos += 8
         
-        if (report.data.gymStats && (report.data.gymStats.benchPressPB || report.data.gymStats.squatPB || report.data.gymStats.deadliftPB)) {
+        // Check for gym stats - handle both null and undefined, and check if values are > 0
+        const gymStats = (report.data.gymStats || {}) as any
+        const hasBenchPress = gymStats.benchPressPB !== null && gymStats.benchPressPB !== undefined && gymStats.benchPressPB > 0
+        const hasSquat = gymStats.squatPB !== null && gymStats.squatPB !== undefined && gymStats.squatPB > 0
+        const hasDeadlift = gymStats.deadliftPB !== null && gymStats.deadliftPB !== undefined && gymStats.deadliftPB > 0
+        
+        if (hasBenchPress || hasSquat || hasDeadlift) {
           doc.setFontSize(10)
           doc.setFont('helvetica', 'normal')
           doc.setTextColor(51, 51, 51)
@@ -486,19 +501,19 @@ export async function POST(request: NextRequest) {
           
           // Table rows
           doc.setFont('helvetica', 'normal')
-          if (report.data.gymStats.benchPressPB) {
+          if (hasBenchPress) {
             safeText('Bench Press', margin + 5, yPos)
-            safeText(`${report.data.gymStats.benchPressPB} kg`, margin + 60, yPos)
+            safeText(`${gymStats.benchPressPB} kg`, margin + 60, yPos)
             yPos += 6
           }
-          if (report.data.gymStats.squatPB) {
+          if (hasSquat) {
             safeText('Squat', margin + 5, yPos)
-            safeText(`${report.data.gymStats.squatPB} kg`, margin + 60, yPos)
+            safeText(`${gymStats.squatPB} kg`, margin + 60, yPos)
             yPos += 6
           }
-          if (report.data.gymStats.deadliftPB) {
+          if (hasDeadlift) {
             safeText('Deadlift', margin + 5, yPos)
-            safeText(`${report.data.gymStats.deadliftPB} kg`, margin + 60, yPos)
+            safeText(`${gymStats.deadliftPB} kg`, margin + 60, yPos)
             yPos += 6
           }
         } else {

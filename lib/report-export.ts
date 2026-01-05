@@ -122,16 +122,21 @@ export function generateExcelReport(report: ReportData): Blob {
       
       // Gym Statistics - Always show, even if empty
       metadata.push(['GYM STATISTICS'])
-      if (report.data.gymStats && (report.data.gymStats.benchPressPB || report.data.gymStats.squatPB || report.data.gymStats.deadliftPB)) {
+      const gymStats = (report.data.gymStats || {}) as any
+      const hasBenchPress = gymStats.benchPressPB !== null && gymStats.benchPressPB !== undefined && gymStats.benchPressPB > 0
+      const hasSquat = gymStats.squatPB !== null && gymStats.squatPB !== undefined && gymStats.squatPB > 0
+      const hasDeadlift = gymStats.deadliftPB !== null && gymStats.deadliftPB !== undefined && gymStats.deadliftPB > 0
+      
+      if (hasBenchPress || hasSquat || hasDeadlift) {
         metadata.push(['Exercise', 'Personal Best (kg)'])
-        if (report.data.gymStats.benchPressPB) {
-          metadata.push(['Bench Press', report.data.gymStats.benchPressPB])
+        if (hasBenchPress) {
+          metadata.push(['Bench Press', String(gymStats.benchPressPB)])
         }
-        if (report.data.gymStats.squatPB) {
-          metadata.push(['Squat', report.data.gymStats.squatPB])
+        if (hasSquat) {
+          metadata.push(['Squat', String(gymStats.squatPB)])
         }
-        if (report.data.gymStats.deadliftPB) {
-          metadata.push(['Deadlift', report.data.gymStats.deadliftPB])
+        if (hasDeadlift) {
+          metadata.push(['Deadlift', String(gymStats.deadliftPB)])
         }
       } else {
         metadata.push(['No gym statistics recorded'])
@@ -447,7 +452,10 @@ export function generateCSVReport(report: ReportData): Blob {
       
       // Data Completeness Indicator
       const hasMatchStats = (report.data.matchStats?.length || 0) > 0
-      const hasGymStats = report.data.gymStats && (report.data.gymStats.benchPressPB || report.data.gymStats.squatPB || report.data.gymStats.deadliftPB)
+      const gymStatsForCheckCSV = (report.data.gymStats || {}) as any
+      const hasGymStats = (gymStatsForCheckCSV.benchPressPB !== null && gymStatsForCheckCSV.benchPressPB !== undefined && gymStatsForCheckCSV.benchPressPB > 0) ||
+                         (gymStatsForCheckCSV.squatPB !== null && gymStatsForCheckCSV.squatPB !== undefined && gymStatsForCheckCSV.squatPB > 0) ||
+                         (gymStatsForCheckCSV.deadliftPB !== null && gymStatsForCheckCSV.deadliftPB !== undefined && gymStatsForCheckCSV.deadliftPB > 0)
       const hasTrainingData = (report.data.trainingAttendance?.length || 0) > 0
       lines.push('Data Completeness')
       lines.push(`Match Statistics,${hasMatchStats ? 'Available' : 'Not Available'}`)
@@ -473,16 +481,21 @@ export function generateCSVReport(report: ReportData): Blob {
       
       // Gym Statistics - Always show, even if empty
       lines.push('GYM STATISTICS')
-      if (report.data.gymStats && (report.data.gymStats.benchPressPB || report.data.gymStats.squatPB || report.data.gymStats.deadliftPB)) {
+      const gymStatsCSV = (report.data.gymStats || {}) as any
+      const hasBenchPressCSV = gymStatsCSV.benchPressPB !== null && gymStatsCSV.benchPressPB !== undefined && gymStatsCSV.benchPressPB > 0
+      const hasSquatCSV = gymStatsCSV.squatPB !== null && gymStatsCSV.squatPB !== undefined && gymStatsCSV.squatPB > 0
+      const hasDeadliftCSV = gymStatsCSV.deadliftPB !== null && gymStatsCSV.deadliftPB !== undefined && gymStatsCSV.deadliftPB > 0
+      
+      if (hasBenchPressCSV || hasSquatCSV || hasDeadliftCSV) {
         lines.push('Exercise,Personal Best (kg)')
-        if (report.data.gymStats.benchPressPB) {
-          lines.push(`Bench Press,${report.data.gymStats.benchPressPB}`)
+        if (hasBenchPressCSV) {
+          lines.push(`Bench Press,${gymStatsCSV.benchPressPB}`)
         }
-        if (report.data.gymStats.squatPB) {
-          lines.push(`Squat,${report.data.gymStats.squatPB}`)
+        if (hasSquatCSV) {
+          lines.push(`Squat,${gymStatsCSV.squatPB}`)
         }
-        if (report.data.gymStats.deadliftPB) {
-          lines.push(`Deadlift,${report.data.gymStats.deadliftPB}`)
+        if (hasDeadliftCSV) {
+          lines.push(`Deadlift,${gymStatsCSV.deadliftPB}`)
         }
       } else {
         lines.push('No gym statistics recorded')

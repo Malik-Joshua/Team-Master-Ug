@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
+import { isActivityPast } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -257,6 +258,54 @@ export async function POST(request: NextRequest) {
     if (!sessionId) {
       return NextResponse.json(
         { error: 'Session ID is required' },
+        { status: 400 }
+      )
+    }
+
+    // Validate that the training session hasn't passed its scheduled time
+    const { data: trainingSession, error: sessionError } = await supabaseAdmin
+      .from('training_sessions')
+      .select('session_date, session_time, status')
+      .eq('id', sessionId)
+      .single()
+
+    if (sessionError) {
+      console.error('Error fetching training session:', sessionError)
+      return NextResponse.json(
+        { error: `Failed to fetch training session: ${sessionError.message}` },
+        { status: 500 }
+      )
+    }
+
+    if (!trainingSession) {
+      return NextResponse.json(
+        { error: 'Training session not found' },
+        { status: 404 }
+      )
+    }
+
+    // Check if the session time has passed
+    if (isActivityPast(trainingSession.session_date, trainingSession.session_time || null)) {
+      // If session is already marked as completed, allow attendance entry (for historical records)
+      if (trainingSession.status === 'completed') {
+        // Allow attendance entry for completed sessions (historical data entry)
+        // But warn the user
+        console.log('Recording attendance for past training session:', sessionId)
+      } else {
+        // If session time has passed but not marked as completed, mark it first
+        await supabaseAdmin
+          .from('training_sessions')
+          .update({ status: 'completed' })
+          .eq('id', sessionId)
+      }
+    } else {
+      // Session hasn't occurred yet - prevent attendance entry
+      return NextResponse.json(
+        { 
+          error: 'Cannot record attendance for a training session that has not yet occurred. The session is scheduled for a future date/time.',
+          session_date: trainingSession.session_date,
+          session_time: trainingSession.session_time
+        },
         { status: 400 }
       )
     }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { ArrowRight, Mail, Lock, User, Phone, AlertCircle, CheckCircle, Users, Shield, BarChart3, DollarSign, UserCheck, HeartPulse } from 'lucide-react'
@@ -40,31 +40,9 @@ export default function SignupPage() {
     role: 'player' as Role,
     position: '',
   })
-  const [roleCounts, setRoleCounts] = useState<Record<string, { current: number; limit: number; remaining: number; canAdd: boolean }>>({})
   const [loading, setLoading] = useState(false)
-  const [loadingCounts, setLoadingCounts] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
-
-  // Load role counts on mount
-  useEffect(() => {
-    const loadRoleCounts = async () => {
-      try {
-        const response = await fetch('/api/users/role-counts')
-        if (response.ok) {
-          const data = await response.json()
-          if (data.roleCounts) {
-            setRoleCounts(data.roleCounts)
-          }
-        }
-      } catch (err) {
-        console.error('Error loading role counts:', err)
-      } finally {
-        setLoadingCounts(false)
-      }
-    }
-    loadRoleCounts()
-  }, [])
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -92,14 +70,6 @@ export default function SignupPage() {
     setLoading(true)
 
     try {
-      // Check role limit before signup
-      const selectedRoleCount = roleCounts[formData.role]
-      if (selectedRoleCount && !selectedRoleCount.canAdd) {
-        setError(`Registration for ${roleOptions.find(r => r.value === formData.role)?.label || formData.role} is currently full. The limit is ${selectedRoleCount.limit} and we have reached capacity. Please contact the club administrator.`)
-        setLoading(false)
-        return
-      }
-
       // Create auth user
       const supabase = createClient()
       const redirectUrl = typeof window !== 'undefined' ? `${window.location.origin}/dashboard` : '/dashboard'
@@ -195,57 +165,40 @@ export default function SignupPage() {
             <label htmlFor="role" className="block text-sm font-medium text-neutral-text mb-2">
               Account Type <span className="text-red-500">*</span>
             </label>
-            {loadingCounts ? (
-              <div className="flex items-center justify-center py-4">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {roleOptions.map((roleOption) => {
-                  const Icon = roleOption.icon
-                  const count = roleCounts[roleOption.value]
-                  const isSelected = formData.role === roleOption.value
-                  const isAvailable = count ? count.canAdd : true
-                  const remaining = count ? count.remaining : roleOption.limit
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {roleOptions.map((roleOption) => {
+                const Icon = roleOption.icon
+                const isSelected = formData.role === roleOption.value
 
-                  return (
-                    <button
-                      key={roleOption.value}
-                      type="button"
-                      onClick={() => setFormData({ ...formData, role: roleOption.value as Role, position: '' })}
-                      disabled={!isAvailable}
-                      className={`p-4 border-2 rounded-lg text-left transition-all ${
-                        isSelected
-                          ? 'border-primary bg-primary/5 shadow-soft'
-                          : isAvailable
-                          ? 'border-neutral-light hover:border-primary/50 hover:bg-neutral-light/50'
-                          : 'border-neutral-light bg-neutral-light/30 opacity-60 cursor-not-allowed'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-start gap-3 flex-1">
-                          <Icon className={`w-5 h-5 mt-0.5 ${isSelected ? 'text-primary' : 'text-neutral-medium'}`} />
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <h3 className="font-semibold text-neutral-text">{roleOption.label}</h3>
-                              {isSelected && (
-                                <span className="px-2 py-0.5 bg-primary text-white text-xs rounded-full">Selected</span>
-                              )}
-                            </div>
-                            <p className="text-xs text-neutral-medium mt-1">{roleOption.description}</p>
-                            {count && (
-                              <p className={`text-xs mt-1 ${isAvailable ? 'text-success' : 'text-secondary'}`}>
-                                {isAvailable ? `${remaining} slot${remaining !== 1 ? 's' : ''} available` : 'Full'}
-                              </p>
+                return (
+                  <button
+                    key={roleOption.value}
+                    type="button"
+                    onClick={() => setFormData({ ...formData, role: roleOption.value as Role, position: '' })}
+                    className={`p-4 border-2 rounded-lg text-left transition-all ${
+                      isSelected
+                        ? 'border-primary bg-primary/5 shadow-soft'
+                        : 'border-neutral-light hover:border-primary/50 hover:bg-neutral-light/50'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start gap-3 flex-1">
+                        <Icon className={`w-5 h-5 mt-0.5 ${isSelected ? 'text-primary' : 'text-neutral-medium'}`} />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-semibold text-neutral-text">{roleOption.label}</h3>
+                            {isSelected && (
+                              <span className="px-2 py-0.5 bg-primary text-white text-xs rounded-full">Selected</span>
                             )}
                           </div>
+                          <p className="text-xs text-neutral-medium mt-1">{roleOption.description}</p>
                         </div>
                       </div>
-                    </button>
-                  )
-                })}
-              </div>
-            )}
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
           </div>
 
           {/* Position Selection for Players */}

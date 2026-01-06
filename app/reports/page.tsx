@@ -619,33 +619,70 @@ export default function ReportsPage() {
           }
         }
       } else if (report.type === 'match') {
-        // Extract match info from title - try multiple patterns
+        // Extract match info - try multiple approaches
         let selectedMatch: any = null
         
-        // Pattern 1: Extract from title "Match Report - Opponent (Date)"
-        const matchMatch = report.title.match(/Match Report - (.+?)\s*\(/)
-        if (matchMatch && matchMatch[1]) {
-          const matchOpponent = matchMatch[1].trim()
-          selectedMatch = matches.find(m => m.opponent === matchOpponent)
+        // Approach 1: Try to get match ID from reportFilters if still available (during same session)
+        if (reportFilters.selectedMatch) {
+          selectedMatch = matches.find(m => m.id === reportFilters.selectedMatch)
         }
         
-        // Pattern 2: If not found, try to extract match ID from report details
-        if (!selectedMatch && reportDetails) {
-          // Try to get match ID from stored metadata or use first match
-          if (matches.length > 0) {
-            selectedMatch = matches[0]
+        // Approach 2: Extract from title "Match Report - Opponent (Date)"
+        if (!selectedMatch) {
+          const matchMatch = report.title.match(/Match Report - (.+?)\s*\(/)
+          if (matchMatch && matchMatch[1]) {
+            const matchOpponent = matchMatch[1].trim()
+            selectedMatch = matches.find(m => m.opponent === matchOpponent)
           }
         }
         
-        // Pattern 3: If still not found, try to find by date in title
+        // Approach 3: Try to find by date in title
         if (!selectedMatch) {
           const dateMatch = report.title.match(/\((\d{1,2}\/\d{1,2}\/\d{4})\)/)
           if (dateMatch) {
             const titleDate = dateMatch[1]
-            selectedMatch = matches.find(m => {
-              const matchDate = new Date(m.match_date).toLocaleDateString()
-              return matchDate === titleDate
-            })
+            // Try to find match by date and opponent if available
+            const opponentMatch = report.title.match(/Match Report - (.+?)\s*\(/)
+            if (opponentMatch) {
+              const matchOpponent = opponentMatch[1].trim()
+              selectedMatch = matches.find(m => {
+                const matchDate = new Date(m.match_date).toLocaleDateString()
+                return matchDate === titleDate && m.opponent === matchOpponent
+              })
+            }
+            
+            // If still not found, just match by date
+            if (!selectedMatch) {
+              selectedMatch = matches.find(m => {
+                const matchDate = new Date(m.match_date).toLocaleDateString()
+                return matchDate === titleDate
+              })
+            }
+          }
+        }
+        
+        // Approach 4: If still not found, try all matches and find the most recent one with stats
+        if (!selectedMatch && matches.length > 0) {
+          // Try to find a match that has stats
+          for (const match of matches) {
+            try {
+              const { count } = await supabase
+                .from('match_stats')
+                .select('*', { count: 'exact', head: true })
+                .eq('match_id', match.id)
+              
+              if (count && count > 0) {
+                selectedMatch = match
+                break
+              }
+            } catch (err) {
+              // Continue to next match
+            }
+          }
+          
+          // If still no match found, use the first one
+          if (!selectedMatch) {
+            selectedMatch = matches[0]
           }
         }
         
@@ -670,62 +707,97 @@ export default function ReportsPage() {
                 .eq('id', selectedMatch.id)
                 .single()
               
-              // Fetch match stats with proper join to get player names
-              const { data: matchStats } = await supabaseAdmin
+              // Fetch match stats first (without joins to avoid issues)
+              const { data: matchStats, error: statsError } = await supabaseAdmin
                 .from('match_stats')
-                .select(`
-                  *,
-                  players!match_stats_player_id_fkey (
-                    user_id,
-                    user_profiles!players_user_id_fkey (
-                      user_id,
-                      name
-                    )
-                  )
-                `)
+                .select('*')
                 .eq('match_id', selectedMatch.id)
               
-              // Process match stats to ensure player names are properly attached
-              const processedStats = (matchStats || []).map((stat: any) => {
-                // Try multiple paths to get player name
-                let playerName = 'Unknown'
-                
-                if (stat.players?.user_profiles?.name) {
-                  playerName = stat.players.user_profiles.name
-                } else if (stat.players?.name) {
-                  playerName = stat.players.name
-                } else if (stat.user_profiles?.name) {
-                  playerName = stat.user_profiles.name
-                } else {
-                  // Fallback: fetch player name directly
-                  // This will be handled below
-                }
-                
-                return {
-                  ...stat,
-                  user_profiles: {
-                    name: playerName
-                  }
-                }
-              })
+              if (statsError) {
+                console.error('Error fetching match stats:', statsError)
+              }
               
-              // If any stats still have "Unknown", fetch player names directly
-              const unknownStats = processedStats.filter((s: any) => s.user_profiles.name === 'Unknown')
-              if (unknownStats.length > 0) {
-                const playerIds = unknownStats.map((s: any) => s.player_id)
-                const { data: playerProfiles } = await supabaseAdmin
+              // Always fetch player names directly from user_profiles
+              // player_id in match_stats is actually the user_id
+              let processedStats: any[] = []
+              
+              if (matchStats && matchStats.length > 0) {
+                // Get all unique player IDs (which are user_ids)
+                const playerIds = [...new Set(matchStats.map((stat: any) => stat.player_id))]
+                
+                // Fetch all player names in one query
+                const { data: playerProfiles, error: profilesError } = await supabaseAdmin
                   .from('user_profiles')
                   .select('user_id, name')
                   .in('user_id', playerIds)
                 
-                // Update stats with fetched names
-                processedStats.forEach((stat: any) => {
-                  if (stat.user_profiles.name === 'Unknown') {
-                    const player = playerProfiles?.find((p: any) => p.user_id === stat.player_id)
-                    if (player) {
-                      stat.user_profiles.name = player.name
+                if (profilesError) {
+                  console.error('Error fetching player profiles:', profilesError)
+                }
+                
+                // Create a map for quick lookup
+                const playerNameMap = new Map<string, string>()
+                if (playerProfiles) {
+                  playerProfiles.forEach((profile: any) => {
+                    playerNameMap.set(profile.user_id, profile.name || 'Unknown')
+                  })
+                }
+                
+                // Process match stats and attach player names
+                processedStats = matchStats.map((stat: any) => {
+                  const playerName = playerNameMap.get(stat.player_id) || 'Unknown'
+                  
+                  return {
+                    ...stat,
+                    user_profiles: {
+                      name: playerName
                     }
                   }
+                })
+                
+                // Final verification: ensure all stats have player names
+                const statsWithoutNames = processedStats.filter((s: any) => 
+                  !s.user_profiles?.name || s.user_profiles.name === 'Unknown'
+                )
+                
+                if (statsWithoutNames.length > 0) {
+                  console.warn('Some stats still missing player names, attempting final fetch:', statsWithoutNames.length)
+                  // Try one more time to fetch missing names
+                  const missingPlayerIds = statsWithoutNames.map((s: any) => s.player_id)
+                  const { data: missingProfiles, error: missingError } = await supabaseAdmin
+                    .from('user_profiles')
+                    .select('user_id, name')
+                    .in('user_id', missingPlayerIds)
+                  
+                  if (missingError) {
+                    console.error('Error fetching missing player profiles:', missingError)
+                  }
+                  
+                  if (missingProfiles) {
+                    const missingNameMap = new Map<string, string>()
+                    missingProfiles.forEach((p: any) => {
+                      missingNameMap.set(p.user_id, p.name || 'Unknown')
+                    })
+                    
+                    processedStats.forEach((stat: any) => {
+                      if (!stat.user_profiles?.name || stat.user_profiles.name === 'Unknown') {
+                        const name = missingNameMap.get(stat.player_id)
+                        if (name && name !== 'Unknown') {
+                          stat.user_profiles = { name }
+                        }
+                      }
+                    })
+                  }
+                }
+                
+                // Log for debugging
+                console.log('Match stats processed:', {
+                  totalStats: processedStats.length,
+                  statsWithNames: processedStats.filter(s => s.user_profiles?.name && s.user_profiles.name !== 'Unknown').length,
+                  statsWithoutNames: processedStats.filter(s => !s.user_profiles?.name || s.user_profiles.name === 'Unknown').length,
+                  playerIdsFetched: playerIds.length,
+                  playerProfilesFound: playerProfiles?.length || 0,
+                  sampleNames: processedStats.slice(0, 5).map(s => ({ id: s.player_id, name: s.user_profiles?.name }))
                 })
               }
               
@@ -744,36 +816,65 @@ export default function ReportsPage() {
                 .eq('id', selectedMatch.id)
                 .single()
               
-              const { data: matchStats } = await supabase
+              const { data: matchStats, error: statsError } = await supabase
                 .from('match_stats')
                 .select('*')
                 .eq('match_id', selectedMatch.id)
               
-              // Fetch player names separately
+              if (statsError) {
+                console.error('Error fetching match stats (fallback):', statsError)
+              }
+              
+              // Always fetch player names directly from user_profiles
+              let processedStats: any[] = []
+              
               if (matchStats && matchStats.length > 0) {
-                const playerIds = matchStats.map((stat: any) => stat.player_id)
-                const { data: playerProfiles } = await supabase
+                // Get all unique player IDs (which are user_ids)
+                const playerIds = [...new Set(matchStats.map((stat: any) => stat.player_id))]
+                
+                // Fetch all player names in one query
+                const { data: playerProfiles, error: profilesError } = await supabase
                   .from('user_profiles')
                   .select('user_id, name')
                   .in('user_id', playerIds)
                 
-                const processedStats = matchStats.map((stat: any) => {
-                  const player = playerProfiles?.find((p: any) => p.user_id === stat.player_id)
+                if (profilesError) {
+                  console.error('Error fetching player profiles (fallback):', profilesError)
+                }
+                
+                // Create a map for quick lookup
+                const playerNameMap = new Map<string, string>()
+                if (playerProfiles) {
+                  playerProfiles.forEach((profile: any) => {
+                    playerNameMap.set(profile.user_id, profile.name || 'Unknown')
+                  })
+                }
+                
+                // Process match stats and attach player names
+                processedStats = matchStats.map((stat: any) => {
+                  const playerName = playerNameMap.get(stat.player_id) || 'Unknown'
+                  
                   return {
                     ...stat,
                     user_profiles: {
-                      name: player?.name || 'Unknown'
+                      name: playerName
                     }
                   }
                 })
                 
-                reportData.data = {
-                  ...reportData.data,
-                  matchId: selectedMatch.id,
-                  matchDetails: matchDetails || {},
-                  playerStats: processedStats || [],
-                  summary: `Match statistics report for ${matchDetails?.opponent || selectedMatch.opponent} on ${new Date(selectedMatch.match_date).toLocaleDateString()}.`,
-                }
+                console.log('Match stats processed (fallback):', {
+                  totalStats: processedStats.length,
+                  statsWithNames: processedStats.filter(s => s.user_profiles.name !== 'Unknown').length,
+                  statsWithoutNames: processedStats.filter(s => s.user_profiles.name === 'Unknown').length
+                })
+              }
+              
+              reportData.data = {
+                ...reportData.data,
+                matchId: selectedMatch.id,
+                matchDetails: matchDetails || {},
+                playerStats: processedStats || [],
+                summary: `Match statistics report for ${matchDetails?.opponent || selectedMatch.opponent} on ${new Date(selectedMatch.match_date).toLocaleDateString()}.`,
               }
             }
           } catch (err) {

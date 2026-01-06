@@ -780,11 +780,8 @@ export async function POST(request: NextRequest) {
               }
             })
             
-            // Extract match ID from title first (most reliable)
-            const idMatch = report.title.match(/\[ID:([^\]]+)\]/)
-            if (idMatch && idMatch[1]) {
-              matchId = idMatch[1].trim()
-            } else if (report.data?.matchId) {
+            // Extract match ID from report data if available
+            if (report.data?.matchId) {
               matchId = report.data.matchId
             }
             

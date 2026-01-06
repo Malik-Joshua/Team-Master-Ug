@@ -1088,8 +1088,6 @@ export default function ReportsPage() {
             } catch (fallbackErr) {
               console.error('Error in fallback match data fetch:', fallbackErr)
             }
-          } catch (err) {
-            console.error('Error fetching match data:', err)
           }
         }
       } else if (report.type === 'training') {

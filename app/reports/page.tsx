@@ -227,9 +227,7 @@ export default function ReportsPage() {
         reportTitle += ` - ${selectedPlayer?.name || 'Player'}`
       } else if (type === 'match' && reportFilters.selectedMatch) {
         const selectedMatch = matches.find(m => m.id === reportFilters.selectedMatch)
-        // Embed match ID in title for easy retrieval: "Match Report - Opponent (Date) [ID:match_id]"
-        const matchIdSuffix = selectedMatch ? ` [ID:${selectedMatch.id}]` : ''
-        reportTitle += ` - ${selectedMatch?.opponent || 'Match'} (${selectedMatch?.match_date ? new Date(selectedMatch.match_date).toLocaleDateString() : ''})${matchIdSuffix}`
+        reportTitle += ` - ${selectedMatch?.opponent || 'Match'} (${selectedMatch?.match_date ? new Date(selectedMatch.match_date).toLocaleDateString() : ''})`
       } else if (type === 'training' && reportFilters.selectedTrainingSession) {
         const selectedSession = trainingSessions.find(s => s.id === reportFilters.selectedTrainingSession)
         reportTitle += ` - ${selectedSession?.session_date ? new Date(selectedSession.session_date).toLocaleDateString() : 'Session'}`

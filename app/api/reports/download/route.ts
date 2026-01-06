@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { jsPDF } from 'jspdf'
+import { createClient as createServiceClient } from '@supabase/supabase-js'
 
 export async function POST(request: NextRequest) {
   try {
@@ -761,256 +762,397 @@ export async function POST(request: NextRequest) {
         }
       }
       // Format match reports
-      else if (report.type === 'match' && report.data.matchDetails) {
-        // Executive Summary Section
-        doc.setFontSize(12)
-        doc.setFont('helvetica', 'bold')
-        doc.setTextColor(26, 26, 26)
-        safeText('EXECUTIVE SUMMARY', margin, yPos)
-        yPos += 8
+      else if (report.type === 'match') {
+        // Always fetch fresh data from database to ensure accuracy
+        let matchDetails: any = report.data?.matchDetails || null
+        let playerStatsWithNames: any[] = report.data?.playerStats || []
+        let matchId: string | null = null
         
-        const match = report.data.matchDetails
-        doc.setFontSize(10)
-        doc.setFont('helvetica', 'normal')
-        doc.setTextColor(51, 51, 51)
-        const matchSummaryText = `This report provides a detailed analysis of the match against ${match.opponent || 'Opponent'}, including team performance metrics, individual player contributions, and key statistics. The data presented offers insights into team dynamics and player effectiveness during this match.`
-        const matchSummaryLines = doc.splitTextToSize(matchSummaryText, contentWidth)
-        if (Array.isArray(matchSummaryLines)) {
-          matchSummaryLines.forEach((line: any, idx: number) => {
-            safeText(String(line), margin, yPos + (idx * 5))
-          })
-          yPos += matchSummaryLines.length * 5
+        try {
+          const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+          const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+          
+          if (supabaseUrl && supabaseServiceKey) {
+            const supabaseAdmin = createServiceClient(supabaseUrl, supabaseServiceKey, {
+              auth: {
+                autoRefreshToken: false,
+                persistSession: false
+              }
+            })
+            
+            // Extract match ID from title first (most reliable)
+            const idMatch = report.title.match(/\[ID:([^\]]+)\]/)
+            if (idMatch && idMatch[1]) {
+              matchId = idMatch[1].trim()
+            } else if (report.data?.matchId) {
+              matchId = report.data.matchId
+            }
+            
+            // If we have a match ID, fetch fresh data
+            if (matchId) {
+              console.log('PDF Generator: Fetching match data for ID:', matchId)
+              
+              // Fetch match details
+              const { data: matchData, error: matchError } = await supabaseAdmin
+                .from('matches')
+                .select('*')
+                .eq('id', matchId)
+                .single()
+              
+              if (!matchError && matchData) {
+                matchDetails = matchData
+              }
+              
+              // Fetch match stats
+              const { data: matchStats, error: statsError } = await supabaseAdmin
+                .from('match_stats')
+                .select('*')
+                .eq('match_id', matchId)
+              
+              if (!statsError && matchStats && matchStats.length > 0) {
+                // Get all unique player IDs
+                const playerIds = [...new Set(matchStats.map((stat: any) => stat.player_id))]
+                
+                // Fetch all player names in one query
+                const { data: playerProfiles, error: profilesError } = await supabaseAdmin
+                  .from('user_profiles')
+                  .select('user_id, name')
+                  .in('user_id', playerIds)
+                
+                if (!profilesError && playerProfiles) {
+                  // Create a map for quick lookup
+                  const playerNameMap = new Map<string, string>()
+                  playerProfiles.forEach((profile: any) => {
+                    if (profile.user_id && profile.name) {
+                      playerNameMap.set(profile.user_id, profile.name)
+                    }
+                  })
+                  
+                  // Process match stats and attach player names
+                  playerStatsWithNames = matchStats.map((stat: any) => {
+                    const playerName = playerNameMap.get(stat.player_id) || 'Unknown'
+                    return {
+                      ...stat,
+                      user_profiles: {
+                        name: playerName
+                      }
+                    }
+                  })
+                  
+                  console.log('PDF Generator: Fetched fresh match data:', {
+                    matchId,
+                    matchFound: !!matchDetails,
+                    totalStats: playerStatsWithNames.length,
+                    statsWithNames: playerStatsWithNames.filter((s: any) => s.user_profiles?.name && s.user_profiles.name !== 'Unknown').length,
+                    playerIdsFetched: playerIds.length,
+                    playerProfilesFound: playerProfiles.length
+                  })
+                } else {
+                  console.error('PDF Generator: Error fetching player profiles:', profilesError)
+                  // Still use stats even if names fail
+                  playerStatsWithNames = matchStats.map((stat: any) => ({
+                    ...stat,
+                    user_profiles: { name: 'Unknown' }
+                  }))
+                }
+              } else {
+                console.error('PDF Generator: Error fetching match stats:', statsError)
+              }
+            } else {
+              // Fallback: try to fetch player names from existing stats
+              if (playerStatsWithNames.length > 0) {
+                const playerIds = [...new Set(playerStatsWithNames.map((stat: any) => stat.player_id))]
+                const { data: playerProfiles } = await supabaseAdmin
+                  .from('user_profiles')
+                  .select('user_id, name')
+                  .in('user_id', playerIds)
+                
+                if (playerProfiles) {
+                  const playerNameMap = new Map<string, string>()
+                  playerProfiles.forEach((profile: any) => {
+                    if (profile.user_id && profile.name) {
+                      playerNameMap.set(profile.user_id, profile.name)
+                    }
+                  })
+                  
+                  playerStatsWithNames = playerStatsWithNames.map((stat: any) => {
+                    const playerName = playerNameMap.get(stat.player_id) || 'Unknown'
+                    return {
+                      ...stat,
+                      user_profiles: {
+                        name: playerName
+                      }
+                    }
+                  })
+                }
+              }
+            }
+          }
+        } catch (err) {
+          console.error('PDF Generator: Error fetching match data:', err)
+          // Continue with existing data if fetch fails
+        }
+        
+        // If we still don't have match details, use what was passed
+        if (!matchDetails && report.data?.matchDetails) {
+          matchDetails = report.data.matchDetails
+        }
+        
+        if (!matchDetails) {
+          safeText('Error: Match details not found', margin, yPos)
+          yPos += 10
         } else {
-          safeText(String(matchSummaryLines), margin, yPos)
-          yPos += 5
-        }
-        yPos += 10
-        
-        // Match Details Section
-        doc.setFontSize(14)
-        doc.setFont('helvetica', 'bold')
-        doc.setTextColor(26, 26, 26)
-        safeText('MATCH DETAILS', margin, yPos)
-        yPos += 8
-        
-        doc.setFontSize(12)
-        doc.setFont('helvetica', 'bold')
-        safeText(`Opponent: ${match.opponent || 'Unknown'}`, margin, yPos)
-        yPos += 8
-        
-        doc.setFontSize(10)
-        doc.setFont('helvetica', 'normal')
-        doc.setTextColor(51, 51, 51)
-        safeText(`Date: ${new Date(match.match_date).toLocaleDateString('en-US', { 
-          weekday: 'long', 
-          year: 'numeric', 
-          month: 'long', 
-          day: 'numeric' 
-        })}`, margin, yPos)
-        yPos += 6
-        if (match.venue) {
-          safeText(`Venue: ${match.venue}`, margin, yPos)
-          yPos += 6
-        }
-        if (match.score_our_team !== null && match.score_opponent !== null) {
+          // Executive Summary Section
+          doc.setFontSize(12)
           doc.setFont('helvetica', 'bold')
-          safeText(`Final Score: ${match.score_our_team} - ${match.score_opponent}`, margin, yPos)
+          doc.setTextColor(26, 26, 26)
+          safeText('EXECUTIVE SUMMARY', margin, yPos)
+          yPos += 8
+          
+          const match = matchDetails
+          doc.setFontSize(10)
           doc.setFont('helvetica', 'normal')
-          yPos += 6
-        }
-        yPos += 5
-        
-        // Calculate match statistics (available for both summary and table sections)
-        const totalPlayers = report.data.playerStats?.length || 0
-        const totalTries = report.data.playerStats?.reduce((sum: number, stat: any) => sum + (stat.tries_scored || 0), 0) || 0
-        const totalTackles = report.data.playerStats?.reduce((sum: number, stat: any) => sum + (stat.tackles_made || 0), 0) || 0
-        const totalMinutes = report.data.playerStats?.reduce((sum: number, stat: any) => sum + (stat.minutes_played || 0), 0) || 0
-        const avgTriesPerPlayer = totalPlayers > 0 ? parseFloat((totalTries / totalPlayers).toFixed(2)) : 0
-        const avgTacklesPerPlayer = totalPlayers > 0 ? parseFloat((totalTackles / totalPlayers).toFixed(2)) : 0
-        const avgMinutesPerPlayer = totalPlayers > 0 ? parseFloat((totalMinutes / totalPlayers).toFixed(1)) : 0
-        
-        // Match Summary Statistics - Always show
-        // Draw separator
-        doc.setDrawColor(200, 200, 200)
-        doc.setLineWidth(0.5)
-        doc.line(margin, yPos, pageWidth - margin, yPos)
-        yPos += 10
-        
-        doc.setFontSize(12)
-        doc.setFont('helvetica', 'bold')
-        doc.setTextColor(26, 26, 26)
-        safeText('MATCH SUMMARY STATISTICS', margin, yPos)
-        yPos += 8
-        
-        // Two-column layout for match stats
-        const matchLeftX = margin + 5
-        const matchRightX = pageWidth / 2 + 10
-        const matchLineHeight = 6
-        
-        doc.setFontSize(10)
-        doc.setFont('helvetica', 'normal')
-        doc.setTextColor(51, 51, 51)
-        
-        safeText(`Players Participated: ${totalPlayers}`, matchLeftX, yPos)
-        yPos += matchLineHeight
-        safeText(`Total Tries Scored: ${totalTries}`, matchLeftX, yPos)
-        yPos += matchLineHeight
-        safeText(`Total Tackles Made: ${totalTackles}`, matchLeftX, yPos)
-        yPos += matchLineHeight
-        safeText(`Total Minutes Played: ${totalMinutes}`, matchLeftX, yPos)
-        
-        const matchRightYStart = yPos - (matchLineHeight * 3)
-        safeText(`Avg Tries/Player: ${avgTriesPerPlayer}`, matchRightX, matchRightYStart)
-        safeText(`Avg Tackles/Player: ${avgTacklesPerPlayer}`, matchRightX, matchRightYStart + matchLineHeight)
-        safeText(`Avg Minutes/Player: ${avgMinutesPerPlayer}`, matchRightX, matchRightYStart + (matchLineHeight * 2))
-        
-        yPos += matchLineHeight + 8
-        
-        // Top performers highlight
-        if (report.data.playerStats && report.data.playerStats.length > 0) {
-          const topScorer = report.data.playerStats.reduce((top: any, stat: any) => 
-            (stat.tries_scored || 0) > (top.tries_scored || 0) ? stat : top, report.data.playerStats[0])
-          const topTackler = report.data.playerStats.reduce((top: any, stat: any) => 
-            (stat.tackles_made || 0) > (top.tackles_made || 0) ? stat : top, report.data.playerStats[0])
+          doc.setTextColor(51, 51, 51)
+          const matchSummaryText = `This report provides a detailed analysis of the match against ${match.opponent || 'Opponent'}, including team performance metrics, individual player contributions, and key statistics. The data presented offers insights into team dynamics and player effectiveness during this match.`
+          const matchSummaryLines = doc.splitTextToSize(matchSummaryText, contentWidth)
+          if (Array.isArray(matchSummaryLines)) {
+            matchSummaryLines.forEach((line: any, idx: number) => {
+              safeText(String(line), margin, yPos + (idx * 5))
+            })
+            yPos += matchSummaryLines.length * 5
+          } else {
+            safeText(String(matchSummaryLines), margin, yPos)
+            yPos += 5
+          }
+          yPos += 10
+          
+          // Match Details Section
+          doc.setFontSize(14)
+          doc.setFont('helvetica', 'bold')
+          doc.setTextColor(26, 26, 26)
+          safeText('MATCH DETAILS', margin, yPos)
+          yPos += 8
+          
+          doc.setFontSize(12)
+          doc.setFont('helvetica', 'bold')
+          safeText(`Opponent: ${match.opponent || 'Unknown'}`, margin, yPos)
+          yPos += 8
           
           doc.setFontSize(10)
-          doc.setFont('helvetica', 'bold')
-          doc.setTextColor(26, 26, 26)
-          if (topScorer && topScorer.tries_scored > 0) {
-            const scorerName = topScorer.user_profiles?.name || 'Unknown'
-            safeText(`🏆 Top Scorer: ${scorerName} (${topScorer.tries_scored} tries)`, margin + 5, yPos)
-            yPos += 6
-          }
-          if (topTackler && topTackler.tackles_made > 0) {
-            const tacklerName = topTackler.user_profiles?.name || 'Unknown'
-            safeText(`🏆 Top Tackler: ${tacklerName} (${topTackler.tackles_made} tackles)`, margin + 5, yPos)
-            yPos += 6
-          }
-        }
-        yPos += 8
-        
-        // Player Statistics Table - Always show, even if empty
-        if (yPos > pageHeight - 50) {
-          doc.addPage()
-          yPos = margin
-        }
-        
-        // Draw separator
-        doc.setDrawColor(220, 220, 220)
-        doc.setLineWidth(0.3)
-        doc.line(margin, yPos, pageWidth - margin, yPos)
-        yPos += 10
-        
-        doc.setFontSize(12)
-        doc.setFont('helvetica', 'bold')
-        doc.setTextColor(26, 26, 26)
-        safeText('INDIVIDUAL PLAYER STATISTICS', margin, yPos)
-        yPos += 8
-        
-        if (report.data.playerStats && report.data.playerStats.length > 0) {
-          // Summary before table
-          doc.setFontSize(9)
           doc.setFont('helvetica', 'normal')
-          doc.setTextColor(102, 102, 102)
-          safeText(`Showing ${report.data.playerStats.length} player${report.data.playerStats.length !== 1 ? 's' : ''} | Sorted by tries scored (highest first)`, margin + 5, yPos)
-          yPos += 7
-          
-          // Table header with background
-          doc.setFillColor(240, 240, 240)
-          doc.rect(margin + 5, yPos - 4, pageWidth - (margin * 2) - 10, 6, 'F')
-          doc.setFontSize(9)
-          doc.setFont('helvetica', 'bold')
-          doc.setTextColor(26, 26, 26)
-          safeText('Player Name', margin + 8, yPos)
-          safeText('Tries', margin + 70, yPos)
-          safeText('Tackles', margin + 80, yPos)
-          safeText('Minutes', margin + 95, yPos)
+          doc.setTextColor(51, 51, 51)
+          safeText(`Date: ${new Date(match.match_date).toLocaleDateString('en-US', { 
+            weekday: 'long', 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+          })}`, margin, yPos)
           yPos += 6
+          if (match.venue) {
+            safeText(`Venue: ${match.venue}`, margin, yPos)
+            yPos += 6
+          }
+          if (match.score_our_team !== null && match.score_opponent !== null) {
+            doc.setFont('helvetica', 'bold')
+            safeText(`Final Score: ${match.score_our_team} - ${match.score_opponent}`, margin, yPos)
+            doc.setFont('helvetica', 'normal')
+            yPos += 6
+          }
+          yPos += 5
+          
+          // Calculate match statistics (available for both summary and table sections)
+          // Use playerStatsWithNames instead of report.data.playerStats
+          const totalPlayers = playerStatsWithNames?.length || 0
+          const totalTries = playerStatsWithNames?.reduce((sum: number, stat: any) => sum + (stat.tries_scored || 0), 0) || 0
+          const totalTackles = playerStatsWithNames?.reduce((sum: number, stat: any) => sum + (stat.tackles_made || 0), 0) || 0
+          const totalMinutes = playerStatsWithNames?.reduce((sum: number, stat: any) => sum + (stat.minutes_played || 0), 0) || 0
+          const avgTriesPerPlayer = totalPlayers > 0 ? parseFloat((totalTries / totalPlayers).toFixed(2)) : 0
+          const avgTacklesPerPlayer = totalPlayers > 0 ? parseFloat((totalTackles / totalPlayers).toFixed(2)) : 0
+          const avgMinutesPerPlayer = totalPlayers > 0 ? parseFloat((totalMinutes / totalPlayers).toFixed(1)) : 0
+          
+          // Match Summary Statistics - Always show
+          // Draw separator
           doc.setDrawColor(200, 200, 200)
-          doc.setLineWidth(0.3)
-          doc.line(margin + 5, yPos, pageWidth - margin - 5, yPos)
-          yPos += 4
+          doc.setLineWidth(0.5)
+          doc.line(margin, yPos, pageWidth - margin, yPos)
+          yPos += 10
           
+          doc.setFontSize(12)
+          doc.setFont('helvetica', 'bold')
+          doc.setTextColor(26, 26, 26)
+          safeText('MATCH SUMMARY STATISTICS', margin, yPos)
+          yPos += 8
+          
+          // Two-column layout for match stats
+          const matchLeftX = margin + 5
+          const matchRightX = pageWidth / 2 + 10
+          const matchLineHeight = 6
+          
+          doc.setFontSize(10)
           doc.setFont('helvetica', 'normal')
-          // Sort by tries scored (descending) for better readability
-          const sortedStats = [...report.data.playerStats].sort((a: any, b: any) => 
-            (b.tries_scored || 0) - (a.tries_scored || 0)
-          )
+          doc.setTextColor(51, 51, 51)
           
-          // Calculate averages for highlighting
-          const avgTries = totalPlayers > 0 ? totalTries / totalPlayers : 0
-          const avgTackles = totalPlayers > 0 ? totalTackles / totalPlayers : 0
+          safeText(`Players Participated: ${totalPlayers}`, matchLeftX, yPos)
+          yPos += matchLineHeight
+          safeText(`Total Tries Scored: ${totalTries}`, matchLeftX, yPos)
+          yPos += matchLineHeight
+          safeText(`Total Tackles Made: ${totalTackles}`, matchLeftX, yPos)
+          yPos += matchLineHeight
+          safeText(`Total Minutes Played: ${totalMinutes}`, matchLeftX, yPos)
           
-          sortedStats.forEach((stat: any, index: number) => {
-            if (yPos > pageHeight - 20) {
-              doc.addPage()
-              yPos = margin
-              // Re-add headers on new page
-              doc.setFillColor(240, 240, 240)
-              doc.rect(margin + 5, yPos - 4, pageWidth - (margin * 2) - 10, 6, 'F')
-              doc.setFontSize(9)
-              doc.setFont('helvetica', 'bold')
-              doc.setTextColor(26, 26, 26)
-              safeText('Player Name', margin + 8, yPos)
-              safeText('Tries', margin + 70, yPos)
-              safeText('Tackles', margin + 80, yPos)
-              safeText('Minutes', margin + 95, yPos)
+          const matchRightYStart = yPos - (matchLineHeight * 3)
+          safeText(`Avg Tries/Player: ${avgTriesPerPlayer}`, matchRightX, matchRightYStart)
+          safeText(`Avg Tackles/Player: ${avgTacklesPerPlayer}`, matchRightX, matchRightYStart + matchLineHeight)
+          safeText(`Avg Minutes/Player: ${avgMinutesPerPlayer}`, matchRightX, matchRightYStart + (matchLineHeight * 2))
+          
+          yPos += matchLineHeight + 8
+          
+          // Top performers highlight
+          if (playerStatsWithNames && playerStatsWithNames.length > 0) {
+            const topScorer = playerStatsWithNames.reduce((top: any, stat: any) => 
+              (stat.tries_scored || 0) > (top.tries_scored || 0) ? stat : top, playerStatsWithNames[0])
+            const topTackler = playerStatsWithNames.reduce((top: any, stat: any) => 
+              (stat.tackles_made || 0) > (top.tackles_made || 0) ? stat : top, playerStatsWithNames[0])
+            
+            doc.setFontSize(10)
+            doc.setFont('helvetica', 'bold')
+            doc.setTextColor(26, 26, 26)
+            if (topScorer && topScorer.tries_scored > 0) {
+              const scorerName = topScorer.user_profiles?.name || 'Unknown'
+              safeText(`🏆 Top Scorer: ${scorerName} (${topScorer.tries_scored} tries)`, margin + 5, yPos)
               yPos += 6
-              doc.setDrawColor(200, 200, 200)
-              doc.setLineWidth(0.3)
-              doc.line(margin + 5, yPos, pageWidth - margin - 5, yPos)
-              yPos += 4
-              doc.setFont('helvetica', 'normal')
-              doc.setFontSize(9)
             }
-            
-            // Alternate row background
-            if (index % 2 === 0) {
-              doc.setFillColor(250, 250, 250)
-              doc.rect(margin + 5, yPos - 3, pageWidth - (margin * 2) - 10, 5, 'F')
+            if (topTackler && topTackler.tackles_made > 0) {
+              const tacklerName = topTackler.user_profiles?.name || 'Unknown'
+              safeText(`🏆 Top Tackler: ${tacklerName} (${topTackler.tackles_made} tackles)`, margin + 5, yPos)
+              yPos += 6
             }
+          }
+          yPos += 8
+          
+          // Player Statistics Table - Always show, even if empty
+          if (yPos > pageHeight - 50) {
+            doc.addPage()
+            yPos = margin
+          }
+          
+          // Draw separator
+          doc.setDrawColor(220, 220, 220)
+          doc.setLineWidth(0.3)
+          doc.line(margin, yPos, pageWidth - margin, yPos)
+          yPos += 10
+          
+          doc.setFontSize(12)
+          doc.setFont('helvetica', 'bold')
+          doc.setTextColor(26, 26, 26)
+          safeText('INDIVIDUAL PLAYER STATISTICS', margin, yPos)
+          yPos += 8
+          
+          if (playerStatsWithNames && playerStatsWithNames.length > 0) {
+            // Summary before table
+            doc.setFontSize(9)
+            doc.setFont('helvetica', 'normal')
+            doc.setTextColor(102, 102, 102)
+            safeText(`Showing ${playerStatsWithNames.length} player${playerStatsWithNames.length !== 1 ? 's' : ''} | Sorted by tries scored (highest first)`, margin + 5, yPos)
+            yPos += 7
             
-            const playerName = stat.user_profiles?.name || 'Unknown'
-            doc.setTextColor(51, 51, 51)
-            safeText(playerName.substring(0, 48), margin + 8, yPos)
-            
-            // Highlight above-average performers
-            if ((stat.tries_scored || 0) >= avgTries) {
-              doc.setFont('helvetica', 'bold')
-              doc.setTextColor(26, 26, 26)
-            } else {
-              doc.setFont('helvetica', 'normal')
-              doc.setTextColor(102, 102, 102)
-            }
-            safeText(String(stat.tries_scored || 0), margin + 70, yPos)
-            
-            if ((stat.tackles_made || 0) >= avgTackles) {
-              doc.setFont('helvetica', 'bold')
-              doc.setTextColor(26, 26, 26)
-            } else {
-              doc.setFont('helvetica', 'normal')
-              doc.setTextColor(102, 102, 102)
-            }
-            safeText(String(stat.tackles_made || 0), margin + 80, yPos)
+            // Table header with background
+            doc.setFillColor(240, 240, 240)
+            doc.rect(margin + 5, yPos - 4, pageWidth - (margin * 2) - 10, 6, 'F')
+            doc.setFontSize(9)
+            doc.setFont('helvetica', 'bold')
+            doc.setTextColor(26, 26, 26)
+            safeText('Player Name', margin + 8, yPos)
+            safeText('Tries', margin + 70, yPos)
+            safeText('Tackles', margin + 80, yPos)
+            safeText('Minutes', margin + 95, yPos)
+            yPos += 6
+            doc.setDrawColor(200, 200, 200)
+            doc.setLineWidth(0.3)
+            doc.line(margin + 5, yPos, pageWidth - margin - 5, yPos)
+            yPos += 4
             
             doc.setFont('helvetica', 'normal')
-            doc.setTextColor(51, 51, 51)
-            safeText(String(stat.minutes_played || 0), margin + 95, yPos)
-            yPos += 5
-          })
-        } else {
-          doc.setFontSize(10)
-          doc.setFont('helvetica', 'normal')
-          doc.setTextColor(102, 102, 102)
-          safeText('No player statistics recorded for this match', margin + 5, yPos)
-          yPos += 6
-          safeText('Players Participated: 0', margin + 5, yPos)
-          yPos += 6
-          safeText('Total Tries: 0', margin + 5, yPos)
-          yPos += 6
-          safeText('Total Tackles: 0', margin + 5, yPos)
-          yPos += 6
-          safeText('Total Minutes: 0', margin + 5, yPos)
+            // Sort by tries scored (descending) for better readability
+            const sortedStats = [...playerStatsWithNames].sort((a: any, b: any) => 
+              (b.tries_scored || 0) - (a.tries_scored || 0)
+            )
+            
+            // Calculate averages for highlighting
+            const avgTries = totalPlayers > 0 ? totalTries / totalPlayers : 0
+            const avgTackles = totalPlayers > 0 ? totalTackles / totalPlayers : 0
+            
+            sortedStats.forEach((stat: any, index: number) => {
+              if (yPos > pageHeight - 20) {
+                doc.addPage()
+                yPos = margin
+                // Re-add headers on new page
+                doc.setFillColor(240, 240, 240)
+                doc.rect(margin + 5, yPos - 4, pageWidth - (margin * 2) - 10, 6, 'F')
+                doc.setFontSize(9)
+                doc.setFont('helvetica', 'bold')
+                doc.setTextColor(26, 26, 26)
+                safeText('Player Name', margin + 8, yPos)
+                safeText('Tries', margin + 70, yPos)
+                safeText('Tackles', margin + 80, yPos)
+                safeText('Minutes', margin + 95, yPos)
+                yPos += 6
+                doc.setDrawColor(200, 200, 200)
+                doc.setLineWidth(0.3)
+                doc.line(margin + 5, yPos, pageWidth - margin - 5, yPos)
+                yPos += 4
+                doc.setFont('helvetica', 'normal')
+                doc.setFontSize(9)
+              }
+              
+              // Alternate row background
+              if (index % 2 === 0) {
+                doc.setFillColor(250, 250, 250)
+                doc.rect(margin + 5, yPos - 3, pageWidth - (margin * 2) - 10, 5, 'F')
+              }
+              
+              const playerName = stat.user_profiles?.name || 'Unknown'
+              doc.setTextColor(51, 51, 51)
+              safeText(playerName.substring(0, 48), margin + 8, yPos)
+              
+              // Highlight above-average performers
+              if ((stat.tries_scored || 0) >= avgTries) {
+                doc.setFont('helvetica', 'bold')
+                doc.setTextColor(26, 26, 26)
+              } else {
+                doc.setFont('helvetica', 'normal')
+                doc.setTextColor(102, 102, 102)
+              }
+              safeText(String(stat.tries_scored || 0), margin + 70, yPos)
+              
+              if ((stat.tackles_made || 0) >= avgTackles) {
+                doc.setFont('helvetica', 'bold')
+                doc.setTextColor(26, 26, 26)
+              } else {
+                doc.setFont('helvetica', 'normal')
+                doc.setTextColor(102, 102, 102)
+              }
+              safeText(String(stat.tackles_made || 0), margin + 80, yPos)
+              
+              doc.setFont('helvetica', 'normal')
+              doc.setTextColor(51, 51, 51)
+              safeText(String(stat.minutes_played || 0), margin + 95, yPos)
+              yPos += 5
+            })
+          } else {
+            doc.setFontSize(10)
+            doc.setFont('helvetica', 'normal')
+            doc.setTextColor(102, 102, 102)
+            safeText('No player statistics recorded for this match', margin + 5, yPos)
+            yPos += 6
+            safeText('Players Participated: 0', margin + 5, yPos)
+            yPos += 6
+            safeText('Total Tries: 0', margin + 5, yPos)
+            yPos += 6
+            safeText('Total Tackles: 0', margin + 5, yPos)
+            yPos += 6
+            safeText('Total Minutes: 0', margin + 5, yPos)
+          }
         }
       }
       // Format financial reports

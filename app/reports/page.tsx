@@ -227,7 +227,9 @@ export default function ReportsPage() {
         reportTitle += ` - ${selectedPlayer?.name || 'Player'}`
       } else if (type === 'match' && reportFilters.selectedMatch) {
         const selectedMatch = matches.find(m => m.id === reportFilters.selectedMatch)
-        reportTitle += ` - ${selectedMatch?.opponent || 'Match'} (${selectedMatch?.match_date ? new Date(selectedMatch.match_date).toLocaleDateString() : ''})`
+        // Embed match ID in title for easy retrieval: "Match Report - Opponent (Date) [ID:match_id]"
+        const matchIdSuffix = selectedMatch ? ` [ID:${selectedMatch.id}]` : ''
+        reportTitle += ` - ${selectedMatch?.opponent || 'Match'} (${selectedMatch?.match_date ? new Date(selectedMatch.match_date).toLocaleDateString() : ''})${matchIdSuffix}`
       } else if (type === 'training' && reportFilters.selectedTrainingSession) {
         const selectedSession = trainingSessions.find(s => s.id === reportFilters.selectedTrainingSession)
         reportTitle += ` - ${selectedSession?.session_date ? new Date(selectedSession.session_date).toLocaleDateString() : 'Session'}`
@@ -621,22 +623,35 @@ export default function ReportsPage() {
       } else if (report.type === 'match') {
         // Extract match info - try multiple approaches
         let selectedMatch: any = null
+        let matchId: string | null = null
         
-        // Approach 1: Try to get match ID from reportFilters if still available (during same session)
-        if (reportFilters.selectedMatch) {
-          selectedMatch = matches.find(m => m.id === reportFilters.selectedMatch)
+        // Approach 1: Extract match ID from title first (most reliable) - format: "Match Report - Opponent (Date) [ID:match_id]"
+        const idMatch = report.title.match(/\[ID:([^\]]+)\]/)
+        if (idMatch && idMatch[1]) {
+          matchId = idMatch[1].trim()
+          console.log('Extracted match ID from title:', matchId)
+          selectedMatch = matches.find(m => m.id === matchId)
         }
         
-        // Approach 2: Extract from title "Match Report - Opponent (Date)"
+        // Approach 2: Try to get match ID from reportFilters if still available (during same session)
+        if (!selectedMatch && reportFilters.selectedMatch) {
+          matchId = reportFilters.selectedMatch
+          selectedMatch = matches.find(m => m.id === matchId)
+        }
+        
+        // Approach 3: Extract from title "Match Report - Opponent (Date)"
         if (!selectedMatch) {
           const matchMatch = report.title.match(/Match Report - (.+?)\s*\(/)
           if (matchMatch && matchMatch[1]) {
             const matchOpponent = matchMatch[1].trim()
             selectedMatch = matches.find(m => m.opponent === matchOpponent)
+            if (selectedMatch) {
+              matchId = selectedMatch.id
+            }
           }
         }
         
-        // Approach 3: Try to find by date in title
+        // Approach 4: Try to find by date in title
         if (!selectedMatch) {
           const dateMatch = report.title.match(/\((\d{1,2}\/\d{1,2}\/\d{4})\)/)
           if (dateMatch) {
@@ -649,6 +664,9 @@ export default function ReportsPage() {
                 const matchDate = new Date(m.match_date).toLocaleDateString()
                 return matchDate === titleDate && m.opponent === matchOpponent
               })
+              if (selectedMatch) {
+                matchId = selectedMatch.id
+              }
             }
             
             // If still not found, just match by date
@@ -657,11 +675,14 @@ export default function ReportsPage() {
                 const matchDate = new Date(m.match_date).toLocaleDateString()
                 return matchDate === titleDate
               })
+              if (selectedMatch) {
+                matchId = selectedMatch.id
+              }
             }
           }
         }
         
-        // Approach 4: If still not found, try all matches and find the most recent one with stats
+        // Approach 5: If still not found, try all matches and find the most recent one with stats
         if (!selectedMatch && matches.length > 0) {
           // Try to find a match that has stats
           for (const match of matches) {
@@ -673,6 +694,7 @@ export default function ReportsPage() {
               
               if (count && count > 0) {
                 selectedMatch = match
+                matchId = match.id
                 break
               }
             } catch (err) {
@@ -683,132 +705,195 @@ export default function ReportsPage() {
           // If still no match found, use the first one
           if (!selectedMatch) {
             selectedMatch = matches[0]
+            if (selectedMatch) {
+              matchId = selectedMatch.id
+            }
           }
         }
         
+        console.log('Match selection result:', {
+          matchId,
+          selectedMatchId: selectedMatch?.id,
+          opponent: selectedMatch?.opponent,
+          date: selectedMatch?.match_date
+        })
+        
         if (selectedMatch) {
-          // Fetch match-specific data using service role to bypass RLS
+          // Fetch match-specific data
           try {
-            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-            const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+            // Fetch match details using regular client
+            const { data: matchDetails } = await supabase
+              .from('matches')
+              .select('*')
+              .eq('id', selectedMatch.id)
+              .single()
             
-            if (supabaseUrl && supabaseServiceKey) {
-              const { createClient: createServiceClient } = await import('@supabase/supabase-js')
-              const supabaseAdmin = createServiceClient(supabaseUrl, supabaseServiceKey, {
-                auth: {
-                  autoRefreshToken: false,
-                  persistSession: false
-                }
+            // Fetch match stats using regular client
+            const { data: matchStats, error: statsError } = await supabase
+              .from('match_stats')
+              .select('*')
+              .eq('match_id', selectedMatch.id)
+            
+            if (statsError) {
+              console.error('Error fetching match stats:', statsError)
+            }
+            
+            // Always fetch player names using API route (server-side with service role)
+            // player_id in match_stats is actually the user_id
+            let processedStats: any[] = []
+            
+            if (matchStats && matchStats.length > 0) {
+              // Get all unique player IDs (which are user_ids)
+              const playerIds = [...new Set(matchStats.map((stat: any) => stat.player_id))]
+              
+              console.log('Fetching player names for match report:', {
+                matchId: selectedMatch.id,
+                totalStats: matchStats.length,
+                uniquePlayerIds: playerIds.length,
+                playerIds: playerIds.slice(0, 5) // Log first 5 for debugging
               })
               
-              const { data: matchDetails } = await supabaseAdmin
-                .from('matches')
-                .select('*')
-                .eq('id', selectedMatch.id)
-                .single()
-              
-              // Fetch match stats first (without joins to avoid issues)
-              const { data: matchStats, error: statsError } = await supabaseAdmin
-                .from('match_stats')
-                .select('*')
-                .eq('match_id', selectedMatch.id)
-              
-              if (statsError) {
-                console.error('Error fetching match stats:', statsError)
-              }
-              
-              // Always fetch player names directly from user_profiles
-              // player_id in match_stats is actually the user_id
-              let processedStats: any[] = []
-              
-              if (matchStats && matchStats.length > 0) {
-                // Get all unique player IDs (which are user_ids)
-                const playerIds = [...new Set(matchStats.map((stat: any) => stat.player_id))]
+              // Use API route to fetch player names (server-side with service role)
+              try {
+                console.log('Calling /api/reports/player-names with playerIds:', playerIds)
                 
-                // Fetch all player names in one query
-                const { data: playerProfiles, error: profilesError } = await supabaseAdmin
-                  .from('user_profiles')
-                  .select('user_id, name')
-                  .in('user_id', playerIds)
-                
-                if (profilesError) {
-                  console.error('Error fetching player profiles:', profilesError)
-                }
-                
-                // Create a map for quick lookup
-                const playerNameMap = new Map<string, string>()
-                if (playerProfiles) {
-                  playerProfiles.forEach((profile: any) => {
-                    playerNameMap.set(profile.user_id, profile.name || 'Unknown')
-                  })
-                }
-                
-                // Process match stats and attach player names
-                processedStats = matchStats.map((stat: any) => {
-                  const playerName = playerNameMap.get(stat.player_id) || 'Unknown'
-                  
-                  return {
-                    ...stat,
-                    user_profiles: {
-                      name: playerName
-                    }
-                  }
+                const response = await fetch('/api/reports/player-names', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({ playerIds }),
                 })
-                
-                // Final verification: ensure all stats have player names
-                const statsWithoutNames = processedStats.filter((s: any) => 
-                  !s.user_profiles?.name || s.user_profiles.name === 'Unknown'
-                )
-                
-                if (statsWithoutNames.length > 0) {
-                  console.warn('Some stats still missing player names, attempting final fetch:', statsWithoutNames.length)
-                  // Try one more time to fetch missing names
-                  const missingPlayerIds = statsWithoutNames.map((s: any) => s.player_id)
-                  const { data: missingProfiles, error: missingError } = await supabaseAdmin
-                    .from('user_profiles')
-                    .select('user_id, name')
-                    .in('user_id', missingPlayerIds)
+
+                console.log('API response status:', response.status, response.statusText)
+
+                if (response.ok) {
+                  const data = await response.json()
+                  console.log('API response data:', data)
                   
-                  if (missingError) {
-                    console.error('Error fetching missing player profiles:', missingError)
-                  }
+                  const playerNameMap = new Map<string, string>()
                   
-                  if (missingProfiles) {
-                    const missingNameMap = new Map<string, string>()
-                    missingProfiles.forEach((p: any) => {
-                      missingNameMap.set(p.user_id, p.name || 'Unknown')
+                  Object.entries(data.playerNames || {}).forEach(([userId, name]) => {
+                    playerNameMap.set(userId, name as string)
+                  })
+                  
+                  console.log('Player names fetched via API:', {
+                    requested: playerIds.length,
+                    found: data.profilesFound || 0,
+                    nameMapSize: playerNameMap.size,
+                    sampleEntries: Array.from(playerNameMap.entries()).slice(0, 5),
+                    allEntries: Array.from(playerNameMap.entries())
+                  })
+                  
+                  // Process match stats and attach player names
+                  processedStats = matchStats.map((stat: any) => {
+                    const playerName = playerNameMap.get(stat.player_id) || 'Unknown'
+                    
+                    if (playerName === 'Unknown') {
+                      console.warn('Player name not found for player_id:', stat.player_id, {
+                        statId: stat.id,
+                        matchId: stat.match_id,
+                        availablePlayerIds: Array.from(playerNameMap.keys()).slice(0, 5)
+                      })
+                    }
+                    
+                    return {
+                      ...stat,
+                      user_profiles: {
+                        name: playerName
+                      }
+                    }
+                  })
+                  
+                  // Final verification: ensure all stats have player names
+                  const statsWithoutNames = processedStats.filter((s: any) => 
+                    !s.user_profiles?.name || s.user_profiles.name === 'Unknown'
+                  )
+                  
+                  if (statsWithoutNames.length > 0) {
+                    console.warn('Some stats still missing player names, attempting final API fetch:', statsWithoutNames.length)
+                    // Try one more time to fetch missing names
+                    const missingPlayerIds = statsWithoutNames.map((s: any) => s.player_id)
+                    
+                    const finalResponse = await fetch('/api/reports/player-names', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({ playerIds: missingPlayerIds }),
                     })
                     
-                    processedStats.forEach((stat: any) => {
-                      if (!stat.user_profiles?.name || stat.user_profiles.name === 'Unknown') {
-                        const name = missingNameMap.get(stat.player_id)
-                        if (name && name !== 'Unknown') {
-                          stat.user_profiles = { name }
+                    if (finalResponse.ok) {
+                      const finalData = await finalResponse.json()
+                      const finalNameMap = new Map<string, string>()
+                      
+                      Object.entries(finalData.playerNames || {}).forEach(([userId, name]) => {
+                        finalNameMap.set(userId, name as string)
+                      })
+                      
+                      processedStats.forEach((stat: any) => {
+                        if (!stat.user_profiles?.name || stat.user_profiles.name === 'Unknown') {
+                          const name = finalNameMap.get(stat.player_id)
+                          if (name && name !== 'Unknown') {
+                            stat.user_profiles = { name }
+                          }
                         }
-                      }
-                    })
+                      })
+                    }
                   }
+                  
+                  // Log for debugging
+                  console.log('Match stats processed:', {
+                    totalStats: processedStats.length,
+                    statsWithNames: processedStats.filter(s => s.user_profiles?.name && s.user_profiles.name !== 'Unknown').length,
+                    statsWithoutNames: processedStats.filter(s => !s.user_profiles?.name || s.user_profiles.name === 'Unknown').length,
+                    playerIdsFetched: playerIds.length,
+                    sampleNames: processedStats.slice(0, 5).map(s => ({ id: s.player_id, name: s.user_profiles?.name }))
+                  })
+                } else {
+                  const errorText = await response.text()
+                  let errorData
+                  try {
+                    errorData = JSON.parse(errorText)
+                  } catch {
+                    errorData = { error: errorText }
+                  }
+                  console.error('API error fetching player names:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    error: errorData
+                  })
+                  // Fallback: create stats without names
+                  processedStats = matchStats.map((stat: any) => ({
+                    ...stat,
+                    user_profiles: { name: 'Unknown' }
+                  }))
                 }
-                
-                // Log for debugging
-                console.log('Match stats processed:', {
-                  totalStats: processedStats.length,
-                  statsWithNames: processedStats.filter(s => s.user_profiles?.name && s.user_profiles.name !== 'Unknown').length,
-                  statsWithoutNames: processedStats.filter(s => !s.user_profiles?.name || s.user_profiles.name === 'Unknown').length,
-                  playerIdsFetched: playerIds.length,
-                  playerProfilesFound: playerProfiles?.length || 0,
-                  sampleNames: processedStats.slice(0, 5).map(s => ({ id: s.player_id, name: s.user_profiles?.name }))
+              } catch (apiError: any) {
+                console.error('Error calling player-names API:', {
+                  error: apiError,
+                  message: apiError?.message,
+                  stack: apiError?.stack
                 })
+                // Fallback: create stats without names
+                processedStats = matchStats.map((stat: any) => ({
+                  ...stat,
+                  user_profiles: { name: 'Unknown' }
+                }))
               }
-              
-              reportData.data = {
-                ...reportData.data,
-                matchId: selectedMatch.id,
-                matchDetails: matchDetails || {},
-                playerStats: processedStats || [],
-                summary: `Match statistics report for ${matchDetails?.opponent || selectedMatch.opponent} on ${new Date(selectedMatch.match_date).toLocaleDateString()}.`,
-              }
-            } else {
+            }
+            
+            reportData.data = {
+              ...reportData.data,
+              matchId: selectedMatch.id,
+              matchDetails: matchDetails || {},
+              playerStats: processedStats || [],
+              summary: `Match statistics report for ${matchDetails?.opponent || selectedMatch.opponent} on ${new Date(selectedMatch.match_date).toLocaleDateString()}.`,
+            }
+          } catch (err) {
+            console.error('Error fetching match data:', err)
+            // Fallback to old method if there's an error
+            try {
               // Fallback to regular client if service role not available
               const { data: matchDetails } = await supabase
                 .from('matches')
@@ -825,47 +910,171 @@ export default function ReportsPage() {
                 console.error('Error fetching match stats (fallback):', statsError)
               }
               
-              // Always fetch player names directly from user_profiles
+              // Always fetch player names using API route (server-side with service role)
               let processedStats: any[] = []
               
               if (matchStats && matchStats.length > 0) {
                 // Get all unique player IDs (which are user_ids)
                 const playerIds = [...new Set(matchStats.map((stat: any) => stat.player_id))]
                 
-                // Fetch all player names in one query
-                const { data: playerProfiles, error: profilesError } = await supabase
-                  .from('user_profiles')
-                  .select('user_id, name')
-                  .in('user_id', playerIds)
-                
-                if (profilesError) {
-                  console.error('Error fetching player profiles (fallback):', profilesError)
-                }
-                
-                // Create a map for quick lookup
-                const playerNameMap = new Map<string, string>()
-                if (playerProfiles) {
-                  playerProfiles.forEach((profile: any) => {
-                    playerNameMap.set(profile.user_id, profile.name || 'Unknown')
-                  })
-                }
-                
-                // Process match stats and attach player names
-                processedStats = matchStats.map((stat: any) => {
-                  const playerName = playerNameMap.get(stat.player_id) || 'Unknown'
-                  
-                  return {
-                    ...stat,
-                    user_profiles: {
-                      name: playerName
-                    }
-                  }
+                console.log('=== FALLBACK START ===')
+                console.log('Fallback: Fetching player names via API for match report:', {
+                  matchId: selectedMatch.id,
+                  totalStats: matchStats.length,
+                  uniquePlayerIds: playerIds.length,
+                  playerIds: playerIds,
+                  playerIdTypes: playerIds.map(id => typeof id),
+                  sampleMatchStats: matchStats.slice(0, 2).map(s => ({
+                    id: s.id,
+                    player_id: s.player_id,
+                    player_id_type: typeof s.player_id,
+                    match_id: s.match_id
+                  }))
                 })
                 
-                console.log('Match stats processed (fallback):', {
+                // Use API route to fetch player names (server-side with service role)
+                try {
+                  console.log('Fallback: Calling /api/reports/player-names with playerIds:', playerIds)
+                  
+                  const response = await fetch('/api/reports/player-names', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ playerIds }),
+                  })
+
+                  console.log('Fallback: API response status:', response.status, response.statusText)
+
+                  if (response.ok) {
+                    const data = await response.json()
+                    console.log('Fallback: API response data:', data)
+                    
+                    const playerNameMap = new Map<string, string>()
+                    
+                    Object.entries(data.playerNames || {}).forEach(([userId, name]) => {
+                      playerNameMap.set(userId, name as string)
+                    })
+                    
+                    console.log('Fallback: Player names fetched via API:', {
+                      requested: playerIds.length,
+                      found: data.profilesFound || 0,
+                      nameMapSize: playerNameMap.size,
+                      entries: Array.from(playerNameMap.entries())
+                    })
+                    
+                    // Process match stats and attach player names
+                    processedStats = matchStats.map((stat: any) => {
+                      const playerName = playerNameMap.get(stat.player_id) || 'Unknown'
+                      
+                      if (playerName === 'Unknown') {
+                        console.warn('Fallback: Player name not found for player_id:', stat.player_id, {
+                          statId: stat.id,
+                          matchId: stat.match_id,
+                          availablePlayerIds: Array.from(playerNameMap.keys())
+                        })
+                      }
+                      
+                      return {
+                        ...stat,
+                        user_profiles: {
+                          name: playerName
+                        }
+                      }
+                    })
+                  } else {
+                    const errorText = await response.text()
+                    let errorData
+                    try {
+                      errorData = JSON.parse(errorText)
+                    } catch {
+                      errorData = { error: errorText }
+                    }
+                    console.error('Fallback: API error fetching player names:', {
+                      status: response.status,
+                      statusText: response.statusText,
+                      error: errorData
+                    })
+                    // Fallback to direct query if API fails
+                    const { data: playerProfiles, error: queryError } = await supabase
+                      .from('user_profiles')
+                      .select('user_id, name')
+                      .in('user_id', playerIds)
+                    
+                    console.log('Fallback: Direct query result:', {
+                      found: playerProfiles?.length || 0,
+                      error: queryError
+                    })
+                    
+                    const playerNameMap = new Map<string, string>()
+                    if (playerProfiles) {
+                      playerProfiles.forEach((profile: any) => {
+                        playerNameMap.set(profile.user_id, profile.name || 'Unknown')
+                      })
+                    }
+                    
+                    processedStats = matchStats.map((stat: any) => ({
+                      ...stat,
+                      user_profiles: {
+                        name: playerNameMap.get(stat.player_id) || 'Unknown'
+                      }
+                    }))
+                  }
+                } catch (apiError: any) {
+                  console.error('Fallback: Error calling player-names API:', {
+                    error: apiError,
+                    message: apiError?.message,
+                    stack: apiError?.stack
+                  })
+                  // Fallback to direct query
+                  const { data: playerProfiles, error: queryError } = await supabase
+                    .from('user_profiles')
+                    .select('user_id, name')
+                    .in('user_id', playerIds)
+                  
+                  console.log('Fallback: Direct query after API error:', {
+                    found: playerProfiles?.length || 0,
+                    error: queryError
+                  })
+                  
+                  const playerNameMap = new Map<string, string>()
+                  if (playerProfiles) {
+                    playerProfiles.forEach((profile: any) => {
+                      playerNameMap.set(profile.user_id, profile.name || 'Unknown')
+                    })
+                  }
+                  
+                  processedStats = matchStats.map((stat: any) => ({
+                    ...stat,
+                    user_profiles: {
+                      name: playerNameMap.get(stat.player_id) || 'Unknown'
+                    }
+                  }))
+                }
+                
+                // Debug: Log what we have before final summary
+                console.log('🔍 === FALLBACK DEBUG INFO ===')
+                console.log('📊 Match stats before processing:', matchStats?.slice(0, 2))
+                console.log('🆔 Player IDs extracted:', playerIds, 'Types:', playerIds.map(id => typeof id))
+                console.log('✅ Processed stats sample:', processedStats?.slice(0, 2))
+                console.log('👤 Processed stats with names check:', processedStats?.map(s => ({
+                  player_id: s.player_id,
+                  hasUserProfiles: !!s.user_profiles,
+                  name: s.user_profiles?.name,
+                  nameType: typeof s.user_profiles?.name
+                })).slice(0, 3))
+                console.log('🔍 === END FALLBACK DEBUG ===')
+                
+                console.log('Match stats processed:', {
                   totalStats: processedStats.length,
-                  statsWithNames: processedStats.filter(s => s.user_profiles.name !== 'Unknown').length,
-                  statsWithoutNames: processedStats.filter(s => s.user_profiles.name === 'Unknown').length
+                  statsWithNames: processedStats.filter(s => s.user_profiles?.name && s.user_profiles.name !== 'Unknown').length,
+                  statsWithoutNames: processedStats.filter(s => !s.user_profiles?.name || s.user_profiles.name === 'Unknown').length,
+                  sampleStats: processedStats.slice(0, 3).map(s => ({
+                    player_id: s.player_id,
+                    name: s.user_profiles?.name,
+                    tries: s.tries_scored,
+                    fullStat: JSON.stringify(s).substring(0, 200)
+                  }))
                 })
               }
               
@@ -876,7 +1085,6 @@ export default function ReportsPage() {
                 playerStats: processedStats || [],
                 summary: `Match statistics report for ${matchDetails?.opponent || selectedMatch.opponent} on ${new Date(selectedMatch.match_date).toLocaleDateString()}.`,
               }
-            }
           } catch (err) {
             console.error('Error fetching match data:', err)
           }
@@ -1141,6 +1349,170 @@ export default function ReportsPage() {
         }
       }
 
+      // Final check: For match reports, ensure all player names are fetched
+      if (report.type === 'match' && reportData.data.playerStats) {
+        const statsWithUnknown = reportData.data.playerStats.filter((stat: any) => 
+          !stat.user_profiles?.name || stat.user_profiles.name === 'Unknown'
+        )
+        
+        if (statsWithUnknown.length > 0) {
+          console.log('Re-fetching player names for match report:', statsWithUnknown.length, 'stats with Unknown names')
+          
+          try {
+            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+            const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+            
+            if (supabaseUrl && supabaseServiceKey) {
+              const { createClient: createServiceClient } = await import('@supabase/supabase-js')
+              const supabaseAdmin = createServiceClient(supabaseUrl, supabaseServiceKey, {
+                auth: {
+                  autoRefreshToken: false,
+                  persistSession: false
+                }
+              })
+              
+              const missingPlayerIds = statsWithUnknown.map((s: any) => s.player_id)
+              const { data: missingProfiles } = await supabaseAdmin
+                .from('user_profiles')
+                .select('user_id, name')
+                .in('user_id', missingPlayerIds)
+              
+              if (missingProfiles) {
+                const missingNameMap = new Map<string, string>()
+                missingProfiles.forEach((p: any) => {
+                  missingNameMap.set(p.user_id, p.name || 'Unknown')
+                })
+                
+                // Update all stats with fetched names
+                reportData.data.playerStats = reportData.data.playerStats.map((stat: any) => {
+                  if (!stat.user_profiles?.name || stat.user_profiles.name === 'Unknown') {
+                    const name = missingNameMap.get(stat.player_id)
+                    if (name && name !== 'Unknown') {
+                      return {
+                        ...stat,
+                        user_profiles: { name }
+                      }
+                    }
+                  }
+                  return stat
+                })
+                
+                console.log('Updated player names:', {
+                  updated: reportData.data.playerStats.filter((s: any) => 
+                    s.user_profiles?.name && s.user_profiles.name !== 'Unknown'
+                  ).length,
+                  stillUnknown: reportData.data.playerStats.filter((s: any) => 
+                    !s.user_profiles?.name || s.user_profiles.name === 'Unknown'
+                  ).length
+                })
+              }
+            }
+          } catch (err) {
+            console.error('Error re-fetching player names:', err)
+          }
+        }
+      }
+
+      // Final verification and logging before generating report
+      if (report.type === 'match' && reportData.data.playerStats) {
+        console.log('=== FINAL REPORT DATA VERIFICATION ===')
+        console.log('Total player stats:', reportData.data.playerStats.length)
+        
+        const statsWithNames = reportData.data.playerStats.filter((s: any) => 
+          s.user_profiles?.name && s.user_profiles.name !== 'Unknown'
+        )
+        const statsWithoutNames = reportData.data.playerStats.filter((s: any) => 
+          !s.user_profiles?.name || s.user_profiles.name === 'Unknown'
+        )
+        
+        console.log('Stats with names:', statsWithNames.length)
+        console.log('Stats without names:', statsWithoutNames.length)
+        
+        if (statsWithNames.length > 0) {
+          console.log('Sample stats WITH names:', statsWithNames.slice(0, 3).map((s: any) => ({
+            player_id: s.player_id,
+            name: s.user_profiles?.name,
+            tries: s.tries_scored
+          })))
+        }
+        
+        if (statsWithoutNames.length > 0) {
+          console.log('Sample stats WITHOUT names:', statsWithoutNames.slice(0, 3).map((s: any) => ({
+            player_id: s.player_id,
+            name: s.user_profiles?.name || 'MISSING',
+            tries: s.tries_scored
+          })))
+          
+          // Last attempt: directly query the database for these specific player IDs
+          console.log('Attempting final database query for missing names...')
+          try {
+            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+            const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+            
+            if (supabaseUrl && supabaseServiceKey) {
+              const { createClient: createServiceClient } = await import('@supabase/supabase-js')
+              const supabaseAdmin = createServiceClient(supabaseUrl, supabaseServiceKey, {
+                auth: {
+                  autoRefreshToken: false,
+                  persistSession: false
+                }
+              })
+              
+              const finalMissingIds = [...new Set(statsWithoutNames.map((s: any) => s.player_id))]
+              console.log('Querying for player IDs:', finalMissingIds)
+              
+              const { data: finalProfiles, error: finalError } = await supabaseAdmin
+                .from('user_profiles')
+                .select('user_id, name')
+                .in('user_id', finalMissingIds)
+              
+              if (finalError) {
+                console.error('Final query error:', finalError)
+              } else {
+                console.log('Final query results:', finalProfiles?.length, 'profiles found')
+                console.log('Final profiles:', finalProfiles)
+                
+                if (finalProfiles && finalProfiles.length > 0) {
+                  const finalNameMap = new Map<string, string>()
+                  finalProfiles.forEach((p: any) => {
+                    if (p.user_id && p.name) {
+                      finalNameMap.set(p.user_id, p.name)
+                    }
+                  })
+                  
+                  // Update reportData with final names
+                  reportData.data.playerStats = reportData.data.playerStats.map((stat: any) => {
+                    if (!stat.user_profiles?.name || stat.user_profiles.name === 'Unknown') {
+                      const name = finalNameMap.get(stat.player_id)
+                      if (name && name !== 'Unknown') {
+                        return {
+                          ...stat,
+                          user_profiles: { name }
+                        }
+                      }
+                    }
+                    return stat
+                  })
+                  
+                  console.log('After final update:', {
+                    withNames: reportData.data.playerStats.filter((s: any) => 
+                      s.user_profiles?.name && s.user_profiles.name !== 'Unknown'
+                    ).length,
+                    withoutNames: reportData.data.playerStats.filter((s: any) => 
+                      !s.user_profiles?.name || s.user_profiles.name === 'Unknown'
+                    ).length
+                  })
+                }
+              }
+            }
+          } catch (finalErr) {
+            console.error('Final fetch error:', finalErr)
+          }
+        }
+        
+        console.log('=== END VERIFICATION ===')
+      }
+
       let blob: Blob
       let filename: string
       const safeTitle = report.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()
@@ -1151,10 +1523,32 @@ export default function ReportsPage() {
           filename = `${safeTitle}.pdf`
           break
         case 'excel':
+          // Log data being passed to Excel generator
+          if (report.type === 'match' && reportData.data.playerStats) {
+            console.log('Passing to Excel generator:', {
+              statsCount: reportData.data.playerStats.length,
+              sampleStat: reportData.data.playerStats[0] ? {
+                player_id: reportData.data.playerStats[0].player_id,
+                name: reportData.data.playerStats[0].user_profiles?.name,
+                tries: reportData.data.playerStats[0].tries_scored
+              } : null
+            })
+          }
           blob = generateExcelReport(reportData)
           filename = `${safeTitle}.xlsx`
           break
         case 'csv':
+          // Log data being passed to CSV generator
+          if (report.type === 'match' && reportData.data.playerStats) {
+            console.log('Passing to CSV generator:', {
+              statsCount: reportData.data.playerStats.length,
+              sampleStat: reportData.data.playerStats[0] ? {
+                player_id: reportData.data.playerStats[0].player_id,
+                name: reportData.data.playerStats[0].user_profiles?.name,
+                tries: reportData.data.playerStats[0].tries_scored
+              } : null
+            })
+          }
           blob = generateCSVReport(reportData)
           filename = `${safeTitle}.csv`
           break

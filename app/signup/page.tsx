@@ -165,40 +165,40 @@ export default function SignupPage() {
             <label htmlFor="role" className="block text-sm font-medium text-neutral-text mb-2">
               Account Type <span className="text-red-500">*</span>
             </label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {roleOptions.map((roleOption) => {
-                const Icon = roleOption.icon
-                const isSelected = formData.role === roleOption.value
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {roleOptions.map((roleOption) => {
+                  const Icon = roleOption.icon
+                  const isSelected = formData.role === roleOption.value
 
-                return (
-                  <button
-                    key={roleOption.value}
-                    type="button"
-                    onClick={() => setFormData({ ...formData, role: roleOption.value as Role, position: '' })}
-                    className={`p-4 border-2 rounded-lg text-left transition-all ${
-                      isSelected
-                        ? 'border-primary bg-primary/5 shadow-soft'
+                  return (
+                    <button
+                      key={roleOption.value}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, role: roleOption.value as Role, position: '' })}
+                      className={`p-4 border-2 rounded-lg text-left transition-all ${
+                        isSelected
+                          ? 'border-primary bg-primary/5 shadow-soft'
                         : 'border-neutral-light hover:border-primary/50 hover:bg-neutral-light/50'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-start gap-3 flex-1">
-                        <Icon className={`w-5 h-5 mt-0.5 ${isSelected ? 'text-primary' : 'text-neutral-medium'}`} />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-semibold text-neutral-text">{roleOption.label}</h3>
-                            {isSelected && (
-                              <span className="px-2 py-0.5 bg-primary text-white text-xs rounded-full">Selected</span>
-                            )}
+                      }`}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-start gap-3 flex-1">
+                          <Icon className={`w-5 h-5 mt-0.5 ${isSelected ? 'text-primary' : 'text-neutral-medium'}`} />
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-semibold text-neutral-text">{roleOption.label}</h3>
+                              {isSelected && (
+                                <span className="px-2 py-0.5 bg-primary text-white text-xs rounded-full">Selected</span>
+                              )}
+                            </div>
+                            <p className="text-xs text-neutral-medium mt-1">{roleOption.description}</p>
                           </div>
-                          <p className="text-xs text-neutral-medium mt-1">{roleOption.description}</p>
                         </div>
                       </div>
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
+                    </button>
+                  )
+                })}
+              </div>
           </div>
 
           {/* Position Selection for Players */}

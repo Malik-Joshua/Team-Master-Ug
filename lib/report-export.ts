@@ -226,6 +226,19 @@ export function generateExcelReport(report: ReportData): Blob {
     }
     // Format match reports
     else if (report.type === 'match' && report.data.matchDetails) {
+      // Log what we're receiving
+      console.log('Excel Generator - Match report data:', {
+        hasMatchDetails: !!report.data.matchDetails,
+        playerStatsCount: report.data.playerStats?.length || 0,
+        sampleStat: report.data.playerStats?.[0] ? {
+          player_id: report.data.playerStats[0].player_id,
+          name: report.data.playerStats[0].user_profiles?.name,
+          tries: report.data.playerStats[0].tries_scored
+        } : null,
+        allPlayerIds: report.data.playerStats?.slice(0, 5).map((s: any) => s.player_id),
+        allNames: report.data.playerStats?.slice(0, 5).map((s: any) => s.user_profiles?.name)
+      })
+      
       const match = report.data.matchDetails
       metadata.push(['EXECUTIVE SUMMARY'])
       metadata.push([`This report provides a detailed analysis of the match against ${match.opponent || 'Opponent'}, including team performance metrics, individual player contributions, and key statistics. The data presented offers insights into team dynamics and player effectiveness during this match.`])

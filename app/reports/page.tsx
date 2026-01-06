@@ -1085,6 +1085,9 @@ export default function ReportsPage() {
                 playerStats: processedStats || [],
                 summary: `Match statistics report for ${matchDetails?.opponent || selectedMatch.opponent} on ${new Date(selectedMatch.match_date).toLocaleDateString()}.`,
               }
+            } catch (fallbackErr) {
+              console.error('Error in fallback match data fetch:', fallbackErr)
+            }
           } catch (err) {
             console.error('Error fetching match data:', err)
           }

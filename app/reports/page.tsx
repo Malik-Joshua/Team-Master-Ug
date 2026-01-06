@@ -623,21 +623,13 @@ export default function ReportsPage() {
         let selectedMatch: any = null
         let matchId: string | null = null
         
-        // Approach 1: Extract match ID from title first (most reliable) - format: "Match Report - Opponent (Date) [ID:match_id]"
-        const idMatch = report.title.match(/\[ID:([^\]]+)\]/)
-        if (idMatch && idMatch[1]) {
-          matchId = idMatch[1].trim()
-          console.log('Extracted match ID from title:', matchId)
-          selectedMatch = matches.find(m => m.id === matchId)
-        }
-        
-        // Approach 2: Try to get match ID from reportFilters if still available (during same session)
-        if (!selectedMatch && reportFilters.selectedMatch) {
+        // Approach 1: Try to get match ID from reportFilters if still available (during same session)
+        if (reportFilters.selectedMatch) {
           matchId = reportFilters.selectedMatch
           selectedMatch = matches.find(m => m.id === matchId)
         }
         
-        // Approach 3: Extract from title "Match Report - Opponent (Date)"
+        // Approach 2: Extract from title "Match Report - Opponent (Date)"
         if (!selectedMatch) {
           const matchMatch = report.title.match(/Match Report - (.+?)\s*\(/)
           if (matchMatch && matchMatch[1]) {
@@ -649,7 +641,7 @@ export default function ReportsPage() {
           }
         }
         
-        // Approach 4: Try to find by date in title
+        // Approach 3: Try to find by date in title
         if (!selectedMatch) {
           const dateMatch = report.title.match(/\((\d{1,2}\/\d{1,2}\/\d{4})\)/)
           if (dateMatch) {
@@ -680,7 +672,7 @@ export default function ReportsPage() {
           }
         }
         
-        // Approach 5: If still not found, try all matches and find the most recent one with stats
+        // Approach 4: If still not found, try all matches and find the most recent one with stats
         if (!selectedMatch && matches.length > 0) {
           // Try to find a match that has stats
           for (const match of matches) {

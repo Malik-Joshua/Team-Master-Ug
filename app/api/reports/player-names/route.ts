@@ -45,18 +45,32 @@ export async function POST(request: NextRequest) {
 
     console.log('API: Querying user_profiles for playerIds:', playerIds, 'at', new Date().toISOString())
 
-    // Fetch player names from user_profiles with timeout
+    // Fetch player names from user_profiles
     // Note: match_stats.player_id references players.user_id, which equals user_profiles.user_id
     const queryStart = Date.now()
-    const { data: playerProfiles, error: profilesError } = await Promise.race([
-      supabaseAdmin
-        .from('user_profiles')
-        .select('user_id, name')
-        .in('user_id', playerIds),
-      new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Query timeout after 10s')), 10000)
-      )
-    ]) as any
+    
+    // Create a timeout promise
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Query timeout after 10s')), 10000)
+    })
+    
+    // Race the query against timeout
+    const queryPromise = supabaseAdmin
+      .from('user_profiles')
+      .select('user_id, name')
+      .in('user_id', playerIds)
+    
+    let playerProfiles: any = null
+    let profilesError: any = null
+    
+    try {
+      const result = await Promise.race([queryPromise, timeoutPromise]) as any
+      playerProfiles = result.data
+      profilesError = result.error
+    } catch (timeoutError: any) {
+      console.error('API: Query timed out or failed:', timeoutError)
+      profilesError = timeoutError
+    }
 
     const queryTime = Date.now() - queryStart
     console.log('API: user_profiles query completed in', queryTime, 'ms:', {

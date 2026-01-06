@@ -313,6 +313,73 @@ export function generateExcelReport(report: ReportData): Blob {
         metadata.push(['Total Minutes', '0'])
       }
     }
+    // Format financial reports
+    else if (report.type === 'financial' && report.data.transactions) {
+      metadata.push(['EXECUTIVE SUMMARY'])
+      metadata.push([`This financial report provides a comprehensive overview of all financial transactions, including revenues and expenses, categorized breakdowns, and net balance calculations. The data presented offers insights into the club's financial health and spending patterns.`])
+      metadata.push([])
+      metadata.push(['FINANCIAL REPORT'])
+      metadata.push([])
+      
+      // Financial Summary
+      const summary = report.data.summary || {}
+      metadata.push(['FINANCIAL SUMMARY'])
+      metadata.push(['Metric', 'Value'])
+      metadata.push(['Total Revenue', `UGX ${(summary.totalRevenue || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`])
+      metadata.push(['Total Expenses', `UGX ${(summary.totalExpenses || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`])
+      metadata.push(['Net Balance', `UGX ${(summary.netBalance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`])
+      metadata.push(['Total Transactions', String(summary.transactionCount || 0)])
+      metadata.push(['Revenue Transactions', String(summary.revenueCount || 0)])
+      metadata.push(['Expense Transactions', String(summary.expenseCount || 0)])
+      metadata.push([])
+      
+      // Expenses by Category
+      if (report.data.expensesByCategory && Object.keys(report.data.expensesByCategory).length > 0) {
+        metadata.push(['EXPENSES BY CATEGORY'])
+        metadata.push(['Category', 'Total Amount (UGX)'])
+        Object.entries(report.data.expensesByCategory)
+          .sort(([, a]: any, [, b]: any) => b - a)
+          .forEach(([category, amount]: [string, any]) => {
+            metadata.push([category, amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })])
+          })
+        metadata.push([])
+      }
+      
+      // Revenue by Category
+      if (report.data.revenueByCategory && Object.keys(report.data.revenueByCategory).length > 0) {
+        metadata.push(['REVENUE BY CATEGORY'])
+        metadata.push(['Category', 'Total Amount (UGX)'])
+        Object.entries(report.data.revenueByCategory)
+          .sort(([, a]: any, [, b]: any) => b - a)
+          .forEach(([category, amount]: [string, any]) => {
+            metadata.push([category, amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })])
+          })
+        metadata.push([])
+      }
+      
+      // Transaction Details
+      metadata.push(['TRANSACTION DETAILS'])
+      if (report.data.transactions && report.data.transactions.length > 0) {
+        metadata.push([`Showing ${report.data.transactions.length} transaction${report.data.transactions.length !== 1 ? 's' : ''} | Sorted by date (most recent first)`])
+        metadata.push([])
+        metadata.push(['Date', 'Type', 'Category', 'Description', 'Amount (UGX)', 'Created By'])
+        
+        report.data.transactions.forEach((transaction: any) => {
+          const createdByName = transaction.created_by_profile?.name || 'Unknown'
+          metadata.push([
+            new Date(transaction.transaction_date).toLocaleDateString(),
+            transaction.type === 'revenue' ? 'Revenue' : 'Expense',
+            transaction.category || 'N/A',
+            transaction.description || 'N/A',
+            parseFloat(transaction.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+            createdByName
+          ])
+        })
+      } else {
+        metadata.push(['No transactions found for the selected date range'])
+      }
+      metadata.push([])
+    }
     // Format training attendance data specially
     else if (report.type === 'training' && report.data.formattedSessions) {
       metadata.push(['Training Sessions Summary'])
@@ -672,6 +739,75 @@ export function generateCSVReport(report: ReportData): Blob {
         lines.push('Total Tackles,0')
         lines.push('Total Minutes,0')
       }
+    }
+    // Format financial reports
+    else if (report.type === 'financial' && report.data.transactions) {
+      lines.push('EXECUTIVE SUMMARY')
+      lines.push(`This financial report provides a comprehensive overview of all financial transactions, including revenues and expenses, categorized breakdowns, and net balance calculations. The data presented offers insights into the club's financial health and spending patterns.`)
+      lines.push('')
+      lines.push('FINANCIAL REPORT')
+      lines.push('')
+      
+      // Financial Summary
+      const summary = report.data.summary || {}
+      lines.push('FINANCIAL SUMMARY')
+      lines.push('Metric,Value')
+      lines.push(`Total Revenue,UGX ${(summary.totalRevenue || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`)
+      lines.push(`Total Expenses,UGX ${(summary.totalExpenses || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`)
+      lines.push(`Net Balance,UGX ${(summary.netBalance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`)
+      lines.push(`Total Transactions,${summary.transactionCount || 0}`)
+      lines.push(`Revenue Transactions,${summary.revenueCount || 0}`)
+      lines.push(`Expense Transactions,${summary.expenseCount || 0}`)
+      lines.push('')
+      
+      // Expenses by Category
+      if (report.data.expensesByCategory && Object.keys(report.data.expensesByCategory).length > 0) {
+        lines.push('EXPENSES BY CATEGORY')
+        lines.push('Category,Total Amount (UGX)')
+        Object.entries(report.data.expensesByCategory)
+          .sort(([, a]: any, [, b]: any) => b - a)
+          .forEach(([category, amount]: [string, any]) => {
+            const cat = category.includes(',') ? `"${category}"` : category
+            lines.push(`${cat},${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`)
+          })
+        lines.push('')
+      }
+      
+      // Revenue by Category
+      if (report.data.revenueByCategory && Object.keys(report.data.revenueByCategory).length > 0) {
+        lines.push('REVENUE BY CATEGORY')
+        lines.push('Category,Total Amount (UGX)')
+        Object.entries(report.data.revenueByCategory)
+          .sort(([, a]: any, [, b]: any) => b - a)
+          .forEach(([category, amount]: [string, any]) => {
+            const cat = category.includes(',') ? `"${category}"` : category
+            lines.push(`${cat},${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`)
+          })
+        lines.push('')
+      }
+      
+      // Transaction Details
+      lines.push('TRANSACTION DETAILS')
+      if (report.data.transactions && report.data.transactions.length > 0) {
+        lines.push(`Showing ${report.data.transactions.length} transaction${report.data.transactions.length !== 1 ? 's' : ''} | Sorted by date (most recent first)`)
+        lines.push('')
+        lines.push('Date,Type,Category,Description,Amount (UGX),Created By')
+        
+        report.data.transactions.forEach((transaction: any) => {
+          const createdByName = transaction.created_by_profile?.name || 'Unknown'
+          const date = new Date(transaction.transaction_date).toLocaleDateString()
+          const type = transaction.type === 'revenue' ? 'Revenue' : 'Expense'
+          const category = (transaction.category || 'N/A').includes(',') ? `"${transaction.category || 'N/A'}"` : (transaction.category || 'N/A')
+          const description = (transaction.description || 'N/A').includes(',') ? `"${transaction.description || 'N/A'}"` : (transaction.description || 'N/A')
+          const amount = parseFloat(transaction.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+          const creator = createdByName.includes(',') ? `"${createdByName}"` : createdByName
+          
+          lines.push(`${date},${type},${category},${description},${amount},${creator}`)
+        })
+      } else {
+        lines.push('No transactions found for the selected date range')
+      }
+      lines.push('')
     }
     // Format training attendance data specially
     else if (report.type === 'training' && report.data.formattedSessions) {

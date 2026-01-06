@@ -211,6 +211,9 @@ export default function ReportsPage() {
         alert('Please select a training session for the training report')
         return
       }
+      if (type === 'financial') {
+        // Financial reports don't need specific filters, they use date range
+      }
 
       // Determine date range
       const dateFrom = filterData.dateFrom ? new Date(filterData.dateFrom).toISOString().split('T')[0] : null
@@ -616,39 +619,113 @@ export default function ReportsPage() {
           }
         }
       } else if (report.type === 'match') {
-        // Extract match info from title
+        // Extract match info from title - try multiple patterns
+        let selectedMatch: any = null
+        
+        // Pattern 1: Extract from title "Match Report - Opponent (Date)"
         const matchMatch = report.title.match(/Match Report - (.+?)\s*\(/)
         if (matchMatch && matchMatch[1]) {
           const matchOpponent = matchMatch[1].trim()
-          const selectedMatch = matches.find(m => m.opponent === matchOpponent)
-          
-          if (selectedMatch) {
-            // Fetch match-specific data
-            try {
-              const { data: matchDetails } = await supabase
+          selectedMatch = matches.find(m => m.opponent === matchOpponent)
+        }
+        
+        // Pattern 2: If not found, try to extract match ID from report details
+        if (!selectedMatch && reportDetails) {
+          // Try to get match ID from stored metadata or use first match
+          if (matches.length > 0) {
+            selectedMatch = matches[0]
+          }
+        }
+        
+        // Pattern 3: If still not found, try to find by date in title
+        if (!selectedMatch) {
+          const dateMatch = report.title.match(/\((\d{1,2}\/\d{1,2}\/\d{4})\)/)
+          if (dateMatch) {
+            const titleDate = dateMatch[1]
+            selectedMatch = matches.find(m => {
+              const matchDate = new Date(m.match_date).toLocaleDateString()
+              return matchDate === titleDate
+            })
+          }
+        }
+        
+        if (selectedMatch) {
+          // Fetch match-specific data using service role to bypass RLS
+          try {
+            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+            const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+            
+            if (supabaseUrl && supabaseServiceKey) {
+              const { createClient: createServiceClient } = await import('@supabase/supabase-js')
+              const supabaseAdmin = createServiceClient(supabaseUrl, supabaseServiceKey, {
+                auth: {
+                  autoRefreshToken: false,
+                  persistSession: false
+                }
+              })
+              
+              const { data: matchDetails } = await supabaseAdmin
                 .from('matches')
                 .select('*')
                 .eq('id', selectedMatch.id)
                 .single()
               
-              // Fetch match stats
-              const { data: matchStats } = await supabase
+              // Fetch match stats with proper join to get player names
+              const { data: matchStats } = await supabaseAdmin
                 .from('match_stats')
-                .select('*')
+                .select(`
+                  *,
+                  players!match_stats_player_id_fkey (
+                    user_id,
+                    user_profiles!players_user_id_fkey (
+                      user_id,
+                      name
+                    )
+                  )
+                `)
                 .eq('match_id', selectedMatch.id)
               
-              // Fetch player names separately and map them
-              if (matchStats && matchStats.length > 0) {
-                const playerIds = matchStats.map((stat: any) => stat.player_id)
-                const { data: playerProfiles } = await supabase
+              // Process match stats to ensure player names are properly attached
+              const processedStats = (matchStats || []).map((stat: any) => {
+                // Try multiple paths to get player name
+                let playerName = 'Unknown'
+                
+                if (stat.players?.user_profiles?.name) {
+                  playerName = stat.players.user_profiles.name
+                } else if (stat.players?.name) {
+                  playerName = stat.players.name
+                } else if (stat.user_profiles?.name) {
+                  playerName = stat.user_profiles.name
+                } else {
+                  // Fallback: fetch player name directly
+                  // This will be handled below
+                }
+                
+                return {
+                  ...stat,
+                  user_profiles: {
+                    name: playerName
+                  }
+                }
+              })
+              
+              // If any stats still have "Unknown", fetch player names directly
+              const unknownStats = processedStats.filter((s: any) => s.user_profiles.name === 'Unknown')
+              if (unknownStats.length > 0) {
+                const playerIds = unknownStats.map((s: any) => s.player_id)
+                const { data: playerProfiles } = await supabaseAdmin
                   .from('user_profiles')
                   .select('user_id, name')
                   .in('user_id', playerIds)
                 
-                // Map player names to stats
-                matchStats.forEach((stat: any) => {
-                  const player = playerProfiles?.find((p: any) => p.user_id === stat.player_id)
-                  stat.user_profiles = player ? { name: player.name } : { name: 'Unknown' }
+                // Update stats with fetched names
+                processedStats.forEach((stat: any) => {
+                  if (stat.user_profiles.name === 'Unknown') {
+                    const player = playerProfiles?.find((p: any) => p.user_id === stat.player_id)
+                    if (player) {
+                      stat.user_profiles.name = player.name
+                    }
+                  }
                 })
               }
               
@@ -656,12 +733,51 @@ export default function ReportsPage() {
                 ...reportData.data,
                 matchId: selectedMatch.id,
                 matchDetails: matchDetails || {},
-                playerStats: matchStats || [],
-                summary: `Match statistics report for ${matchDetails?.opponent || matchOpponent} on ${new Date(selectedMatch.match_date).toLocaleDateString()}.`,
+                playerStats: processedStats || [],
+                summary: `Match statistics report for ${matchDetails?.opponent || selectedMatch.opponent} on ${new Date(selectedMatch.match_date).toLocaleDateString()}.`,
               }
-            } catch (err) {
-              console.error('Error fetching match data:', err)
+            } else {
+              // Fallback to regular client if service role not available
+              const { data: matchDetails } = await supabase
+                .from('matches')
+                .select('*')
+                .eq('id', selectedMatch.id)
+                .single()
+              
+              const { data: matchStats } = await supabase
+                .from('match_stats')
+                .select('*')
+                .eq('match_id', selectedMatch.id)
+              
+              // Fetch player names separately
+              if (matchStats && matchStats.length > 0) {
+                const playerIds = matchStats.map((stat: any) => stat.player_id)
+                const { data: playerProfiles } = await supabase
+                  .from('user_profiles')
+                  .select('user_id, name')
+                  .in('user_id', playerIds)
+                
+                const processedStats = matchStats.map((stat: any) => {
+                  const player = playerProfiles?.find((p: any) => p.user_id === stat.player_id)
+                  return {
+                    ...stat,
+                    user_profiles: {
+                      name: player?.name || 'Unknown'
+                    }
+                  }
+                })
+                
+                reportData.data = {
+                  ...reportData.data,
+                  matchId: selectedMatch.id,
+                  matchDetails: matchDetails || {},
+                  playerStats: processedStats || [],
+                  summary: `Match statistics report for ${matchDetails?.opponent || selectedMatch.opponent} on ${new Date(selectedMatch.match_date).toLocaleDateString()}.`,
+                }
+              }
             }
+          } catch (err) {
+            console.error('Error fetching match data:', err)
           }
         }
       } else if (report.type === 'training') {
@@ -808,6 +924,118 @@ export default function ReportsPage() {
                 console.error('Error in fallback training data fetch:', fallbackErr)
               }
             }
+          }
+        }
+      } else if (report.type === 'financial') {
+        // Fetch financial transactions for financial report
+        try {
+          const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+          const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+          
+          let financialData: any[] = []
+          
+          if (supabaseUrl && supabaseServiceKey) {
+            const { createClient: createServiceClient } = await import('@supabase/supabase-js')
+            const supabaseAdmin = createServiceClient(supabaseUrl, supabaseServiceKey, {
+              auth: {
+                autoRefreshToken: false,
+                persistSession: false
+              }
+            })
+            
+            // Build query with date filters if provided
+            let query = supabaseAdmin
+              .from('financial_transactions')
+              .select(`
+                *,
+                created_by_profile:user_profiles!financial_transactions_created_by_fkey (
+                  user_id,
+                  name
+                )
+              `)
+              .order('transaction_date', { ascending: false })
+            
+            if (reportDetails?.date_from) {
+              query = query.gte('transaction_date', reportDetails.date_from)
+            }
+            if (reportDetails?.date_to) {
+              query = query.lte('transaction_date', reportDetails.date_to)
+            }
+            
+            const { data: transactions } = await query
+            
+            financialData = transactions || []
+          } else {
+            // Fallback to regular client
+            let query = supabase
+              .from('financial_transactions')
+              .select('*')
+              .order('transaction_date', { ascending: false })
+            
+            if (reportDetails?.date_from) {
+              query = query.gte('transaction_date', reportDetails.date_from)
+            }
+            if (reportDetails?.date_to) {
+              query = query.lte('transaction_date', reportDetails.date_to)
+            }
+            
+            const { data: transactions } = await query
+            financialData = transactions || []
+          }
+          
+          // Calculate financial summary
+          const totalRevenue = financialData
+            .filter((t: any) => t.type === 'revenue')
+            .reduce((sum: number, t: any) => sum + parseFloat(t.amount || 0), 0)
+          
+          const totalExpenses = financialData
+            .filter((t: any) => t.type === 'expense')
+            .reduce((sum: number, t: any) => sum + parseFloat(t.amount || 0), 0)
+          
+          const netBalance = totalRevenue - totalExpenses
+          
+          // Group by category
+          const expensesByCategory: Record<string, number> = {}
+          const revenueByCategory: Record<string, number> = {}
+          
+          financialData.forEach((t: any) => {
+            const amount = parseFloat(t.amount || 0)
+            if (t.type === 'expense') {
+              expensesByCategory[t.category] = (expensesByCategory[t.category] || 0) + amount
+            } else if (t.type === 'revenue') {
+              revenueByCategory[t.category] = (revenueByCategory[t.category] || 0) + amount
+            }
+          })
+          
+          reportData.data = {
+            ...reportData.data,
+            transactions: financialData,
+            summary: {
+              totalRevenue,
+              totalExpenses,
+              netBalance,
+              transactionCount: financialData.length,
+              revenueCount: financialData.filter((t: any) => t.type === 'revenue').length,
+              expenseCount: financialData.filter((t: any) => t.type === 'expense').length,
+            },
+            expensesByCategory,
+            revenueByCategory,
+          }
+        } catch (err) {
+          console.error('Error fetching financial data:', err)
+          reportData.data = {
+            ...reportData.data,
+            transactions: [],
+            summary: {
+              totalRevenue: 0,
+              totalExpenses: 0,
+              netBalance: 0,
+              transactionCount: 0,
+              revenueCount: 0,
+              expenseCount: 0,
+            },
+            expensesByCategory: {},
+            revenueByCategory: {},
           }
         }
       }
@@ -1105,6 +1333,24 @@ export default function ReportsPage() {
               onClick={() => handleGenerateReport('training')}
               disabled={!reportFilters.selectedTrainingSession}
               className="w-full px-4 py-2 bg-info text-white rounded-button font-medium hover:bg-info-dark transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Generate
+            </button>
+          </div>
+
+          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft hover-lift">
+            <div className="flex items-center space-x-4 mb-4">
+              <div className="w-12 h-12 bg-success rounded-xl flex items-center justify-center">
+                <BarChart3 className="w-6 h-6 text-white" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-bold text-neutral-text">Financial Report</h3>
+                <p className="text-sm text-neutral-medium">Transactions & budgets</p>
+              </div>
+            </div>
+            <button
+              onClick={() => handleGenerateReport('financial')}
+              className="w-full px-4 py-2 bg-success text-white rounded-button font-medium hover:bg-success-dark transition-colors text-sm"
             >
               Generate
             </button>

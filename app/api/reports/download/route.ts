@@ -1013,6 +1013,272 @@ export async function POST(request: NextRequest) {
           safeText('Total Minutes: 0', margin + 5, yPos)
         }
       }
+      // Format financial reports
+      else if (report.type === 'financial' && report.data.transactions) {
+        doc.setFontSize(12)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(26, 26, 26)
+        safeText('EXECUTIVE SUMMARY', margin, yPos)
+        yPos += 8
+        
+        doc.setFontSize(10)
+        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(51, 51, 51)
+        const summaryText = `This financial report provides a comprehensive overview of all financial transactions, including revenues and expenses, categorized breakdowns, and net balance calculations. The data presented offers insights into the club's financial health and spending patterns.`
+        const summaryLines = doc.splitTextToSize(summaryText, contentWidth)
+        if (Array.isArray(summaryLines)) {
+          summaryLines.forEach((line: string) => {
+            if (yPos > pageHeight - 20) {
+              doc.addPage()
+              yPos = margin
+            }
+            safeText(line, margin, yPos)
+            yPos += 5
+          })
+        } else {
+          safeText(summaryLines, margin, yPos)
+          yPos += 5
+        }
+        yPos += 8
+        
+        // Financial Summary
+        doc.setFontSize(12)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(26, 26, 26)
+        safeText('FINANCIAL SUMMARY', margin, yPos)
+        yPos += 8
+        
+        const summary = report.data.summary || {}
+        doc.setFontSize(10)
+        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(51, 51, 51)
+        
+        const leftX = margin + 5
+        const rightX = pageWidth / 2 + 10
+        const lineHeight = 6
+        
+        safeText(`Total Revenue: UGX ${(summary.totalRevenue || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, leftX, yPos)
+        yPos += lineHeight
+        safeText(`Total Expenses: UGX ${(summary.totalExpenses || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, leftX, yPos)
+        yPos += lineHeight
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(26, 26, 26)
+        safeText(`Net Balance: UGX ${(summary.netBalance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, leftX, yPos)
+        yPos += lineHeight + 2
+        
+        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(51, 51, 51)
+        const rightYStart = yPos - (lineHeight * 2)
+        safeText(`Total Transactions: ${summary.transactionCount || 0}`, rightX, rightYStart)
+        safeText(`Revenue: ${summary.revenueCount || 0}`, rightX, rightYStart + lineHeight)
+        safeText(`Expenses: ${summary.expenseCount || 0}`, rightX, rightYStart + (lineHeight * 2))
+        yPos += lineHeight + 8
+        
+        // Expenses by Category
+        if (report.data.expensesByCategory && Object.keys(report.data.expensesByCategory).length > 0) {
+          if (yPos > pageHeight - 50) {
+            doc.addPage()
+            yPos = margin
+          }
+          
+          doc.setFontSize(12)
+          doc.setFont('helvetica', 'bold')
+          doc.setTextColor(26, 26, 26)
+          safeText('EXPENSES BY CATEGORY', margin, yPos)
+          yPos += 8
+          
+          doc.setFontSize(9)
+          doc.setFont('helvetica', 'bold')
+          doc.setFillColor(240, 240, 240)
+          doc.rect(margin + 5, yPos - 4, pageWidth - (margin * 2) - 10, 6, 'F')
+          safeText('Category', margin + 8, yPos)
+          safeText('Amount (UGX)', margin + 100, yPos)
+          yPos += 6
+          doc.setDrawColor(200, 200, 200)
+          doc.setLineWidth(0.3)
+          doc.line(margin + 5, yPos, pageWidth - margin - 5, yPos)
+          yPos += 4
+          
+          doc.setFont('helvetica', 'normal')
+          doc.setFontSize(9)
+          Object.entries(report.data.expensesByCategory)
+            .sort(([, a]: any, [, b]: any) => b - a)
+            .forEach(([category, amount]: [string, any], index: number) => {
+              if (yPos > pageHeight - 20) {
+                doc.addPage()
+                yPos = margin
+                doc.setFontSize(9)
+                doc.setFont('helvetica', 'bold')
+                doc.setFillColor(240, 240, 240)
+                doc.rect(margin + 5, yPos - 4, pageWidth - (margin * 2) - 10, 6, 'F')
+                safeText('Category', margin + 8, yPos)
+                safeText('Amount (UGX)', margin + 100, yPos)
+                yPos += 6
+                doc.setDrawColor(200, 200, 200)
+                doc.setLineWidth(0.3)
+                doc.line(margin + 5, yPos, pageWidth - margin - 5, yPos)
+                yPos += 4
+                doc.setFont('helvetica', 'normal')
+              }
+              
+              if (index % 2 === 0) {
+                doc.setFillColor(250, 250, 250)
+                doc.rect(margin + 5, yPos - 3, pageWidth - (margin * 2) - 10, 5, 'F')
+              }
+              
+              doc.setTextColor(51, 51, 51)
+              safeText(category.substring(0, 50), margin + 8, yPos)
+              safeText(amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), margin + 100, yPos)
+              yPos += 5
+            })
+          yPos += 8
+        }
+        
+        // Revenue by Category
+        if (report.data.revenueByCategory && Object.keys(report.data.revenueByCategory).length > 0) {
+          if (yPos > pageHeight - 50) {
+            doc.addPage()
+            yPos = margin
+          }
+          
+          doc.setFontSize(12)
+          doc.setFont('helvetica', 'bold')
+          doc.setTextColor(26, 26, 26)
+          safeText('REVENUE BY CATEGORY', margin, yPos)
+          yPos += 8
+          
+          doc.setFontSize(9)
+          doc.setFont('helvetica', 'bold')
+          doc.setFillColor(240, 240, 240)
+          doc.rect(margin + 5, yPos - 4, pageWidth - (margin * 2) - 10, 6, 'F')
+          safeText('Category', margin + 8, yPos)
+          safeText('Amount (UGX)', margin + 100, yPos)
+          yPos += 6
+          doc.setDrawColor(200, 200, 200)
+          doc.setLineWidth(0.3)
+          doc.line(margin + 5, yPos, pageWidth - margin - 5, yPos)
+          yPos += 4
+          
+          doc.setFont('helvetica', 'normal')
+          doc.setFontSize(9)
+          Object.entries(report.data.revenueByCategory)
+            .sort(([, a]: any, [, b]: any) => b - a)
+            .forEach(([category, amount]: [string, any], index: number) => {
+              if (yPos > pageHeight - 20) {
+                doc.addPage()
+                yPos = margin
+                doc.setFontSize(9)
+                doc.setFont('helvetica', 'bold')
+                doc.setFillColor(240, 240, 240)
+                doc.rect(margin + 5, yPos - 4, pageWidth - (margin * 2) - 10, 6, 'F')
+                safeText('Category', margin + 8, yPos)
+                safeText('Amount (UGX)', margin + 100, yPos)
+                yPos += 6
+                doc.setDrawColor(200, 200, 200)
+                doc.setLineWidth(0.3)
+                doc.line(margin + 5, yPos, pageWidth - margin - 5, yPos)
+                yPos += 4
+                doc.setFont('helvetica', 'normal')
+              }
+              
+              if (index % 2 === 0) {
+                doc.setFillColor(250, 250, 250)
+                doc.rect(margin + 5, yPos - 3, pageWidth - (margin * 2) - 10, 5, 'F')
+              }
+              
+              doc.setTextColor(51, 51, 51)
+              safeText(category.substring(0, 50), margin + 8, yPos)
+              safeText(amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), margin + 100, yPos)
+              yPos += 5
+            })
+          yPos += 8
+        }
+        
+        // Transaction Details
+        if (yPos > pageHeight - 50) {
+          doc.addPage()
+          yPos = margin
+        }
+        
+        doc.setFontSize(12)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(26, 26, 26)
+        safeText('TRANSACTION DETAILS', margin, yPos)
+        yPos += 8
+        
+        if (report.data.transactions && report.data.transactions.length > 0) {
+          doc.setFontSize(9)
+          doc.setFont('helvetica', 'normal')
+          doc.setTextColor(102, 102, 102)
+          safeText(`Showing ${report.data.transactions.length} transaction${report.data.transactions.length !== 1 ? 's' : ''} | Sorted by date (most recent first)`, margin + 5, yPos)
+          yPos += 7
+          
+          // Table header
+          doc.setFontSize(8)
+          doc.setFont('helvetica', 'bold')
+          doc.setFillColor(240, 240, 240)
+          doc.rect(margin + 5, yPos - 4, pageWidth - (margin * 2) - 10, 6, 'F')
+          doc.setTextColor(26, 26, 26)
+          safeText('Date', margin + 8, yPos)
+          safeText('Type', margin + 35, yPos)
+          safeText('Category', margin + 50, yPos)
+          safeText('Description', margin + 75, yPos)
+          safeText('Amount', margin + 120, yPos)
+          yPos += 6
+          doc.setDrawColor(200, 200, 200)
+          doc.setLineWidth(0.3)
+          doc.line(margin + 5, yPos, pageWidth - margin - 5, yPos)
+          yPos += 4
+          
+          doc.setFont('helvetica', 'normal')
+          doc.setFontSize(8)
+          report.data.transactions.forEach((transaction: any, index: number) => {
+            if (yPos > pageHeight - 20) {
+              doc.addPage()
+              yPos = margin
+              doc.setFontSize(8)
+              doc.setFont('helvetica', 'bold')
+              doc.setFillColor(240, 240, 240)
+              doc.rect(margin + 5, yPos - 4, pageWidth - (margin * 2) - 10, 6, 'F')
+              safeText('Date', margin + 8, yPos)
+              safeText('Type', margin + 35, yPos)
+              safeText('Category', margin + 50, yPos)
+              safeText('Description', margin + 75, yPos)
+              safeText('Amount', margin + 120, yPos)
+              yPos += 6
+              doc.setDrawColor(200, 200, 200)
+              doc.setLineWidth(0.3)
+              doc.line(margin + 5, yPos, pageWidth - margin - 5, yPos)
+              yPos += 4
+              doc.setFont('helvetica', 'normal')
+            }
+            
+            if (index % 2 === 0) {
+              doc.setFillColor(250, 250, 250)
+              doc.rect(margin + 5, yPos - 3, pageWidth - (margin * 2) - 10, 5, 'F')
+            }
+            
+            doc.setTextColor(51, 51, 51)
+            const date = new Date(transaction.transaction_date).toLocaleDateString()
+            const type = transaction.type === 'revenue' ? 'Revenue' : 'Expense'
+            const category = (transaction.category || 'N/A').substring(0, 15)
+            const description = (transaction.description || 'N/A').substring(0, 20)
+            const amount = parseFloat(transaction.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+            
+            safeText(date, margin + 8, yPos)
+            safeText(type, margin + 35, yPos)
+            safeText(category, margin + 50, yPos)
+            safeText(description, margin + 75, yPos)
+            safeText(amount, margin + 120, yPos)
+            yPos += 5
+          })
+        } else {
+          doc.setFontSize(10)
+          doc.setFont('helvetica', 'normal')
+          doc.setTextColor(102, 102, 102)
+          safeText('No transactions found for the selected date range', margin + 5, yPos)
+        }
+      }
       // For other report types, show formatted data if available
       else if (report.data.summary) {
         // Check if summary is a string (not an object)

@@ -112,11 +112,11 @@ export async function GET(request: NextRequest) {
     const messagesToExclude = new Set<string>()
     
     // For each grouped message, find and exclude all matching individual messages
+    // We match by content only (subject + message) to be more reliable
     groupedMessages.forEach((groupedMsg: any) => {
-      // Find individual messages that match this grouped message
-      // Match by: same sender, same subject, same message content
-      // We use a wider time window (30 seconds) to account for any delays
-      const groupedTime = new Date(groupedMsg.created_at).getTime()
+      // Normalize subject and message for comparison (handle null/undefined)
+      const groupedSubject = groupedMsg.subject || ''
+      const groupedMessage = groupedMsg.message || ''
       
       messages.forEach((msg: any) => {
         // Check if this is an individual message that matches the grouped message
@@ -124,28 +124,26 @@ export async function GET(request: NextRequest) {
           msg.id !== groupedMsg.id && // Not the grouped message itself
           msg.sender_id === authUser.id && // Sent by the same user
           msg.recipient_id && // Has a specific recipient (not null)
-          !msg.recipient_role || !msg.recipient_role.startsWith('group:') // Not a grouped message
+          (!msg.recipient_role || !msg.recipient_role.startsWith('group:')) // Not a grouped message
         )
         
-        // Check if content matches
+        if (!isIndividualMessage) return
+        
+        // Check if content matches (normalize for comparison)
+        const msgSubject = msg.subject || ''
+        const msgMessage = msg.message || ''
+        
         const contentMatches = (
-          msg.subject === groupedMsg.subject && // Same subject (or both null/empty)
-          msg.message === groupedMsg.message // Same message content
+          msgSubject === groupedSubject && // Same subject
+          msgMessage === groupedMessage // Same message content
         )
         
-        // Check if timing is close (within 30 seconds before or after)
-        const timeDiff = Math.abs(new Date(msg.created_at).getTime() - groupedTime)
-        const timingMatches = timeDiff < 30000 // 30 seconds window
-        
-        if (isIndividualMessage && contentMatches && timingMatches) {
+        if (contentMatches) {
           messagesToExclude.add(msg.id)
+          console.log(`Excluding individual message ${msg.id} - matches grouped message ${groupedMsg.id}`)
         }
       })
     })
-    
-    // Also handle edge case: if there are multiple individual messages with same subject/content
-    // but no grouped message (maybe it failed to create), we should still try to group them
-    // But for now, let's focus on the main case where grouped message exists
 
     // Format messages with sender and recipient info
     // Filter out messages that don't belong to the user (extra safety check)

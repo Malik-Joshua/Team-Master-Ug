@@ -81,6 +81,55 @@ export async function GET(request: NextRequest) {
 
       const nextMatch = upcomingMatches[0]
 
+      // Helper function to get captain and assistant captain info
+      const getCaptainInfo = async (matchId: string) => {
+        const { data: allTeamSelections } = await supabaseAdmin
+          .from('fixture_team_selections')
+          .select('player_id, is_captain, is_assistant_captain')
+          .eq('match_id', matchId)
+          .or('is_captain.eq.true,is_assistant_captain.eq.true')
+
+        let captainInfo: any = null
+        let assistantCaptainInfo: any = null
+
+        if (allTeamSelections && allTeamSelections.length > 0) {
+          const captainSelection = allTeamSelections.find((s: any) => s.is_captain)
+          const assistantCaptainSelection = allTeamSelections.find((s: any) => s.is_assistant_captain)
+
+          if (captainSelection) {
+            const { data: captainProfile } = await supabaseAdmin
+              .from('user_profiles')
+              .select('user_id, name')
+              .eq('user_id', captainSelection.player_id)
+              .single()
+            
+            if (captainProfile) {
+              captainInfo = {
+                player_id: captainProfile.user_id,
+                name: captainProfile.name,
+              }
+            }
+          }
+
+          if (assistantCaptainSelection) {
+            const { data: assistantCaptainProfile } = await supabaseAdmin
+              .from('user_profiles')
+              .select('user_id, name')
+              .eq('user_id', assistantCaptainSelection.player_id)
+              .single()
+            
+            if (assistantCaptainProfile) {
+              assistantCaptainInfo = {
+                player_id: assistantCaptainProfile.user_id,
+                name: assistantCaptainProfile.name,
+              }
+            }
+          }
+        }
+
+        return { captainInfo, assistantCaptainInfo }
+      }
+
       // Check if player is selected for this match
       const { data: selection } = await supabaseAdmin
         .from('fixture_team_selections')
@@ -93,7 +142,7 @@ export async function GET(request: NextRequest) {
         // Get all teammates for this match
         const { data: allSelections } = await supabaseAdmin
           .from('fixture_team_selections')
-          .select('player_id, is_starting, is_substitute, position, jersey_number')
+          .select('player_id, is_starting, is_substitute, position, jersey_number, is_captain, is_assistant_captain')
           .eq('match_id', nextMatch.id)
           .neq('player_id', playerId) // Exclude the current player
 
@@ -115,6 +164,9 @@ export async function GET(request: NextRequest) {
           }
         }
 
+        // Get captain and assistant captain info for the match
+        const { captainInfo, assistantCaptainInfo } = await getCaptainInfo(nextMatch.id)
+
         return NextResponse.json({
           isSelected: true,
           selection: {
@@ -122,14 +174,23 @@ export async function GET(request: NextRequest) {
             is_substitute: selection.is_substitute,
             jersey_number: selection.jersey_number,
             position: selection.position,
+            is_captain: selection.is_captain || false,
+            is_assistant_captain: selection.is_assistant_captain || false,
           },
           match: nextMatch,
           teammates: teammates || [],
+          captain: captainInfo,
+          assistantCaptain: assistantCaptainInfo,
         })
       } else {
+        // Player not selected, but still get captain info
+        const { captainInfo, assistantCaptainInfo } = await getCaptainInfo(nextMatch.id)
+
         return NextResponse.json({
           isSelected: false,
-          match: nextMatch
+          match: nextMatch,
+          captain: captainInfo,
+          assistantCaptain: assistantCaptainInfo,
         })
       }
     }

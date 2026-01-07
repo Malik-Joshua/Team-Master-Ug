@@ -603,7 +603,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
                 <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-3">
+                  <div className="flex items-center gap-2 mb-3 flex-wrap">
                     <h3 className="text-xl font-bold text-neutral-text">You&apos;re Selected for the Next Fixture!</h3>
                     {playerFixtureSelection.selection.is_starting && !playerFixtureSelection.selection.is_substitute ? (
                       <span className="px-3 py-1 bg-success/10 text-success rounded-full text-sm font-medium">
@@ -614,6 +614,18 @@ export default function DashboardPage() {
                         Substitute
                       </span>
                     ) : null}
+                    {playerFixtureSelection.selection.is_captain && (
+                      <span className="px-3 py-1 bg-yellow-500 text-white rounded-full text-sm font-bold flex items-center gap-1">
+                        <Trophy className="w-4 h-4" />
+                        Captain
+                      </span>
+                    )}
+                    {playerFixtureSelection.selection.is_assistant_captain && (
+                      <span className="px-3 py-1 bg-gray-500 text-white rounded-full text-sm font-bold flex items-center gap-1">
+                        <Trophy className="w-4 h-4" />
+                        Assistant Captain
+                      </span>
+                    )}
                   </div>
                   <div className="bg-neutral-light rounded-lg p-4 mb-3">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -655,6 +667,37 @@ export default function DashboardPage() {
                     )}
                   </div>
                   
+                  {/* Show Captain and Assistant Captain */}
+                  {(playerFixtureSelection.captain || playerFixtureSelection.assistantCaptain) && (
+                    <div className="mt-4 pt-4 border-t border-neutral-light">
+                      <h4 className="text-sm font-semibold text-neutral-text mb-3">Team Leadership</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {playerFixtureSelection.captain && (
+                          <div className="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-3">
+                            <div className="flex items-center gap-2">
+                              <Trophy className="w-5 h-5 text-yellow-600" />
+                              <div>
+                                <p className="text-xs font-semibold text-yellow-800 uppercase">Team Captain</p>
+                                <p className="text-sm font-bold text-yellow-900">{playerFixtureSelection.captain.name}</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        {playerFixtureSelection.assistantCaptain && (
+                          <div className="bg-gray-50 border-2 border-gray-300 rounded-lg p-3">
+                            <div className="flex items-center gap-2">
+                              <Trophy className="w-5 h-5 text-gray-600" />
+                              <div>
+                                <p className="text-xs font-semibold text-gray-800 uppercase">Assistant Captain</p>
+                                <p className="text-sm font-bold text-gray-900">{playerFixtureSelection.assistantCaptain.name}</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  
                   {/* Show Teammates */}
                   {playerFixtureSelection.teammates && playerFixtureSelection.teammates.length > 0 && (
                     <div className="mt-4 pt-4 border-t border-neutral-light">
@@ -662,16 +705,30 @@ export default function DashboardPage() {
                       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
                         {playerFixtureSelection.teammates.map((teammate: any) => (
                           <div key={teammate.player_id} className="bg-neutral-light rounded-lg p-2 text-sm">
-                            <div className="flex items-center justify-between">
-                              <span className="font-medium text-neutral-text text-xs">{teammate.name}</span>
+                            <div className="flex items-center justify-between gap-1">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-1 flex-wrap">
+                                  <span className="font-medium text-neutral-text text-xs truncate">{teammate.name}</span>
+                                  {teammate.is_captain && (
+                                    <span className="px-1.5 py-0.5 bg-yellow-500 text-white text-xs font-bold rounded flex-shrink-0">
+                                      <Trophy className="w-3 h-3 inline" />
+                                    </span>
+                                  )}
+                                  {teammate.is_assistant_captain && (
+                                    <span className="px-1.5 py-0.5 bg-gray-500 text-white text-xs font-bold rounded flex-shrink-0">
+                                      <Trophy className="w-3 h-3 inline" />
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
                               {teammate.jersey_number && (
-                                <span className="bg-primary/20 text-primary px-1.5 py-0.5 rounded text-xs font-bold">#{teammate.jersey_number}</span>
+                                <span className="bg-primary/20 text-primary px-1.5 py-0.5 rounded text-xs font-bold flex-shrink-0">#{teammate.jersey_number}</span>
                               )}
                             </div>
                             {teammate.position && (
                               <p className="text-xs text-neutral-medium mt-1 capitalize">{teammate.position.replace(/_/g, ' ')}</p>
                             )}
-                            <div className="flex gap-1 mt-1">
+                            <div className="flex gap-1 mt-1 flex-wrap">
                               {teammate.is_starting && !teammate.is_substitute && (
                                 <span className="text-xs bg-success/20 text-success px-1.5 py-0.5 rounded">Starting</span>
                               )}
@@ -722,6 +779,38 @@ export default function DashboardPage() {
                         )}
                       </div>
                     </div>
+                    
+                    {/* Show Captain and Assistant Captain */}
+                    {(playerFixtureSelection.captain || playerFixtureSelection.assistantCaptain) && (
+                      <div className="mb-4">
+                        <h4 className="text-sm font-semibold text-neutral-text mb-3">Team Leadership</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {playerFixtureSelection.captain && (
+                            <div className="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-3">
+                              <div className="flex items-center gap-2">
+                                <Trophy className="w-5 h-5 text-yellow-600" />
+                                <div>
+                                  <p className="text-xs font-semibold text-yellow-800 uppercase">Team Captain</p>
+                                  <p className="text-sm font-bold text-yellow-900">{playerFixtureSelection.captain.name}</p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          {playerFixtureSelection.assistantCaptain && (
+                            <div className="bg-gray-50 border-2 border-gray-300 rounded-lg p-3">
+                              <div className="flex items-center gap-2">
+                                <Trophy className="w-5 h-5 text-gray-600" />
+                                <div>
+                                  <p className="text-xs font-semibold text-gray-800 uppercase">Assistant Captain</p>
+                                  <p className="text-sm font-bold text-gray-900">{playerFixtureSelection.assistantCaptain.name}</p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    
                     <div className="bg-warning/10 border border-warning/20 rounded-lg p-4">
                       <div className="flex items-center gap-3">
                         <Trophy className="w-5 h-5 text-warning" />

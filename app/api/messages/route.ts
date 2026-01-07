@@ -100,10 +100,47 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Identify grouped messages and their corresponding individual messages
+    // Grouped messages have recipient_role starting with 'group:'
+    const groupedMessages = messages.filter((msg: any) => 
+      msg.sender_id === authUser.id && 
+      msg.recipient_role && 
+      msg.recipient_role.startsWith('group:')
+    )
+
+    // Create a set of individual messages to exclude (those that are part of a group send)
+    const messagesToExclude = new Set<string>()
+    
+    groupedMessages.forEach((groupedMsg: any) => {
+      // Find individual messages that match this grouped message
+      // Same sender, same subject, same message content, created within 5 seconds
+      const groupedTime = new Date(groupedMsg.created_at).getTime()
+      
+      messages.forEach((msg: any) => {
+        if (
+          msg.id !== groupedMsg.id && // Not the grouped message itself
+          msg.sender_id === authUser.id && // Sent by the same user
+          msg.recipient_id && // Has a specific recipient (not a group message)
+          !msg.recipient_role?.startsWith('group:') && // Not another grouped message
+          msg.subject === groupedMsg.subject && // Same subject
+          msg.message === groupedMsg.message && // Same message content
+          Math.abs(new Date(msg.created_at).getTime() - groupedTime) < 5000 // Created within 5 seconds
+        ) {
+          messagesToExclude.add(msg.id)
+        }
+      })
+    })
+
     // Format messages with sender and recipient info
     // Filter out messages that don't belong to the user (extra safety check)
+    // Also exclude individual messages that are part of a group send
     const formattedMessages = messages
       .filter((msg: any) => {
+        // Exclude individual messages that are part of a group send
+        if (messagesToExclude.has(msg.id)) {
+          return false
+        }
+        
         // Only include messages where user is sender or specific recipient
         // Exclude role-based messages for players
         if (profile.role === 'player') {

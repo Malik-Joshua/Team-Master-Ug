@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
 import { Users, Search, Filter, UserPlus, Eye, Edit, AlertCircle, CheckCircle, X, Save, Dumbbell } from 'lucide-react'
@@ -58,7 +58,7 @@ export default function PlayersPage() {
   const [savingGymMetrics, setSavingGymMetrics] = useState(false)
 
   
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     const supabase = createClient()
     const { data: { user: authUser } } = await supabase.auth.getUser()
     
@@ -135,11 +135,11 @@ export default function PlayersPage() {
       }
       
       setLoading(false)
-  }
+  }, [])
 
   useEffect(() => {
     loadData()
-  }, [])
+  }, [loadData])
 
   const handleAddPlayer = async () => {
     setSaving(true)

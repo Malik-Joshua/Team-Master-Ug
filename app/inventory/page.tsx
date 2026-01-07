@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
 import { Package, Plus, Search, Filter, Edit, Trash2, AlertCircle, CheckCircle, XCircle } from 'lucide-react'
@@ -38,7 +38,7 @@ export default function InventoryPage() {
     description: '',
   })
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
       const supabase = createClient()
       const { data: { user: authUser } } = await supabase.auth.getUser()
 
@@ -148,11 +148,11 @@ export default function InventoryPage() {
         }
       }
       setLoading(false)
-    }
+  }, [])
 
   useEffect(() => {
     loadData()
-  }, [])
+  }, [loadData])
 
   // Refresh function to reload inventory data
   const refreshInventory = async () => {

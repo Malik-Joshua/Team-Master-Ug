@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import Layout from '@/components/Layout'
 import { Calendar, Users, Save, Download, Plus, Clock, MapPin, FileText, X, Upload, Activity, ChevronDown, FileSpreadsheet } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -81,7 +81,7 @@ export default function TrainingPage() {
   const [showExportMenu, setShowExportMenu] = useState(false)
   const [exporting, setExporting] = useState(false)
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
       const supabase = createClient()
       const { data: { user: authUser } } = await supabase.auth.getUser()
       
@@ -301,11 +301,11 @@ export default function TrainingPage() {
         }
       }
       setLoading(false)
-    }
-  
+  }, [])
+
   useEffect(() => {
     loadData()
-  }, [])
+  }, [loadData])
 
   useEffect(() => {
     // Close export menu when clicking outside

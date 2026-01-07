@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
 import { DollarSign, TrendingUp, TrendingDown, Plus, Filter, Calendar, Download, FileText, Send, X, CheckCircle, XCircle, Trash2 } from 'lucide-react'
@@ -91,7 +91,7 @@ export default function FinancePage() {
   const [matchAttendance, setMatchAttendance] = useState<any>(null)
   const [loadingAttendance, setLoadingAttendance] = useState(false)
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
       const supabase = createClient()
       const { data: { user: authUser } } = await supabase.auth.getUser()
       
@@ -157,11 +157,11 @@ export default function FinancePage() {
         }
       }
       setLoading(false)
-    }
+  }, [])
 
   useEffect(() => {
     loadData()
-  }, [])
+  }, [loadData])
 
   const formatCurrency = (amount: number) => {
     if (amount >= 1000000) {

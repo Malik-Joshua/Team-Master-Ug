@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
 import { FileText, Download, Filter, Calendar, BarChart3, TrendingUp, Users, Trophy, ChevronDown, FileSpreadsheet, Trash2, X } from 'lucide-react'
@@ -65,7 +65,7 @@ export default function ReportsPage() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [showDownloadMenu])
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
       const supabase = createClient()
       const { data: { user: authUser } } = await supabase.auth.getUser()
       
@@ -182,11 +182,11 @@ export default function ReportsPage() {
         }
       }
       setLoading(false)
-    }
+  }, [])
 
   useEffect(() => {
     loadData()
-  }, [])
+  }, [loadData])
 
   const handleGenerateReport = async (type: string) => {
     try {

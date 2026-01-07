@@ -157,6 +157,7 @@ export default function ProfilePage() {
           phone: profile.phone || '',
           emergency_contact: profile.emergency_contact || '',
           emergency_phone: profile.emergency_phone || '',
+          birth_date: profile.birth_date ? new Date(profile.birth_date).toISOString().split('T')[0] : '',
         })
       }
     }

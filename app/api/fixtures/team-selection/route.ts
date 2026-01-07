@@ -380,6 +380,8 @@ export async function POST(request: NextRequest) {
         jersey_number: selection.jersey_number ? parseInt(String(selection.jersey_number)) : null,
         is_starting: selection.is_starting !== undefined ? Boolean(selection.is_starting) : true,
         is_substitute: selection.is_substitute !== undefined ? Boolean(selection.is_substitute) : false,
+        is_captain: selection.is_captain !== undefined ? Boolean(selection.is_captain) : false,
+        is_assistant_captain: selection.is_assistant_captain !== undefined ? Boolean(selection.is_assistant_captain) : false,
         notes: selection.notes || null,
         selected_by: authUser.id,
       }

@@ -35,6 +35,8 @@ interface TeamSelection {
   jersey_number?: number
   is_starting: boolean
   is_substitute: boolean
+  is_captain?: boolean
+  is_assistant_captain?: boolean
   notes?: string
 }
 
@@ -377,6 +379,8 @@ export default function FixturesPage() {
               jersey_number: sel.jersey_number,
               is_starting: sel.is_starting,
               is_substitute: sel.is_substitute,
+              is_captain: sel.is_captain || false,
+              is_assistant_captain: sel.is_assistant_captain || false,
               notes: sel.notes,
             })
           })
@@ -397,6 +401,8 @@ export default function FixturesPage() {
                 jersey_number: sel.jersey_number,
                 is_starting: sel.is_starting,
                 is_substitute: sel.is_substitute,
+                is_captain: sel.is_captain || false,
+                is_assistant_captain: sel.is_assistant_captain || false,
                 notes: sel.notes,
               })
             })
@@ -420,6 +426,8 @@ export default function FixturesPage() {
               jersey_number: sel.jersey_number,
               is_starting: sel.is_starting,
               is_substitute: sel.is_substitute,
+              is_captain: sel.is_captain || false,
+              is_assistant_captain: sel.is_assistant_captain || false,
               notes: sel.notes,
             })
           })
@@ -445,6 +453,8 @@ export default function FixturesPage() {
         jersey_number: player.players.jersey_number,
         is_starting: true,
         is_substitute: false,
+        is_captain: false,
+        is_assistant_captain: false,
       })
     }
     
@@ -520,6 +530,8 @@ export default function FixturesPage() {
               jersey_number: sel.jersey_number,
               is_starting: sel.is_starting,
               is_substitute: sel.is_substitute,
+              is_captain: sel.is_captain || false,
+              is_assistant_captain: sel.is_assistant_captain || false,
               notes: sel.notes,
             })
           })
@@ -1707,8 +1719,22 @@ export default function FixturesPage() {
                           .map((selection: any) => (
                             <div key={selection.player_id} className="bg-neutral-light/50 rounded-lg p-3 border border-neutral-light">
                               <div className="flex items-center justify-between">
-                                <div>
-                                  <p className="font-semibold text-neutral-text">{selection.player_name || 'Unknown Player'}</p>
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                                    <p className="font-semibold text-neutral-text">{selection.player_name || 'Unknown Player'}</p>
+                                    {selection.is_captain && (
+                                      <span className="px-2 py-0.5 bg-yellow-500 text-white text-xs font-bold rounded-full flex items-center gap-1">
+                                        <Trophy className="w-3 h-3" />
+                                        Captain
+                                      </span>
+                                    )}
+                                    {selection.is_assistant_captain && (
+                                      <span className="px-2 py-0.5 bg-gray-500 text-white text-xs font-bold rounded-full flex items-center gap-1">
+                                        <Trophy className="w-3 h-3" />
+                                        Asst. Captain
+                                      </span>
+                                    )}
+                                  </div>
                                   <p className="text-sm text-neutral-medium">{selection.position || 'N/A'}</p>
                                 </div>
                                 {selection.jersey_number && (
@@ -1735,8 +1761,22 @@ export default function FixturesPage() {
                             .map((selection: any) => (
                               <div key={selection.player_id} className="bg-neutral-light/50 rounded-lg p-3 border border-neutral-light">
                                 <div className="flex items-center justify-between">
-                                  <div>
-                                    <p className="font-semibold text-neutral-text">{selection.player_name || 'Unknown Player'}</p>
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                                      <p className="font-semibold text-neutral-text">{selection.player_name || 'Unknown Player'}</p>
+                                      {selection.is_captain && (
+                                        <span className="px-2 py-0.5 bg-yellow-500 text-white text-xs font-bold rounded-full flex items-center gap-1">
+                                          <Trophy className="w-3 h-3" />
+                                          Captain
+                                        </span>
+                                      )}
+                                      {selection.is_assistant_captain && (
+                                        <span className="px-2 py-0.5 bg-gray-500 text-white text-xs font-bold rounded-full flex items-center gap-1">
+                                          <Trophy className="w-3 h-3" />
+                                          Asst. Captain
+                                        </span>
+                                      )}
+                                    </div>
                                     <p className="text-sm text-neutral-medium">{selection.position || 'N/A'}</p>
                                   </div>
                                   {selection.jersey_number && (
@@ -1952,6 +1992,64 @@ export default function FixturesPage() {
                               }}
                               className="w-full px-2 py-1 text-sm border border-neutral-light rounded focus:outline-none focus:ring-1 focus:ring-primary"
                             />
+                            {/* Captain Selection */}
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="radio"
+                                name="captain"
+                                checked={selection?.is_captain || false}
+                                onChange={(e) => {
+                                  // Unset captain for all other players
+                                  const newSelections = new Map(teamSelections)
+                                  newSelections.forEach((sel, pid) => {
+                                    if (pid !== player.user_id) {
+                                      newSelections.set(pid, { ...sel, is_captain: false })
+                                    }
+                                  })
+                                  // Set captain for this player
+                                  const current = newSelections.get(player.user_id)
+                                  if (current) {
+                                    newSelections.set(player.user_id, {
+                                      ...current,
+                                      is_captain: e.target.checked,
+                                      is_assistant_captain: e.target.checked ? false : current.is_assistant_captain,
+                                    })
+                                  }
+                                  setTeamSelections(newSelections)
+                                }}
+                                className="rounded"
+                              />
+                              <label className="text-sm text-neutral-text font-semibold">Captain</label>
+                            </div>
+                            {/* Assistant Captain Selection */}
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="radio"
+                                name="assistant_captain"
+                                checked={selection?.is_assistant_captain || false}
+                                onChange={(e) => {
+                                  // Unset assistant captain for all other players
+                                  const newSelections = new Map(teamSelections)
+                                  newSelections.forEach((sel, pid) => {
+                                    if (pid !== player.user_id) {
+                                      newSelections.set(pid, { ...sel, is_assistant_captain: false })
+                                    }
+                                  })
+                                  // Set assistant captain for this player
+                                  const current = newSelections.get(player.user_id)
+                                  if (current) {
+                                    newSelections.set(player.user_id, {
+                                      ...current,
+                                      is_assistant_captain: e.target.checked,
+                                      is_captain: e.target.checked ? false : current.is_captain,
+                                    })
+                                  }
+                                  setTeamSelections(newSelections)
+                                }}
+                                className="rounded"
+                              />
+                              <label className="text-sm text-neutral-text font-semibold">Assistant Captain</label>
+                            </div>
                           </div>
                         )}
                       </div>

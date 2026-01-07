@@ -787,7 +787,7 @@ export default function MessagesPage() {
             const recipients = data.recipients || []
 
             if (recipients && recipients.length > 0) {
-              // Send message to each recipient
+              // Send message to each recipient (so they receive them)
               const messagePromises = recipients.map((recipient: { user_id: string }) =>
                 supabase
                   .from('messages')
@@ -829,15 +829,44 @@ export default function MessagesPage() {
                 // Don't fail the message send if notification creation fails
               }
               
-              const roleName = recipientRole === 'player' ? 'players' : recipientRole === 'physio' ? 'physiotherapists' : 'administrators'
-              alert(`Message sent successfully to ${recipients.length} ${roleName}!`)
+              // Create a single grouped "sent" message for the sender
+              const roleName = recipientRole === 'player' ? 'Players' : 
+                              recipientRole === 'physio' ? 'Physiotherapists' : 
+                              recipientRole === 'coach' ? 'Coaches' : 'Administrators'
+              
+              const { data: sentMessage, error: sentError } = await supabase
+                .from('messages')
+                .insert({
+                  sender_id: authUser.id,
+                  recipient_id: authUser.id, // Use sender's own ID as placeholder
+                  recipient_role: `group:${recipientRole}`, // Store group info in recipient_role
+                  subject: composeData.subject,
+                  message: composeData.message,
+                  read: true, // Mark as read since sender sent it
+                })
+                .select(`
+                  *,
+                  sender:user_profiles!messages_sender_id_fkey(name, role)
+                `)
+                .single()
+
+              if (sentError) {
+                console.error('Error creating sent message:', sentError)
+              }
+              
+              alert(`Message sent successfully to ${recipients.length} ${roleName.toLowerCase()}!`)
               setComposeData({ recipientType: 'role', recipient: '', recipientId: '', selectedRoles: [], subject: '', message: '' })
               setShowCompose(false)
-              // Reload messages
-              const reloadResponse = await fetch('/api/messages', { cache: 'no-store' })
-              if (reloadResponse.ok) {
-                const reloadData = await reloadResponse.json()
-                setMessages(reloadData.messages || [])
+              
+              // Reload messages from API to get properly filtered list (excludes individual messages)
+              try {
+                const reloadResponse = await fetch('/api/messages', { cache: 'no-store' })
+                if (reloadResponse.ok) {
+                  const reloadData = await reloadResponse.json()
+                  setMessages(reloadData.messages || [])
+                }
+              } catch (reloadError) {
+                console.error('Error reloading messages:', reloadError)
               }
               return
             } else {
@@ -1268,14 +1297,13 @@ export default function MessagesPage() {
               const recipients = data.recipients || []
 
               if (recipients && recipients.length > 0) {
-                // Send message to each recipient and capture message IDs
+                // Send message to each recipient (so they receive them)
                 const messagePromises = recipients.map((recipient: { user_id: string }) =>
                   supabase
                     .from('messages')
                     .insert({
                       sender_id: authUser.id,
-                      recipient_id: recipient.user_id, // Always set recipient_id
-                      recipient_role: recipientRole,
+                      recipient_id: recipient.user_id,
                       subject: composeData.subject,
                       message: composeData.message,
                     })
@@ -1312,9 +1340,45 @@ export default function MessagesPage() {
                   // Don't fail the message send if notification creation fails
                 }
                 
-                alert(`Message sent successfully to ${recipients.length} recipient(s)!`)
+                // Create a single grouped "sent" message for the sender
+                const roleName = recipientRole === 'player' ? 'Players' : 
+                                recipientRole === 'physio' ? 'Physiotherapists' : 
+                                recipientRole === 'coach' ? 'Coaches' : 'Administrators'
+                
+                const { data: sentMessage, error: sentError } = await supabase
+                  .from('messages')
+                  .insert({
+                    sender_id: authUser.id,
+                    recipient_id: authUser.id, // Use sender's own ID as placeholder
+                    recipient_role: `group:${recipientRole}`, // Store group info in recipient_role
+                    subject: composeData.subject,
+                    message: composeData.message,
+                    read: true, // Mark as read since sender sent it
+                  })
+                  .select(`
+                    *,
+                    sender:user_profiles!messages_sender_id_fkey(name, role)
+                  `)
+                  .single()
+
+                if (sentError) {
+                  console.error('Error creating sent message:', sentError)
+                }
+                
+                alert(`Message sent successfully to ${recipients.length} ${roleName.toLowerCase()}!`)
                 setComposeData({ recipientType: 'role', recipient: '', recipientId: '', selectedRoles: [], subject: '', message: '' })
                 setShowCompose(false)
+                
+                // Reload messages from API to get properly filtered list (excludes individual messages)
+                try {
+                  const reloadResponse = await fetch('/api/messages', { cache: 'no-store' })
+                  if (reloadResponse.ok) {
+                    const reloadData = await reloadResponse.json()
+                    setMessages(reloadData.messages || [])
+                  }
+                } catch (reloadError) {
+                  console.error('Error reloading messages:', reloadError)
+                }
                 return
               } else {
                 alert('No recipients found for selected role')

@@ -4,7 +4,7 @@ import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
 import BirthdayAlert from '@/components/BirthdayAlert'
 import { DollarSign, TrendingUp, TrendingDown, Calendar, X } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import RefreshButton from '@/components/RefreshButton'
 import {
@@ -48,7 +48,7 @@ export default function FinanceAdminDashboard() {
   const [matchAttendance, setMatchAttendance] = useState<any>(null)
   const [loadingAttendance, setLoadingAttendance] = useState(false)
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     const supabase = createClient()
     const { data: { user: authUser } } = await supabase.auth.getUser()
     
@@ -75,11 +75,11 @@ export default function FinanceAdminDashboard() {
     if (matchesData) {
       setMatches(matchesData)
     }
-  }
+  }, [])
 
   useEffect(() => {
     loadData()
-  }, [])
+  }, [loadData])
 
   const loadSessionAttendance = async (sessionId: string) => {
     if (!sessionId) return

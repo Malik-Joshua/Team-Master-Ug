@@ -1,7 +1,7 @@
 'use client'
 
 // Version: 2c7ddaf - TypeScript fix for fixture team selection state variables
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import RefreshButton from '@/components/RefreshButton'
 import { useRouter } from 'next/navigation'
 import Layout from '@/components/Layout'
@@ -74,8 +74,7 @@ export default function DashboardPage() {
   const [recentGymSchedules, setRecentGymSchedules] = useState<any[]>([])
   const [topPerformers, setTopPerformers] = useState<any[]>([])
 
-  const loadDashboard = async () => {
-
+  const loadDashboard = useCallback(async () => {
       // Real authentication
       try {
         if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
@@ -498,11 +497,11 @@ export default function DashboardPage() {
         console.error('Error loading dashboard:', error)
         router.push('/login')
       }
-  }
+  }, [router])
 
   useEffect(() => {
     loadDashboard()
-  }, [router])
+  }, [loadDashboard])
 
   // Refresh gym stats for players periodically (every 30 seconds) and on page visibility change
   useEffect(() => {

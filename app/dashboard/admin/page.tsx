@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
 import { Users, Activity, DollarSign, Package, Calendar, CheckCircle, XCircle, AlertCircle, FileText, X, Trophy, BarChart3 } from 'lucide-react'
@@ -327,11 +327,11 @@ export default function AdminDashboard() {
         }
       }
       setLoading(false)
-    }
+  }, [])
 
   useEffect(() => {
     loadData()
-  }, [])
+  }, [loadData])
 
   const handleApproveBudget = async (budgetId: string) => {
     try {

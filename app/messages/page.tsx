@@ -568,60 +568,119 @@ export default function MessagesPage() {
             return
           }
 
-          // Get all users with selected roles
-          const { data: recipients } = await supabase
-            .from('user_profiles')
-            .select('user_id')
-            .in('role', rolesToSend)
-            .neq('user_id', authUser.id) // Exclude self
+          // Use API route to fetch recipients (bypasses RLS)
+          try {
+            const rolesParam = rolesToSend.join(',')
+            const response = await fetch(`/api/messages/recipients?roles=${rolesParam}`)
+            if (!response.ok) {
+              const errorData = await response.json()
+              throw new Error(errorData.error || 'Failed to fetch recipients')
+            }
+            
+            const data = await response.json()
+            const recipients = data.recipients || []
 
-          if (recipients && recipients.length > 0) {
-            // Send message to each recipient
-            const messagePromises = recipients.map((recipient) =>
-              supabase
+            if (recipients && recipients.length > 0) {
+              // Send message to each recipient (so they receive them)
+              const messagePromises = recipients.map((recipient: { user_id: string }) =>
+                supabase
+                  .from('messages')
+                  .insert({
+                    sender_id: authUser.id,
+                    recipient_id: recipient.user_id,
+                    subject: composeData.subject,
+                    message: composeData.message,
+                  })
+                  .select('id, recipient_id')
+                  .single()
+              )
+
+              const messageResults = await Promise.all(messagePromises)
+              
+              // Create notifications for recipients with message references
+              try {
+                const { db } = await import('@/lib/db-helpers')
+                // Create individual notifications with message IDs
+                const notificationPromises = messageResults.map((result: any) => {
+                  if (result.data && result.data.id) {
+                    return db.createNotification({
+                      user_id: result.data.recipient_id,
+                      title: 'New Message',
+                      message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
+                      type: 'info',
+                      action_url: '/messages',
+                      reference_id: result.data.id,
+                      reference_type: 'message',
+                    })
+                  }
+                  return Promise.resolve(null)
+                })
+                
+                await Promise.all(notificationPromises)
+                console.log(`Notifications created for ${messageResults.length} recipient(s)`)
+              } catch (notifError) {
+                console.error('Error creating notifications:', notifError)
+                // Don't fail the message send if notification creation fails
+              }
+              
+              // Create a single grouped "sent" message for the sender (not individual messages)
+              const roleNames = rolesToSend.map(r => {
+                if (r === 'data_admin') return 'Team Managers'
+                if (r === 'finance_admin') return 'Finance Admins'
+                return r.charAt(0).toUpperCase() + r.slice(1).replace('_', ' ')
+              }).join(', ')
+              
+              const { data: sentMessage, error: sentError } = await supabase
                 .from('messages')
                 .insert({
                   sender_id: authUser.id,
-                  recipient_id: recipient.user_id,
+                  recipient_id: null, // No specific recipient - it's a group message
+                  recipient_role: `group:${rolesToSend.join(',')}`, // Store group info in recipient_role
                   subject: composeData.subject,
                   message: composeData.message,
+                  read: true, // Mark as read since sender sent it
                 })
-                .select('id, recipient_id')
+                .select(`
+                  *,
+                  sender:user_profiles!messages_sender_id_fkey(name, role)
+                `)
                 .single()
-            )
 
-            const messageResults = await Promise.all(messagePromises)
-            
-            // Create notifications for recipients with message references
-            try {
-              const { db } = await import('@/lib/db-helpers')
-              // Create individual notifications with message IDs
-              const notificationPromises = messageResults.map((result: any) => {
-                if (result.data && result.data.id) {
-                  return db.createNotification({
-                    user_id: result.data.recipient_id,
-                    title: 'New Message',
-                    message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
-                    type: 'info',
-                    action_url: '/messages',
-                    reference_id: result.data.id,
-                    reference_type: 'message',
-                  })
+              if (sentError) {
+                console.error('Error creating sent message:', sentError)
+              }
+
+              // Format the sent message for display
+              if (sentMessage) {
+                const formattedSentMessage: Message = {
+                  id: sentMessage.id,
+                  sender_id: authUser.id,
+                  sender_name: user.name,
+                  sender_role: user.role,
+                  recipient_id: '',
+                  recipient_name: `Sent to ${roleNames}`,
+                  recipient_role: `group:${rolesToSend.join(',')}`,
+                  subject: sentMessage.subject || '',
+                  message: sentMessage.message,
+                  read: true,
+                  created_at: sentMessage.created_at,
+                  is_sent: true,
                 }
-                return Promise.resolve(null)
-              })
+                setMessages([formattedSentMessage, ...messages])
+              }
               
-              await Promise.all(notificationPromises)
-              console.log(`Notifications created for ${messageResults.length} recipient(s)`)
-            } catch (notifError) {
-              console.error('Error creating notifications:', notifError)
-              // Don't fail the message send if notification creation fails
+              alert(`Message sent successfully to ${recipients.length} recipient(s) (${roleNames})!`)
+              setComposeData({ recipientType: 'role', recipient: '', recipientId: '', selectedRoles: [], subject: '', message: '' })
+              setShowCompose(false)
+              return
+            } else {
+              const roleNames = rolesToSend.map(r => r === 'data_admin' ? 'team managers' : r.replace('_', ' ')).join(', ')
+              alert(`No recipients found for selected roles: ${roleNames}`)
+              return
             }
-            
-            const roleNames = rolesToSend.map(r => r === 'data_admin' ? 'team managers' : r.replace('_', ' ')).join(', ')
-            alert(`Message sent successfully to ${recipients.length} recipient(s) (${roleNames})!`)
-          } else {
-            alert('No recipients found for selected roles')
+          } catch (fetchError: any) {
+            console.error('Error fetching recipients:', fetchError)
+            alert(`Error fetching recipients: ${fetchError.message || 'Unknown error'}`)
             return
           }
         } else {
@@ -1964,7 +2023,9 @@ export default function MessagesPage() {
                             <span className="text-xs font-medium text-neutral-medium">To:</span>
                             <h3 className="font-bold text-neutral-text">{message.recipient_name || 'Unknown'}</h3>
                             <span className="text-xs font-medium text-neutral-medium bg-neutral-light px-2 py-0.5 rounded-full capitalize">
-                              {message.recipient_role?.replace('_', ' ') || 'unknown'}
+                              {message.recipient_role?.startsWith('group:') 
+                                ? 'Group Message' 
+                                : message.recipient_role?.replace('_', ' ') || 'unknown'}
                             </span>
                             <span className="text-xs font-medium text-neutral-medium bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
                               Sent

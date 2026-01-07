@@ -8,10 +8,14 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const role = searchParams.get('role')
+    const roles = searchParams.get('roles') // Comma-separated list of roles for multi-role support
 
-    if (!role) {
+    // Support both single role and multiple roles
+    const rolesToFetch = roles ? roles.split(',').map(r => r.trim()) : (role ? [role] : [])
+
+    if (rolesToFetch.length === 0) {
       return NextResponse.json(
-        { error: 'Role parameter is required' },
+        { error: 'Role or roles parameter is required' },
         { status: 400 }
       )
     }
@@ -44,22 +48,26 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Fetch users with the specified role, excluding the current user
-    // Special handling for 'admin' role - include all admin types
-    let query = supabaseAdmin
+    // Expand 'admin' role to include all admin types
+    const expandedRoles: string[] = []
+    rolesToFetch.forEach(r => {
+      if (r === 'admin') {
+        expandedRoles.push('admin', 'data_admin', 'finance_admin')
+      } else {
+        expandedRoles.push(r)
+      }
+    })
+
+    // Remove duplicates
+    const uniqueRoles = [...new Set(expandedRoles)]
+
+    // Fetch users with the specified roles, excluding the current user
+    const { data: recipients, error } = await supabaseAdmin
       .from('user_profiles')
-      .select('user_id')
+      .select('user_id, role')
+      .in('role', uniqueRoles)
       .neq('user_id', authUser.id)
     
-    if (role === 'admin') {
-      // Include all admin types: admin, data_admin, finance_admin
-      query = query.in('role', ['admin', 'data_admin', 'finance_admin'])
-    } else {
-      query = query.eq('role', role)
-    }
-    
-    const { data: recipients, error } = await query
-
     if (error) {
       console.error('Error fetching recipients:', error)
       return NextResponse.json(

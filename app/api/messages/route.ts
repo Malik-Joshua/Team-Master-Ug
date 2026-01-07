@@ -117,14 +117,37 @@ export async function GET(request: NextRequest) {
         const recipient = userProfilesMap[msg.recipient_id]
         const isSent = msg.sender_id === authUser.id
         
+        // Handle grouped messages (sent to multiple roles)
+        let recipientName = 'Unknown'
+        let recipientRole = 'unknown'
+        
+        if (msg.recipient_role && msg.recipient_role.startsWith('group:')) {
+          // This is a grouped message - format the recipient name
+          const roles = msg.recipient_role.replace('group:', '').split(',')
+          const roleNames = roles.map((r: string) => {
+            if (r === 'data_admin') return 'Team Managers'
+            if (r === 'finance_admin') return 'Finance Admins'
+            return r.charAt(0).toUpperCase() + r.slice(1).replace('_', ' ')
+          }).join(', ')
+          recipientName = `Sent to ${roleNames}`
+          recipientRole = msg.recipient_role
+        } else if (recipient) {
+          recipientName = recipient.name
+          recipientRole = recipient.role
+        } else if (msg.recipient_id) {
+          // Recipient exists but profile not found
+          recipientName = 'Unknown'
+          recipientRole = 'unknown'
+        }
+        
         return {
           id: msg.id,
           sender_id: msg.sender_id,
           sender_name: sender?.name || 'Unknown',
           sender_role: sender?.role || 'unknown',
           recipient_id: msg.recipient_id,
-          recipient_name: recipient?.name || 'Unknown',
-          recipient_role: recipient?.role || 'unknown',
+          recipient_name: recipientName,
+          recipient_role: recipientRole,
           subject: msg.subject || '',
           message: msg.message,
           read: msg.read || false,

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Layout from '@/components/Layout'
 import { Users, Check, X, Save, Calendar, MapPin, Trophy, Plus, Eye } from 'lucide-react'
@@ -117,7 +117,7 @@ export default function FixturesPage() {
   const [viewedTeamSelection, setViewedTeamSelection] = useState<any[]>([])
   const [loadingTeamView, setLoadingTeamView] = useState(false)
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
       try {
         const supabase = createClient()
         const { data: { user: authUser } } = await supabase.auth.getUser()
@@ -331,10 +331,11 @@ export default function FixturesPage() {
         setLoading(false)
       }
     }
+  }, [router])
   
   useEffect(() => {
     loadData()
-  }, [router])
+  }, [loadData])
 
   const handleViewTeam = async (matchId: string) => {
     setViewingTeamForMatch(matchId)

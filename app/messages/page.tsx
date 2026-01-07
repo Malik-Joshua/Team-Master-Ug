@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import Layout from '@/components/Layout'
 import { MessageSquare, Send, User, Mail, Clock, X, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -50,7 +50,7 @@ export default function MessagesPage() {
     message: '',
   })
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
       const supabase = createClient()
       const { data: { user: authUser } } = await supabase.auth.getUser()
       
@@ -273,11 +273,11 @@ export default function MessagesPage() {
         }
       }
       setLoading(false)
-  }
+  }, [])
 
   useEffect(() => {
     loadData()
-  }, [])
+  }, [loadData])
 
   // Auto-mark notification as read when message modal opens
   useEffect(() => {

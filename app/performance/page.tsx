@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
 import { BarChart3, TrendingUp, TrendingDown, Trophy, Target, Activity, Calendar, Users, Award, AlertCircle, DollarSign, FileText, CheckCircle, Plus, Edit, Trash2, X, Save, Utensils, Dumbbell, PlayCircle, MapPin } from 'lucide-react'
@@ -95,7 +95,28 @@ export default function PerformancePage() {
     console.log('showResourceModal changed:', showResourceModal)
   }, [showResourceModal])
 
-  const loadData = async () => {
+  // Load performance resources
+  const loadPerformanceResources = useCallback(async (userRole: string) => {
+    setLoadingResources(true)
+    try {
+      const url = selectedResourceType !== 'all' 
+        ? `/api/performance-resources?type=${selectedResourceType}`
+        : '/api/performance-resources'
+      const response = await fetch(url)
+      if (response.ok) {
+        const data = await response.json()
+        setPerformanceResources(data.resources || [])
+      } else {
+        console.error('Failed to load performance resources')
+      }
+    } catch (error) {
+      console.error('Error loading performance resources:', error)
+    } finally {
+      setLoadingResources(false)
+    }
+  }, [selectedResourceType])
+
+  const loadData = useCallback(async () => {
       setLoading(true)
       
       // Check for dev mode
@@ -410,39 +431,18 @@ export default function PerformancePage() {
       }
       
       setLoading(false)
-    }
+    }, [loadPerformanceResources])
 
   useEffect(() => {
     loadData()
-  }, [])
-
-  // Load performance resources
-  const loadPerformanceResources = async (userRole: string) => {
-    setLoadingResources(true)
-    try {
-      const url = selectedResourceType !== 'all' 
-        ? `/api/performance-resources?type=${selectedResourceType}`
-        : '/api/performance-resources'
-      const response = await fetch(url)
-      if (response.ok) {
-        const data = await response.json()
-        setPerformanceResources(data.resources || [])
-      } else {
-        console.error('Failed to load performance resources')
-      }
-    } catch (error) {
-      console.error('Error loading performance resources:', error)
-    } finally {
-      setLoadingResources(false)
-    }
-  }
+  }, [loadData])
 
   // Reload resources when filter changes
   useEffect(() => {
     if (user) {
       loadPerformanceResources(user.role)
     }
-  }, [selectedResourceType])
+  }, [selectedResourceType, user, loadPerformanceResources])
 
   // Handle create/update resource
   const handleSaveResource = async () => {

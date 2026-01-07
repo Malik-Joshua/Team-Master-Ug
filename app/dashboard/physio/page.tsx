@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
 import BirthdayAlert from '@/components/BirthdayAlert'
@@ -160,7 +160,7 @@ export default function PhysioDashboard() {
     }
   }
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     const supabase = createClient()
     const { data: { user: authUser } } = await supabase.auth.getUser()
 
@@ -323,11 +323,11 @@ export default function PhysioDashboard() {
       }
     }
     setLoading(false)
-  }
+  }, [])
 
   useEffect(() => {
     loadData()
-  }, [])
+  }, [loadData])
 
   const handleSaveInjury = async () => {
     if (!injuryForm.player_id || !injuryForm.injury_date || !injuryForm.cause || !injuryForm.diagnosis || !injuryForm.action_taken) {

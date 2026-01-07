@@ -108,6 +108,8 @@ export async function GET(request: NextRequest) {
       msg.recipient_role.startsWith('group:')
     )
 
+    console.log(`Found ${groupedMessages.length} grouped messages for user ${authUser.id}`)
+
     // Create a set of individual messages to exclude (those that are part of a group send)
     const messagesToExclude = new Set<string>()
     
@@ -115,8 +117,10 @@ export async function GET(request: NextRequest) {
     // We match by content only (subject + message) to be more reliable
     groupedMessages.forEach((groupedMsg: any) => {
       // Normalize subject and message for comparison (handle null/undefined)
-      const groupedSubject = groupedMsg.subject || ''
-      const groupedMessage = groupedMsg.message || ''
+      const groupedSubject = (groupedMsg.subject || '').trim()
+      const groupedMessage = (groupedMsg.message || '').trim()
+      
+      console.log(`Processing grouped message ${groupedMsg.id}: subject="${groupedSubject}", message="${groupedMessage.substring(0, 50)}..."`)
       
       messages.forEach((msg: any) => {
         // Check if this is an individual message that matches the grouped message
@@ -130,8 +134,8 @@ export async function GET(request: NextRequest) {
         if (!isIndividualMessage) return
         
         // Check if content matches (normalize for comparison)
-        const msgSubject = msg.subject || ''
-        const msgMessage = msg.message || ''
+        const msgSubject = (msg.subject || '').trim()
+        const msgMessage = (msg.message || '').trim()
         
         const contentMatches = (
           msgSubject === groupedSubject && // Same subject
@@ -140,10 +144,12 @@ export async function GET(request: NextRequest) {
         
         if (contentMatches) {
           messagesToExclude.add(msg.id)
-          console.log(`Excluding individual message ${msg.id} - matches grouped message ${groupedMsg.id}`)
+          console.log(`Excluding individual message ${msg.id} (to ${msg.recipient_id}) - matches grouped message ${groupedMsg.id}`)
         }
       })
     })
+    
+    console.log(`Total messages to exclude: ${messagesToExclude.size}`)
 
     // Format messages with sender and recipient info
     // Filter out messages that don't belong to the user (extra safety check)

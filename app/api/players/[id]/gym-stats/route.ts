@@ -175,7 +175,10 @@ export async function PATCH(
 
     const { data, error } = await supabaseAdmin
       .from('players')
-      .update({ gym_stats: updatedStats })
+      .update({ 
+        gym_stats: updatedStats,
+        gym_stats_updated_at: new Date().toISOString()
+      })
       .eq('user_id', playerId)
       .select()
 

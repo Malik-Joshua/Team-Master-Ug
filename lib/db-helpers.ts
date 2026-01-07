@@ -882,22 +882,50 @@ export const db = {
   async getBestGymMetricsOfWeek() {
     const supabase = createClient()
     
-    // Get all players with their gym stats
+    // Calculate current week (Monday to Sunday)
+    const now = new Date()
+    const dayOfWeek = now.getDay() // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1 // Convert Sunday (0) to 6 days back
+    
+    const weekStart = new Date(now)
+    weekStart.setDate(now.getDate() - daysToMonday)
+    weekStart.setHours(0, 0, 0, 0)
+    
+    const weekEnd = new Date(weekStart)
+    weekEnd.setDate(weekStart.getDate() + 6)
+    weekEnd.setHours(23, 59, 59, 999)
+    
+    const weekStartISO = weekStart.toISOString()
+    const weekEndISO = weekEnd.toISOString()
+    
+    // Get players with gym stats updated within the current week
     const { data: players, error: playersError } = await supabase
       .from('players')
       .select(`
         user_id,
         gym_stats,
+        gym_stats_updated_at,
         player_profile:user_profiles!players_user_id_fkey(name)
       `)
+      .not('gym_stats', 'is', null)
+      .neq('gym_stats', '{}')
+      .gte('gym_stats_updated_at', weekStartISO)
+      .lte('gym_stats_updated_at', weekEndISO)
     
     if (playersError) throw playersError
     
     if (!players || players.length === 0) {
-      return null
+      return {
+        weekStart: weekStartISO,
+        weekEnd: weekEndISO,
+        benchPress: null,
+        squat: null,
+        deadlift: null,
+        pullUp: null,
+      }
     }
     
-    // Find best metrics across all players
+    // Find best metrics across players updated this week
     let bestBenchPress = { value: 0, player: '', playerName: '' }
     let bestSquat = { value: 0, player: '', playerName: '' }
     let bestDeadlift = { value: 0, player: '', playerName: '' }
@@ -927,6 +955,8 @@ export const db = {
     })
     
     return {
+      weekStart: weekStartISO,
+      weekEnd: weekEndISO,
       benchPress: bestBenchPress.value > 0 ? bestBenchPress : null,
       squat: bestSquat.value > 0 ? bestSquat : null,
       deadlift: bestDeadlift.value > 0 ? bestDeadlift : null,

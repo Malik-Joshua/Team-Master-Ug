@@ -1053,19 +1053,31 @@ export default function DashboardPage() {
           {/* Best Gym Metrics of the Week */}
           {user.role !== 'finance_admin' && user.role !== 'physio' && (
             <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
-              <div className="flex items-center mb-6">
-                <Trophy className="w-6 h-6 text-warning mr-2" />
-                <h3 className="text-xl font-bold text-neutral-text">Best Gym Metrics of the Week</h3>
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center">
+                  <Trophy className="w-6 h-6 text-warning mr-2" />
+                  <h3 className="text-xl font-bold text-neutral-text">Best Gym Metrics of the Week</h3>
+                </div>
+                {bestGymMetrics && bestGymMetrics.weekStart && bestGymMetrics.weekEnd && (
+                  <div className="text-sm text-neutral-medium">
+                    {new Date(bestGymMetrics.weekStart).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(bestGymMetrics.weekEnd).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </div>
+                )}
               </div>
               
               {loadingBestMetrics ? (
                 <div className="flex items-center justify-center py-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                 </div>
-              ) : !bestGymMetrics ? (
+              ) : !bestGymMetrics || (!bestGymMetrics.benchPress && !bestGymMetrics.squat && !bestGymMetrics.deadlift && !bestGymMetrics.pullUp) ? (
                 <div className="text-center py-8">
                   <Dumbbell className="w-12 h-12 mx-auto mb-4 text-neutral-light" />
-                  <p className="text-neutral-medium">No gym metrics recorded yet.</p>
+                  <p className="text-neutral-medium">No gym metrics recorded for this week yet.</p>
+                  {bestGymMetrics && bestGymMetrics.weekStart && bestGymMetrics.weekEnd && (
+                    <p className="text-xs text-neutral-light mt-2">
+                      Week: {new Date(bestGymMetrics.weekStart).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(bestGymMetrics.weekEnd).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </p>
+                  )}
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1075,9 +1087,9 @@ export default function DashboardPage() {
                       <Dumbbell className="w-5 h-5 text-primary" />
                     </div>
                     <p className="text-3xl font-bold text-neutral-text">
-                      {bestGymMetrics.bestBenchPress?.value || 0} kg
+                      {bestGymMetrics.benchPress?.value || 0} kg
                     </p>
-                    <p className="text-sm text-primary font-medium mt-1">{bestGymMetrics.bestBenchPress?.playerName || 'N/A'}</p>
+                    <p className="text-sm text-primary font-medium mt-1">{bestGymMetrics.benchPress?.playerName || 'N/A'}</p>
                   </div>
                   <div className="bg-gradient-to-br from-secondary/10 to-secondary/5 rounded-lg p-6 border border-secondary/20">
                     <div className="flex items-center justify-between mb-2">
@@ -1085,9 +1097,9 @@ export default function DashboardPage() {
                       <Dumbbell className="w-5 h-5 text-secondary" />
                     </div>
                     <p className="text-3xl font-bold text-neutral-text">
-                      {bestGymMetrics.bestSquat?.value || 0} kg
+                      {bestGymMetrics.squat?.value || 0} kg
                     </p>
-                    <p className="text-sm text-secondary font-medium mt-1">{bestGymMetrics.bestSquat?.playerName || 'N/A'}</p>
+                    <p className="text-sm text-secondary font-medium mt-1">{bestGymMetrics.squat?.playerName || 'N/A'}</p>
                   </div>
                   <div className="bg-gradient-to-br from-success/10 to-success/5 rounded-lg p-6 border border-success/20">
                     <div className="flex items-center justify-between mb-2">
@@ -1095,9 +1107,9 @@ export default function DashboardPage() {
                       <Dumbbell className="w-5 h-5 text-success" />
                     </div>
                     <p className="text-3xl font-bold text-neutral-text">
-                      {bestGymMetrics.bestDeadlift?.value || 0} kg
+                      {bestGymMetrics.deadlift?.value || 0} kg
                     </p>
-                    <p className="text-sm text-success font-medium mt-1">{bestGymMetrics.bestDeadlift?.playerName || 'N/A'}</p>
+                    <p className="text-sm text-success font-medium mt-1">{bestGymMetrics.deadlift?.playerName || 'N/A'}</p>
                   </div>
                   <div className="bg-gradient-to-br from-info/10 to-info/5 rounded-lg p-6 border border-info/20">
                     <div className="flex items-center justify-between mb-2">
@@ -1105,9 +1117,9 @@ export default function DashboardPage() {
                       <Dumbbell className="w-5 h-5 text-info" />
                     </div>
                     <p className="text-3xl font-bold text-neutral-text">
-                      {bestGymMetrics.bestPullUps?.value || 0} reps
+                      {bestGymMetrics.pullUp?.value || 0} reps
                     </p>
-                    <p className="text-sm text-info font-medium mt-1">{bestGymMetrics.bestPullUps?.playerName || 'N/A'}</p>
+                    <p className="text-sm text-info font-medium mt-1">{bestGymMetrics.pullUp?.playerName || 'N/A'}</p>
                   </div>
                 </div>
               )}

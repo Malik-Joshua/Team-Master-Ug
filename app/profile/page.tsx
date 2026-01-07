@@ -130,6 +130,7 @@ export default function ProfilePage() {
             phone: userData.phone || '',
             emergency_contact: userData.emergency_contact || '',
             emergency_phone: userData.emergency_phone || '',
+            birth_date: userData.birth_date || '',
           })
           setLoading(false)
           return

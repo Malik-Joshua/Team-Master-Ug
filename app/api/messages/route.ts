@@ -124,10 +124,12 @@ export async function GET(request: NextRequest) {
       
       messages.forEach((msg: any) => {
         // Check if this is an individual message that matches the grouped message
+        // Grouped messages have recipient_id = sender_id and recipient_role starting with 'group:'
         const isIndividualMessage = (
           msg.id !== groupedMsg.id && // Not the grouped message itself
           msg.sender_id === authUser.id && // Sent by the same user
           msg.recipient_id && // Has a specific recipient (not null)
+          msg.recipient_id !== authUser.id && // Not a grouped message (grouped messages have recipient_id = sender_id)
           (!msg.recipient_role || !msg.recipient_role.startsWith('group:')) // Not a grouped message
         )
         

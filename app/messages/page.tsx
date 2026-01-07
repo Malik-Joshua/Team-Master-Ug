@@ -630,11 +630,13 @@ export default function MessagesPage() {
                 return r.charAt(0).toUpperCase() + r.slice(1).replace('_', ' ')
               }).join(', ')
               
+              // Create a single grouped "sent" message for the sender
+              // Use sender's own ID as recipient_id (we'll identify it as grouped by recipient_role)
               const { data: sentMessage, error: sentError } = await supabase
                 .from('messages')
                 .insert({
                   sender_id: authUser.id,
-                  recipient_id: null, // No specific recipient - it's a group message
+                  recipient_id: authUser.id, // Use sender's own ID as placeholder (identified by recipient_role)
                   recipient_role: `group:${rolesToSend.join(',')}`, // Store group info in recipient_role
                   subject: composeData.subject,
                   message: composeData.message,

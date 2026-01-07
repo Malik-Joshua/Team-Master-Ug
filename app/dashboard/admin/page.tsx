@@ -67,7 +67,7 @@ export default function AdminDashboard() {
   const [upcomingMatches, setUpcomingMatches] = useState<any[]>([])
   const [recentApprovals, setRecentApprovals] = useState<any[]>([])
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
       if (typeof window !== 'undefined') {
         const devUser = localStorage.getItem('dev_user')
         if (devUser) {

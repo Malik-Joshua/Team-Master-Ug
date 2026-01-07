@@ -60,7 +60,8 @@ export async function GET(request: NextRequest) {
       { count: totalPlayersCount },
       { count: activePlayersCount },
       { count: activeInjuriesCount },
-      financial,
+      { data: transactions },
+      { data: budgets },
       { data: matches },
     ] = await Promise.all([
       db.getTeamPerformanceStats(),
@@ -70,9 +71,59 @@ export async function GET(request: NextRequest) {
       supabaseAdmin.from('user_profiles').select('*', { count: 'exact', head: true }).eq('role', 'player'),
       supabaseAdmin.from('user_profiles').select('*', { count: 'exact', head: true }).eq('role', 'player').eq('status', 'active'),
       supabaseAdmin.from('injuries').select('*', { count: 'exact', head: true }).eq('status', 'active'),
-      db.getClubFinancialPerformance(),
+      supabaseAdmin.from('financial_transactions').select('*').order('transaction_date', { ascending: false }),
+      supabaseAdmin.from('budgets').select('status'),
       supabaseAdmin.from('matches').select('result'),
     ])
+
+    // Calculate financial performance using service role client (bypasses RLS)
+    let financial: any = {
+      totalRevenue: 0,
+      totalExpenses: 0,
+      netBalance: 0,
+      budgetStats: { pending: 0, approved: 0, rejected: 0, total: 0 },
+      recentTransactions: [],
+    }
+
+    if (transactions && transactions.length > 0) {
+      const totalRevenue = transactions
+        .filter((t: any) => t.type === 'revenue')
+        .reduce((sum: number, t: any) => sum + parseFloat(t.amount || 0), 0)
+      
+      const totalExpenses = transactions
+        .filter((t: any) => t.type === 'expense')
+        .reduce((sum: number, t: any) => sum + parseFloat(t.amount || 0), 0)
+      
+      const netBalance = Math.round((totalRevenue - totalExpenses) * 100) / 100
+      
+      // Get recent transactions (last 10) with description field
+      const recentTransactions = transactions.slice(0, 10).map((t: any) => ({
+        id: t.id,
+        transaction_date: t.transaction_date,
+        type: t.type,
+        category: t.category,
+        description: t.description || '', // Ensure description is included
+        amount: t.amount,
+        created_by: t.created_by,
+      }))
+      
+      financial = {
+        totalRevenue: Math.round(totalRevenue * 100) / 100,
+        totalExpenses: Math.round(totalExpenses * 100) / 100,
+        netBalance,
+        recentTransactions,
+      }
+    }
+
+    // Calculate budget stats
+    if (budgets) {
+      financial.budgetStats = {
+        pending: budgets.filter((b: any) => b.status === 'pending').length,
+        approved: budgets.filter((b: any) => b.status === 'approved').length,
+        rejected: budgets.filter((b: any) => b.status === 'rejected').length,
+        total: budgets.length,
+      }
+    }
 
     const wins = matches?.filter(m => m.result === 'win').length || 0
     const losses = matches?.filter(m => m.result === 'loss').length || 0

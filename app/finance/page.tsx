@@ -32,7 +32,7 @@ interface Transaction {
   category: string
   amount: number
   date: string
-  notes: string
+  description: string  // Changed from notes to description to match database
   createdBy: string
 }
 
@@ -104,8 +104,23 @@ export default function FinancePage() {
         const { data: profile } = await supabase.from('user_profiles').select('*').eq('user_id', authUser.id).single()
         if (profile) {
           setUser(profile)
-          const { data: transactionsData } = await supabase.from('financial_transactions').select('*').order('transaction_date', { ascending: false })
-          if (transactionsData) setTransactions(transactionsData as Transaction[])
+          const { data: transactionsData } = await supabase
+            .from('financial_transactions')
+            .select('id, type, category, amount, transaction_date, description, created_by')
+            .order('transaction_date', { ascending: false })
+          if (transactionsData) {
+            // Map database fields to Transaction interface
+            const mappedTransactions = transactionsData.map((t: any) => ({
+              id: t.id,
+              type: t.type,
+              category: t.category,
+              amount: parseFloat(t.amount),
+              date: t.transaction_date,
+              description: t.description || '', // Use description field from database
+              createdBy: t.created_by || '',
+            }))
+            setTransactions(mappedTransactions as Transaction[])
+          }
           
           // If finance_admin, load training sessions and matches for attendance viewing
           if (profile.role === 'finance_admin') {
@@ -855,7 +870,7 @@ export default function FinancePage() {
                       <td className={`px-6 py-4 font-bold ${transaction.type === 'revenue' ? 'text-success' : 'text-secondary'}`}>
                         {transaction.type === 'revenue' ? '+' : '-'}{formatCurrency(transaction.amount)}
                       </td>
-                      <td className="px-6 py-4 text-sm text-neutral-medium">{transaction.notes}</td>
+                      <td className="px-6 py-4 text-sm text-neutral-medium">{transaction.description || 'No description'}</td>
                     </tr>
                   ))}
                 </tbody>

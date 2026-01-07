@@ -225,8 +225,7 @@ export function generateExcelReport(report: ReportData): Blob {
       metadata.push([])
     }
     // Format match reports
-    else if (report.type === 'match' && report.data.matchDetails) {
-      // Log what we're receiving
+    else if (report.type === 'match' && report.data.matchDetails) {      // Log what we're receiving
       console.log('Excel Generator - Match report data:', {
         hasMatchDetails: !!report.data.matchDetails,
         playerStatsCount: report.data.playerStats?.length || 0,

@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
+import BirthdayAlert from '@/components/BirthdayAlert'
 import { Users, Activity, DollarSign, Package, Calendar, CheckCircle, XCircle, AlertCircle, FileText, X, Trophy, BarChart3 } from 'lucide-react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'

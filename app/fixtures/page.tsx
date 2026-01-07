@@ -330,7 +330,6 @@ export default function FixturesPage() {
       } finally {
         setLoading(false)
       }
-    }
   }, [router])
   
   useEffect(() => {

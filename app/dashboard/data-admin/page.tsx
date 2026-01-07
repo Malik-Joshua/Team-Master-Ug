@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
+import BirthdayAlert from '@/components/BirthdayAlert'
 import { Users, Activity, BarChart3, Calendar, Trophy, Plus, X, Save, MapPin } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import RefreshButton from '@/components/RefreshButton'
@@ -529,6 +530,7 @@ export default function DataAdminDashboard() {
   return (
     <Layout pageTitle="Team Manager Dashboard">
       <div className="space-y-6">
+        <BirthdayAlert />
         {/* Header */}
         <div className="bg-club-gradient rounded-card p-6 text-white shadow-soft">
           <div className="flex items-center justify-between">

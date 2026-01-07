@@ -455,6 +455,7 @@ export default function AdminDashboard() {
   return (
     <Layout pageTitle="Admin Control Panel">
       <div className="space-y-6">
+        <BirthdayAlert />
         <div className="flex justify-between items-center mb-4">
           <div>
             <h1 className="text-4xl font-extrabold text-club-gradient">Admin Dashboard</h1>

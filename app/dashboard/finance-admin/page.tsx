@@ -2,6 +2,7 @@
 
 import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
+import BirthdayAlert from '@/components/BirthdayAlert'
 import { DollarSign, TrendingUp, TrendingDown, Calendar, X } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
@@ -232,6 +233,7 @@ export default function FinanceAdminDashboard() {
   return (
     <Layout pageTitle="Financial Overview">
       <div className="space-y-6">
+        <BirthdayAlert />
         <div className="flex justify-between items-center mb-4">
           <div>
             <h1 className="text-4xl font-extrabold text-club-gradient">Finance Admin Dashboard</h1>

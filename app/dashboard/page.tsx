@@ -6,6 +6,7 @@ import RefreshButton from '@/components/RefreshButton'
 import { useRouter } from 'next/navigation'
 import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
+import BirthdayAlert from '@/components/BirthdayAlert'
 import { Calendar, Activity, Trophy, Target, AlertCircle, Dumbbell, Edit, X, Save, HeartPulse, Pill, FileText, Clock, CheckCircle, MapPin } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
@@ -585,6 +586,7 @@ export default function DashboardPage() {
     return (
       <Layout pageTitle="Player Dashboard">
         <div className="space-y-6">
+          <BirthdayAlert />
           {/* Fixture Selection Notification for Player */}
           {loadingPlayerFixture ? (
             <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
@@ -1174,6 +1176,7 @@ export default function DashboardPage() {
     return (
       <Layout pageTitle="Coach Control Center">
         <div className="space-y-6">
+          <BirthdayAlert />
           {/* Stats */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <StatCard

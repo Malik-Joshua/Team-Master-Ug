@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
+import BirthdayAlert from '@/components/BirthdayAlert'
 import { Activity, AlertCircle, CheckCircle, Clock, Plus, X, Save, Edit, Calendar, Pill, FileText, User, CalendarDays, Trophy } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
@@ -583,6 +584,7 @@ export default function PhysioDashboard() {
   return (
     <Layout pageTitle="Physio Dashboard">
       <div className="space-y-6">
+        <BirthdayAlert />
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-neutral-text">Injury Management</h1>

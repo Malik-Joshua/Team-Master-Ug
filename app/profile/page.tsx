@@ -15,6 +15,7 @@ export default function ProfilePage() {
     phone: '',
     emergency_contact: '',
     emergency_phone: '',
+    birth_date: '',
   })
 
   useEffect(() => {
@@ -31,6 +32,7 @@ export default function ProfilePage() {
               phone: userData.phone || '',
               emergency_contact: userData.emergency_contact || '',
               emergency_phone: userData.emergency_phone || '',
+              birth_date: userData.birth_date || '',
             })
             setLoading(false)
             return
@@ -57,6 +59,7 @@ export default function ProfilePage() {
             phone: profile.phone || '',
             emergency_contact: profile.emergency_contact || '',
             emergency_phone: profile.emergency_phone || '',
+            birth_date: profile.birth_date ? new Date(profile.birth_date).toISOString().split('T')[0] : '',
           })
         }
       }
@@ -82,14 +85,23 @@ export default function ProfilePage() {
     const { data: { user: authUser } } = await supabase.auth.getUser()
 
     if (authUser) {
+      // Format birth_date properly (convert empty string to null)
+      const updateData = {
+        ...formData,
+        birth_date: formData.birth_date || null,
+      }
+      
       const { error } = await supabase
         .from('user_profiles')
-        .update(formData)
+        .update(updateData)
         .eq('user_id', authUser.id)
 
       if (!error) {
         setEditing(false)
-        setUser({ ...user, ...formData })
+        setUser({ ...user, ...updateData })
+        alert('Profile updated successfully!')
+      } else {
+        alert(`Error updating profile: ${error.message}`)
       }
     }
   }
@@ -274,6 +286,21 @@ export default function ProfilePage() {
                 </div>
               </div>
 
+              {user.birth_date && (
+                <div>
+                  <label className="block text-sm font-medium text-neutral-medium mb-1">
+                    Birth Date
+                  </label>
+                  <div className="text-neutral-text">
+                    {new Date(user.birth_date).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })}
+                  </div>
+                </div>
+              )}
+
               {editing && (
                 <>
                   <div>
@@ -300,6 +327,22 @@ export default function ProfilePage() {
                     />
                   </div>
 
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-medium mb-1">
+                      Birth Date
+                    </label>
+                    <input
+                      type="date"
+                      value={formData.birth_date}
+                      onChange={(e) => setFormData({ ...formData, birth_date: e.target.value })}
+                      className="w-full px-4 py-3 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                      max={new Date().toISOString().split('T')[0]}
+                    />
+                    <p className="text-xs text-neutral-medium mt-1">
+                      Your birthday will be used to show birthday alerts and wish you a happy birthday!
+                    </p>
+                  </div>
+
                   <div className="flex gap-3 pt-4">
                     <button
                       onClick={handleSave}
@@ -316,6 +359,7 @@ export default function ProfilePage() {
                           phone: user.phone || '',
                           emergency_contact: user.emergency_contact || '',
                           emergency_phone: user.emergency_phone || '',
+                          birth_date: user.birth_date ? new Date(user.birth_date).toISOString().split('T')[0] : '',
                         })
                       }}
                       className="px-6 py-3 bg-neutral-light text-neutral-text rounded-button font-semibold hover:bg-neutral-medium transition-all duration-300"

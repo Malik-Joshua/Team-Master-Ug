@@ -650,28 +650,20 @@ export default function MessagesPage() {
                 console.error('Error creating sent message:', sentError)
               }
 
-              // Format the sent message for display
-              if (sentMessage) {
-                const formattedSentMessage: Message = {
-                  id: sentMessage.id,
-                  sender_id: authUser.id,
-                  sender_name: user.name,
-                  sender_role: user.role,
-                  recipient_id: '',
-                  recipient_name: `Sent to ${roleNames}`,
-                  recipient_role: `group:${rolesToSend.join(',')}`,
-                  subject: sentMessage.subject || '',
-                  message: sentMessage.message,
-                  read: true,
-                  created_at: sentMessage.created_at,
-                  is_sent: true,
-                }
-                setMessages([formattedSentMessage, ...messages])
-              }
-              
               alert(`Message sent successfully to ${recipients.length} recipient(s) (${roleNames})!`)
               setComposeData({ recipientType: 'role', recipient: '', recipientId: '', selectedRoles: [], subject: '', message: '' })
               setShowCompose(false)
+              
+              // Reload messages from API to get properly filtered list (excludes individual messages)
+              try {
+                const reloadResponse = await fetch('/api/messages', { cache: 'no-store' })
+                if (reloadResponse.ok) {
+                  const reloadData = await reloadResponse.json()
+                  setMessages(reloadData.messages || [])
+                }
+              } catch (reloadError) {
+                console.error('Error reloading messages:', reloadError)
+              }
               return
             } else {
               const roleNames = rolesToSend.map(r => r === 'data_admin' ? 'team managers' : r.replace('_', ' ')).join(', ')

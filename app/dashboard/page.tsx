@@ -93,12 +93,39 @@ export default function DashboardPage() {
             .single()
 
           if (profile) {
-            setUser(profile)
+            // Check if player has a linked club_captain account BEFORE setting user
+            let effectiveProfile = profile
+            if (profile.role === 'player') {
+              const { data: clubCaptainProfile, error: linkError } = await supabase
+                .from('user_profiles')
+                .select('*')
+                .eq('role', 'club_captain')
+                .eq('linked_player_id', authUser.id)
+                .maybeSingle()
+              
+              if (linkError) {
+                console.error('Error checking for linked club captain account:', linkError)
+              }
+              
+              if (clubCaptainProfile) {
+                // Player has a linked club captain account - use club captain profile
+                console.log('✅ Player has linked club captain account, switching to club captain profile', {
+                  playerId: authUser.id,
+                  clubCaptainId: clubCaptainProfile.user_id,
+                  linkedPlayerId: clubCaptainProfile.linked_player_id
+                })
+                effectiveProfile = clubCaptainProfile
+              } else {
+                console.log('ℹ️ No linked club captain account found for player', authUser.id)
+              }
+            }
+            
+            setUser(effectiveProfile)
             
             // Load general statistics for all roles
             // For admin and coach, use API route to bypass RLS; for others, use direct queries
             try {
-              if (profile.role === 'admin' || profile.role === 'coach') {
+              if (effectiveProfile.role === 'admin' || effectiveProfile.role === 'coach') {
                 // Use API route for admin/coach (bypasses RLS)
                 const response = await fetch('/api/admin/statistics')
                 if (response.ok) {
@@ -189,7 +216,7 @@ export default function DashboardPage() {
             }
             
             // Load real stats based on role
-            if (profile.role === 'coach') {
+            if (effectiveProfile.role === 'coach') {
               try {
                 const { db } = await import('@/lib/db-helpers')
                 const sessionCount = await db.getCoachTrainingSessionsCount(authUser.id)
@@ -244,7 +271,7 @@ export default function DashboardPage() {
                 setRecentTrainingSchedules(recentSessions)
 
                 // Get recent gym schedules (for players, data_admin, admin)
-                if (profile.role === 'player' || profile.role === 'data_admin' || profile.role === 'admin') {
+                if (effectiveProfile.role === 'player' || effectiveProfile.role === 'data_admin' || effectiveProfile.role === 'admin') {
                   try {
                     // Use API route to bypass RLS and get accurate data
                     const gymSchedulesResponse = await fetch('/api/gym-schedules', {
@@ -317,7 +344,7 @@ export default function DashboardPage() {
               } catch (error) {
                 console.error('Error loading coach training sessions:', error)
               }
-            } else if (profile.role === 'player') {
+            } else if (effectiveProfile.role === 'player') {
               try {
                 const { db } = await import('@/lib/db-helpers')
                 const sessionsAttended = await db.getPlayerTrainingSessionsAttended(authUser.id)
@@ -421,7 +448,7 @@ export default function DashboardPage() {
             }
             
             // Load best gym metrics for all roles except finance_admin and physio
-            if (profile.role !== 'finance_admin' && profile.role !== 'physio') {
+            if (effectiveProfile.role !== 'finance_admin' && effectiveProfile.role !== 'physio') {
               try {
                 setLoadingBestMetrics(true)
                 const { db } = await import('@/lib/db-helpers')
@@ -436,7 +463,7 @@ export default function DashboardPage() {
             }
 
             // Load active injuries for coaches, admins, and team managers (read-only view)
-            if (profile.role === 'coach' || profile.role === 'admin' || profile.role === 'data_admin') {
+            if (effectiveProfile.role === 'coach' || effectiveProfile.role === 'admin' || effectiveProfile.role === 'data_admin') {
               try {
                 setLoadingActiveInjuries(true)
                 const response = await fetch('/api/admin/injuries', {
@@ -463,7 +490,7 @@ export default function DashboardPage() {
             }
 
             // Load fixture team selection for coaches, admins, team managers, and physio
-            if (profile.role !== 'finance_admin' && profile.role !== 'player') {
+            if (effectiveProfile.role !== 'finance_admin' && effectiveProfile.role !== 'player') {
               try {
                 setLoadingPlayerFixture(true)
                 // Get the latest upcoming match
@@ -553,35 +580,6 @@ export default function DashboardPage() {
   // Route to role-specific dashboards
   useEffect(() => {
     if (user && user.role) {
-      // Check if player has a linked club_captain account
-      if (user.role === 'player') {
-        const checkClubCaptainLink = async () => {
-          try {
-            const supabase = createClient()
-            const { data: { user: authUser } } = await supabase.auth.getUser()
-            
-            if (authUser) {
-              // Check if there's a club_captain account linked to this player
-              const { data: clubCaptainProfile } = await supabase
-                .from('user_profiles')
-                .select('*')
-                .eq('role', 'club_captain')
-                .eq('linked_player_id', authUser.id)
-                .single()
-              
-              if (clubCaptainProfile) {
-                // Player has a linked club captain account - redirect to club captain dashboard
-                router.push('/dashboard/club-captain')
-                return
-              }
-            }
-          } catch (error) {
-            console.error('Error checking club captain link:', error)
-          }
-        }
-        checkClubCaptainLink()
-      }
-      
       if (user.role === 'data_admin') {
         router.push('/dashboard/data-admin')
         return

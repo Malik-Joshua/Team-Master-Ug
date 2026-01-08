@@ -31,9 +31,9 @@ export async function PUT(
       .eq('user_id', authUser.id)
       .single()
 
-    if (!profile || (profile.role !== 'admin' && profile.role !== 'coach')) {
+    if (!profile || (profile.role !== 'admin' && profile.role !== 'coach' && profile.role !== 'club_captain')) {
       return NextResponse.json(
-        { error: 'Only admins and coaches can update performance resources' },
+        { error: 'Only admins, coaches, and club captains can update performance resources' },
         { status: 403 }
       )
     }
@@ -138,9 +138,9 @@ export async function DELETE(
       .eq('user_id', authUser.id)
       .single()
 
-    if (!profile || (profile.role !== 'admin' && profile.role !== 'coach')) {
+    if (!profile || (profile.role !== 'admin' && profile.role !== 'coach' && profile.role !== 'club_captain')) {
       return NextResponse.json(
-        { error: 'Only admins and coaches can delete performance resources' },
+        { error: 'Only admins, coaches, and club captains can delete performance resources' },
         { status: 403 }
       )
     }

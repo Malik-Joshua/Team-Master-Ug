@@ -32,16 +32,16 @@ interface NavItem {
 
 const navigationItems: NavItem[] = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Players', href: '/players', icon: Users, roles: ['coach', 'data_admin', 'admin'] },
+  { name: 'Players', href: '/players', icon: Users, roles: ['coach', 'data_admin', 'admin', 'club_captain'] },
   { name: 'My Profile', href: '/profile', icon: User, roles: ['player', 'coach'] },
   { name: 'Performance', href: '/performance', icon: BarChart3 },
-  { name: 'Training', href: '/training', icon: Calendar, roles: ['player', 'coach', 'data_admin', 'admin'] },
-  { name: 'Fixtures', href: '/fixtures', icon: Trophy, roles: ['coach', 'data_admin', 'admin'] },
+  { name: 'Training', href: '/training', icon: Calendar, roles: ['player', 'coach', 'data_admin', 'admin', 'club_captain'] },
+  { name: 'Fixtures', href: '/fixtures', icon: Trophy, roles: ['coach', 'data_admin', 'admin', 'club_captain'] },
   { name: 'Injuries', href: '/dashboard/physio', icon: HeartPulse, roles: ['physio'] },
   { name: 'Finance', href: '/finance', icon: DollarSign, roles: ['finance_admin', 'admin'] },
   { name: 'Inventory', href: '/inventory', icon: Package, roles: ['data_admin', 'admin', 'physio'] },
   { name: 'Messages', href: '/messages', icon: MessageSquare },
-  { name: 'Reports', href: '/reports', icon: FileText, roles: ['data_admin', 'finance_admin', 'admin'] },
+  { name: 'Reports', href: '/reports', icon: FileText, roles: ['data_admin', 'finance_admin', 'admin', 'club_captain'] },
 ]
 
 interface SidebarProps {

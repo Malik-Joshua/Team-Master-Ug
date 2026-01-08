@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { ArrowRight, Mail, Lock, User, Phone, AlertCircle, CheckCircle, Users, Shield, BarChart3, DollarSign, UserCheck, HeartPulse } from 'lucide-react'
+import { ArrowRight, Mail, Lock, User, Phone, AlertCircle, CheckCircle, Users, Shield, BarChart3, DollarSign, UserCheck, HeartPulse, Award } from 'lucide-react'
 import Link from 'next/link'
 import { ROLE_LIMITS, type Role } from '@/lib/role-limits'
 
@@ -14,6 +14,7 @@ const roleOptions = [
   { value: 'data_admin', label: 'Team Manager', icon: BarChart3, description: 'Join as a team manager', limit: ROLE_LIMITS.data_admin },
   { value: 'finance_admin', label: 'Finance Admin', icon: DollarSign, description: 'Join as a finance admin', limit: ROLE_LIMITS.finance_admin },
   { value: 'admin', label: 'Administrator', icon: Shield, description: 'Join as an administrator', limit: ROLE_LIMITS.admin },
+  { value: 'club_captain', label: 'Club Captain', icon: Award, description: 'Join as club captain (must link to existing player account)', limit: ROLE_LIMITS.club_captain },
 ] as const
 
 const playerPositions = [
@@ -39,6 +40,7 @@ export default function SignupPage() {
     phone: '',
     role: 'player' as Role,
     position: '',
+    linked_player_email: '',
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -64,6 +66,12 @@ export default function SignupPage() {
     // Validate position for players
     if (formData.role === 'player' && !formData.position) {
       setError('Please select a position for players')
+      return
+    }
+
+    // Validate linked_player_email for club_captain
+    if (formData.role === 'club_captain' && !formData.linked_player_email) {
+      setError('Please provide the email of your existing player account to link to')
       return
     }
 
@@ -106,6 +114,7 @@ export default function SignupPage() {
           role: formData.role,
           position: formData.role === 'player' ? formData.position : null,
           user_id: authData.user.id,
+          linked_player_email: formData.role === 'club_captain' ? formData.linked_player_email : null,
         }),
       })
 
@@ -280,6 +289,30 @@ export default function SignupPage() {
               />
             </div>
           </div>
+
+          {formData.role === 'club_captain' && (
+            <div>
+              <label htmlFor="linked_player_email" className="block text-sm font-medium text-neutral-text mb-2">
+                Linked Player Account Email <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-neutral-medium" />
+                <input
+                  id="linked_player_email"
+                  type="email"
+                  value={formData.linked_player_email}
+                  onChange={(e) => setFormData({ ...formData, linked_player_email: e.target.value })}
+                  required
+                  className="w-full pl-10 pr-4 py-3 border border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                  placeholder="player.email@example.com"
+                  disabled={loading || success}
+                />
+              </div>
+              <p className="text-xs text-neutral-medium mt-1">
+                Enter the email address of your existing player account. This links your club captain account to your player stats.
+              </p>
+            </div>
+          )}
 
           <div>
             <label htmlFor="password" className="block text-sm font-medium text-neutral-text mb-2">

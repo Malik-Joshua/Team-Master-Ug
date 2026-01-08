@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { name, email, phone, role, position, user_id } = body
+    const { name, email, phone, role, position, user_id, linked_player_email } = body
 
     // Validate required fields
     if (!name || !email || !user_id || !role) {
@@ -31,6 +31,17 @@ export async function POST(request: NextRequest) {
         { error: 'Position is required for players' },
         { status: 400 }
       )
+    }
+
+    // Validate linked_player_email for club_captain
+    let linkedPlayerId: string | null = null
+    if (role === 'club_captain') {
+      if (!linked_player_email) {
+        return NextResponse.json(
+          { error: 'Linked player email is required for club captain role. Please provide the email of your existing player account.' },
+          { status: 400 }
+        )
+      }
     }
 
     // Use service role to bypass RLS
@@ -79,6 +90,25 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // For club_captain, find and validate the linked player account
+    if (role === 'club_captain' && linked_player_email) {
+      const { data: linkedPlayerProfile, error: linkedPlayerError } = await supabaseAdmin
+        .from('user_profiles')
+        .select('user_id, role')
+        .eq('email', linked_player_email)
+        .eq('role', 'player')
+        .single()
+
+      if (linkedPlayerError || !linkedPlayerProfile) {
+        return NextResponse.json(
+          { error: `No player account found with email ${linked_player_email}. Please ensure you have a player account first.` },
+          { status: 400 }
+        )
+      }
+
+      linkedPlayerId = linkedPlayerProfile.user_id
+    }
+
     const limitCheck = checkRoleLimit(currentRoleCount || 0, role as Role)
     if (!limitCheck.canAdd) {
       return NextResponse.json(
@@ -100,6 +130,7 @@ export async function POST(request: NextRequest) {
       data_admin: 'TMA',
       finance_admin: 'FNA',
       physio: 'PHY',
+      club_captain: 'CAP',
     }
     const prefix = rolePrefixes[role] || 'USR'
     const uniqueId = `${prefix}${Date.now()}${Math.random().toString(36).substring(2, 6).toUpperCase()}`
@@ -115,6 +146,7 @@ export async function POST(request: NextRequest) {
         phone: phone || null,
         role: role as Role,
         status: 'active', // Users can be active immediately after signup
+        linked_player_id: linkedPlayerId || null,
       })
       .select()
       .single()

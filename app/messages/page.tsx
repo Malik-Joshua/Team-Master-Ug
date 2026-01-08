@@ -1272,8 +1272,244 @@ export default function MessagesPage() {
           console.error('Error reloading messages:', reloadError)
         }
         return
+      } else if (user?.role === 'club_captain') {
+        // Club captain can send to players, admin, coaches, and data_admin (but NOT finance_admin)
+        let recipientId: string | null = null
+        let recipientRole: string | null = null
+
+        if (composeData.recipientType === 'role') {
+          // Send to all players, all admins, all coaches, or all data_admins
+          if (composeData.recipient === 'all_players') {
+            recipientRole = 'player'
+          } else if (composeData.recipient === 'all_admins') {
+            recipientRole = 'admin' // Only general admins, not finance_admin
+          } else if (composeData.recipient === 'all_coaches') {
+            recipientRole = 'coach'
+          } else if (composeData.recipient === 'all_team_managers') {
+            recipientRole = 'data_admin'
+          }
+        } else {
+          // Send to individual recipient
+          recipientId = composeData.recipientId
+        }
+
+        // If sending to a role, use API route to bypass RLS
+        if (recipientRole) {
+          try {
+            // For admin role, we need to filter out finance_admin
+            let response
+            if (recipientRole === 'admin') {
+              response = await fetch(`/api/messages/recipients?role=${recipientRole}`)
+            } else {
+              response = await fetch(`/api/messages/recipients?role=${recipientRole}`)
+            }
+            
+            if (!response.ok) {
+              const errorData = await response.json()
+              throw new Error(errorData.error || 'Failed to fetch recipients')
+            }
+            
+            const data = await response.json()
+            let recipients = data.recipients || []
+            
+            // Filter out finance_admin if sending to admins
+            if (recipientRole === 'admin') {
+              recipients = recipients.filter((r: any) => r.role !== 'finance_admin')
+            }
+
+            if (recipients && recipients.length > 0) {
+              // Send message to each recipient
+              const messagePromises = recipients.map((recipient: { user_id: string }) =>
+                supabase
+                  .from('messages')
+                  .insert({
+                    sender_id: authUser.id,
+                    recipient_id: recipient.user_id,
+                    subject: composeData.subject,
+                    message: composeData.message,
+                  })
+                  .select('id, recipient_id')
+                  .single()
+              )
+
+              const messageResults = await Promise.all(messagePromises)
+              
+              // Create notifications for recipients
+              try {
+                const { db } = await import('@/lib/db-helpers')
+                const notificationPromises = messageResults.map((result: any) => {
+                  if (result.data && result.data.id) {
+                    return db.createNotification({
+                      user_id: result.data.recipient_id,
+                      title: 'New Message',
+                      message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
+                      type: 'info',
+                      action_url: '/messages',
+                      reference_id: result.data.id,
+                      reference_type: 'message',
+                    })
+                  }
+                  return Promise.resolve(null)
+                })
+                
+                await Promise.all(notificationPromises)
+              } catch (notifError) {
+                console.error('Error creating notifications:', notifError)
+              }
+              
+              // Create a single grouped "sent" message for the sender
+              const roleName = recipientRole === 'player' ? 'Players' : 
+                              recipientRole === 'coach' ? 'Coaches' : 
+                              recipientRole === 'data_admin' ? 'Team Managers' : 'Administrators'
+              
+              const { data: sentMessage, error: sentError } = await supabase
+                .from('messages')
+                .insert({
+                  sender_id: authUser.id,
+                  recipient_id: authUser.id,
+                  recipient_role: `group:${recipientRole}`,
+                  subject: composeData.subject,
+                  message: composeData.message,
+                  read: true,
+                })
+                .select(`
+                  *,
+                  sender:user_profiles!messages_sender_id_fkey(name, role)
+                `)
+                .single()
+
+              if (sentError) {
+                console.error('Error creating sent message:', sentError)
+              }
+              
+              alert(`Message sent successfully to ${recipients.length} ${roleName.toLowerCase()}!`)
+              setComposeData({ recipientType: 'role', recipient: '', recipientId: '', selectedRoles: [], subject: '', message: '' })
+              setShowCompose(false)
+              
+              // Reload messages
+              try {
+                const reloadResponse = await fetch('/api/messages', { cache: 'no-store' })
+                if (reloadResponse.ok) {
+                  const reloadData = await reloadResponse.json()
+                  setMessages(reloadData.messages || [])
+                }
+              } catch (reloadError) {
+                console.error('Error reloading messages:', reloadError)
+              }
+              return
+            } else {
+              const roleName = recipientRole === 'player' ? 'players' : 
+                              recipientRole === 'coach' ? 'coaches' : 
+                              recipientRole === 'data_admin' ? 'team managers' : 'administrators'
+              alert(`No ${roleName} found`)
+              return
+            }
+          } catch (fetchError: any) {
+            console.error('Error fetching recipients:', fetchError)
+            alert(`Error fetching recipients: ${fetchError.message || 'Unknown error'}`)
+            return
+          }
+        } else {
+          // Send to individual recipient
+          // Verify recipient is valid (not finance_admin)
+          if (!recipientId) {
+            alert('Please select a recipient')
+            return
+          }
+
+          // Get recipient profile to check role
+          const { data: recipientProfile } = await supabase
+            .from('user_profiles')
+            .select('role, name')
+            .eq('user_id', recipientId)
+            .single()
+          
+          if (!recipientProfile) {
+            alert('Recipient not found')
+            return
+          }
+
+          // Block sending to finance_admin
+          if (recipientProfile.role === 'finance_admin') {
+            alert('Club captains cannot send messages to finance administrators')
+            return
+          }
+
+          // Verify recipient is in allowed roles
+          const allowedRoles = ['player', 'admin', 'coach', 'data_admin']
+          if (!allowedRoles.includes(recipientProfile.role)) {
+            alert('Invalid recipient. You can only send messages to players, administrators, coaches, and team managers.')
+            return
+          }
+          
+          const { data: newMessage, error } = await supabase
+            .from('messages')
+            .insert({
+              sender_id: authUser.id,
+              recipient_id: recipientId,
+              recipient_role: recipientProfile.role,
+              subject: composeData.subject,
+              message: composeData.message,
+            })
+            .select(`
+              *,
+              sender:user_profiles!messages_sender_id_fkey(name, role)
+            `)
+            .single()
+
+          if (error) throw error
+
+          // Create notification for recipient
+          try {
+            const { db } = await import('@/lib/db-helpers')
+            await db.createNotification({
+              user_id: recipientId,
+              title: 'New Message',
+              message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
+              type: 'info',
+              action_url: '/messages',
+              reference_id: newMessage.id,
+              reference_type: 'message',
+            })
+          } catch (notifError) {
+            console.error('Error creating notification:', notifError)
+          }
+          
+          // Add to local state
+          const formattedMessage: Message = {
+            id: newMessage.id,
+            sender_id: authUser.id,
+            sender_name: user.name,
+            sender_role: user.role,
+            recipient_id: recipientId || '',
+            recipient_name: recipientProfile.name,
+            recipient_role: recipientProfile.role,
+            subject: newMessage.subject || '',
+            message: newMessage.message,
+            read: false,
+            created_at: newMessage.created_at,
+            is_sent: true,
+          }
+
+          setMessages([formattedMessage, ...messages])
+          setComposeData({ recipientType: 'individual', recipient: '', recipientId: '', selectedRoles: [], subject: '', message: '' })
+          setShowCompose(false)
+          alert('Message sent successfully!')
+          
+          // Reload messages
+          try {
+            const response = await fetch('/api/messages', { cache: 'no-store' })
+            if (response.ok) {
+              const data = await response.json()
+              setMessages(data.messages || [])
+            }
+          } catch (reloadError) {
+            console.error('Error reloading messages:', reloadError)
+          }
+          return
+        }
       } else {
-        // For other roles (not admin, coach, finance_admin, player, or physio)
+        // For other roles (not admin, coach, finance_admin, player, physio, or club_captain)
         let recipientId: string | null = null
         let recipientRole: string | null = null
 
@@ -1521,6 +1757,8 @@ export default function MessagesPage() {
                 ? 'Communicate with players and administrators'
                 : user?.role === 'physio'
                 ? 'Communicate with injured players, administrators, and coaches'
+                : user?.role === 'club_captain'
+                ? 'Communicate with players, administrators, coaches, and team managers (not finance)'
                 : 'Communicate with coaches and administrators'}
             </p>
           </div>
@@ -1815,6 +2053,95 @@ export default function MessagesPage() {
                       </p>
                     )}
                   </div>
+                </>
+              ) : user?.role === 'club_captain' ? (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-medium mb-2">
+                      Send To
+                    </label>
+                    <select
+                      value={composeData.recipientType}
+                      onChange={(e) => setComposeData({ ...composeData, recipientType: e.target.value, recipient: '', recipientId: '' })}
+                      className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                    >
+                      <option value="role">Send to Role Group</option>
+                      <option value="individual">Send to Individual</option>
+                    </select>
+                  </div>
+                  {composeData.recipientType === 'role' ? (
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-medium mb-2">
+                        Select Recipient Group
+                      </label>
+                      <p className="text-xs text-neutral-medium mb-2">
+                        Note: You cannot send messages to finance administrators
+                      </p>
+                      <select
+                        value={composeData.recipient}
+                        onChange={(e) => setComposeData({ ...composeData, recipient: e.target.value })}
+                        className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                      >
+                        <option value="">Select recipient group...</option>
+                        <option value="all_players">All Players</option>
+                        <option value="all_admins">All Administrators (excluding Finance)</option>
+                        <option value="all_coaches">All Coaches</option>
+                        <option value="all_team_managers">All Team Managers</option>
+                      </select>
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-medium mb-2">
+                        Select Individual Recipient
+                      </label>
+                      <p className="text-xs text-neutral-medium mb-2">
+                        You can send to players, administrators (not finance), coaches, and team managers
+                      </p>
+                      <select
+                        value={composeData.recipientId}
+                        onChange={(e) => setComposeData({ ...composeData, recipientId: e.target.value, recipient: '' })}
+                        className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                      >
+                        <option value="">Select recipient...</option>
+                        {players.length > 0 && (
+                          <optgroup label="Players">
+                            {players.map((player) => (
+                              <option key={player.user_id} value={player.user_id}>
+                                {player.name} (Player)
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                        {admins.filter(a => a.role !== 'finance_admin').length > 0 && (
+                          <optgroup label="Administrators">
+                            {admins.filter(a => a.role !== 'finance_admin').map((admin) => (
+                              <option key={admin.user_id} value={admin.user_id}>
+                                {admin.name} ({admin.role === 'admin' ? 'Admin' : admin.role.replace('_', ' ')})
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                        {coaches.length > 0 && (
+                          <optgroup label="Coaches">
+                            {coaches.map((coach) => (
+                              <option key={coach.user_id} value={coach.user_id}>
+                                {coach.name} (Coach)
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                        {teamManagers.length > 0 && (
+                          <optgroup label="Team Managers">
+                            {teamManagers.map((manager) => (
+                              <option key={manager.user_id} value={manager.user_id}>
+                                {manager.name} (Team Manager)
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                      </select>
+                    </div>
+                  )}
                 </>
               ) : user?.role === 'data_admin' ? (
                 <>

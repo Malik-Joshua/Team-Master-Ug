@@ -6,6 +6,7 @@ export const ROLE_LIMITS = {
   player: 100,
   coach: 3,
   physio: 3,
+  club_captain: 2, // Typically 1, but allow 2 for flexibility
 } as const
 
 export type Role = keyof typeof ROLE_LIMITS
@@ -44,7 +45,7 @@ export function checkRoleLimit(currentCount: number, role: Role): {
  */
 export function getRoleLimitErrorMessage(role: Role, currentCount: number): string {
   const limit = getRoleLimit(role)
-  const roleName = role === 'data_admin' ? 'Team Manager' : role === 'finance_admin' ? 'Finance Admin' : role.charAt(0).toUpperCase() + role.slice(1)
+  const roleName = role === 'data_admin' ? 'Team Manager' : role === 'finance_admin' ? 'Finance Admin' : role === 'club_captain' ? 'Club Captain' : role.charAt(0).toUpperCase() + role.slice(1)
   
   return `Cannot add more ${roleName}s. The limit is ${limit} and you currently have ${currentCount}. Please remove an existing ${roleName} or contact the system administrator.`
 }

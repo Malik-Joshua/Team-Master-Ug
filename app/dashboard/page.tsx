@@ -565,6 +565,9 @@ export default function DashboardPage() {
       } else if (user.role === 'physio') {
         router.push('/dashboard/physio')
         return
+      } else if (user.role === 'club_captain') {
+        router.push('/dashboard/club-captain')
+        return
       }
     }
   }, [user, router])

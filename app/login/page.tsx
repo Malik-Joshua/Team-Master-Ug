@@ -146,7 +146,7 @@ export default function LoginPage() {
               <p className="text-sm font-semibold text-blue-900 mb-1">Email Confirmation Required</p>
               <p className="text-sm text-blue-800">
                 {pendingEmail ? (
-                  <>We've sent a confirmation email to <strong>{pendingEmail}</strong>. Please check your inbox and click the confirmation link, then sign in below to complete your registration.</>
+                  <>We&apos;ve sent a confirmation email to <strong>{pendingEmail}</strong>. Please check your inbox and click the confirmation link, then sign in below to complete your registration.</>
                 ) : (
                   <>Please check your email and click the confirmation link, then sign in below to complete your registration.</>
                 )}

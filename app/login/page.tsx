@@ -16,6 +16,8 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [signupSuccess, setSignupSuccess] = useState(false)
+  const [pendingSignup, setPendingSignup] = useState(false)
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null)
 
   useEffect(() => {
     // Check URL params on client side
@@ -23,6 +25,9 @@ export default function LoginPage() {
       const params = new URLSearchParams(window.location.search)
       if (params.get('signup') === 'success') {
         setSignupSuccess(true)
+      } else if (params.get('signup') === 'pending') {
+        setPendingSignup(true)
+        setPendingEmail(params.get('email'))
       }
     }
   }, [])
@@ -54,12 +59,49 @@ export default function LoginPage() {
           .single()
 
         if (profileError || !profile) {
-          setError('User profile not found. Please contact an administrator.')
-          await supabase.auth.signOut()
-          setLoading(false)
-          return
+          // Profile doesn't exist - check if there's a pending signup
+          try {
+            const completeSignupResponse = await fetch('/api/auth/complete-signup', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+            })
+
+            const completeSignupResult = await completeSignupResponse.json()
+
+            if (completeSignupResponse.ok && completeSignupResult.success) {
+              // Profile created successfully, redirect to dashboard
+              if (typeof window !== 'undefined') {
+                localStorage.removeItem('dev_role')
+                localStorage.removeItem('dev_user')
+              }
+              router.push('/dashboard')
+              router.refresh()
+              return
+            } else if (completeSignupResult.needsSignup) {
+              // No pending signup found - user needs to complete signup
+              setError('Please complete the signup process first. If you just confirmed your email, please try logging in again.')
+              await supabase.auth.signOut()
+              setLoading(false)
+              return
+            } else {
+              // Error creating profile from pending signup
+              setError(completeSignupResult.error || 'Failed to complete signup. Please contact an administrator.')
+              await supabase.auth.signOut()
+              setLoading(false)
+              return
+            }
+          } catch (completeSignupError: any) {
+            console.error('Error completing signup:', completeSignupError)
+            setError('User profile not found and could not complete signup. Please contact an administrator.')
+            await supabase.auth.signOut()
+            setLoading(false)
+            return
+          }
         }
 
+        // Profile exists - proceed normally
         // Clear any dev mode data
         if (typeof window !== 'undefined') {
           localStorage.removeItem('dev_role')
@@ -92,6 +134,22 @@ export default function LoginPage() {
               <p className="text-sm font-semibold text-success mb-1">Account created successfully!</p>
               <p className="text-sm text-success/80">
                 Please check your email to verify your account, then sign in below.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {pendingSignup && (
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-start gap-3">
+            <Mail className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-blue-900 mb-1">Email Confirmation Required</p>
+              <p className="text-sm text-blue-800">
+                {pendingEmail ? (
+                  <>We've sent a confirmation email to <strong>{pendingEmail}</strong>. Please check your inbox and click the confirmation link, then sign in below to complete your registration.</>
+                ) : (
+                  <>Please check your email and click the confirmation link, then sign in below to complete your registration.</>
+                )}
               </p>
             </div>
           </div>

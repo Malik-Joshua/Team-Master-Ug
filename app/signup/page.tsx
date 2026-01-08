@@ -121,19 +121,38 @@ export default function SignupPage() {
       const signupResult = await signupResponse.json()
 
       if (!signupResponse.ok) {
-        // Clean up auth user if profile creation fails
+        // Clean up auth user if signup fails
         await supabase.auth.signOut()
-        setError(signupResult.error || 'Failed to create profile. Please try again.')
+        
+        // Provide more helpful error messages
+        let errorMessage = signupResult.error || 'Failed to save signup data. Please try again.'
+        
+        if (signupResult.migrationRequired) {
+          errorMessage = 'Database setup required. Please contact an administrator.'
+        } else if (signupResult.code === 'AUTH_USER_NOT_FOUND' || signupResult.requiresEmailConfirmation) {
+          errorMessage = 'Please check your email and confirm your account before completing signup. After confirming, you can sign in directly.'
+        }
+        
+        console.error('Signup API error:', signupResult)
+        setError(errorMessage)
         setLoading(false)
         return
       }
 
-      setSuccess(true)
-      
-      // Redirect to login after a short delay
-      setTimeout(() => {
-        router.push('/login?signup=success')
-      }, 2000)
+      // Check if email confirmation is required
+      if (signupResult.requiresEmailConfirmation) {
+        setSuccess(true)
+        // Show special message for email confirmation
+        setTimeout(() => {
+          router.push('/login?signup=pending&email=' + encodeURIComponent(formData.email))
+        }, 2000)
+      } else {
+        setSuccess(true)
+        // Redirect to login after a short delay
+        setTimeout(() => {
+          router.push('/login?signup=success')
+        }, 2000)
+      }
     } catch (err: any) {
       console.error('Signup error:', err)
       setError(err.message || 'An unexpected error occurred. Please try again.')
@@ -160,9 +179,10 @@ export default function SignupPage() {
           <div className="mb-6 p-4 bg-success/10 border border-success/20 rounded-lg flex items-start gap-3">
             <CheckCircle className="w-5 h-5 text-success flex-shrink-0 mt-0.5" />
             <div className="flex-1">
-              <p className="text-sm font-semibold text-success mb-1">Account created successfully!</p>
+              <p className="text-sm font-semibold text-success mb-1">Signup information saved!</p>
               <p className="text-sm text-success/80">
-                Please check your email to verify your account. You will be redirected to the login page shortly.
+                Please check your email ({formData.email}) and click the confirmation link to verify your account. 
+                After confirming, you can sign in and your profile will be created automatically.
               </p>
             </div>
           </div>

@@ -553,6 +553,35 @@ export default function DashboardPage() {
   // Route to role-specific dashboards
   useEffect(() => {
     if (user && user.role) {
+      // Check if player has a linked club_captain account
+      if (user.role === 'player') {
+        const checkClubCaptainLink = async () => {
+          try {
+            const supabase = createClient()
+            const { data: { user: authUser } } = await supabase.auth.getUser()
+            
+            if (authUser) {
+              // Check if there's a club_captain account linked to this player
+              const { data: clubCaptainProfile } = await supabase
+                .from('user_profiles')
+                .select('*')
+                .eq('role', 'club_captain')
+                .eq('linked_player_id', authUser.id)
+                .single()
+              
+              if (clubCaptainProfile) {
+                // Player has a linked club captain account - redirect to club captain dashboard
+                router.push('/dashboard/club-captain')
+                return
+              }
+            }
+          } catch (error) {
+            console.error('Error checking club captain link:', error)
+          }
+        }
+        checkClubCaptainLink()
+      }
+      
       if (user.role === 'data_admin') {
         router.push('/dashboard/data-admin')
         return

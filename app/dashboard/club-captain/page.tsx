@@ -37,6 +37,7 @@ export default function ClubCaptainDashboard() {
     }
 
     if (authUser) {
+      // First, get the current user's profile
       const { data: profile } = await supabase
         .from('user_profiles')
         .select('*')
@@ -44,7 +45,34 @@ export default function ClubCaptainDashboard() {
         .single()
 
       if (profile) {
-        setUser(profile)
+        // If user is a player, check if they have a linked club_captain account
+        if (profile.role === 'player') {
+          const { data: clubCaptainProfile } = await supabase
+            .from('user_profiles')
+            .select('*')
+            .eq('role', 'club_captain')
+            .eq('linked_player_id', authUser.id)
+            .single()
+          
+          // If club captain account exists, use that profile for display
+          if (clubCaptainProfile) {
+            // Store the club captain profile with reference to player profile
+            setUser({ ...clubCaptainProfile, linkedPlayerProfile: profile })
+          } else {
+            // Player doesn't have a linked club captain account - redirect to player dashboard
+            setLoading(false)
+            window.location.href = '/dashboard'
+            return
+          }
+        } else if (profile.role === 'club_captain') {
+          // User is logged in with club captain account directly
+          setUser(profile)
+        } else {
+          // User doesn't have club captain access - redirect
+          setLoading(false)
+          window.location.href = '/dashboard'
+          return
+        }
 
         // Fetch players using API route to bypass RLS
         try {

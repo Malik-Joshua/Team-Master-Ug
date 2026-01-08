@@ -23,7 +23,21 @@ export async function GET(request: NextRequest) {
       .eq('user_id', authUser.id)
       .single()
 
-    if (!profile || !['admin', 'coach', 'data_admin', 'club_captain'].includes(profile.role)) {
+    // Check if user has club captain access (either directly or via linked account)
+    let hasClubCaptainAccess = false
+    if (profile?.role === 'player') {
+      // Check if player has a linked club_captain account
+      const { data: clubCaptainProfile } = await supabase
+        .from('user_profiles')
+        .select('role')
+        .eq('role', 'club_captain')
+        .eq('linked_player_id', authUser.id)
+        .single()
+      
+      hasClubCaptainAccess = !!clubCaptainProfile
+    }
+
+    if (!profile || (!['admin', 'coach', 'data_admin', 'club_captain'].includes(profile.role) && !hasClubCaptainAccess)) {
       return NextResponse.json(
         { error: 'Unauthorized: Admin/Coach/Data Admin/Club Captain access required' },
         { status: 403 }

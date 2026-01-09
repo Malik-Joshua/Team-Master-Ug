@@ -734,8 +734,20 @@ export default function MessagesPage() {
           }
 
           // Find recipient in already-loaded lists (avoids RLS issues)
-          const allRecipients = [...players, ...coaches, ...physios, ...teamManagers, ...financeAdmins, ...admins, ...clubCaptains]
+          // Safely combine all recipient lists (handle undefined/null)
+          const allRecipients = [
+            ...(players || []),
+            ...(coaches || []),
+            ...(physios || []),
+            ...(teamManagers || []),
+            ...(financeAdmins || []),
+            ...(admins || []),
+            ...(clubCaptains || [])
+          ]
           const recipientProfile = allRecipients.find((r: UserProfile) => r.user_id === composeData.recipientId)
+          
+          console.log('Looking for recipient:', composeData.recipientId)
+          console.log('Available recipients:', allRecipients.length, allRecipients.map(r => ({ id: r.user_id, name: r.name, role: r.role })))
 
           if (!recipientProfile) {
             alert('Recipient not found. Please refresh the page and try again.')
@@ -1131,8 +1143,20 @@ export default function MessagesPage() {
         }
 
         // Find recipient in already-loaded lists (avoids RLS issues)
-        const allRecipients = [...players, ...coaches, ...physios, ...teamManagers, ...financeAdmins, ...admins, ...clubCaptains]
+        // Safely combine all recipient lists (handle undefined/null)
+        const allRecipients = [
+          ...(players || []),
+          ...(coaches || []),
+          ...(physios || []),
+          ...(teamManagers || []),
+          ...(financeAdmins || []),
+          ...(admins || []),
+          ...(clubCaptains || [])
+        ]
         const recipientProfile = allRecipients.find((r: UserProfile) => r.user_id === composeData.recipientId)
+        
+        console.log('Looking for recipient:', composeData.recipientId)
+        console.log('Available recipients:', allRecipients.length, allRecipients.map(r => ({ id: r.user_id, name: r.name, role: r.role })))
 
         if (!recipientProfile) {
           alert('Recipient not found. Please refresh the page and try again.')
@@ -1464,8 +1488,20 @@ export default function MessagesPage() {
           }
 
           // Find recipient in already-loaded lists (avoids RLS issues)
-          const allRecipients = [...players, ...coaches, ...physios, ...teamManagers, ...financeAdmins, ...admins, ...clubCaptains]
+          // Safely combine all recipient lists (handle undefined/null)
+          const allRecipients = [
+            ...(players || []),
+            ...(coaches || []),
+            ...(physios || []),
+            ...(teamManagers || []),
+            ...(financeAdmins || []),
+            ...(admins || []),
+            ...(clubCaptains || [])
+          ]
           const recipientProfile = allRecipients.find((r: UserProfile) => r.user_id === recipientId)
+          
+          console.log('Looking for recipient:', recipientId)
+          console.log('Available recipients:', allRecipients.length, allRecipients.map(r => ({ id: r.user_id, name: r.name, role: r.role })))
 
           if (!recipientProfile) {
             alert('Recipient not found. Please refresh the page and try again.')

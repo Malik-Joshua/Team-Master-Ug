@@ -239,6 +239,28 @@ export function useNotifications() {
           })
 
         // Set up real-time subscription for messages to update unread count
+        // For players, also subscribe to messages sent to their linked club captain account
+        let clubCaptainUserId: string | null = null
+        if (profile?.role === 'player') {
+          const { data: clubCaptainProfile } = await supabase
+            .from('user_profiles')
+            .select('user_id')
+            .eq('role', 'club_captain')
+            .eq('linked_player_id', user.id)
+            .maybeSingle()
+          
+          if (clubCaptainProfile) {
+            clubCaptainUserId = clubCaptainProfile.user_id
+            console.log(`Subscribing to messages for player ${user.id} and club captain account ${clubCaptainUserId}`)
+          }
+        }
+        
+        // Create filter for message subscriptions
+        // If user has a linked club captain account, subscribe to both
+        const messageFilter = clubCaptainUserId 
+          ? `recipient_id=eq.${user.id},recipient_id=eq.${clubCaptainUserId}`
+          : `recipient_id=eq.${user.id}`
+        
         messagesChannel = supabase
           .channel(`messages-${user.id}`)
           .on(
@@ -247,16 +269,19 @@ export function useNotifications() {
               event: 'UPDATE',
               schema: 'public',
               table: 'messages',
-              filter: `recipient_id=eq.${user.id}`,
+              filter: messageFilter,
             },
             (payload) => {
               console.log('Message updated via real-time:', payload.new)
               const updatedMessage = payload.new as any
-              // If message was marked as read, decrease unread count
-              if (updatedMessage.read && !payload.old.read) {
-                setUnreadMessagesCount((prev) => Math.max(0, prev - 1))
-              } else if (!updatedMessage.read && payload.old.read) {
-                setUnreadMessagesCount((prev) => prev + 1)
+              // Only process if message is for this user or their club captain account
+              if (updatedMessage.recipient_id === user.id || updatedMessage.recipient_id === clubCaptainUserId) {
+                // If message was marked as read, decrease unread count
+                if (updatedMessage.read && !payload.old.read) {
+                  setUnreadMessagesCount((prev) => Math.max(0, prev - 1))
+                } else if (!updatedMessage.read && payload.old.read) {
+                  setUnreadMessagesCount((prev) => prev + 1)
+                }
               }
             }
           )
@@ -266,12 +291,13 @@ export function useNotifications() {
               event: 'INSERT',
               schema: 'public',
               table: 'messages',
-              filter: `recipient_id=eq.${user.id}`,
+              filter: messageFilter,
             },
             (payload) => {
               console.log('New message received via real-time:', payload.new)
               const newMessage = payload.new as any
-              if (!newMessage.read) {
+              // Only process if message is for this user or their club captain account
+              if ((newMessage.recipient_id === user.id || newMessage.recipient_id === clubCaptainUserId) && !newMessage.read) {
                 setUnreadMessagesCount((prev) => prev + 1)
               }
             }

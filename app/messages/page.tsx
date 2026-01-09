@@ -733,15 +733,95 @@ export default function MessagesPage() {
             return
           }
 
-          // Validate recipient role
-          const { data: recipientProfile } = await supabase
-            .from('user_profiles')
-            .select('role, name')
-            .eq('user_id', composeData.recipientId)
-            .single()
+          // Find recipient in already-loaded lists (avoids RLS issues)
+          const allRecipients = [...players, ...coaches, ...physios, ...teamManagers, ...financeAdmins, ...admins, ...clubCaptains]
+          const recipientProfile = allRecipients.find((r: UserProfile) => r.user_id === composeData.recipientId)
 
           if (!recipientProfile) {
-            alert('Recipient not found')
+            // Fallback: try to fetch via API if not in loaded lists
+            try {
+              const response = await fetch(`/api/messages/recipients?user_id=${composeData.recipientId}`)
+              if (response.ok) {
+                const data = await response.json()
+                if (data.recipient && data.recipient.length > 0) {
+                  const apiRecipient = data.recipient[0]
+                  // Validate communication rules
+                  if (!canSendMessage(user.role as UserRole, apiRecipient.role as UserRole)) {
+                    alert(`You cannot send messages to ${getRoleDisplayName(apiRecipient.role as UserRole)}. Please check the communication hierarchy.`)
+                    return
+                  }
+                  // Use API recipient
+                  const { data: newMessage, error } = await supabase
+                    .from('messages')
+                    .insert({
+                      sender_id: authUser.id,
+                      recipient_id: composeData.recipientId,
+                      recipient_role: apiRecipient.role,
+                      subject: composeData.subject,
+                      message: composeData.message,
+                    })
+                    .select(`
+                      *,
+                      sender:user_profiles!messages_sender_id_fkey(name, role)
+                    `)
+                    .single()
+
+                  if (error) throw error
+
+                  // Create notification
+                  try {
+                    const { db } = await import('@/lib/db-helpers')
+                    await db.createNotification({
+                      user_id: composeData.recipientId,
+                      title: 'New Message',
+                      message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
+                      type: 'info',
+                      action_url: '/messages',
+                      reference_id: newMessage.id,
+                      reference_type: 'message',
+                    })
+                  } catch (notifError) {
+                    console.error('Error creating notification:', notifError)
+                  }
+
+                  // Add to local state
+                  const formattedMessage: Message = {
+                    id: newMessage.id,
+                    sender_id: authUser.id,
+                    sender_name: user.name,
+                    sender_role: user.role,
+                    recipient_id: composeData.recipientId || '',
+                    recipient_name: apiRecipient.name || 'Unknown',
+                    recipient_role: apiRecipient.role,
+                    subject: newMessage.subject || '',
+                    message: newMessage.message,
+                    read: false,
+                    created_at: newMessage.created_at,
+                    is_sent: true,
+                  }
+
+                  setMessages([formattedMessage, ...messages])
+                  setComposeData({ recipientType: 'individual', recipient: '', recipientId: '', selectedRoles: [], subject: '', message: '' })
+                  setShowCompose(false)
+                  alert('Message sent successfully!')
+                  
+                  // Reload messages
+                  try {
+                    const reloadResponse = await fetch('/api/messages', { cache: 'no-store' })
+                    if (reloadResponse.ok) {
+                      const reloadData = await reloadResponse.json()
+                      setMessages(reloadData.messages || [])
+                    }
+                  } catch (reloadError) {
+                    console.error('Error reloading messages:', reloadError)
+                  }
+                  return
+                }
+              }
+            } catch (apiError) {
+              console.error('Error fetching recipient via API:', apiError)
+            }
+            alert('Recipient not found. Please refresh the page and try again.')
             return
           }
 
@@ -756,6 +836,7 @@ export default function MessagesPage() {
             .insert({
               sender_id: authUser.id,
               recipient_id: composeData.recipientId,
+              recipient_role: recipientProfile.role,
               subject: composeData.subject,
               message: composeData.message,
             })
@@ -785,21 +866,9 @@ export default function MessagesPage() {
             // Don't fail the message send if notification creation fails
           }
 
-          // Get recipient info for the sent message
-          let recipientName = 'Unknown'
-          let recipientRole = 'unknown'
-          if (composeData.recipientId) {
-            const { data: recipientProfile } = await supabase
-              .from('user_profiles')
-              .select('name, role')
-              .eq('user_id', composeData.recipientId)
-              .single()
-            
-            if (recipientProfile) {
-              recipientName = recipientProfile.name
-              recipientRole = recipientProfile.role
-            }
-          }
+          // Use recipient profile we already found
+          const recipientName = recipientProfile.name || 'Unknown'
+          const recipientRole = recipientProfile.role
           
           // Add to local state (as a sent message)
           const formattedMessage: Message = {
@@ -1480,15 +1549,12 @@ export default function MessagesPage() {
             return
           }
 
-          // Get recipient profile to check role
-          const { data: recipientProfile } = await supabase
-            .from('user_profiles')
-            .select('role, name')
-            .eq('user_id', recipientId)
-            .single()
-          
+          // Find recipient in already-loaded lists (avoids RLS issues)
+          const allRecipients = [...players, ...coaches, ...physios, ...teamManagers, ...financeAdmins, ...admins, ...clubCaptains]
+          const recipientProfile = allRecipients.find((r: UserProfile) => r.user_id === recipientId)
+
           if (!recipientProfile) {
-            alert('Recipient not found')
+            alert('Recipient not found. Please refresh the page and try again.')
             return
           }
 
@@ -1538,7 +1604,7 @@ export default function MessagesPage() {
             sender_name: user.name,
             sender_role: user.role,
             recipient_id: recipientId || '',
-            recipient_name: recipientProfile.name,
+            recipient_name: recipientProfile.name || 'Unknown',
             recipient_role: recipientProfile.role,
             subject: newMessage.subject || '',
             message: newMessage.message,

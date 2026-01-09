@@ -1220,7 +1220,7 @@ export default function MessagesPage() {
         setMessages([formattedMessage, ...messages])
         setComposeData({ recipientType: 'role', recipient: '', recipientId: '', selectedRoles: [], subject: '', message: '' })
         setShowCompose(false)
-        alert('Message sent successfully to team manager!')
+        alert('Message sent successfully!')
         
         // Reload messages to ensure sync
         try {

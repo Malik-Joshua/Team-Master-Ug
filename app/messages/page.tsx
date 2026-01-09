@@ -187,8 +187,9 @@ export default function MessagesPage() {
                       if (injuredPlayersResponse.ok) {
                         const injuredData = await injuredPlayersResponse.json()
                         if (injuredData.injuredPlayers && injuredData.injuredPlayers.length > 0) {
-                          // Filter by communication rules
+                          // Filter by communication rules and exclude current user
                           const allowedPlayers = injuredData.injuredPlayers.filter((u: UserProfile) => 
+                            u.user_id !== authUser.id &&
                             allowedRecipientRoles.includes(u.role as UserRole)
                           )
                           setPlayers(allowedPlayers)

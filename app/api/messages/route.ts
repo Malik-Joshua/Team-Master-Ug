@@ -48,8 +48,25 @@ export async function GET(request: NextRequest) {
       }
     })
 
+    // Check if player has a linked club captain account
+    let clubCaptainUserId: string | null = null
+    if (profile.role === 'player') {
+      const { data: clubCaptainProfile } = await supabaseAdmin
+        .from('user_profiles')
+        .select('user_id')
+        .eq('role', 'club_captain')
+        .eq('linked_player_id', authUser.id)
+        .maybeSingle()
+      
+      if (clubCaptainProfile) {
+        clubCaptainUserId = clubCaptainProfile.user_id
+        console.log(`Player ${authUser.id} has linked club captain account ${clubCaptainUserId}`)
+      }
+    }
+
     // Fetch messages for this user
     // For players: only show messages where they are the specific recipient or sender
+    // Also include messages sent to their linked club captain account (if they have one)
     // For other roles: can see role-based messages too
     let messagesQuery = supabaseAdmin
       .from('messages')
@@ -57,7 +74,12 @@ export async function GET(request: NextRequest) {
     
     if (profile.role === 'player') {
       // Players should only see messages specifically sent to them or sent by them
-      messagesQuery = messagesQuery.or(`sender_id.eq.${authUser.id},recipient_id.eq.${authUser.id}`)
+      // Also include messages sent to their linked club captain account
+      if (clubCaptainUserId) {
+        messagesQuery = messagesQuery.or(`sender_id.eq.${authUser.id},recipient_id.eq.${authUser.id},recipient_id.eq.${clubCaptainUserId}`)
+      } else {
+        messagesQuery = messagesQuery.or(`sender_id.eq.${authUser.id},recipient_id.eq.${authUser.id}`)
+      }
     } else {
       // Admins, coaches, etc. can see role-based messages
       messagesQuery = messagesQuery.or(`sender_id.eq.${authUser.id},recipient_id.eq.${authUser.id},recipient_role.eq.${profile.role}`)

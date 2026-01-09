@@ -1130,15 +1130,12 @@ export default function MessagesPage() {
           return
         }
 
-        // Get recipient profile to check role
-        const { data: recipientProfile } = await supabase
-          .from('user_profiles')
-          .select('role, name')
-          .eq('user_id', composeData.recipientId)
-          .single()
-        
+        // Find recipient in already-loaded lists (avoids RLS issues)
+        const allRecipients = [...players, ...coaches, ...physios, ...teamManagers, ...financeAdmins, ...admins, ...clubCaptains]
+        const recipientProfile = allRecipients.find((r: UserProfile) => r.user_id === composeData.recipientId)
+
         if (!recipientProfile) {
-          alert('Recipient not found')
+          alert('Recipient not found. Please refresh the page and try again.')
           return
         }
 

@@ -185,7 +185,7 @@ export function useNotifications() {
                   )
               }
               
-              messagesChannel.subscribe((status) => {
+              messagesChannel.subscribe((status: any) => {
                 console.log('Messages subscription status:', status)
               })
             } catch (messagesError) {
@@ -240,7 +240,7 @@ export function useNotifications() {
               table: 'notifications',
               filter: `user_id=eq.${user.id}`,
             },
-            (payload) => {
+            (payload: any) => {
               console.log('[useNotifications] New notification received via real-time:', payload.new)
               const newNotification = payload.new as Notification
               // Ensure action_url and reference fields are included
@@ -283,7 +283,7 @@ export function useNotifications() {
               table: 'notifications',
               filter: `user_id=eq.${user.id}`,
             },
-            (payload) => {
+            (payload: any) => {
               console.log('[useNotifications] Notification updated via real-time:', payload.new)
               const updatedNotification = payload.new as Notification
               const oldNotification = payload.old as any
@@ -318,109 +318,9 @@ export function useNotifications() {
               })
             }
           )
-          .subscribe((status) => {
+          .subscribe((status: any) => {
             console.log('Notification subscription status:', status)
           })
-
-        // Set up real-time subscription for messages to update unread count
-        // For players, also subscribe to messages sent to their linked club captain account
-        let clubCaptainUserId: string | null = null
-        if (profile?.role === 'player') {
-          const { data: clubCaptainProfile } = await supabase
-            .from('user_profiles')
-            .select('user_id')
-            .eq('role', 'club_captain')
-            .eq('linked_player_id', user.id)
-            .maybeSingle()
-          
-          if (clubCaptainProfile) {
-            clubCaptainUserId = clubCaptainProfile.user_id
-            console.log(`Subscribing to messages for player ${user.id} and club captain account ${clubCaptainUserId}`)
-          }
-        }
-        
-        // Subscribe to messages for the player account
-        messagesChannel = supabase
-          .channel(`messages-${user.id}`)
-          .on(
-            'postgres_changes',
-            {
-              event: 'UPDATE',
-              schema: 'public',
-              table: 'messages',
-              filter: `recipient_id=eq.${user.id}`,
-            },
-            (payload) => {
-              console.log('Message updated via real-time:', payload.new)
-              const updatedMessage = payload.new as any
-              // If message was marked as read, decrease unread count
-              if (updatedMessage.read && !payload.old.read) {
-                setUnreadMessagesCount((prev) => Math.max(0, prev - 1))
-              } else if (!updatedMessage.read && payload.old.read) {
-                setUnreadMessagesCount((prev) => prev + 1)
-              }
-            }
-          )
-          .on(
-            'postgres_changes',
-            {
-              event: 'INSERT',
-              schema: 'public',
-              table: 'messages',
-              filter: `recipient_id=eq.${user.id}`,
-            },
-            (payload) => {
-              console.log('New message received via real-time:', payload.new)
-              const newMessage = payload.new as any
-              if (!newMessage.read) {
-                setUnreadMessagesCount((prev) => prev + 1)
-              }
-            }
-          )
-        
-        // If user has a linked club captain account, also subscribe to messages for that account
-        if (clubCaptainUserId) {
-          messagesChannel
-            .on(
-              'postgres_changes',
-              {
-                event: 'UPDATE',
-                schema: 'public',
-                table: 'messages',
-                filter: `recipient_id=eq.${clubCaptainUserId}`,
-              },
-              (payload) => {
-                console.log('Message updated via real-time (club captain account):', payload.new)
-                const updatedMessage = payload.new as any
-                // If message was marked as read, decrease unread count
-                if (updatedMessage.read && !payload.old.read) {
-                  setUnreadMessagesCount((prev) => Math.max(0, prev - 1))
-                } else if (!updatedMessage.read && payload.old.read) {
-                  setUnreadMessagesCount((prev) => prev + 1)
-                }
-              }
-            )
-            .on(
-              'postgres_changes',
-              {
-                event: 'INSERT',
-                schema: 'public',
-                table: 'messages',
-                filter: `recipient_id=eq.${clubCaptainUserId}`,
-              },
-              (payload) => {
-                console.log('New message received via real-time (club captain account):', payload.new)
-                const newMessage = payload.new as any
-                if (!newMessage.read) {
-                  setUnreadMessagesCount((prev) => prev + 1)
-                }
-              }
-            )
-        }
-        
-        messagesChannel.subscribe((status) => {
-          console.log('Messages subscription status:', status)
-        })
 
         // Request notification permission
         if ('Notification' in window && Notification.permission === 'default') {

@@ -176,6 +176,23 @@ export default function MessagesPage() {
                   // Filter users based on communication rules
                   const allowedRecipientRoles = getAllowedRecipients(profile.role as UserRole)
                   
+                  // Check if current user is a player with a linked club captain account
+                  // If so, we need to exclude their club captain account from the dropdown
+                  let linkedClubCaptainUserId: string | null = null
+                  if (profile.role === 'player') {
+                    const { data: clubCaptainProfile } = await supabase
+                      .from('user_profiles')
+                      .select('user_id')
+                      .eq('role', 'club_captain')
+                      .eq('linked_player_id', authUser.id)
+                      .maybeSingle()
+                    
+                    if (clubCaptainProfile) {
+                      linkedClubCaptainUserId = clubCaptainProfile.user_id
+                      console.log(`Player ${authUser.id} has linked club captain account ${linkedClubCaptainUserId} - will exclude from dropdown`)
+                    }
+                  }
+                  
                   // For physio, only fetch players who have injuries
                   if (profile.role === 'physio') {
                     // Fetch injured players via API route (bypasses RLS)
@@ -231,8 +248,10 @@ export default function MessagesPage() {
                       u.role === 'data_admin' && allowedRecipientRoles.includes(u.role as UserRole)
                     ))
                     // For physio, check if club_captain is allowed and exclude current user
+                    // Also exclude linked club captain account if user is a player
                     setClubCaptains(allUsersList.filter((u: UserProfile) => 
                       u.user_id !== authUser.id &&
+                      u.user_id !== linkedClubCaptainUserId &&
                       u.role === 'club_captain' && allowedRecipientRoles.includes(u.role as UserRole)
                     ))
                     setAdmins(allUsersList.filter((u: UserProfile) => 
@@ -267,8 +286,10 @@ export default function MessagesPage() {
                       u.role === 'admin' && allowedRecipientRoles.includes(u.role as UserRole)
                     ))
                     // Filter club captains if allowed and exclude current user
+                    // Also exclude linked club captain account if user is a player
                     setClubCaptains(allUsersList.filter((u: UserProfile) => 
                       u.user_id !== authUser.id &&
+                      u.user_id !== linkedClubCaptainUserId &&
                       u.role === 'club_captain' && allowedRecipientRoles.includes(u.role as UserRole)
                     ))
                   }
@@ -287,6 +308,20 @@ export default function MessagesPage() {
             // Players can message: club captain, data manager, coach, physio
             const allowedRecipientRoles = getAllowedRecipients('player')
             
+            // Check if player has a linked club captain account to exclude from dropdown
+            let linkedClubCaptainUserId: string | null = null
+            const { data: clubCaptainProfile } = await supabase
+              .from('user_profiles')
+              .select('user_id')
+              .eq('role', 'club_captain')
+              .eq('linked_player_id', authUser.id)
+              .maybeSingle()
+            
+            if (clubCaptainProfile) {
+              linkedClubCaptainUserId = clubCaptainProfile.user_id
+              console.log(`Player ${authUser.id} has linked club captain account ${linkedClubCaptainUserId} - will exclude from dropdown`)
+            }
+            
             // Use API route to fetch all users (bypasses RLS)
             try {
               const usersResponse = await fetch('/api/messages/users')
@@ -296,8 +331,10 @@ export default function MessagesPage() {
                   const allUsersList = usersData.users as UserProfile[]
                   
                   // Filter by communication rules and exclude current user
+                  // Also exclude linked club captain account if user is a player
                   setClubCaptains(allUsersList.filter((u: UserProfile) => 
                     u.user_id !== authUser.id &&
+                    u.user_id !== linkedClubCaptainUserId &&
                     u.role === 'club_captain' && allowedRecipientRoles.includes(u.role as UserRole)
                   ))
                   setTeamManagers(allUsersList.filter((u: UserProfile) => 
@@ -388,6 +425,23 @@ export default function MessagesPage() {
   const fetchUsersDirectly = async (supabase: any, currentUserId: string, userRole: string) => {
     const allowedRecipientRoles = getAllowedRecipients(userRole as UserRole)
     
+    // Check if current user is a player with a linked club captain account
+    // If so, we need to exclude their club captain account from the dropdown
+    let linkedClubCaptainUserId: string | null = null
+    if (userRole === 'player') {
+      const { data: clubCaptainProfile } = await supabase
+        .from('user_profiles')
+        .select('user_id')
+        .eq('role', 'club_captain')
+        .eq('linked_player_id', currentUserId)
+        .maybeSingle()
+      
+      if (clubCaptainProfile) {
+        linkedClubCaptainUserId = clubCaptainProfile.user_id
+        console.log(`Player ${currentUserId} has linked club captain account ${linkedClubCaptainUserId} - will exclude from dropdown`)
+      }
+    }
+    
     // Fetch all users (will filter by communication rules)
     const { data: allUsersData } = await supabase
       .from('user_profiles')
@@ -417,7 +471,9 @@ export default function MessagesPage() {
       setAdmins(allUsersData.filter((u: UserProfile) => 
         u.role === 'admin' && allowedRecipientRoles.includes(u.role as UserRole)
       ))
+      // Exclude linked club captain account if user is a player
       setClubCaptains(allUsersData.filter((u: UserProfile) => 
+        u.user_id !== linkedClubCaptainUserId &&
         u.role === 'club_captain' && allowedRecipientRoles.includes(u.role as UserRole)
       ))
     }

@@ -58,19 +58,51 @@ export function useNotifications() {
             console.log(`Found ${unreadNotifs} unread notifications`)
             
             // Also fetch unread messages count
+            // For players, also check messages sent to their linked club captain account
             try {
-              const { count: unreadMessagesCount, error: messagesError } = await supabase
+              // First, check if user is a player with a linked club captain account
+              const { data: profile } = await supabase
+                .from('user_profiles')
+                .select('role, user_id')
+                .eq('user_id', user.id)
+                .single()
+              
+              let clubCaptainUserId: string | null = null
+              if (profile?.role === 'player') {
+                // Check for linked club captain account
+                const { data: clubCaptainProfile } = await supabase
+                  .from('user_profiles')
+                  .select('user_id')
+                  .eq('role', 'club_captain')
+                  .eq('linked_player_id', user.id)
+                  .maybeSingle()
+                
+                if (clubCaptainProfile) {
+                  clubCaptainUserId = clubCaptainProfile.user_id
+                  console.log(`Player ${user.id} has linked club captain account ${clubCaptainUserId}`)
+                }
+              }
+              
+              // Count unread messages - include messages sent to club captain account if applicable
+              let messagesQuery = supabase
                 .from('messages')
                 .select('*', { count: 'exact', head: true })
-                .eq('recipient_id', user.id)
                 .eq('read', false)
+              
+              if (clubCaptainUserId) {
+                messagesQuery = messagesQuery.or(`recipient_id.eq.${user.id},recipient_id.eq.${clubCaptainUserId}`)
+              } else {
+                messagesQuery = messagesQuery.eq('recipient_id', user.id)
+              }
+              
+              const { count: unreadMessagesCount, error: messagesError } = await messagesQuery
               
               if (messagesError) {
                 console.error('Error fetching unread messages count:', messagesError)
                 setUnreadMessagesCount(0)
               } else {
                 setUnreadMessagesCount(unreadMessagesCount || 0)
-                console.log(`Found ${unreadMessagesCount || 0} unread messages for user ${user.id}`)
+                console.log(`Found ${unreadMessagesCount || 0} unread messages for user ${user.id}${clubCaptainUserId ? ` (including club captain account ${clubCaptainUserId})` : ''}`)
               }
             } catch (messagesError) {
               console.error('Exception fetching unread messages count:', messagesError)

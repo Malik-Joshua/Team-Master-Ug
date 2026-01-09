@@ -117,7 +117,7 @@ export function useNotifications() {
                     table: 'messages',
                     filter: `recipient_id=eq.${user.id}`,
                   },
-                  (payload) => {
+                  (payload: any) => {
                     console.log('Message updated via real-time:', payload.new)
                     const updatedMessage = payload.new as any
                     // If message was marked as read, decrease unread count
@@ -136,7 +136,7 @@ export function useNotifications() {
                     table: 'messages',
                     filter: `recipient_id=eq.${user.id}`,
                   },
-                  (payload) => {
+                  (payload: any) => {
                     console.log('New message received via real-time:', payload.new)
                     const newMessage = payload.new as any
                     if (!newMessage.read) {

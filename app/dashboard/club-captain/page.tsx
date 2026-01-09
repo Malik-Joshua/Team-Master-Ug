@@ -4,9 +4,10 @@ import { useEffect, useState, useCallback } from 'react'
 import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
 import BirthdayAlert from '@/components/BirthdayAlert'
-import { Users, Activity, Calendar, Trophy, MapPin, Eye } from 'lucide-react'
+import { Users, Activity, Calendar, Trophy, MapPin, Eye, AlertCircle, Dumbbell, Clock } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import RefreshButton from '@/components/RefreshButton'
+import Link from 'next/link'
 
 interface Player {
   user_id: string
@@ -22,10 +23,18 @@ export default function ClubCaptainDashboard() {
   const [matchesCount, setMatchesCount] = useState(0)
   const [trainingSessionsCount, setTrainingSessionsCount] = useState(0)
   const [recentGymSchedules, setRecentGymSchedules] = useState<any[]>([])
+  const [recentTrainingSchedules, setRecentTrainingSchedules] = useState<any[]>([])
   const [matches, setMatches] = useState<any[]>([])
   const [teamSelections, setTeamSelections] = useState<any[]>([])
   const [selectedMatchForView, setSelectedMatchForView] = useState<string>('')
   const [loadingTeamSelection, setLoadingTeamSelection] = useState(false)
+  const [playerFixtureSelection, setPlayerFixtureSelection] = useState<any>(null)
+  const [loadingPlayerFixture, setLoadingPlayerFixture] = useState(false)
+  const [activeInjuriesView, setActiveInjuriesView] = useState<any[]>([])
+  const [loadingActiveInjuries, setLoadingActiveInjuries] = useState(false)
+  const [bestGymMetrics, setBestGymMetrics] = useState<any>(null)
+  const [loadingBestMetrics, setLoadingBestMetrics] = useState(false)
+  const [topPerformers, setTopPerformers] = useState<any[]>([])
 
   const loadData = useCallback(async () => {
     const supabase = createClient()
@@ -74,6 +83,9 @@ export default function ClubCaptainDashboard() {
           return
         }
 
+        // Get the linked player ID for fixture selection check
+        const linkedPlayerId = profile.role === 'player' ? authUser.id : (profile.linked_player_id || null)
+
         // Fetch players using API route to bypass RLS
         try {
           const playersResponse = await fetch('/api/admin/players')
@@ -100,6 +112,7 @@ export default function ClubCaptainDashboard() {
             const statsData = await statsResponse.json()
             setMatchesCount(statsData.totalMatches || 0)
             setTrainingSessionsCount(statsData.totalTrainingSessions || 0)
+            setTopPerformers(statsData.topPerformers || [])
           }
         } catch (statsError) {
           console.error('Error fetching statistics:', statsError)
@@ -138,6 +151,86 @@ export default function ClubCaptainDashboard() {
           }
         } catch (gymErr) {
           console.error('Error loading gym schedules:', gymErr)
+        }
+
+        // Load recent training schedules
+        try {
+          const { data: trainingSchedules, error: trainingError } = await supabase
+            .from('training_sessions')
+            .select('*')
+            .order('session_date', { ascending: false })
+            .limit(5)
+
+          if (!trainingError && trainingSchedules) {
+            setRecentTrainingSchedules(trainingSchedules)
+          }
+        } catch (trainingErr) {
+          console.error('Error loading training schedules:', trainingErr)
+        }
+
+        // Load player fixture selection if they have a linked player account
+        if (linkedPlayerId) {
+          setLoadingPlayerFixture(true)
+          try {
+            const response = await fetch(`/api/fixtures/team-selection?playerId=${linkedPlayerId}`)
+            if (response.ok) {
+              const data = await response.json()
+              if (data.isSelected || data.match) {
+                setPlayerFixtureSelection({
+                  isSelected: data.isSelected || false,
+                  selection: data.selection,
+                  match: data.match,
+                  teammates: data.teammates || [],
+                  captain: data.captain,
+                  assistantCaptain: data.assistantCaptain,
+                })
+              } else {
+                setPlayerFixtureSelection(null)
+              }
+            } else {
+              setPlayerFixtureSelection(null)
+            }
+          } catch (error) {
+            console.error('Error loading player fixture selection:', error)
+            setPlayerFixtureSelection(null)
+          } finally {
+            setLoadingPlayerFixture(false)
+          }
+        }
+
+        // Load active injuries (read-only view)
+        setLoadingActiveInjuries(true)
+        try {
+          const response = await fetch('/api/admin/injuries', {
+            cache: 'no-store',
+            headers: {
+              'Cache-Control': 'no-cache',
+            }
+          })
+          if (response.ok) {
+            const data = await response.json()
+            setActiveInjuriesView(data.injuries || [])
+          } else {
+            setActiveInjuriesView([])
+          }
+        } catch (error) {
+          console.error('Error loading active injuries:', error)
+          setActiveInjuriesView([])
+        } finally {
+          setLoadingActiveInjuries(false)
+        }
+
+        // Load best gym metrics
+        setLoadingBestMetrics(true)
+        try {
+          const { db } = await import('@/lib/db-helpers')
+          const bestMetrics = await db.getBestGymMetricsOfWeek()
+          setBestGymMetrics(bestMetrics)
+        } catch (error) {
+          console.error('Error loading best gym metrics:', error)
+          setBestGymMetrics(null)
+        } finally {
+          setLoadingBestMetrics(false)
         }
       }
     }
@@ -207,6 +300,160 @@ export default function ClubCaptainDashboard() {
           <StatCard title="Matches Logged" value={matchesCount} icon={Trophy} iconColor="bg-warning" />
           <StatCard title="Training Sessions" value={trainingSessionsCount} icon={Calendar} iconColor="bg-info" />
         </div>
+
+        {/* Player Fixture Selection (if they're selected) */}
+        {user.linkedPlayerProfile && (
+          <>
+            {loadingPlayerFixture ? (
+              <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                </div>
+              </div>
+            ) : playerFixtureSelection ? (
+              <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0">
+                    <div className="w-16 h-16 rounded-full bg-club-gradient flex items-center justify-center">
+                      <Trophy className="w-8 h-8 text-white" />
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-xl font-bold text-neutral-text mb-3">Your Upcoming Fixture</h3>
+                    {playerFixtureSelection.isSelected ? (
+                      <div className="bg-success/10 border-2 border-success rounded-lg p-4 mb-4">
+                        <div className="flex items-center gap-3">
+                          <Trophy className="w-5 h-5 text-success" />
+                          <div>
+                            <h4 className="text-sm font-semibold text-neutral-text mb-1">You have been selected!</h4>
+                            <p className="text-xs text-neutral-medium">
+                              {playerFixtureSelection.selection?.is_starting && !playerFixtureSelection.selection?.is_substitute
+                                ? 'Starting Lineup'
+                                : playerFixtureSelection.selection?.is_substitute
+                                ? 'Substitute'
+                                : 'Selected'}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-warning/10 border border-warning/20 rounded-lg p-4 mb-4">
+                        <div className="flex items-center gap-3">
+                          <Trophy className="w-5 h-5 text-warning" />
+                          <div>
+                            <h4 className="text-sm font-semibold text-neutral-text mb-1">You have not been selected</h4>
+                            <p className="text-xs text-neutral-medium">Check back later for updates on team selection.</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    <div className="bg-neutral-light rounded-lg p-4 mb-4">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <p className="text-xs font-semibold text-neutral-medium uppercase mb-1">Match Date</p>
+                          <p className="text-sm font-semibold text-neutral-text">
+                            {new Date(playerFixtureSelection.match.match_date).toLocaleDateString('en-US', {
+                              weekday: 'long',
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric',
+                            })}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-neutral-medium uppercase mb-1">Opponent</p>
+                          <p className="text-sm font-semibold text-neutral-text">{playerFixtureSelection.match.opponent}</p>
+                        </div>
+                        {playerFixtureSelection.match.venue && (
+                          <div>
+                            <p className="text-xs font-semibold text-neutral-medium uppercase mb-1">Venue</p>
+                            <p className="text-sm font-semibold text-neutral-text">{playerFixtureSelection.match.venue}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* Show Captain and Assistant Captain */}
+                    {(playerFixtureSelection.captain || playerFixtureSelection.assistantCaptain) && (
+                      <div className="mb-4">
+                        <h4 className="text-sm font-semibold text-neutral-text mb-3">Team Leadership</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {playerFixtureSelection.captain && (
+                            <div className="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-3">
+                              <div className="flex items-center gap-2">
+                                <Trophy className="w-5 h-5 text-yellow-600" />
+                                <div>
+                                  <p className="text-xs font-semibold text-yellow-800 uppercase">Team Captain</p>
+                                  <p className="text-sm font-bold text-yellow-900">{playerFixtureSelection.captain.name}</p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          {playerFixtureSelection.assistantCaptain && (
+                            <div className="bg-gray-50 border-2 border-gray-300 rounded-lg p-3">
+                              <div className="flex items-center gap-2">
+                                <Trophy className="w-5 h-5 text-gray-600" />
+                                <div>
+                                  <p className="text-xs font-semibold text-gray-800 uppercase">Assistant Captain</p>
+                                  <p className="text-sm font-bold text-gray-900">{playerFixtureSelection.assistantCaptain.name}</p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Show Teammates */}
+                    {playerFixtureSelection.teammates && playerFixtureSelection.teammates.length > 0 && (
+                      <div className="mt-4 pt-4 border-t border-neutral-light">
+                        <h4 className="text-sm font-semibold text-neutral-text mb-3">Your Teammates ({playerFixtureSelection.teammates.length})</h4>
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                          {playerFixtureSelection.teammates.map((teammate: any) => (
+                            <div key={teammate.player_id} className="bg-neutral-light rounded-lg p-2 text-sm">
+                              <div className="flex items-center justify-between gap-1">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-1 flex-wrap">
+                                    <span className="font-medium text-neutral-text text-xs truncate">{teammate.name}</span>
+                                    {teammate.is_captain && (
+                                      <span className="px-1.5 py-0.5 bg-yellow-500 text-white text-xs font-bold rounded flex-shrink-0">
+                                        <Trophy className="w-3 h-3 inline" />
+                                      </span>
+                                    )}
+                                    {teammate.is_assistant_captain && (
+                                      <span className="px-1.5 py-0.5 bg-gray-500 text-white text-xs font-bold rounded flex-shrink-0">
+                                        <Trophy className="w-3 h-3 inline" />
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                                {teammate.jersey_number && (
+                                  <span className="bg-primary/20 text-primary px-1.5 py-0.5 rounded text-xs font-bold flex-shrink-0">#{teammate.jersey_number}</span>
+                                )}
+                              </div>
+                              {teammate.position && (
+                                <p className="text-xs text-neutral-medium mt-1 capitalize">{teammate.position.replace(/_/g, ' ')}</p>
+                              )}
+                              <div className="flex gap-1 mt-1 flex-wrap">
+                                {teammate.is_starting && !teammate.is_substitute && (
+                                  <span className="text-xs bg-success/20 text-success px-1.5 py-0.5 rounded">Starting</span>
+                                )}
+                                {teammate.is_substitute && (
+                                  <span className="text-xs bg-warning/20 text-warning px-1.5 py-0.5 rounded">Sub</span>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </>
+        )}
 
         {/* View Selected Team for Fixture */}
         <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
@@ -334,6 +581,249 @@ export default function ClubCaptainDashboard() {
           )}
         </div>
 
+        {/* Active Injuries View (Read-Only) */}
+        {activeInjuriesView.length > 0 && (
+          <div className="bg-white rounded-card border border-neutral-light shadow-soft">
+            <div className="p-6 border-b border-neutral-light">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-bold text-neutral-text flex items-center gap-2">
+                  <AlertCircle className="w-5 h-5 text-secondary" />
+                  Active Player Injuries
+                </h3>
+                <span className="text-sm text-neutral-medium">{activeInjuriesView.length} active injury{activeInjuriesView.length !== 1 ? 'ies' : ''}</span>
+              </div>
+            </div>
+            <div className="p-6">
+              <div className="space-y-4">
+                {activeInjuriesView.map((injury: any) => {
+                  const playerName = injury.player?.name || 'Unknown Player'
+                  const returnDate = injury.return_to_play_date || injury.return_to_training_date
+                  return (
+                    <div key={injury.id} className="border border-secondary/20 bg-secondary/5 rounded-lg p-4">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-neutral-text text-lg mb-1">{playerName}</h4>
+                          <p className="text-sm text-neutral-medium">Injured on {new Date(injury.injury_date).toLocaleDateString()}</p>
+                        </div>
+                        <span className="px-3 py-1 bg-secondary text-white rounded-full text-xs font-medium">
+                          ACTIVE
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <p className="text-xs font-semibold text-neutral-medium uppercase mb-1">Cause</p>
+                          <p className="text-sm text-neutral-text">{injury.cause}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-neutral-medium uppercase mb-1">Diagnosis</p>
+                          <p className="text-sm text-neutral-text font-medium">{injury.diagnosis}</p>
+                        </div>
+                        {returnDate && (
+                          <div>
+                            <p className="text-xs font-semibold text-neutral-medium uppercase mb-1">Expected Return</p>
+                            <p className="text-sm text-neutral-text font-medium">
+                              {new Date(returnDate).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric',
+                              })}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Best Gym Metrics of the Week */}
+        {bestGymMetrics && (
+          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center">
+                <Trophy className="w-6 h-6 text-warning mr-2" />
+                <h3 className="text-xl font-bold text-neutral-text">Best Gym Metrics of the Week</h3>
+              </div>
+              {bestGymMetrics.weekStart && bestGymMetrics.weekEnd && (
+                <div className="text-sm text-neutral-medium">
+                  {new Date(bestGymMetrics.weekStart).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(bestGymMetrics.weekEnd).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                </div>
+              )}
+            </div>
+            
+            {loadingBestMetrics ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              </div>
+            ) : (!bestGymMetrics.benchPress && !bestGymMetrics.squat && !bestGymMetrics.deadlift && !bestGymMetrics.pullUp) ? (
+              <div className="text-center py-8">
+                <Dumbbell className="w-12 h-12 mx-auto mb-4 text-neutral-light" />
+                <p className="text-neutral-medium">No gym metrics recorded for this week yet.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {bestGymMetrics.benchPress && (
+                  <div className="bg-gradient-to-br from-primary/10 to-primary/5 rounded-lg p-6 border border-primary/20">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-sm font-semibold text-neutral-medium uppercase tracking-wide">Bench Press</h4>
+                      <Dumbbell className="w-5 h-5 text-primary" />
+                    </div>
+                    <p className="text-3xl font-bold text-neutral-text">
+                      {bestGymMetrics.benchPress.value || 0} kg
+                    </p>
+                    <p className="text-sm text-primary font-medium mt-1">{bestGymMetrics.benchPress.playerName || 'N/A'}</p>
+                  </div>
+                )}
+                {bestGymMetrics.squat && (
+                  <div className="bg-gradient-to-br from-secondary/10 to-secondary/5 rounded-lg p-6 border border-secondary/20">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-sm font-semibold text-neutral-medium uppercase tracking-wide">Squat</h4>
+                      <Dumbbell className="w-5 h-5 text-secondary" />
+                    </div>
+                    <p className="text-3xl font-bold text-neutral-text">
+                      {bestGymMetrics.squat.value || 0} kg
+                    </p>
+                    <p className="text-sm text-secondary font-medium mt-1">{bestGymMetrics.squat.playerName || 'N/A'}</p>
+                  </div>
+                )}
+                {bestGymMetrics.deadlift && (
+                  <div className="bg-gradient-to-br from-success/10 to-success/5 rounded-lg p-6 border border-success/20">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-sm font-semibold text-neutral-medium uppercase tracking-wide">Deadlift</h4>
+                      <Dumbbell className="w-5 h-5 text-success" />
+                    </div>
+                    <p className="text-3xl font-bold text-neutral-text">
+                      {bestGymMetrics.deadlift.value || 0} kg
+                    </p>
+                    <p className="text-sm text-success font-medium mt-1">{bestGymMetrics.deadlift.playerName || 'N/A'}</p>
+                  </div>
+                )}
+                {bestGymMetrics.pullUp && (
+                  <div className="bg-gradient-to-br from-info/10 to-info/5 rounded-lg p-6 border border-info/20">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-sm font-semibold text-neutral-medium uppercase tracking-wide">Pull-ups</h4>
+                      <Dumbbell className="w-5 h-5 text-info" />
+                    </div>
+                    <p className="text-3xl font-bold text-neutral-text">
+                      {bestGymMetrics.pullUp.value || 0} reps
+                    </p>
+                    <p className="text-sm text-info font-medium mt-1">{bestGymMetrics.pullUp.playerName || 'N/A'}</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Top Performers Table */}
+        {topPerformers.length > 0 && (
+          <div className="bg-white rounded-card border border-neutral-light shadow-soft overflow-hidden">
+            <div className="p-6 border-b border-neutral-light">
+              <h3 className="text-xl font-bold text-neutral-text">Top Performers</h3>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-neutral-light">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-neutral-text uppercase">Player</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-neutral-text uppercase">Position</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-neutral-text uppercase">Games</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-neutral-text uppercase">Tries</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-neutral-text uppercase">Tackles</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-light">
+                  {topPerformers.map((player: any) => (
+                    <tr key={player.playerId || player.user_id || player.id} className="hover:bg-neutral-light transition-colors">
+                      <td className="px-6 py-4 text-sm font-medium text-neutral-text">{player.name || 'Unknown'}</td>
+                      <td className="px-6 py-4 text-sm text-neutral-medium capitalize">
+                        {player.position?.replace(/_/g, ' ') || 'N/A'}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-neutral-medium">{player.totalMatches || 0}</td>
+                      <td className="px-6 py-4 text-sm text-neutral-medium">{player.totalTries || 0}</td>
+                      <td className="px-6 py-4 text-sm text-neutral-medium">{player.totalTackles || 0}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="p-6 border-t border-neutral-light">
+              <Link
+                href="/players"
+                className="px-6 py-2 bg-club-gradient text-white rounded-button font-semibold hover:opacity-90 transition-opacity inline-block"
+              >
+                View All Players
+              </Link>
+            </div>
+          </div>
+        )}
+
+        {/* Recent Training Schedules */}
+        {recentTrainingSchedules.length > 0 && (
+          <div className="bg-white rounded-card border border-neutral-light shadow-soft">
+            <div className="p-6 border-b border-neutral-light">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-bold text-neutral-text flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-primary" />
+                  Recent Training Schedules
+                </h3>
+                <Link
+                  href="/training"
+                  className="text-primary hover:underline text-sm font-medium"
+                >
+                  View All →
+                </Link>
+              </div>
+            </div>
+            <div className="p-6">
+              <div className="space-y-3">
+                {recentTrainingSchedules.map((session: any) => (
+                  <div key={session.id} className="border border-neutral-light rounded-lg p-4 hover:bg-neutral-light/50 transition-colors">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h4 className="font-semibold text-neutral-text">
+                            {session.description || `Training Session ${session.session_number}`}
+                          </h4>
+                          <span className="px-2 py-1 bg-primary/10 text-primary rounded text-xs font-medium">
+                            Session #{session.session_number}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-4 text-sm text-neutral-medium">
+                          <div className="flex items-center gap-1">
+                            <Calendar className="w-4 h-4" />
+                            {new Date(session.session_date).toLocaleDateString('en-US', {
+                              weekday: 'short',
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric',
+                            })}
+                          </div>
+                          {session.session_time && (
+                            <div className="flex items-center gap-1">
+                              <Clock className="w-4 h-4" />
+                              {session.session_time}
+                            </div>
+                          )}
+                          {session.location && (
+                            <div className="flex items-center gap-1">
+                              <MapPin className="w-4 h-4" />
+                              {session.location}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Recent Gym Schedules */}
         {recentGymSchedules.length > 0 && (
           <div className="bg-white rounded-card border border-neutral-light shadow-soft">
@@ -343,12 +833,12 @@ export default function ClubCaptainDashboard() {
                   <Activity className="w-5 h-5 text-secondary" />
                   Recent Gym Schedules
                 </h3>
-                <a
+                <Link
                   href="/training"
                   className="text-secondary hover:underline text-sm font-medium"
                 >
                   View All →
-                </a>
+                </Link>
               </div>
             </div>
             <div className="p-6">
@@ -406,7 +896,7 @@ export default function ClubCaptainDashboard() {
               <h3 className="text-lg font-semibold text-blue-900 mb-2">Read-Only Access</h3>
               <p className="text-sm text-blue-800">
                 As Club Captain, you have view-only access to team information. You can view players, matches, training schedules, and team selections, but cannot edit or create new records. 
-                You can send messages to players, coaches, admins, and data managers, and you can add performance resources for players.
+                You can send messages to players, coaches, admins, and data managers (but not finance), and you can add performance resources for players.
               </p>
             </div>
           </div>

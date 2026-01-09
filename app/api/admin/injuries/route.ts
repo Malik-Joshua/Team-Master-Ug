@@ -23,9 +23,25 @@ export async function GET(request: NextRequest) {
       .eq('user_id', authUser.id)
       .single()
 
-    if (!profile || !['admin', 'coach', 'data_admin', 'physio'].includes(profile.role)) {
+    // Check if user is admin, coach, data_admin, physio, or club_captain
+    // Also check if player has a linked club_captain account
+    let hasClubCaptainAccess = false
+    if (profile?.role === 'player') {
+      const { data: linkedClubCaptainProfile } = await supabase
+        .from('user_profiles')
+        .select('role')
+        .eq('linked_player_id', authUser.id)
+        .eq('role', 'club_captain')
+        .single()
+      
+      if (linkedClubCaptainProfile) {
+        hasClubCaptainAccess = true
+      }
+    }
+    
+    if (!profile || (!['admin', 'coach', 'data_admin', 'physio', 'club_captain'].includes(profile.role) && !hasClubCaptainAccess)) {
       return NextResponse.json(
-        { error: 'Unauthorized: Admin/Coach/Physio access required' },
+        { error: 'Unauthorized: Admin/Coach/Physio/Club Captain access required' },
         { status: 403 }
       )
     }

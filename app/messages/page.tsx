@@ -5,6 +5,7 @@ import Layout from '@/components/Layout'
 import { MessageSquare, Send, User, Mail, Clock, X, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import RefreshButton from '@/components/RefreshButton'
+import { getAllowedRecipients, canSendMessage, getRoleDisplayName, type UserRole } from '@/lib/communication-rules'
 
 interface Message {
   id: string
@@ -40,6 +41,7 @@ export default function MessagesPage() {
   const [physios, setPhysios] = useState<UserProfile[]>([])
   const [teamManagers, setTeamManagers] = useState<UserProfile[]>([])
   const [financeAdmins, setFinanceAdmins] = useState<UserProfile[]>([])
+  const [clubCaptains, setClubCaptains] = useState<UserProfile[]>([])
   const [allUsers, setAllUsers] = useState<UserProfile[]>([])
   const [composeData, setComposeData] = useState({
     recipientType: 'role', // 'role' or 'individual'
@@ -159,8 +161,9 @@ export default function MessagesPage() {
             setMessages([])
           }
 
-          // If user is a coach, admin, team manager, finance admin, or physio, fetch users for messaging
-          if (['coach', 'admin', 'data_admin', 'finance_admin', 'physio'].includes(profile.role)) {
+          // Fetch users for messaging based on communication rules
+          // Include club_captain in the list
+          if (['coach', 'admin', 'data_admin', 'finance_admin', 'physio', 'club_captain'].includes(profile.role)) {
             // Use API route to fetch all users (bypasses RLS)
             try {
               const usersResponse = await fetch('/api/messages/users')
@@ -169,6 +172,9 @@ export default function MessagesPage() {
                 if (usersData.users && usersData.users.length > 0) {
                   const allUsersList = usersData.users as UserProfile[]
                   setAllUsers(allUsersList)
+                  
+                  // Filter users based on communication rules
+                  const allowedRecipientRoles = getAllowedRecipients(profile.role as UserRole)
                   
                   // For physio, only fetch players who have injuries
                   if (profile.role === 'physio') {
@@ -181,41 +187,77 @@ export default function MessagesPage() {
                       if (injuredPlayersResponse.ok) {
                         const injuredData = await injuredPlayersResponse.json()
                         if (injuredData.injuredPlayers && injuredData.injuredPlayers.length > 0) {
-                          setPlayers(injuredData.injuredPlayers as UserProfile[])
-                          console.log(`Loaded ${injuredData.injuredPlayers.length} injured player(s) for physio`)
+                          // Filter by communication rules
+                          const allowedPlayers = injuredData.injuredPlayers.filter((u: UserProfile) => 
+                            allowedRecipientRoles.includes(u.role as UserRole)
+                          )
+                          setPlayers(allowedPlayers)
+                          console.log(`Loaded ${allowedPlayers.length} injured player(s) for physio`)
                         } else {
                           setPlayers([])
                           console.log('No injured players found')
                         }
                       } else {
                         console.error('Error fetching injured players via API:', injuredPlayersResponse.status)
-                        // Fallback: filter from all users list using player role
-                        // This won't filter by injuries but at least shows players
-                        const allPlayers = allUsersList.filter((u: UserProfile) => u.role === 'player')
+                        // Fallback: filter from all users list
+                        const allPlayers = allUsersList.filter((u: UserProfile) => 
+                          u.role === 'player' && allowedRecipientRoles.includes(u.role as UserRole)
+                        )
                         setPlayers(allPlayers)
                       }
                     } catch (injuredError) {
                       console.error('Error fetching injured players:', injuredError)
-                      // Fallback: show all players (better than nothing)
-                      const allPlayers = allUsersList.filter((u: UserProfile) => u.role === 'player')
+                      // Fallback: show allowed players only
+                      const allPlayers = allUsersList.filter((u: UserProfile) => 
+                        u.role === 'player' && allowedRecipientRoles.includes(u.role as UserRole)
+                      )
                       setPlayers(allPlayers)
                     }
                     
-                    // Physio can still message admins and coaches
-                    const coachesList = allUsersList.filter((u: UserProfile) => u.role === 'coach')
-                    const adminsList = allUsersList.filter((u: UserProfile) => ['admin', 'data_admin', 'finance_admin'].includes(u.role))
-                    
-                    setCoaches(coachesList)
-                    setAdmins(adminsList)
-                    console.log(`Loaded ${coachesList.length} coach(es) and ${adminsList.length} admin(s) for physio`)
+                    // Filter other roles by communication rules
+                    setCoaches(allUsersList.filter((u: UserProfile) => 
+                      u.role === 'coach' && allowedRecipientRoles.includes(u.role as UserRole)
+                    ))
+                    setPhysios(allUsersList.filter((u: UserProfile) => 
+                      u.role === 'physio' && allowedRecipientRoles.includes(u.role as UserRole)
+                    ))
+                    setTeamManagers(allUsersList.filter((u: UserProfile) => 
+                      u.role === 'data_admin' && allowedRecipientRoles.includes(u.role as UserRole)
+                    ))
+                    // For physio, check if club_captain is allowed
+                    const clubCaptains = allUsersList.filter((u: UserProfile) => 
+                      u.role === 'club_captain' && allowedRecipientRoles.includes(u.role as UserRole)
+                    )
+                    // Store club captains in a separate state or combine with admins
+                    setAdmins(allUsersList.filter((u: UserProfile) => 
+                      ['admin', 'data_admin', 'finance_admin'].includes(u.role) && allowedRecipientRoles.includes(u.role as UserRole)
+                    ))
+                    console.log(`Loaded filtered users for physio based on communication rules`)
                   } else {
-                    // For other roles, fetch all players
-                    setPlayers(allUsersList.filter((u: UserProfile) => u.role === 'player'))
-                    setCoaches(allUsersList.filter((u: UserProfile) => u.role === 'coach'))
-                    setPhysios(allUsersList.filter((u: UserProfile) => u.role === 'physio'))
-                    setTeamManagers(allUsersList.filter((u: UserProfile) => u.role === 'data_admin'))
-                    setFinanceAdmins(allUsersList.filter((u: UserProfile) => u.role === 'finance_admin'))
-                    setAdmins(allUsersList.filter((u: UserProfile) => ['admin', 'data_admin', 'finance_admin'].includes(u.role)))
+                    // For other roles, filter all users by communication rules
+                    setPlayers(allUsersList.filter((u: UserProfile) => 
+                      u.role === 'player' && allowedRecipientRoles.includes(u.role as UserRole)
+                    ))
+                    setCoaches(allUsersList.filter((u: UserProfile) => 
+                      u.role === 'coach' && allowedRecipientRoles.includes(u.role as UserRole)
+                    ))
+                    setPhysios(allUsersList.filter((u: UserProfile) => 
+                      u.role === 'physio' && allowedRecipientRoles.includes(u.role as UserRole)
+                    ))
+                    setTeamManagers(allUsersList.filter((u: UserProfile) => 
+                      u.role === 'data_admin' && allowedRecipientRoles.includes(u.role as UserRole)
+                    ))
+                    setFinanceAdmins(allUsersList.filter((u: UserProfile) => 
+                      u.role === 'finance_admin' && allowedRecipientRoles.includes(u.role as UserRole)
+                    ))
+                    setAdmins(allUsersList.filter((u: UserProfile) => 
+                      u.role === 'admin' && allowedRecipientRoles.includes(u.role as UserRole)
+                    ))
+                    // Filter club captains if allowed
+                    const clubCaptains = allUsersList.filter((u: UserProfile) => 
+                      u.role === 'club_captain' && allowedRecipientRoles.includes(u.role as UserRole)
+                    )
+                    // Store club captains - we'll add a state for this or combine with appropriate group
                   }
                 }
               } else {
@@ -229,45 +271,52 @@ export default function MessagesPage() {
               await fetchUsersDirectly(supabase, authUser.id, profile.role)
             }
           } else if (profile.role === 'player') {
-            // Players can only message team managers - use API route to bypass RLS
+            // Players can message: club captain, data manager, coach, physio
+            const allowedRecipientRoles = getAllowedRecipients('player')
+            
+            // Use API route to fetch all users (bypasses RLS)
             try {
-              const teamManagersResponse = await fetch('/api/messages/team-managers', {
-                cache: 'no-store',
-              })
-              
-              if (teamManagersResponse.ok) {
-                const teamManagersData = await teamManagersResponse.json()
-                if (teamManagersData.teamManagers && teamManagersData.teamManagers.length > 0) {
-                  setTeamManagers(teamManagersData.teamManagers as UserProfile[])
-                  console.log(`Loaded ${teamManagersData.teamManagers.length} team manager(s) for player`)
-                } else {
-                  console.log('No team managers found')
-                  setTeamManagers([])
+              const usersResponse = await fetch('/api/messages/users')
+              if (usersResponse.ok) {
+                const usersData = await usersResponse.json()
+                if (usersData.users && usersData.users.length > 0) {
+                  const allUsersList = usersData.users as UserProfile[]
+                  
+                  // Filter by communication rules
+                  setClubCaptains(allUsersList.filter((u: UserProfile) => 
+                    u.role === 'club_captain' && allowedRecipientRoles.includes(u.role as UserRole)
+                  ))
+                  setTeamManagers(allUsersList.filter((u: UserProfile) => 
+                    u.role === 'data_admin' && allowedRecipientRoles.includes(u.role as UserRole)
+                  ))
+                  setCoaches(allUsersList.filter((u: UserProfile) => 
+                    u.role === 'coach' && allowedRecipientRoles.includes(u.role as UserRole)
+                  ))
+                  setPhysios(allUsersList.filter((u: UserProfile) => 
+                    u.role === 'physio' && allowedRecipientRoles.includes(u.role as UserRole)
+                  ))
+                  console.log(`Loaded allowed recipients for player based on communication rules`)
                 }
               } else {
-                const errorData = await teamManagersResponse.json().catch(() => ({ error: teamManagersResponse.statusText }))
-                console.error('Error fetching team managers via API:', errorData.error || teamManagersResponse.status)
-                // Fallback to direct query (may fail due to RLS)
+                console.error('Error fetching users via API:', usersResponse.status)
+                // Fallback: try to fetch team managers (old behavior)
                 try {
-                  const { data: teamManagersData } = await supabase
-                    .from('user_profiles')
-                    .select('user_id, name, role, email')
-                    .eq('role', 'data_admin')
-                    .neq('user_id', authUser.id)
-                    .order('name', { ascending: true })
-
-                  if (teamManagersData) {
-                    setTeamManagers(teamManagersData as UserProfile[])
-                    console.log(`Loaded ${teamManagersData.length} team manager(s) via direct query`)
+                  const teamManagersResponse = await fetch('/api/messages/team-managers', {
+                    cache: 'no-store',
+                  })
+                  
+                  if (teamManagersResponse.ok) {
+                    const teamManagersData = await teamManagersResponse.json()
+                    if (teamManagersData.teamManagers && teamManagersData.teamManagers.length > 0) {
+                      setTeamManagers(teamManagersData.teamManagers as UserProfile[])
+                    }
                   }
-                } catch (fallbackError) {
-                  console.error('Fallback query also failed:', fallbackError)
-                  setTeamManagers([])
+                } catch (error) {
+                  console.error('Error fetching team managers for player:', error)
                 }
               }
             } catch (error) {
-              console.error('Error fetching team managers for player:', error)
-              setTeamManagers([])
+              console.error('Error fetching users for player:', error)
             }
           }
         }
@@ -318,72 +367,46 @@ export default function MessagesPage() {
     }
   }, [selectedMessage])
 
-  // Helper function to fetch users directly (fallback)
+  // Helper function to fetch users directly (fallback) - uses communication rules
   const fetchUsersDirectly = async (supabase: any, currentUserId: string, userRole: string) => {
-    if (userRole === 'coach') {
-      // Fetch all players
-      const { data: playersData } = await supabase
-        .from('user_profiles')
-        .select('user_id, name, role, email')
-        .eq('role', 'player')
-        .order('name', { ascending: true })
+    const allowedRecipientRoles = getAllowedRecipients(userRole as UserRole)
+    
+    // Fetch all users (will filter by communication rules)
+    const { data: allUsersData } = await supabase
+      .from('user_profiles')
+      .select('user_id, name, role, email')
+      .neq('user_id', currentUserId)
+      .order('name', { ascending: true })
 
-      if (playersData) {
-        setPlayers(playersData as UserProfile[])
-      }
-
-      // Fetch all admins
-      const { data: adminsData } = await supabase
-        .from('user_profiles')
-        .select('user_id, name, role, email')
-        .in('role', ['admin', 'data_admin', 'finance_admin'])
-        .neq('user_id', currentUserId)
-        .order('name', { ascending: true })
-
-      if (adminsData) {
-        setAdmins(adminsData as UserProfile[])
-      }
-
-      // Fetch all physios
-      const { data: physiosData } = await supabase
-        .from('user_profiles')
-        .select('user_id, name, role, email')
-        .eq('role', 'physio')
-        .order('name', { ascending: true })
-
-      if (physiosData) {
-        setPhysios(physiosData as UserProfile[])
-      }
-    } else if (userRole === 'admin' || userRole === 'data_admin') {
-      // Fetch all users grouped by role
-      const { data: allUsersData } = await supabase
-        .from('user_profiles')
-        .select('user_id, name, role, email')
-        .neq('user_id', currentUserId)
-        .order('name', { ascending: true })
-
-      if (allUsersData) {
-        setAllUsers(allUsersData as UserProfile[])
-        setPlayers(allUsersData.filter((u: UserProfile) => u.role === 'player'))
-        setCoaches(allUsersData.filter((u: UserProfile) => u.role === 'coach'))
-        setPhysios(allUsersData.filter((u: UserProfile) => u.role === 'physio'))
-        setTeamManagers(allUsersData.filter((u: UserProfile) => u.role === 'data_admin'))
-        setFinanceAdmins(allUsersData.filter((u: UserProfile) => u.role === 'finance_admin'))
-        setAdmins(allUsersData.filter((u: UserProfile) => u.role === 'admin'))
-      }
-    } else if (userRole === 'finance_admin') {
-      // Finance admin can only message general admin
-      const { data: adminsData } = await supabase
-        .from('user_profiles')
-        .select('user_id, name, role, email')
-        .eq('role', 'admin')
-        .neq('user_id', currentUserId)
-        .order('name', { ascending: true })
-
-      if (adminsData) {
-        setAdmins(adminsData as UserProfile[])
-      }
-    } else if (userRole === 'physio') {
+    if (allUsersData) {
+      setAllUsers(allUsersData as UserProfile[])
+      
+      // Filter by communication rules
+      setPlayers(allUsersData.filter((u: UserProfile) => 
+        u.role === 'player' && allowedRecipientRoles.includes(u.role as UserRole)
+      ))
+      setCoaches(allUsersData.filter((u: UserProfile) => 
+        u.role === 'coach' && allowedRecipientRoles.includes(u.role as UserRole)
+      ))
+      setPhysios(allUsersData.filter((u: UserProfile) => 
+        u.role === 'physio' && allowedRecipientRoles.includes(u.role as UserRole)
+      ))
+      setTeamManagers(allUsersData.filter((u: UserProfile) => 
+        u.role === 'data_admin' && allowedRecipientRoles.includes(u.role as UserRole)
+      ))
+      setFinanceAdmins(allUsersData.filter((u: UserProfile) => 
+        u.role === 'finance_admin' && allowedRecipientRoles.includes(u.role as UserRole)
+      ))
+      setAdmins(allUsersData.filter((u: UserProfile) => 
+        u.role === 'admin' && allowedRecipientRoles.includes(u.role as UserRole)
+      ))
+      setClubCaptains(allUsersData.filter((u: UserProfile) => 
+        u.role === 'club_captain' && allowedRecipientRoles.includes(u.role as UserRole)
+      ))
+    }
+    
+    // Special handling for physio - only injured players
+    if (userRole === 'physio') {
       // Physio can only message players with injuries, admins, and coaches
       // Try to fetch injured players via API route first (bypasses RLS)
       try {
@@ -555,6 +578,15 @@ export default function MessagesPage() {
         return
       }
 
+      // Validate recipient based on communication rules before sending
+      const validateRecipient = (recipientId: string, recipientRole: UserRole): boolean => {
+        if (!canSendMessage(user.role as UserRole, recipientRole)) {
+          alert(`You cannot send messages to ${getRoleDisplayName(recipientRole)}. Please check the communication hierarchy.`)
+          return false
+        }
+        return true
+      }
+
       // Handle admin messaging
       if (user?.role === 'admin') {
         if (composeData.recipientType === 'role') {
@@ -681,6 +713,24 @@ export default function MessagesPage() {
           // Send to individual recipient
           if (!composeData.recipientId) {
             alert('Please select a recipient')
+            return
+          }
+
+          // Validate recipient role
+          const { data: recipientProfile } = await supabase
+            .from('user_profiles')
+            .select('role, name')
+            .eq('user_id', composeData.recipientId)
+            .single()
+
+          if (!recipientProfile) {
+            alert('Recipient not found')
+            return
+          }
+
+          // Validate communication rules
+          if (!canSendMessage(user.role as UserRole, recipientProfile.role as UserRole)) {
+            alert(`You cannot send messages to ${getRoleDisplayName(recipientProfile.role as UserRole)}. Please check the communication hierarchy.`)
             return
           }
 
@@ -1411,7 +1461,6 @@ export default function MessagesPage() {
           }
         } else {
           // Send to individual recipient
-          // Verify recipient is valid (not finance_admin)
           if (!recipientId) {
             alert('Please select a recipient')
             return
@@ -1429,16 +1478,9 @@ export default function MessagesPage() {
             return
           }
 
-          // Block sending to finance_admin
-          if (recipientProfile.role === 'finance_admin') {
-            alert('Club captains cannot send messages to finance administrators')
-            return
-          }
-
-          // Verify recipient is in allowed roles
-          const allowedRoles = ['player', 'admin', 'coach', 'data_admin']
-          if (!allowedRoles.includes(recipientProfile.role)) {
-            alert('Invalid recipient. You can only send messages to players, administrators, coaches, and team managers.')
+          // Validate communication rules
+          if (!canSendMessage(user.role as UserRole, recipientProfile.role as UserRole)) {
+            alert(`You cannot send messages to ${getRoleDisplayName(recipientProfile.role as UserRole)}. Please check the communication hierarchy.`)
             return
           }
           
@@ -1758,7 +1800,17 @@ export default function MessagesPage() {
                 : user?.role === 'physio'
                 ? 'Communicate with injured players, administrators, and coaches'
                 : user?.role === 'club_captain'
-                ? 'Communicate with players, administrators, coaches, and team managers (not finance)'
+                ? 'Communicate with players, administrators, coaches, team managers, and physio (not finance)'
+                : user?.role === 'player'
+                ? 'Communicate with club captain, team manager, coach, and physio'
+                : user?.role === 'data_admin'
+                ? 'Communicate with players, coaches, physio, club captain, and admin'
+                : user?.role === 'physio'
+                ? 'Communicate with coaches, players, team managers, and club captain'
+                : user?.role === 'finance_admin'
+                ? 'Communicate with admin and team manager'
+                : user?.role === 'coach'
+                ? 'Communicate with other coaches, players, physio, club captain, and team manager'
                 : 'Communicate with coaches and administrators'}
             </p>
           </div>
@@ -1805,8 +1857,13 @@ export default function MessagesPage() {
                           { value: 'coach', label: 'All Coaches' },
                           { value: 'physio', label: 'All Physiotherapists' },
                           { value: 'data_admin', label: 'All Team Managers' },
+                          { value: 'club_captain', label: 'All Club Captains' },
                           { value: 'finance_admin', label: 'All Finance Admins' },
-                        ].map((role) => (
+                        ].filter((role) => {
+                          // Filter roles based on communication rules
+                          const allowedRoles = getAllowedRecipients(user?.role as UserRole)
+                          return allowedRoles.includes(role.value as UserRole)
+                        }).map((role) => (
                           <label key={role.value} className="flex items-center space-x-2 cursor-pointer">
                             <input
                               type="checkbox"
@@ -1874,6 +1931,15 @@ export default function MessagesPage() {
                             {teamManagers.map((manager) => (
                               <option key={manager.user_id} value={manager.user_id}>
                                 {manager.name} (Team Manager)
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                        {clubCaptains.length > 0 && (
+                          <optgroup label="Club Captains">
+                            {clubCaptains.map((captain) => (
+                              <option key={captain.user_id} value={captain.user_id}>
+                                {captain.name} (Club Captain)
                               </option>
                             ))}
                           </optgroup>
@@ -1984,6 +2050,15 @@ export default function MessagesPage() {
                             {teamManagers.map((manager) => (
                               <option key={manager.user_id} value={manager.user_id}>
                                 {manager.name} (Team Manager)
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                        {clubCaptains.length > 0 && (
+                          <optgroup label="Club Captains">
+                            {clubCaptains.map((captain) => (
+                              <option key={captain.user_id} value={captain.user_id}>
+                                {captain.name} (Club Captain)
                               </option>
                             ))}
                           </optgroup>
@@ -2139,9 +2214,72 @@ export default function MessagesPage() {
                             ))}
                           </optgroup>
                         )}
+                        {physios.length > 0 && (
+                          <optgroup label="Physiotherapists">
+                            {physios.map((physio) => (
+                              <option key={physio.user_id} value={physio.user_id}>
+                                {physio.name} (Physio)
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
                       </select>
                     </div>
                   )}
+                </>
+              ) : user?.role === 'player' ? (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-medium mb-2">
+                      Select Recipient
+                    </label>
+                    <p className="text-xs text-neutral-medium mb-2">
+                      You can send to club captain, team manager, coach, and physio
+                    </p>
+                    <select
+                      value={composeData.recipientId}
+                      onChange={(e) => setComposeData({ ...composeData, recipientId: e.target.value, recipientType: 'individual', recipient: '' })}
+                      className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                    >
+                      <option value="">Select recipient...</option>
+                      {clubCaptains.length > 0 && (
+                        <optgroup label="Club Captains">
+                          {clubCaptains.map((captain) => (
+                            <option key={captain.user_id} value={captain.user_id}>
+                              {captain.name} (Club Captain)
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
+                      {teamManagers.length > 0 && (
+                        <optgroup label="Team Managers">
+                          {teamManagers.map((manager) => (
+                            <option key={manager.user_id} value={manager.user_id}>
+                              {manager.name} (Team Manager)
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
+                      {coaches.length > 0 && (
+                        <optgroup label="Coaches">
+                          {coaches.map((coach) => (
+                            <option key={coach.user_id} value={coach.user_id}>
+                              {coach.name} (Coach)
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
+                      {physios.length > 0 && (
+                        <optgroup label="Physiotherapists">
+                          {physios.map((physio) => (
+                            <option key={physio.user_id} value={physio.user_id}>
+                              {physio.name} (Physio)
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
+                    </select>
+                  </div>
                 </>
               ) : user?.role === 'data_admin' ? (
                 <>

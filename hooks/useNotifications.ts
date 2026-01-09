@@ -61,14 +61,14 @@ export function useNotifications() {
             // For players, also check messages sent to their linked club captain account
             try {
               // First, check if user is a player with a linked club captain account
-              const { data: profile } = await supabase
+              const { data: userProfile } = await supabase
                 .from('user_profiles')
                 .select('role, user_id')
                 .eq('user_id', user.id)
                 .single()
               
               let clubCaptainUserId: string | null = null
-              if (profile?.role === 'player') {
+              if (userProfile?.role === 'player') {
                 // Check for linked club captain account
                 const { data: clubCaptainProfile } = await supabase
                   .from('user_profiles')
@@ -104,6 +104,90 @@ export function useNotifications() {
                 setUnreadMessagesCount(unreadMessagesCount || 0)
                 console.log(`Found ${unreadMessagesCount || 0} unread messages for user ${user.id}${clubCaptainUserId ? ` (including club captain account ${clubCaptainUserId})` : ''}`)
               }
+              
+              // Set up real-time subscription for messages to update unread count
+              // For players, also subscribe to messages sent to their linked club captain account
+              messagesChannel = supabase
+                .channel(`messages-${user.id}`)
+                .on(
+                  'postgres_changes',
+                  {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'messages',
+                    filter: `recipient_id=eq.${user.id}`,
+                  },
+                  (payload) => {
+                    console.log('Message updated via real-time:', payload.new)
+                    const updatedMessage = payload.new as any
+                    // If message was marked as read, decrease unread count
+                    if (updatedMessage.read && !payload.old.read) {
+                      setUnreadMessagesCount((prev) => Math.max(0, prev - 1))
+                    } else if (!updatedMessage.read && payload.old.read) {
+                      setUnreadMessagesCount((prev) => prev + 1)
+                    }
+                  }
+                )
+                .on(
+                  'postgres_changes',
+                  {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'messages',
+                    filter: `recipient_id=eq.${user.id}`,
+                  },
+                  (payload) => {
+                    console.log('New message received via real-time:', payload.new)
+                    const newMessage = payload.new as any
+                    if (!newMessage.read) {
+                      setUnreadMessagesCount((prev) => prev + 1)
+                    }
+                  }
+                )
+              
+              // If user has a linked club captain account, also subscribe to messages for that account
+              if (clubCaptainUserId) {
+                messagesChannel
+                  .on(
+                    'postgres_changes',
+                    {
+                      event: 'UPDATE',
+                      schema: 'public',
+                      table: 'messages',
+                      filter: `recipient_id=eq.${clubCaptainUserId}`,
+                    },
+                    (payload) => {
+                      console.log('Message updated via real-time (club captain account):', payload.new)
+                      const updatedMessage = payload.new as any
+                      // If message was marked as read, decrease unread count
+                      if (updatedMessage.read && !payload.old.read) {
+                        setUnreadMessagesCount((prev) => Math.max(0, prev - 1))
+                      } else if (!updatedMessage.read && payload.old.read) {
+                        setUnreadMessagesCount((prev) => prev + 1)
+                      }
+                    }
+                  )
+                  .on(
+                    'postgres_changes',
+                    {
+                      event: 'INSERT',
+                      schema: 'public',
+                      table: 'messages',
+                      filter: `recipient_id=eq.${clubCaptainUserId}`,
+                    },
+                    (payload) => {
+                      console.log('New message received via real-time (club captain account):', payload.new)
+                      const newMessage = payload.new as any
+                      if (!newMessage.read) {
+                        setUnreadMessagesCount((prev) => prev + 1)
+                      }
+                    }
+                  )
+              }
+              
+              messagesChannel.subscribe((status) => {
+                console.log('Messages subscription status:', status)
+              })
             } catch (messagesError) {
               console.error('Exception fetching unread messages count:', messagesError)
               setUnreadMessagesCount(0)

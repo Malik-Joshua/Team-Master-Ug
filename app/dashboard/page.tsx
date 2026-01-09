@@ -108,13 +108,15 @@ export default function DashboardPage() {
               }
               
               if (clubCaptainProfile) {
-                // Player has a linked club captain account - use club captain profile
-                console.log('✅ Player has linked club captain account, switching to club captain profile', {
+                // Player has a linked club captain account - redirect to club captain dashboard
+                console.log('✅ Player has linked club captain account, redirecting to club captain dashboard', {
                   playerId: authUser.id,
                   clubCaptainId: clubCaptainProfile.user_id,
                   linkedPlayerId: clubCaptainProfile.linked_player_id
                 })
-                effectiveProfile = clubCaptainProfile
+                // Redirect immediately to club captain dashboard
+                router.push('/dashboard/club-captain')
+                return
               } else {
                 console.log('ℹ️ No linked club captain account found for player', authUser.id)
               }

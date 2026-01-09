@@ -187,8 +187,9 @@ export async function GET(request: NextRequest) {
         
         // Only include messages where user is sender or specific recipient
         // Exclude role-based messages for players
+        // Also include messages sent to their linked club captain account
         if (profile.role === 'player') {
-          return msg.sender_id === authUser.id || msg.recipient_id === authUser.id
+          return msg.sender_id === authUser.id || msg.recipient_id === authUser.id || (clubCaptainUserId && msg.recipient_id === clubCaptainUserId)
         }
         // For other roles, include role-based messages too
         return msg.sender_id === authUser.id || msg.recipient_id === authUser.id || msg.recipient_role === profile.role

@@ -64,6 +64,8 @@ UPDATE user_profiles
 SET linked_player_id = '<player_user_id>'
 WHERE user_id = '<club_captain_user_id>'
   AND role = 'club_captain';
+
+  
 ```
 
 ## Step 5: Test the Connection

@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
-import { Users, Search, Filter, UserPlus, Eye, Edit, AlertCircle, CheckCircle, X, Save, Dumbbell } from 'lucide-react'
+import { Users, Search, Filter, UserPlus, Eye, Edit, AlertCircle, CheckCircle, X, Save, Dumbbell, Award } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import RefreshButton from '@/components/RefreshButton'
 
@@ -56,7 +56,82 @@ export default function PlayersPage() {
     pullUpPB: '',
   })
   const [savingGymMetrics, setSavingGymMetrics] = useState(false)
+  const [clubCaptainStatus, setClubCaptainStatus] = useState<Record<string, boolean>>({})
+  const [togglingClubCaptain, setTogglingClubCaptain] = useState<string | null>(null)
 
+  // Load club captain status for players
+  const loadClubCaptainStatus = async (playersList: Player[]) => {
+    try {
+      const statusMap: Record<string, boolean> = {}
+      
+      // Check club captain status for each player
+      await Promise.all(
+        playersList.map(async (player) => {
+          const playerId = player.user_id || player.id
+          if (!playerId) return
+          
+          try {
+            const response = await fetch(`/api/players/${playerId}/club-captain`)
+            if (response.ok) {
+              const data = await response.json()
+              statusMap[playerId] = data.isClubCaptain || false
+            }
+          } catch (error) {
+            console.error(`Error checking club captain status for ${playerId}:`, error)
+          }
+        })
+      )
+      
+      setClubCaptainStatus(statusMap)
+    } catch (error) {
+      console.error('Error loading club captain status:', error)
+    }
+  }
+
+  // Toggle club captain status
+  const toggleClubCaptain = async (player: Player) => {
+    const playerId = player.user_id || player.id
+    if (!playerId) return
+    
+    setTogglingClubCaptain(playerId)
+    
+    try {
+      const isCurrentlyClubCaptain = clubCaptainStatus[playerId] || false
+      
+      if (isCurrentlyClubCaptain) {
+        // Remove club captain role
+        const response = await fetch(`/api/players/${playerId}/club-captain`, {
+          method: 'DELETE',
+        })
+        
+        if (response.ok) {
+          setClubCaptainStatus(prev => ({ ...prev, [playerId]: false }))
+          alert(`${player.name} is no longer a club captain`)
+        } else {
+          const error = await response.json()
+          alert(`Failed to remove club captain role: ${error.error || 'Unknown error'}`)
+        }
+      } else {
+        // Promote to club captain
+        const response = await fetch(`/api/players/${playerId}/club-captain`, {
+          method: 'POST',
+        })
+        
+        if (response.ok) {
+          setClubCaptainStatus(prev => ({ ...prev, [playerId]: true }))
+          alert(`${player.name} is now a club captain. They will see the club captain dashboard when they log in.`)
+        } else {
+          const error = await response.json()
+          alert(`Failed to promote to club captain: ${error.error || 'Unknown error'}`)
+        }
+      }
+    } catch (error: any) {
+      console.error('Error toggling club captain:', error)
+      alert(`Error: ${error.message || 'Failed to update club captain status'}`)
+    } finally {
+      setTogglingClubCaptain(null)
+    }
+  }
   
   const loadData = useCallback(async () => {
     const supabase = createClient()
@@ -109,7 +184,13 @@ export default function PlayersPage() {
                 .eq('role', 'player')
               if (playersData) {
                 console.log('Using fallback query, got', playersData.length, 'players')
-                setPlayers(playersData as Player[])
+                const playersList = playersData as Player[]
+                setPlayers(playersList)
+                
+                // Load club captain status for all players (admin only)
+                if (profile.role === 'admin' && playersList.length > 0) {
+                  await loadClubCaptainStatus(playersList)
+                }
               }
             }
           } catch (error) {
@@ -121,7 +202,13 @@ export default function PlayersPage() {
               .eq('role', 'player')
             if (playersData) {
               console.log('Using fallback query after error, got', playersData.length, 'players')
-              setPlayers(playersData as Player[])
+              const playersList = playersData as Player[]
+              setPlayers(playersList)
+              
+              // Load club captain status for all players (admin only)
+              if (profile.role === 'admin' && playersList.length > 0) {
+                await loadClubCaptainStatus(playersList)
+              }
             }
           }
         } else {
@@ -130,7 +217,15 @@ export default function PlayersPage() {
             .from('user_profiles')
             .select('*')
             .eq('role', 'player')
-          if (playersData) setPlayers(playersData as Player[])
+          if (playersData) {
+            const playersList = playersData as Player[]
+            setPlayers(playersList)
+            
+            // Load club captain status for all players (admin only)
+            if (profile.role === 'admin' && playersList.length > 0) {
+              await loadClubCaptainStatus(playersList)
+            }
+          }
         }
       }
       
@@ -140,6 +235,13 @@ export default function PlayersPage() {
   useEffect(() => {
     loadData()
   }, [loadData])
+
+  // Load club captain status when players are loaded and user is admin
+  useEffect(() => {
+    if (user?.role === 'admin' && players.length > 0) {
+      loadClubCaptainStatus(players)
+    }
+  }, [players, user?.role])
 
   const handleAddPlayer = async () => {
     setSaving(true)
@@ -409,6 +511,24 @@ export default function PlayersPage() {
                                 <Dumbbell className="w-4 h-4" />
                               </button>
                             </>
+                          )}
+                          {user?.role === 'admin' && (
+                            <button
+                              onClick={() => toggleClubCaptain(player)}
+                              disabled={togglingClubCaptain === (player.user_id || player.id)}
+                              className={`p-2 rounded-lg transition-colors ${
+                                clubCaptainStatus[player.user_id || player.id]
+                                  ? 'text-yellow-600 bg-yellow-100 hover:bg-yellow-200'
+                                  : 'text-neutral-medium hover:bg-neutral-light'
+                              } disabled:opacity-50 disabled:cursor-not-allowed`}
+                              title={clubCaptainStatus[player.user_id || player.id] ? 'Remove Club Captain' : 'Make Club Captain'}
+                            >
+                              {togglingClubCaptain === (player.user_id || player.id) ? (
+                                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                              ) : (
+                                <Award className={`w-4 h-4 ${clubCaptainStatus[player.user_id || player.id] ? 'fill-current' : ''}`} />
+                              )}
+                            </button>
                           )}
                         </div>
                       </td>

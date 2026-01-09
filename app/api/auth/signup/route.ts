@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { name, email, phone, role, position, user_id, linked_player_email } = body
+    const { name, email, phone, role, position, user_id } = body
 
     // Validate required fields
     if (!name || !email || !user_id || !role) {
@@ -29,14 +29,6 @@ export async function POST(request: NextRequest) {
     if (role === 'player' && !position) {
       return NextResponse.json(
         { error: 'Position is required for players' },
-        { status: 400 }
-      )
-    }
-
-    // Validate linked_player_email for club_captain
-    if (role === 'club_captain' && !linked_player_email) {
-      return NextResponse.json(
-        { error: 'Linked player email is required for club captain role. Please provide the email of your existing player account.' },
         { status: 400 }
       )
     }
@@ -80,7 +72,6 @@ export async function POST(request: NextRequest) {
           phone: phone || null,
           role: role as Role,
           position: role === 'player' ? position : null,
-          linked_player_email: role === 'club_captain' ? linked_player_email : null,
           expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days from now
         })
         .eq('id', existingPending.id)
@@ -104,7 +95,6 @@ export async function POST(request: NextRequest) {
           phone: phone || null,
           role: role as Role,
           position: role === 'player' ? position : null,
-          linked_player_email: role === 'club_captain' ? linked_player_email : null,
         })
 
       if (pendingError) {

@@ -14,7 +14,6 @@ const roleOptions = [
   { value: 'data_admin', label: 'Team Manager', icon: BarChart3, description: 'Join as a team manager', limit: ROLE_LIMITS.data_admin },
   { value: 'finance_admin', label: 'Finance Admin', icon: DollarSign, description: 'Join as a finance admin', limit: ROLE_LIMITS.finance_admin },
   { value: 'admin', label: 'Administrator', icon: Shield, description: 'Join as an administrator', limit: ROLE_LIMITS.admin },
-  { value: 'club_captain', label: 'Club Captain', icon: Award, description: 'Join as club captain (must link to existing player account)', limit: ROLE_LIMITS.club_captain },
 ] as const
 
 const playerPositions = [
@@ -40,7 +39,6 @@ export default function SignupPage() {
     phone: '',
     role: 'player' as Role,
     position: '',
-    linked_player_email: '',
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -69,36 +67,83 @@ export default function SignupPage() {
       return
     }
 
-    // Validate linked_player_email for club_captain
-    if (formData.role === 'club_captain' && !formData.linked_player_email) {
-      setError('Please provide the email of your existing player account to link to')
-      return
-    }
-
     setLoading(true)
 
     try {
       // Create auth user
       const supabase = createClient()
       const redirectUrl = typeof window !== 'undefined' ? `${window.location.origin}/dashboard` : '/dashboard'
+      
+      // Log redirect URL for debugging
+      console.log('Signup - Email redirect URL:', redirectUrl)
+      console.log('Signup - Role:', formData.role)
+      
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
           emailRedirectTo: redirectUrl,
+          data: {
+            role: formData.role,
+          },
         },
       })
 
       if (authError) {
-        setError(authError.message || 'Failed to create account. Please try again.')
+        console.error('Auth signup error:', authError)
+        console.error('Full error details:', JSON.stringify(authError, null, 2))
+        
+        // Provide more helpful error messages for common issues
+        let errorMessage = authError.message || 'Failed to create account. Please try again.'
+        
+        // Check for specific Supabase email errors
+        if (authError.message?.includes('Error sending confirmation email') || 
+            authError.message?.includes('email') ||
+            authError.status === 500 ||
+            authError.message?.includes('SMTP') ||
+            authError.message?.includes('smtp')) {
+          errorMessage = `Email service error: ${authError.message || 'Email sending failed'}. Please check SendGrid configuration in Supabase. Error code: ${authError.status || 'unknown'}`
+          
+          // Log detailed error for debugging
+          console.error('Email sending failed - SMTP configuration issue:', {
+            error: authError,
+            errorStatus: authError.status,
+            errorMessage: authError.message,
+            errorCode: authError.code,
+            email: formData.email,
+            role: formData.role,
+            timestamp: new Date().toISOString()
+          })
+        }
+        
+        setError(errorMessage)
         setLoading(false)
         return
       }
 
       if (!authData.user) {
+        console.error('No user returned from signup')
         setError('Failed to create account. Please try again.')
         setLoading(false)
         return
+      }
+
+      // Log for debugging
+      console.log('Auth user created:', {
+        userId: authData.user.id,
+        email: authData.user.email,
+        emailConfirmed: authData.user.email_confirmed_at,
+        role: formData.role,
+        session: authData.session,
+        // If session is null, email confirmation is required
+        needsEmailConfirmation: !authData.session
+      })
+      
+      // Check if email was sent (session will be null if email confirmation is required)
+      if (!authData.session) {
+        console.log('✅ Email confirmation required - email should have been sent')
+      } else {
+        console.warn('⚠️ Session exists - email confirmation might be disabled or user already confirmed')
       }
 
       // Create user profile via API route (which will check limits)
@@ -114,15 +159,26 @@ export default function SignupPage() {
           role: formData.role,
           position: formData.role === 'player' ? formData.position : null,
           user_id: authData.user.id,
-          linked_player_email: formData.role === 'club_captain' ? formData.linked_player_email : null,
         }),
       })
 
       const signupResult = await signupResponse.json()
+      console.log('Signup API response:', {
+        ok: signupResponse.ok,
+        status: signupResponse.status,
+        result: signupResult
+      })
 
       if (!signupResponse.ok) {
-        // Clean up auth user if signup fails
-        await supabase.auth.signOut()
+        // DON'T sign out the user - the email might have been sent
+        // Only sign out if it's a critical error that prevents signup
+        const criticalErrors = ['migrationRequired', 'Server configuration error']
+        const isCriticalError = criticalErrors.some(err => signupResult.error?.includes(err))
+        
+        if (isCriticalError) {
+          // Only sign out for critical errors
+          await supabase.auth.signOut()
+        }
         
         // Provide more helpful error messages
         let errorMessage = signupResult.error || 'Failed to save signup data. Please try again.'
@@ -130,7 +186,15 @@ export default function SignupPage() {
         if (signupResult.migrationRequired) {
           errorMessage = 'Database setup required. Please contact an administrator.'
         } else if (signupResult.code === 'AUTH_USER_NOT_FOUND' || signupResult.requiresEmailConfirmation) {
-          errorMessage = 'Please check your email and confirm your account before completing signup. After confirming, you can sign in directly.'
+          // Even if API fails, email might have been sent - tell user to check email
+          errorMessage = 'Please check your email and confirm your account. After confirming, you can sign in and complete your registration.'
+          // Still show success message since email might have been sent
+          setSuccess(true)
+          setTimeout(() => {
+            router.push('/login?signup=pending&email=' + encodeURIComponent(formData.email))
+          }, 2000)
+          setLoading(false)
+          return
         }
         
         console.error('Signup API error:', signupResult)
@@ -309,30 +373,6 @@ export default function SignupPage() {
               />
             </div>
           </div>
-
-          {formData.role === 'club_captain' && (
-            <div>
-              <label htmlFor="linked_player_email" className="block text-sm font-medium text-neutral-text mb-2">
-                Linked Player Account Email <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-neutral-medium" />
-                <input
-                  id="linked_player_email"
-                  type="email"
-                  value={formData.linked_player_email}
-                  onChange={(e) => setFormData({ ...formData, linked_player_email: e.target.value })}
-                  required
-                  className="w-full pl-10 pr-4 py-3 border border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
-                  placeholder="player.email@example.com"
-                  disabled={loading || success}
-                />
-              </div>
-              <p className="text-xs text-neutral-medium mt-1">
-                Enter the email address of your existing player account. This links your club captain account to your player stats.
-              </p>
-            </div>
-          )}
 
           <div>
             <label htmlFor="password" className="block text-sm font-medium text-neutral-text mb-2">

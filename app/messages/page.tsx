@@ -254,10 +254,9 @@ export default function MessagesPage() {
                       u.role === 'admin' && allowedRecipientRoles.includes(u.role as UserRole)
                     ))
                     // Filter club captains if allowed
-                    const clubCaptains = allUsersList.filter((u: UserProfile) => 
+                    setClubCaptains(allUsersList.filter((u: UserProfile) => 
                       u.role === 'club_captain' && allowedRecipientRoles.includes(u.role as UserRole)
-                    )
-                    // Store club captains - we'll add a state for this or combine with appropriate group
+                    ))
                   }
                 }
               } else {

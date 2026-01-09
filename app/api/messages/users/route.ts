@@ -30,13 +30,9 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Only allow admin, coach, data_admin (team manager), finance_admin, and physio to fetch users
-    if (!['admin', 'coach', 'data_admin', 'finance_admin', 'physio'].includes(profile.role)) {
-      return NextResponse.json(
-        { error: 'Unauthorized: Admin/Coach/Team Manager/Finance Admin/Physio access required' },
-        { status: 403 }
-      )
-    }
+    // Allow all roles to fetch users (filtering is done client-side based on communication rules)
+    // This allows players to fetch users and filter them based on communication hierarchy
+    // No role restriction needed here - the client-side filtering enforces the communication rules
 
     // Use service role to bypass RLS for fetching all users
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL

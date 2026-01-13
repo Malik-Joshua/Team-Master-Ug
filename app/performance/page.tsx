@@ -1889,6 +1889,7 @@ export default function PerformancePage() {
                         resource_type: 'diet_plan',
                         content: '',
                         attachment_url: '',
+                        links: [],
                         is_active: true,
                       })
                     }}

@@ -278,6 +278,7 @@ export async function GET(request: NextRequest) {
       .single()
 
     // Fetch staff names if assigned
+    let responseMatchDetails: any = matchDetails
     if (matchDetails) {
       const staffIds: string[] = []
       if (matchDetails.physio_id) staffIds.push(matchDetails.physio_id)
@@ -292,9 +293,12 @@ export async function GET(request: NextRequest) {
 
         if (staffProfiles) {
           const staffMap = new Map(staffProfiles.map((p: any) => [p.user_id, p.name]))
-          matchDetails.physio = matchDetails.physio_id ? { name: staffMap.get(matchDetails.physio_id) || 'Unknown' } : null
-          matchDetails.team_manager = matchDetails.team_manager_id ? { name: staffMap.get(matchDetails.team_manager_id) || 'Unknown' } : null
-          matchDetails.coach = matchDetails.coach_id ? { name: staffMap.get(matchDetails.coach_id) || 'Unknown' } : null
+          responseMatchDetails = {
+            ...matchDetails,
+            physio: matchDetails.physio_id ? { name: staffMap.get(matchDetails.physio_id) || 'Unknown' } : null,
+            team_manager: matchDetails.team_manager_id ? { name: staffMap.get(matchDetails.team_manager_id) || 'Unknown' } : null,
+            coach: matchDetails.coach_id ? { name: staffMap.get(matchDetails.coach_id) || 'Unknown' } : null
+          }
         }
       }
     }
@@ -306,7 +310,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       selections: selections || [],
       count: selections?.length || 0,
-      match: matchDetails,
+      match: responseMatchDetails,
       starting: starting,
       substitutes: substitutes,
     })

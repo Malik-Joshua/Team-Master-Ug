@@ -74,6 +74,7 @@ END;
 $$;
 
 -- Grant execute permission to authenticated users
+-- Note: Function signature includes DEFAULT NULL for optional parameters
 GRANT EXECUTE ON FUNCTION update_user_profile(UUID, TEXT, TEXT, TEXT, TEXT, DATE) TO authenticated;
 
 -- Add comment

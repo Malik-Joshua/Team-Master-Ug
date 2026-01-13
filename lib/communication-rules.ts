@@ -26,8 +26,8 @@ export const COMMUNICATION_RULES: Record<UserRole, UserRole[]> = {
   // Finance admin can communicate with: admin, data manager
   finance_admin: ['admin', 'data_admin'],
   
-  // Coach can communicate with: other coaches, players, physio, club captain, data manager
-  coach: ['coach', 'player', 'physio', 'club_captain', 'data_admin'],
+  // Coach can communicate with: other coaches, players, physio, club captain, data manager, admin
+  coach: ['coach', 'player', 'physio', 'club_captain', 'data_admin', 'admin'],
   
   // Club captain can communicate with: admin, coaches, players, physio, data manager
   club_captain: ['admin', 'coach', 'player', 'physio', 'data_admin'],

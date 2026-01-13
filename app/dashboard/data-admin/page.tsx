@@ -1003,6 +1003,9 @@ export default function DataAdminDashboard() {
                         tournament_type: 'friendly',
                         venue: '',
                         notes: '',
+                        physio_id: '',
+                        team_manager_id: '',
+                        coach_id: '',
                       })
                     }}
                     className="text-neutral-medium hover:text-neutral-text"

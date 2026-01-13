@@ -281,16 +281,22 @@ export default function MessagesPage() {
                       u.user_id !== authUser.id &&
                       u.role === 'finance_admin' && allowedRecipientRoles.includes(u.role as UserRole)
                     ))
-                    // Filter admins - only include general admins (not finance_admin or data_admin)
-                    const filteredAdmins = allUsersList.filter((u: UserProfile) => 
-                      u.user_id !== authUser.id &&
-                      u.role === 'admin' && allowedRecipientRoles.includes(u.role as UserRole)
+                    // Filter admins - check if 'admin' role is allowed for this sender
+                    // Only include general admins (role === 'admin', not finance_admin or data_admin)
+                    const adminUsers = allUsersList.filter((u: UserProfile) => 
+                      u.user_id !== authUser.id && u.role === 'admin'
                     )
+                    // Check if 'admin' is in the allowed recipient roles
+                    const filteredAdmins = allowedRecipientRoles.includes('admin' as UserRole) 
+                      ? adminUsers 
+                      : []
                     setAdmins(filteredAdmins)
-                    console.log(`Loaded ${filteredAdmins.length} admin(s) for ${profile.role}`, {
+                    console.log(`[${profile.role}] Admin filtering:`, {
                       allowedRecipientRoles,
-                      totalAdmins: allUsersList.filter(u => u.role === 'admin').length,
-                      filteredAdmins: filteredAdmins.map(a => ({ id: a.user_id, name: a.name, role: a.role }))
+                      hasAdmin: allowedRecipientRoles.includes('admin'),
+                      totalAdminUsers: adminUsers.length,
+                      filteredAdmins: filteredAdmins.length,
+                      adminNames: filteredAdmins.map(a => a.name)
                     })
                     // Filter club captains if allowed and exclude current user
                     // Also exclude linked club captain account if user is a player

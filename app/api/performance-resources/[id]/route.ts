@@ -39,7 +39,7 @@ export async function PUT(
     }
 
     const body = await request.json()
-    const { title, description, resource_type, content, attachment_url, is_active } = body
+    const { title, description, resource_type, content, attachment_url, links, is_active } = body
 
     // Validate resource_type if provided
     if (resource_type && !['diet_plan', 'gym_programme', 'play_info', 'position_info'].includes(resource_type)) {
@@ -66,6 +66,20 @@ export async function PUT(
         persistSession: false
       }
     })
+
+    // Process links: use links array if provided, otherwise convert attachment_url to links format
+    if (links !== undefined) {
+      if (Array.isArray(links) && links.length > 0) {
+        // Filter out empty links
+        const processedLinks = links.filter((link: any) => link.url && link.url.trim() !== '')
+        updateData.links = processedLinks
+      } else if (attachment_url && attachment_url.trim() !== '') {
+        // Backward compatibility: convert single attachment_url to links array
+        updateData.links = [{ url: attachment_url, label: 'Attachment' }]
+      } else {
+        updateData.links = []
+      }
+    }
 
     // Build update object
     const updateData: any = {}

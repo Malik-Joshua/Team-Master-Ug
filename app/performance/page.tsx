@@ -85,7 +85,8 @@ export default function PerformancePage() {
     description: '',
     resource_type: 'diet_plan',
     content: '',
-    attachment_url: '',
+    attachment_url: '', // Keep for backward compatibility
+    links: [] as Array<{ url: string; label: string }>,
     is_active: true,
   })
   const [selectedResourceType, setSelectedResourceType] = useState<string>('all')
@@ -489,6 +490,7 @@ export default function PerformancePage() {
           resource_type: 'diet_plan',
           content: '',
           attachment_url: '',
+          links: [],
           is_active: true,
         })
         alert(editingResource ? 'Resource updated successfully!' : 'Resource created successfully!')
@@ -542,12 +544,21 @@ export default function PerformancePage() {
   // Open resource modal for editing
   const handleEditResource = (resource: any) => {
     setEditingResource(resource)
+    // Load links from resource, or convert attachment_url to links format for backward compatibility
+    let resourceLinks: Array<{ url: string; label: string }> = []
+    if (resource.links && Array.isArray(resource.links) && resource.links.length > 0) {
+      resourceLinks = resource.links
+    } else if (resource.attachment_url && resource.attachment_url.trim() !== '') {
+      resourceLinks = [{ url: resource.attachment_url, label: 'Attachment' }]
+    }
+    
     setResourceForm({
       title: resource.title,
       description: resource.description || '',
       resource_type: resource.resource_type,
       content: resource.content,
       attachment_url: resource.attachment_url || '',
+      links: resourceLinks,
       is_active: resource.is_active,
     })
     setShowResourceModal(true)
@@ -569,6 +580,7 @@ export default function PerformancePage() {
       resource_type: 'diet_plan',
       content: '',
       attachment_url: '',
+      links: [],
       is_active: true,
     })
     setShowResourceModal(true)
@@ -858,6 +870,7 @@ export default function PerformancePage() {
                       resource_type: 'diet_plan',
                       content: '',
                       attachment_url: '',
+                      links: [],
                       is_active: true,
                     })
                   }}
@@ -1326,6 +1339,7 @@ export default function PerformancePage() {
                       resource_type: 'diet_plan',
                       content: '',
                       attachment_url: '',
+                      links: [],
                       is_active: true,
                     })
                   }}
@@ -1775,6 +1789,7 @@ export default function PerformancePage() {
                       resource_type: 'diet_plan',
                       content: '',
                       attachment_url: '',
+                      links: [],
                       is_active: true,
                     })
                   }}
@@ -2413,16 +2428,37 @@ export default function PerformancePage() {
                     <div className="prose prose-sm max-w-none mb-4">
                       <div className="text-sm text-neutral-text whitespace-pre-wrap">{resource.content}</div>
                     </div>
-                    {resource.attachment_url && (
-                      <a
-                        href={resource.attachment_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary hover:underline text-sm inline-flex items-center gap-1"
-                      >
-                        <FileText className="w-4 h-4" />
-                        View Attachment
-                      </a>
+                    {/* Display all links */}
+                    {((resource.links && Array.isArray(resource.links) && resource.links.length > 0) || resource.attachment_url) && (
+                      <div className="space-y-2">
+                        <p className="text-sm font-semibold text-neutral-text">Links:</p>
+                        <div className="flex flex-wrap gap-2">
+                          {resource.links && Array.isArray(resource.links) && resource.links.length > 0 ? (
+                            resource.links.map((link: any, index: number) => (
+                              <a
+                                key={index}
+                                href={link.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-primary hover:underline text-sm inline-flex items-center gap-1 px-3 py-1 bg-primary/10 rounded-lg"
+                              >
+                                <FileText className="w-4 h-4" />
+                                {link.label || 'Link'}
+                              </a>
+                            ))
+                          ) : resource.attachment_url ? (
+                            <a
+                              href={resource.attachment_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-primary hover:underline text-sm inline-flex items-center gap-1 px-3 py-1 bg-primary/10 rounded-lg"
+                            >
+                              <FileText className="w-4 h-4" />
+                              View Attachment
+                            </a>
+                          ) : null}
+                        </div>
+                      </div>
                     )}
                     <div className="mt-4 pt-4 border-t border-neutral-light text-xs text-neutral-medium">
                       Created {new Date(resource.created_at).toLocaleDateString()}
@@ -2461,6 +2497,7 @@ export default function PerformancePage() {
                       resource_type: 'diet_plan',
                       content: '',
                       attachment_url: '',
+                      links: [],
                       is_active: true,
                     })
                   }}

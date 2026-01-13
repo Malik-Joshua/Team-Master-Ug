@@ -100,6 +100,60 @@ export async function GET(request: NextRequest) {
     const totalPlayed = matches?.filter(m => m.result).length || 0
     const winRate = totalPlayed > 0 ? Math.round((wins / totalPlayed) * 100) : 0
 
+    // Get top performers with accurate stats
+    const { db } = await import('@/lib/db-helpers')
+    let topPerformers: any[] = []
+    try {
+      const allPerformers = await db.getPlayersPerformanceSummary()
+      if (allPerformers && allPerformers.length > 0) {
+        // Get player positions
+        const playerIds = allPerformers.map((p: any) => p.playerId)
+        if (playerIds.length > 0) {
+          const { data: playerDetails } = await supabaseAdmin
+            .from('players')
+            .select('user_id, position')
+            .in('user_id', playerIds)
+          
+          const positionMap: Record<string, string> = {}
+          if (playerDetails) {
+            playerDetails.forEach((p: any) => {
+              positionMap[p.user_id] = p.position
+            })
+          }
+          
+          // Add positions and calculate performance score
+          const performersWithPositions = allPerformers.map((p: any) => ({
+            ...p,
+            position: positionMap[p.playerId] || null,
+            // Calculate a performance score: tries weighted more, then tackles, then attendance
+            performanceScore: (p.totalTries * 10) + (p.totalTackles * 2) + (p.attendanceRate || 0),
+          }))
+          
+          // Sort by performance score (best to least), then by tries, then tackles
+          topPerformers = performersWithPositions
+            .sort((a: any, b: any) => {
+              // First sort by performance score
+              if (b.performanceScore !== a.performanceScore) {
+                return b.performanceScore - a.performanceScore
+              }
+              // Then by tries
+              if (b.totalTries !== a.totalTries) {
+                return b.totalTries - a.totalTries
+              }
+              // Then by tackles
+              if (b.totalTackles !== a.totalTackles) {
+                return b.totalTackles - a.totalTackles
+              }
+              // Finally by attendance rate
+              return (b.attendanceRate || 0) - (a.attendanceRate || 0)
+            })
+            .slice(0, 10) // Top 10 performers
+        }
+      }
+    } catch (perfError) {
+      console.error('Error fetching top performers:', perfError)
+    }
+
     return NextResponse.json({
       totalUsers: totalUsersCount || 0,
       totalPlayers: totalPlayersCount || 0,
@@ -113,6 +167,7 @@ export async function GET(request: NextRequest) {
       totalTackles,
       avgMinutes,
       winRate,
+      topPerformers,
     })
   } catch (error: any) {
     console.error('Error fetching admin statistics:', error)

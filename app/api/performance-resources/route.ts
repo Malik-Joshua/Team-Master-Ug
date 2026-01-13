@@ -185,7 +185,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { title, description, resource_type, content, attachment_url, is_active } = body
+    const { title, description, resource_type, content, attachment_url, links, is_active } = body
 
     // Validate required fields
     if (!title || !resource_type || !content) {
@@ -220,6 +220,16 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    // Process links: use links array if provided, otherwise convert attachment_url to links format
+    let processedLinks: any[] = []
+    if (links && Array.isArray(links) && links.length > 0) {
+      // Filter out empty links
+      processedLinks = links.filter((link: any) => link.url && link.url.trim() !== '')
+    } else if (attachment_url && attachment_url.trim() !== '') {
+      // Backward compatibility: convert single attachment_url to links array
+      processedLinks = [{ url: attachment_url, label: 'Attachment' }]
+    }
+
     const { data: newResource, error: insertError } = await supabaseAdmin
       .from('performance_resources')
       .insert({
@@ -227,7 +237,8 @@ export async function POST(request: NextRequest) {
         description: description || null,
         resource_type,
         content,
-        attachment_url: attachment_url || null,
+        attachment_url: attachment_url || null, // Keep for backward compatibility
+        links: processedLinks.length > 0 ? processedLinks : [],
         created_by: authUser.id,
         is_active: is_active !== undefined ? is_active : true,
       })

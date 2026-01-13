@@ -71,28 +71,6 @@ export async function PATCH(
       .select('id, match_date, opponent, venue, tournament_type, physio_id, team_manager_id, coach_id')
       .single()
 
-    // Fetch staff names if assigned
-    if (updatedMatch) {
-      const staffIds: string[] = []
-      if (updatedMatch.physio_id) staffIds.push(updatedMatch.physio_id)
-      if (updatedMatch.team_manager_id) staffIds.push(updatedMatch.team_manager_id)
-      if (updatedMatch.coach_id) staffIds.push(updatedMatch.coach_id)
-
-      if (staffIds.length > 0) {
-        const { data: staffProfiles } = await supabaseAdmin
-          .from('user_profiles')
-          .select('user_id, name')
-          .in('user_id', staffIds)
-
-        if (staffProfiles) {
-          const staffMap = new Map(staffProfiles.map((p: any) => [p.user_id, p.name]))
-          updatedMatch.physio = updatedMatch.physio_id ? { name: staffMap.get(updatedMatch.physio_id) || 'Unknown' } : null
-          updatedMatch.team_manager = updatedMatch.team_manager_id ? { name: staffMap.get(updatedMatch.team_manager_id) || 'Unknown' } : null
-          updatedMatch.coach = updatedMatch.coach_id ? { name: staffMap.get(updatedMatch.coach_id) || 'Unknown' } : null
-        }
-      }
-    }
-
     if (updateError) {
       console.error('Error updating staff assignments:', updateError)
       return NextResponse.json(
@@ -101,10 +79,43 @@ export async function PATCH(
       )
     }
 
+    if (!updatedMatch) {
+      return NextResponse.json(
+        { error: 'Match not found' },
+        { status: 404 }
+      )
+    }
+
+    // Fetch staff names if assigned
+    const staffIds: string[] = []
+    if (updatedMatch.physio_id) staffIds.push(updatedMatch.physio_id)
+    if (updatedMatch.team_manager_id) staffIds.push(updatedMatch.team_manager_id)
+    if (updatedMatch.coach_id) staffIds.push(updatedMatch.coach_id)
+
+    let responseData: any = { ...updatedMatch }
+
+    if (staffIds.length > 0) {
+      const { data: staffProfiles } = await supabaseAdmin
+        .from('user_profiles')
+        .select('user_id, name')
+        .in('user_id', staffIds)
+
+      if (staffProfiles) {
+        const staffMap = new Map(staffProfiles.map((p: any) => [p.user_id, p.name]))
+        // Add staff names to the response object
+        responseData = {
+          ...updatedMatch,
+          physio: updatedMatch.physio_id ? { name: staffMap.get(updatedMatch.physio_id) || 'Unknown' } : null,
+          team_manager: updatedMatch.team_manager_id ? { name: staffMap.get(updatedMatch.team_manager_id) || 'Unknown' } : null,
+          coach: updatedMatch.coach_id ? { name: staffMap.get(updatedMatch.coach_id) || 'Unknown' } : null
+        }
+      }
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Staff assignments updated successfully',
-      data: updatedMatch
+      data: responseData
     })
   } catch (error: any) {
     console.error('Error updating staff assignments:', error)

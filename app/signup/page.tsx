@@ -177,7 +177,7 @@ export default function SignupPage() {
         
         if (isCriticalError) {
           // Only sign out for critical errors
-          await supabase.auth.signOut()
+        await supabase.auth.signOut()
         }
         
         // Provide more helpful error messages
@@ -211,11 +211,11 @@ export default function SignupPage() {
           router.push('/login?signup=pending&email=' + encodeURIComponent(formData.email))
         }, 2000)
       } else {
-        setSuccess(true)
-        // Redirect to login after a short delay
-        setTimeout(() => {
-          router.push('/login?signup=success')
-        }, 2000)
+      setSuccess(true)
+      // Redirect to login after a short delay
+      setTimeout(() => {
+        router.push('/login?signup=success')
+      }, 2000)
       }
     } catch (err: any) {
       console.error('Signup error:', err)

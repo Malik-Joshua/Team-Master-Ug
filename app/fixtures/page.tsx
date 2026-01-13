@@ -81,7 +81,13 @@ export default function FixturesPage() {
     tournament_type: 'friendly' as 'uganda_cup' | 'league' | 'sevens' | 'friendly',
     venue: '',
     notes: '',
+    physio_id: '',
+    team_manager_id: '',
+    coach_id: '',
   })
+  const [availablePhysios, setAvailablePhysios] = useState<any[]>([])
+  const [availableTeamManagers, setAvailableTeamManagers] = useState<any[]>([])
+  const [availableCoaches, setAvailableCoaches] = useState<any[]>([])
   const [creatingFixture, setCreatingFixture] = useState(false)
   const [matchForm, setMatchForm] = useState<MatchForm>({
     match_date: '',
@@ -338,6 +344,36 @@ export default function FixturesPage() {
     loadData()
   }, [loadData])
 
+  // Load staff members when fixture form is opened
+  useEffect(() => {
+    const loadStaffMembers = async () => {
+      if (showCreateFixtureForm) {
+        try {
+          console.log('Loading staff members for fixture form...')
+          const usersResponse = await fetch('/api/messages/users')
+          if (usersResponse.ok) {
+            const usersData = await usersResponse.json()
+            console.log('Staff members data received:', usersData)
+            if (usersData.users) {
+              const physios = usersData.users.filter((u: any) => u.role === 'physio')
+              const teamManagers = usersData.users.filter((u: any) => u.role === 'data_admin')
+              const coaches = usersData.users.filter((u: any) => u.role === 'coach')
+              console.log('Filtered staff:', { physios: physios.length, teamManagers: teamManagers.length, coaches: coaches.length })
+              setAvailablePhysios(physios)
+              setAvailableTeamManagers(teamManagers)
+              setAvailableCoaches(coaches)
+            }
+          } else {
+            console.error('Failed to fetch staff members:', usersResponse.status)
+          }
+        } catch (staffError) {
+          console.error('Error fetching staff members:', staffError)
+        }
+      }
+    }
+    loadStaffMembers()
+  }, [showCreateFixtureForm])
+
   const handleViewTeam = async (matchId: string) => {
     setViewingTeamForMatch(matchId)
     setLoadingTeamView(true)
@@ -580,6 +616,9 @@ export default function FixturesPage() {
           tournament_type: fixtureForm.tournament_type,
           venue: fixtureForm.venue || null,
           notes: fixtureForm.notes || null,
+          physio_id: fixtureForm.physio_id || null,
+          team_manager_id: fixtureForm.team_manager_id || null,
+          coach_id: fixtureForm.coach_id || null,
         }),
       })
 
@@ -597,6 +636,9 @@ export default function FixturesPage() {
         tournament_type: 'friendly',
         venue: '',
         notes: '',
+        physio_id: '',
+        team_manager_id: '',
+        coach_id: '',
       })
       
       // Reload matches
@@ -1068,9 +1110,9 @@ export default function FixturesPage() {
 
           {/* Create Fixture Modal */}
           {showCreateFixtureForm && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-              <div className="bg-white rounded-card shadow-large max-w-2xl w-full border border-neutral-light">
-                <div className="p-6 border-b border-neutral-light">
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center p-4 z-50 backdrop-blur-sm overflow-y-auto">
+              <div className="bg-white rounded-card shadow-large max-w-2xl w-full border border-neutral-light my-8 max-h-[90vh] flex flex-col">
+                <div className="p-6 border-b border-neutral-light flex-shrink-0">
                   <div className="flex justify-between items-center">
                     <h2 className="text-2xl font-bold text-neutral-text">Create New Fixture</h2>
                     <button
@@ -1082,6 +1124,9 @@ export default function FixturesPage() {
                           tournament_type: 'friendly',
                           venue: '',
                           notes: '',
+                          physio_id: '',
+                          team_manager_id: '',
+                          coach_id: '',
                         })
                       }}
                       className="text-neutral-medium hover:text-neutral-text"
@@ -1091,7 +1136,7 @@ export default function FixturesPage() {
                   </div>
                 </div>
 
-                <div className="p-6 space-y-4">
+                <div className="p-6 space-y-4" style={{ maxHeight: 'calc(90vh - 120px)', overflowY: 'auto' }}>
                   <div className="bg-blue-50 rounded-lg p-4 border border-blue-200 mb-4">
                     <p className="text-sm text-blue-800">
                       <strong>Note:</strong> After creating a fixture, the coach will be able to select the team for this match on the Fixtures page.
@@ -1163,6 +1208,72 @@ export default function FixturesPage() {
                     />
                   </div>
 
+                  {/* TEST: This should be visible */}
+                  <div className="bg-yellow-200 p-2 mb-4 text-center font-bold">
+                    ⚠️ If you see this, the form is rendering correctly
+                  </div>
+
+                  {/* Staff Assignment Section */}
+                  <div className="border-t-2 border-primary/30 pt-6 mt-6 bg-gray-50 rounded-lg p-4">
+                    <h3 className="text-xl font-bold text-neutral-text mb-4 flex items-center gap-2">
+                      <span>👥</span>
+                      Assign Staff for Game Day
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-neutral-medium mb-2">
+                          Physiotherapist
+                        </label>
+                        <select
+                          value={fixtureForm.physio_id}
+                          onChange={(e) => setFixtureForm({ ...fixtureForm, physio_id: e.target.value })}
+                          className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                        >
+                          <option value="">Select physio...</option>
+                          {availablePhysios.map((physio) => (
+                            <option key={physio.user_id} value={physio.user_id}>
+                              {physio.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-neutral-medium mb-2">
+                          Team Manager
+                        </label>
+                        <select
+                          value={fixtureForm.team_manager_id}
+                          onChange={(e) => setFixtureForm({ ...fixtureForm, team_manager_id: e.target.value })}
+                          className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                        >
+                          <option value="">Select team manager...</option>
+                          {availableTeamManagers.map((tm) => (
+                            <option key={tm.user_id} value={tm.user_id}>
+                              {tm.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-neutral-medium mb-2">
+                          Coach
+                        </label>
+                        <select
+                          value={fixtureForm.coach_id}
+                          onChange={(e) => setFixtureForm({ ...fixtureForm, coach_id: e.target.value })}
+                          className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                        >
+                          <option value="">Select coach...</option>
+                          {availableCoaches.map((coach) => (
+                            <option key={coach.user_id} value={coach.user_id}>
+                              {coach.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="flex gap-3 pt-4 border-t border-neutral-light">
                     <button
                       onClick={handleCreateFixture}
@@ -1181,6 +1292,9 @@ export default function FixturesPage() {
                           tournament_type: 'friendly',
                           venue: '',
                           notes: '',
+                          physio_id: '',
+                          team_manager_id: '',
+                          coach_id: '',
                         })
                       }}
                       disabled={creatingFixture}

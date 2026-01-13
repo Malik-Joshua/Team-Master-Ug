@@ -52,7 +52,13 @@ export default function DataAdminDashboard() {
     tournament_type: 'friendly' as 'uganda_cup' | 'league' | 'sevens' | 'friendly',
     venue: '',
     notes: '',
+    physio_id: '',
+    team_manager_id: '',
+    coach_id: '',
   })
+  const [availablePhysios, setAvailablePhysios] = useState<any[]>([])
+  const [availableTeamManagers, setAvailableTeamManagers] = useState<any[]>([])
+  const [availableCoaches, setAvailableCoaches] = useState<any[]>([])
   const [creatingFixture, setCreatingFixture] = useState(false)
   const [matchForm, setMatchForm] = useState<MatchForm>({
     match_date: '',
@@ -71,6 +77,7 @@ export default function DataAdminDashboard() {
   const [teamSelections, setTeamSelections] = useState<any[]>([])
   const [selectedMatchForView, setSelectedMatchForView] = useState<string>('')
   const [loadingTeamSelection, setLoadingTeamSelection] = useState(false)
+  const [matchWithStaff, setMatchWithStaff] = useState<any>(null)
 
   const loadData = useCallback(async () => {
       const supabase = createClient()
@@ -187,11 +194,26 @@ export default function DataAdminDashboard() {
             }
           }
 
+          // Fetch available physios, team managers, and coaches for fixture staff assignment
+          try {
+            const usersResponse = await fetch('/api/messages/users')
+            if (usersResponse.ok) {
+              const usersData = await usersResponse.json()
+              if (usersData.users) {
+                setAvailablePhysios(usersData.users.filter((u: any) => u.role === 'physio'))
+                setAvailableTeamManagers(usersData.users.filter((u: any) => u.role === 'data_admin'))
+                setAvailableCoaches(usersData.users.filter((u: any) => u.role === 'coach'))
+              }
+            }
+          } catch (staffError) {
+            console.error('Error fetching staff members:', staffError)
+          }
+
           // Load matches for match stats and team selection viewing (all matches, not just upcoming)
           try {
             const { data: matchesData, error: matchesError } = await supabase
               .from('matches')
-              .select('id, match_date, opponent, venue, tournament_type')
+              .select('id, match_date, opponent, venue, tournament_type, physio_id, team_manager_id, coach_id')
               .order('match_date', { ascending: false })
               .limit(100)
 
@@ -225,6 +247,36 @@ export default function DataAdminDashboard() {
   useEffect(() => {
     loadData()
   }, [loadData])
+
+  // Load staff members when fixture form is opened
+  useEffect(() => {
+    const loadStaffMembers = async () => {
+      if (showCreateFixtureForm) {
+        try {
+          console.log('Loading staff members for fixture form...')
+          const usersResponse = await fetch('/api/messages/users')
+          if (usersResponse.ok) {
+            const usersData = await usersResponse.json()
+            console.log('Staff members data received:', usersData)
+            if (usersData.users) {
+              const physios = usersData.users.filter((u: any) => u.role === 'physio')
+              const teamManagers = usersData.users.filter((u: any) => u.role === 'data_admin')
+              const coaches = usersData.users.filter((u: any) => u.role === 'coach')
+              console.log('Filtered staff:', { physios: physios.length, teamManagers: teamManagers.length, coaches: coaches.length })
+              setAvailablePhysios(physios)
+              setAvailableTeamManagers(teamManagers)
+              setAvailableCoaches(coaches)
+            }
+          } else {
+            console.error('Failed to fetch staff members:', usersResponse.status)
+          }
+        } catch (staffError) {
+          console.error('Error fetching staff members:', staffError)
+        }
+      }
+    }
+    loadStaffMembers()
+  }, [showCreateFixtureForm])
 
   const handleSaveMatch = async () => {
     if (!selectedMatchForStats) {
@@ -417,14 +469,20 @@ export default function DataAdminDashboard() {
         } else {
           setTeamSelections([])
         }
+        // Store match information including staff assignments
+        if (data.match) {
+          setMatchWithStaff(data.match)
+        }
       } else {
         const errorData = await response.json().catch(() => ({ error: response.statusText }))
         console.error('Error loading team selection:', errorData)
         setTeamSelections([])
+        setMatchWithStaff(null)
       }
     } catch (error) {
       console.error('Error loading team selection:', error)
       setTeamSelections([])
+      setMatchWithStaff(null)
     } finally {
       setLoadingTeamSelection(false)
     }
@@ -459,6 +517,9 @@ export default function DataAdminDashboard() {
           tournament_type: fixtureForm.tournament_type,
           venue: fixtureForm.venue || null,
           notes: fixtureForm.notes || null,
+          physio_id: fixtureForm.physio_id || null,
+          team_manager_id: fixtureForm.team_manager_id || null,
+          coach_id: fixtureForm.coach_id || null,
         }),
       })
 
@@ -476,6 +537,9 @@ export default function DataAdminDashboard() {
         tournament_type: 'friendly',
         venue: '',
         notes: '',
+        physio_id: '',
+        team_manager_id: '',
+        coach_id: '',
       })
       
       // Reload matches
@@ -1020,6 +1084,63 @@ export default function DataAdminDashboard() {
                   />
                 </div>
 
+                <div className="border-t border-neutral-light pt-4 mt-4">
+                  <h3 className="text-lg font-semibold text-neutral-text mb-4">Assign Staff for Game Day</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-medium mb-2">
+                        Physiotherapist
+                      </label>
+                      <select
+                        value={fixtureForm.physio_id}
+                        onChange={(e) => setFixtureForm({ ...fixtureForm, physio_id: e.target.value })}
+                        className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                      >
+                        <option value="">Select physio...</option>
+                        {availablePhysios.map((physio) => (
+                          <option key={physio.user_id} value={physio.user_id}>
+                            {physio.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-medium mb-2">
+                        Team Manager
+                      </label>
+                      <select
+                        value={fixtureForm.team_manager_id}
+                        onChange={(e) => setFixtureForm({ ...fixtureForm, team_manager_id: e.target.value })}
+                        className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                      >
+                        <option value="">Select team manager...</option>
+                        {availableTeamManagers.map((tm) => (
+                          <option key={tm.user_id} value={tm.user_id}>
+                            {tm.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-medium mb-2">
+                        Coach
+                      </label>
+                      <select
+                        value={fixtureForm.coach_id}
+                        onChange={(e) => setFixtureForm({ ...fixtureForm, coach_id: e.target.value })}
+                        className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                      >
+                        <option value="">Select coach...</option>
+                        {availableCoaches.map((coach) => (
+                          <option key={coach.user_id} value={coach.user_id}>
+                            {coach.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="flex gap-3 pt-4 border-t border-neutral-light">
                   <button
                     onClick={handleCreateFixture}
@@ -1038,6 +1159,9 @@ export default function DataAdminDashboard() {
                         tournament_type: 'friendly',
                         venue: '',
                         notes: '',
+                        physio_id: '',
+                        team_manager_id: '',
+                        coach_id: '',
                       })
                     }}
                     disabled={creatingFixture}
@@ -1095,6 +1219,39 @@ export default function DataAdminDashboard() {
 
           {teamSelections.length > 0 && !loadingTeamSelection && (
             <div className="space-y-4">
+              {/* Staff Assignment Information */}
+              {matchWithStaff && (matchWithStaff.physio || matchWithStaff.team_manager || matchWithStaff.coach) && (
+                <div className="bg-blue-50 rounded-lg p-4 border border-blue-200 mb-6">
+                  <h3 className="text-lg font-semibold text-neutral-text mb-3">Assigned Staff for Game Day</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {matchWithStaff.physio && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-neutral-medium">Physiotherapist:</span>
+                        <span className="text-sm text-neutral-text font-semibold">
+                          {typeof matchWithStaff.physio === 'object' ? matchWithStaff.physio.name : 'Assigned'}
+                        </span>
+                      </div>
+                    )}
+                    {matchWithStaff.team_manager && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-neutral-medium">Team Manager:</span>
+                        <span className="text-sm text-neutral-text font-semibold">
+                          {typeof matchWithStaff.team_manager === 'object' ? matchWithStaff.team_manager.name : 'Assigned'}
+                        </span>
+                      </div>
+                    )}
+                    {matchWithStaff.coach && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-neutral-medium">Coach:</span>
+                        <span className="text-sm text-neutral-text font-semibold">
+                          {typeof matchWithStaff.coach === 'object' ? matchWithStaff.coach.name : 'Assigned'}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              
               {/* Summary Cards */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <div className="text-center p-4 bg-primary/10 rounded-lg">

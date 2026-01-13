@@ -397,17 +397,17 @@ export default function MessagesPage() {
               } else {
                 console.error('Error fetching users via API:', usersResponse.status)
                 // Fallback: try to fetch team managers (old behavior)
-                try {
-                  const teamManagersResponse = await fetch('/api/messages/team-managers', {
-                    cache: 'no-store',
-                  })
-                  
-                  if (teamManagersResponse.ok) {
-                    const teamManagersData = await teamManagersResponse.json()
-                    if (teamManagersData.teamManagers && teamManagersData.teamManagers.length > 0) {
-                      setTeamManagers(teamManagersData.teamManagers as UserProfile[])
+            try {
+              const teamManagersResponse = await fetch('/api/messages/team-managers', {
+                cache: 'no-store',
+              })
+              
+              if (teamManagersResponse.ok) {
+                const teamManagersData = await teamManagersResponse.json()
+                if (teamManagersData.teamManagers && teamManagersData.teamManagers.length > 0) {
+                  setTeamManagers(teamManagersData.teamManagers as UserProfile[])
                     }
-                  }
+                }
                 } catch (error) {
                   console.error('Error fetching team managers for player:', error)
                 }
@@ -478,7 +478,7 @@ export default function MessagesPage() {
         .eq('role', 'club_captain')
         .eq('linked_player_id', currentUserId)
         .maybeSingle()
-      
+
       if (clubCaptainProfile) {
         linkedClubCaptainUserId = clubCaptainProfile.user_id
         console.log(`Player ${currentUserId} has linked club captain account ${linkedClubCaptainUserId} - will exclude from dropdown`)
@@ -486,14 +486,14 @@ export default function MessagesPage() {
     }
     
     // Fetch all users (will filter by communication rules)
-    const { data: allUsersData } = await supabase
-      .from('user_profiles')
-      .select('user_id, name, role, email')
-      .neq('user_id', currentUserId)
-      .order('name', { ascending: true })
+      const { data: allUsersData } = await supabase
+        .from('user_profiles')
+        .select('user_id, name, role, email')
+        .neq('user_id', currentUserId)
+        .order('name', { ascending: true })
 
-    if (allUsersData) {
-      setAllUsers(allUsersData as UserProfile[])
+      if (allUsersData) {
+        setAllUsers(allUsersData as UserProfile[])
       
       // Filter by communication rules
       setPlayers(allUsersData.filter((u: UserProfile) => 
@@ -1476,7 +1476,7 @@ export default function MessagesPage() {
           } else if (composeData.recipient === 'all_team_managers') {
             recipientRole = 'data_admin'
           }
-        } else {
+      } else {
           // Send to individual recipient
           recipientId = composeData.recipientId
         }

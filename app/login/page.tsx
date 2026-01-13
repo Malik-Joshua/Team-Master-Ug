@@ -95,9 +95,9 @@ export default function LoginPage() {
           } catch (completeSignupError: any) {
             console.error('Error completing signup:', completeSignupError)
             setError('User profile not found and could not complete signup. Please contact an administrator.')
-            await supabase.auth.signOut()
-            setLoading(false)
-            return
+          await supabase.auth.signOut()
+          setLoading(false)
+          return
           }
         }
 

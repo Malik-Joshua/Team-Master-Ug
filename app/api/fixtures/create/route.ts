@@ -71,9 +71,12 @@ export async function POST(request: NextRequest) {
         tournament_type: tournament_type || 'friendly',
         venue: venue || null,
         notes: notes || null,
+        physio_id: physio_id || null,
+        team_manager_id: team_manager_id || null,
+        coach_id: coach_id || null,
         created_by: authUser.id,
       })
-      .select('id, match_date, opponent, venue, tournament_type')
+      .select('id, match_date, opponent, venue, tournament_type, physio_id, team_manager_id, coach_id')
       .single()
 
     if (matchError) {

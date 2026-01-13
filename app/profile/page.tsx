@@ -93,7 +93,7 @@ export default function ProfilePage() {
           phone: formData.phone || null,
           emergency_contact: formData.emergency_contact || null,
           emergency_phone: formData.emergency_phone || null,
-          birth_date: formData.birth_date || null,
+        birth_date: formData.birth_date || null,
         }),
       })
 
@@ -103,12 +103,12 @@ export default function ProfilePage() {
       }
 
       const result = await response.json()
-      setEditing(false)
+        setEditing(false)
       setUser({ ...user, ...result.data })
-      alert('Profile updated successfully!')
+        alert('Profile updated successfully!')
     } catch (error: any) {
       console.error('Error updating profile:', error)
-      alert(`Error updating profile: ${error.message}`)
+        alert(`Error updating profile: ${error.message}`)
     }
   }
 

@@ -270,12 +270,34 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Get match details
+    // Get match details including staff assignments
     const { data: matchDetails } = await supabaseAdmin
       .from('matches')
-      .select('id, match_date, opponent, venue, tournament_type')
+      .select('id, match_date, opponent, venue, tournament_type, physio_id, team_manager_id, coach_id')
       .eq('id', matchId)
       .single()
+
+    // Fetch staff names if assigned
+    if (matchDetails) {
+      const staffIds: string[] = []
+      if (matchDetails.physio_id) staffIds.push(matchDetails.physio_id)
+      if (matchDetails.team_manager_id) staffIds.push(matchDetails.team_manager_id)
+      if (matchDetails.coach_id) staffIds.push(matchDetails.coach_id)
+
+      if (staffIds.length > 0) {
+        const { data: staffProfiles } = await supabaseAdmin
+          .from('user_profiles')
+          .select('user_id, name')
+          .in('user_id', staffIds)
+
+        if (staffProfiles) {
+          const staffMap = new Map(staffProfiles.map((p: any) => [p.user_id, p.name]))
+          matchDetails.physio = matchDetails.physio_id ? { name: staffMap.get(matchDetails.physio_id) || 'Unknown' } : null
+          matchDetails.team_manager = matchDetails.team_manager_id ? { name: staffMap.get(matchDetails.team_manager_id) || 'Unknown' } : null
+          matchDetails.coach = matchDetails.coach_id ? { name: staffMap.get(matchDetails.coach_id) || 'Unknown' } : null
+        }
+      }
+    }
 
     // Format selections into starting and substitutes
     const starting = selections?.filter((s: any) => s.is_starting && !s.is_substitute) || []

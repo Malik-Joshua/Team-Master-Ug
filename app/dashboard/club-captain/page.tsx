@@ -135,22 +135,32 @@ export default function ClubCaptainDashboard() {
           console.error('Error in matches loading:', matchesErr)
         }
 
-        // Load recent gym schedules
+        // Load recent gym schedules using API route to bypass RLS
         try {
-          const { data: gymSchedules, error: gymError } = await supabase
-            .from('gym_schedules')
-            .select(`
-              *,
-              coach:user_profiles!gym_schedules_coach_id_fkey(name)
-            `)
-            .order('schedule_date', { ascending: false })
-            .limit(5)
-
-          if (!gymError && gymSchedules) {
-            setRecentGymSchedules(gymSchedules)
+          const gymSchedulesResponse = await fetch('/api/gym-schedules', {
+            cache: 'no-store',
+          })
+          
+          if (gymSchedulesResponse.ok) {
+            const gymSchedulesData = await gymSchedulesResponse.json()
+            if (gymSchedulesData.schedules && gymSchedulesData.schedules.length > 0) {
+              // Get the 5 most recent schedules
+              const recentSchedules = gymSchedulesData.schedules
+                .sort((a: any, b: any) => 
+                  new Date(b.schedule_date).getTime() - new Date(a.schedule_date).getTime()
+                )
+                .slice(0, 5)
+              setRecentGymSchedules(recentSchedules)
+            } else {
+              setRecentGymSchedules([])
+            }
+          } else {
+            console.error('Error fetching gym schedules via API:', gymSchedulesResponse.status)
+            setRecentGymSchedules([])
           }
         } catch (gymErr) {
           console.error('Error loading gym schedules:', gymErr)
+          setRecentGymSchedules([])
         }
 
         // Load recent training schedules

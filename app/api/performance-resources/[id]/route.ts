@@ -67,6 +67,9 @@ export async function PUT(
       }
     })
 
+    // Build update object
+    const updateData: any = {}
+    
     // Process links: use links array if provided, otherwise convert attachment_url to links format
     if (links !== undefined) {
       if (Array.isArray(links) && links.length > 0) {
@@ -80,9 +83,6 @@ export async function PUT(
         updateData.links = []
       }
     }
-
-    // Build update object
-    const updateData: any = {}
     if (title !== undefined) updateData.title = title
     if (description !== undefined) updateData.description = description
     if (resource_type !== undefined) updateData.resource_type = resource_type

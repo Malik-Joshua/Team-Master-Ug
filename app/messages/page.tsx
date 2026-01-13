@@ -281,10 +281,17 @@ export default function MessagesPage() {
                       u.user_id !== authUser.id &&
                       u.role === 'finance_admin' && allowedRecipientRoles.includes(u.role as UserRole)
                     ))
-                    setAdmins(allUsersList.filter((u: UserProfile) => 
+                    // Filter admins - only include general admins (not finance_admin or data_admin)
+                    const filteredAdmins = allUsersList.filter((u: UserProfile) => 
                       u.user_id !== authUser.id &&
                       u.role === 'admin' && allowedRecipientRoles.includes(u.role as UserRole)
-                    ))
+                    )
+                    setAdmins(filteredAdmins)
+                    console.log(`Loaded ${filteredAdmins.length} admin(s) for ${profile.role}`, {
+                      allowedRecipientRoles,
+                      totalAdmins: allUsersList.filter(u => u.role === 'admin').length,
+                      filteredAdmins: filteredAdmins.map(a => ({ id: a.user_id, name: a.name, role: a.role }))
+                    })
                     // Filter club captains if allowed and exclude current user
                     // Also exclude linked club captain account if user is a player
                     setClubCaptains(allUsersList.filter((u: UserProfile) => 

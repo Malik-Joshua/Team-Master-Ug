@@ -329,10 +329,7 @@ export default function MessagesPage() {
               await fetchUsersDirectly(supabase, authUser.id, profile.role)
             }
           } else if (profile.role === 'player') {
-            // Players can message: club captain, data manager, coach, physio
-            const allowedRecipientRoles = getAllowedRecipients('player')
-            
-            // Check if player has a linked club captain account to exclude from dropdown
+            // Check if player has a linked club captain account
             let linkedClubCaptainUserId: string | null = null
             const { data: clubCaptainProfile } = await supabase
               .from('user_profiles')
@@ -341,9 +338,14 @@ export default function MessagesPage() {
               .eq('linked_player_id', authUser.id)
               .maybeSingle()
             
+            // If player has a linked club captain account, use club_captain communication rules
+            // Otherwise, use player communication rules
+            const effectiveRole: UserRole = clubCaptainProfile ? 'club_captain' : 'player'
+            const allowedRecipientRoles = getAllowedRecipients(effectiveRole)
+            
             if (clubCaptainProfile) {
               linkedClubCaptainUserId = clubCaptainProfile.user_id
-              console.log(`Player ${authUser.id} has linked club captain account ${linkedClubCaptainUserId} - will exclude from dropdown`)
+              console.log(`Player ${authUser.id} has linked club captain account ${linkedClubCaptainUserId} - using club_captain communication rules`)
             }
             
             // Use API route to fetch all users (bypasses RLS)
@@ -373,7 +375,24 @@ export default function MessagesPage() {
                     u.user_id !== authUser.id &&
                     u.role === 'physio' && allowedRecipientRoles.includes(u.role as UserRole)
                   ))
-                  console.log(`Loaded allowed recipients for player based on communication rules`)
+                  // If using club_captain rules, also include admins
+                  if (effectiveRole === 'club_captain') {
+                    const adminUsers = allUsersList.filter((u: UserProfile) => 
+                      u.user_id !== authUser.id && u.role === 'admin'
+                    )
+                    const filteredAdmins = allowedRecipientRoles.includes('admin' as UserRole)
+                      ? adminUsers
+                      : []
+                    setAdmins(filteredAdmins)
+                    console.log(`[Player with club_captain] Admin filtering:`, {
+                      allowedRecipientRoles,
+                      hasAdmin: allowedRecipientRoles.includes('admin'),
+                      totalAdminUsers: adminUsers.length,
+                      filteredAdmins: filteredAdmins.length,
+                      adminNames: filteredAdmins.map(a => a.name)
+                    })
+                  }
+                  console.log(`Loaded allowed recipients for ${effectiveRole} based on communication rules`)
                 }
               } else {
                 console.error('Error fetching users via API:', usersResponse.status)
@@ -1216,7 +1235,25 @@ export default function MessagesPage() {
           console.error('Error reloading messages:', reloadError)
         }
       } else if (user?.role === 'player') {
-        // Players can send to: club captain, data manager, coach, physio
+        // Check if player has a linked club captain account
+        // If so, use club_captain communication rules instead of player rules
+        let effectiveRole: UserRole = 'player'
+        try {
+          const { data: clubCaptainProfile } = await supabase
+            .from('user_profiles')
+            .select('user_id')
+            .eq('role', 'club_captain')
+            .eq('linked_player_id', authUser.id)
+            .maybeSingle()
+          
+          if (clubCaptainProfile) {
+            effectiveRole = 'club_captain'
+            console.log(`Player ${authUser.id} has linked club captain account - using club_captain communication rules`)
+          }
+        } catch (checkError) {
+          console.error('Error checking for linked club captain account:', checkError)
+        }
+
         if (!composeData.recipientId) {
           alert('Please select a recipient')
           return
@@ -1243,8 +1280,8 @@ export default function MessagesPage() {
           return
         }
 
-        // Validate communication rules
-        if (!canSendMessage(user.role as UserRole, recipientProfile.role as UserRole)) {
+        // Validate communication rules using effective role (club_captain if player has linked account)
+        if (!canSendMessage(effectiveRole, recipientProfile.role as UserRole)) {
           alert(`You cannot send messages to ${getRoleDisplayName(recipientProfile.role as UserRole)}. Please check the communication hierarchy.`)
           return
         }
@@ -2344,7 +2381,9 @@ export default function MessagesPage() {
                       Select Recipient
                     </label>
                     <p className="text-xs text-neutral-medium mb-2">
-                      You can send to club captain, team manager, coach, and physio
+                      {admins && admins.length > 0 
+                        ? 'You can send to administrators, club captain, team manager, coach, and physio'
+                        : 'You can send to club captain, team manager, coach, and physio'}
                     </p>
                     <select
                       value={composeData.recipientId}
@@ -2352,6 +2391,15 @@ export default function MessagesPage() {
                       className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                     >
                       <option value="">Select recipient...</option>
+                      {admins && admins.filter(a => a.role !== 'finance_admin').length > 0 && (
+                        <optgroup label="Administrators">
+                          {admins.filter(a => a.role !== 'finance_admin').map((admin) => (
+                            <option key={admin.user_id} value={admin.user_id}>
+                              {admin.name} (Admin)
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
                       {clubCaptains.length > 0 && (
                         <optgroup label="Club Captains">
                           {clubCaptains.map((captain) => (

@@ -123,10 +123,47 @@ export async function POST(
     const prefix = rolePrefixes['club_captain'] || 'USR'
     const uniqueId = `${prefix}${Date.now()}${Math.random().toString(36).substring(2, 6).toUpperCase()}`
 
-    // Generate a system email for the club captain profile
+    // Clean up any orphaned auth users from previous club captain accounts for this player
+    // This handles the case where a player was demoted but the auth user wasn't deleted
+    try {
+      // Check if there are any orphaned auth users with system emails for this player
+      // We'll try to find and delete them by checking user_metadata
+      const { data: allUsers } = await supabaseAdmin.auth.admin.listUsers()
+      if (allUsers?.users) {
+        for (const user of allUsers.users) {
+          // Check if this is a system account for this player
+          if (
+            user.user_metadata?.is_system_account === true &&
+            user.user_metadata?.original_player_id === playerId &&
+            user.email?.includes('@system.team-master.local')
+          ) {
+            // Check if profile still exists
+            const { data: orphanedProfile } = await supabaseAdmin
+              .from('user_profiles')
+              .select('id')
+              .eq('user_id', user.id)
+              .maybeSingle()
+            
+            // If no profile exists, this is an orphaned auth user - delete it
+            if (!orphanedProfile) {
+              console.log(`Cleaning up orphaned auth user: ${user.id} (${user.email})`)
+              await supabaseAdmin.auth.admin.deleteUser(user.id)
+            }
+          }
+        }
+      }
+    } catch (cleanupError) {
+      console.error('Error during cleanup of orphaned auth users:', cleanupError)
+      // Continue anyway - this is not critical
+    }
+
+    // Generate a unique system email for the club captain profile
+    // Include timestamp and random string to ensure uniqueness
     // This auth user won't be used for login - the player logs in with their player account
-    const systemEmail = `club-captain-${playerId.substring(0, 8)}@system.team-master.local`
-    const systemPassword = `System${Date.now()}${Math.random().toString(36).substring(2, 12)}`
+    const timestamp = Date.now()
+    const randomStr = Math.random().toString(36).substring(2, 10).toUpperCase()
+    const systemEmail = `club-captain-${playerId.substring(0, 8)}-${timestamp}-${randomStr}@system.team-master.local`
+    const systemPassword = `System${timestamp}${Math.random().toString(36).substring(2, 12)}`
     
     // Create auth user for club captain profile (system account, not for login)
     const { data: newAuthUser, error: authCreateError } = await supabaseAdmin.auth.admin.createUser({
@@ -256,6 +293,15 @@ export async function DELETE(
       )
     }
 
+    // Delete the auth user first (before profile to avoid foreign key issues)
+    const { error: deleteAuthError } = await supabaseAdmin.auth.admin.deleteUser(clubCaptainProfile.user_id)
+    
+    if (deleteAuthError) {
+      console.error('Error deleting club captain auth user:', deleteAuthError)
+      // Continue with profile deletion even if auth deletion fails
+      // (auth user might already be deleted)
+    }
+
     // Delete the club captain profile
     const { error: deleteProfileError } = await supabaseAdmin
       .from('user_profiles')
@@ -269,10 +315,6 @@ export async function DELETE(
         { status: 500 }
       )
     }
-
-    // Optionally delete the auth user (or keep it for audit)
-    // For now, we'll keep the auth user but it won't be used
-    // await supabaseAdmin.auth.admin.deleteUser(clubCaptainProfile.user_id)
 
     return NextResponse.json({
       success: true,

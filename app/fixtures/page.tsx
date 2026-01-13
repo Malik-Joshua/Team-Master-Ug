@@ -1208,11 +1208,6 @@ export default function FixturesPage() {
                     />
                   </div>
 
-                  {/* TEST: This should be visible */}
-                  <div className="bg-yellow-200 p-2 mb-4 text-center font-bold">
-                    ⚠️ If you see this, the form is rendering correctly
-                  </div>
-
                   {/* Staff Assignment Section */}
                   <div className="border-t-2 border-primary/30 pt-6 mt-6 bg-gray-50 rounded-lg p-4">
                     <h3 className="text-xl font-bold text-neutral-text mb-4 flex items-center gap-2">

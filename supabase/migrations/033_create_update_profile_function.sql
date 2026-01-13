@@ -3,11 +3,11 @@
 
 CREATE OR REPLACE FUNCTION update_user_profile(
   p_user_id UUID,
-  p_name TEXT,
-  p_phone TEXT,
-  p_emergency_contact TEXT,
-  p_emergency_phone TEXT,
-  p_birth_date DATE
+  p_name TEXT DEFAULT NULL,
+  p_phone TEXT DEFAULT NULL,
+  p_emergency_contact TEXT DEFAULT NULL,
+  p_emergency_phone TEXT DEFAULT NULL,
+  p_birth_date DATE DEFAULT NULL
 )
 RETURNS TABLE (
   id UUID,
@@ -31,19 +31,25 @@ SET search_path = public
 AS $$
 DECLARE
   v_updated_profile RECORD;
+  v_current_profile RECORD;
 BEGIN
+  -- Get current profile to check what fields exist
+  SELECT * INTO v_current_profile FROM user_profiles WHERE user_id = p_user_id;
+  
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'User profile not found';
+  END IF;
+  
   -- Build dynamic update query
-  -- Only update fields that are provided (not NULL)
+  -- Update only fields that are explicitly provided (not NULL)
+  -- Use COALESCE to keep existing value if parameter is NULL
   UPDATE user_profiles
   SET
-    name = CASE WHEN p_name IS NOT NULL THEN p_name ELSE name END,
-    phone = CASE WHEN p_phone IS NOT NULL THEN p_phone ELSE phone END,
-    emergency_contact = CASE WHEN p_emergency_contact IS NOT NULL THEN p_emergency_contact ELSE emergency_contact END,
-    emergency_phone = CASE WHEN p_emergency_phone IS NOT NULL THEN p_emergency_phone ELSE emergency_phone END,
-    birth_date = CASE WHEN p_birth_date IS NOT NULL THEN p_birth_date 
-                      WHEN p_birth_date IS NULL AND (SELECT birth_date FROM user_profiles WHERE user_id = p_user_id) IS NOT NULL 
-                      THEN NULL 
-                      ELSE birth_date END,
+    name = COALESCE(p_name, name),
+    phone = COALESCE(p_phone, phone),
+    emergency_contact = COALESCE(p_emergency_contact, emergency_contact),
+    emergency_phone = COALESCE(p_emergency_phone, emergency_phone),
+    birth_date = COALESCE(p_birth_date, birth_date),
     updated_at = NOW()
   WHERE user_id = p_user_id
   RETURNING * INTO v_updated_profile;

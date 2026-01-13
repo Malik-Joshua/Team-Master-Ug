@@ -273,10 +273,21 @@ export default function MessagesPage() {
                       u.user_id !== authUser.id &&
                       u.role === 'physio' && allowedRecipientRoles.includes(u.role as UserRole)
                     ))
-                    setTeamManagers(allUsersList.filter((u: UserProfile) => 
-                      u.user_id !== authUser.id &&
-                      u.role === 'data_admin' && allowedRecipientRoles.includes(u.role as UserRole)
-                    ))
+                    // Filter team managers (data_admin) - check if 'data_admin' role is allowed
+                    const teamManagerUsers = allUsersList.filter((u: UserProfile) => 
+                      u.user_id !== authUser.id && u.role === 'data_admin'
+                    )
+                    const filteredTeamManagers = allowedRecipientRoles.includes('data_admin' as UserRole)
+                      ? teamManagerUsers
+                      : []
+                    setTeamManagers(filteredTeamManagers)
+                    console.log(`[${profile.role}] Team Manager filtering:`, {
+                      allowedRecipientRoles,
+                      hasDataAdmin: allowedRecipientRoles.includes('data_admin'),
+                      totalTeamManagerUsers: teamManagerUsers.length,
+                      filteredTeamManagers: filteredTeamManagers.length,
+                      teamManagerNames: filteredTeamManagers.map(t => t.name)
+                    })
                     setFinanceAdmins(allUsersList.filter((u: UserProfile) => 
                       u.user_id !== authUser.id &&
                       u.role === 'finance_admin' && allowedRecipientRoles.includes(u.role as UserRole)

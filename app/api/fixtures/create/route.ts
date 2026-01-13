@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { match_date, opponent, tournament_type, venue, notes } = body
+    const { match_date, opponent, tournament_type, venue, notes, physio_id, team_manager_id, coach_id } = body
 
     // Validate required fields
     if (!match_date || !opponent) {

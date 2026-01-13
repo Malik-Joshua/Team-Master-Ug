@@ -81,28 +81,34 @@ export default function ProfilePage() {
       return
     }
 
-    const supabase = createClient()
-    const { data: { user: authUser } } = await supabase.auth.getUser()
+    // Use API route to update profile (bypasses RLS and schema cache issues)
+    try {
+      const response = await fetch('/api/profile/update', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          phone: formData.phone || null,
+          emergency_contact: formData.emergency_contact || null,
+          emergency_phone: formData.emergency_phone || null,
+          birth_date: formData.birth_date || null,
+        }),
+      })
 
-    if (authUser) {
-      // Format birth_date properly (convert empty string to null)
-      const updateData = {
-        ...formData,
-        birth_date: formData.birth_date || null,
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to update profile')
       }
-      
-      const { error } = await supabase
-        .from('user_profiles')
-        .update(updateData)
-        .eq('user_id', authUser.id)
 
-      if (!error) {
-        setEditing(false)
-        setUser({ ...user, ...updateData })
-        alert('Profile updated successfully!')
-      } else {
-        alert(`Error updating profile: ${error.message}`)
-      }
+      const result = await response.json()
+      setEditing(false)
+      setUser({ ...user, ...result.data })
+      alert('Profile updated successfully!')
+    } catch (error: any) {
+      console.error('Error updating profile:', error)
+      alert(`Error updating profile: ${error.message}`)
     }
   }
 

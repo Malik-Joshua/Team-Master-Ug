@@ -39,11 +39,12 @@ export async function GET(request: NextRequest) {
     const todayMonth = today.getMonth() + 1 // JavaScript months are 0-indexed
     const todayDay = today.getDate()
 
-    // Fetch all users with birth dates
+    // Fetch all players with birth dates (birthday notifications are for players)
     const { data: profiles, error } = await supabaseAdmin
       .from('user_profiles')
-      .select('user_id, name, birth_date')
+      .select('user_id, name, birth_date, role')
       .not('birth_date', 'is', null)
+      .eq('role', 'player')
 
     if (error) {
       console.error('Error fetching profiles:', error)

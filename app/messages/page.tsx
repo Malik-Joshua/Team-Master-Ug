@@ -2466,19 +2466,31 @@ export default function MessagesPage() {
               ) : user?.role === 'finance_admin' ? (
                 <div>
                   <label className="block text-sm font-medium text-neutral-medium mb-2">
-                    To (General Admin)
+                    Select Recipient
                   </label>
+                  <p className="text-xs text-neutral-medium mb-2">
+                    You can send to general administrators and team managers
+                  </p>
                   <select
                     value={composeData.recipientId}
                     onChange={(e) => setComposeData({ ...composeData, recipientId: e.target.value, recipient: '' })}
                     className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                   >
-                    <option value="">Select general admin...</option>
+                    <option value="">Select recipient...</option>
                     {admins.length > 0 && (
                       <optgroup label="General Administrators">
                         {admins.map((admin) => (
                           <option key={admin.user_id} value={admin.user_id}>
                             {admin.name} (Admin)
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                    {teamManagers.length > 0 && (
+                      <optgroup label="Team Managers">
+                        {teamManagers.map((manager) => (
+                          <option key={manager.user_id} value={manager.user_id}>
+                            {manager.name} (Team Manager)
                           </option>
                         ))}
                       </optgroup>

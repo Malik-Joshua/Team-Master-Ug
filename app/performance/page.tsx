@@ -932,15 +932,65 @@ export default function PerformancePage() {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-neutral-text mb-2">
-                    Attachment URL (optional)
+                    External Links (optional)
                   </label>
-                  <input
-                    type="url"
-                    value={resourceForm.attachment_url}
-                    onChange={(e) => setResourceForm({ ...resourceForm, attachment_url: e.target.value })}
-                    className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                    placeholder="https://example.com/file.pdf"
-                  />
+                  <div className="space-y-3">
+                    {resourceForm.links.map((link, index) => (
+                      <div key={index} className="flex gap-2 items-start">
+                        <div className="flex-1 grid grid-cols-2 gap-2">
+                          <input
+                            type="text"
+                            value={link.label}
+                            onChange={(e) => {
+                              const newLinks = [...resourceForm.links]
+                              newLinks[index].label = e.target.value
+                              setResourceForm({ ...resourceForm, links: newLinks })
+                            }}
+                            className="px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                            placeholder="Link label (e.g., PDF, Video)"
+                          />
+                          <input
+                            type="url"
+                            value={link.url}
+                            onChange={(e) => {
+                              const newLinks = [...resourceForm.links]
+                              newLinks[index].url = e.target.value
+                              setResourceForm({ ...resourceForm, links: newLinks })
+                            }}
+                            className="px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                            placeholder="https://example.com/file.pdf"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newLinks = resourceForm.links.filter((_, i) => i !== index)
+                            setResourceForm({ ...resourceForm, links: newLinks })
+                          }}
+                          className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Remove link"
+                        >
+                          <X className="w-5 h-5" />
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setResourceForm({
+                          ...resourceForm,
+                          links: [...resourceForm.links, { url: '', label: '' }]
+                        })
+                      }}
+                      className="w-full px-4 py-2 border-2 border-dashed border-neutral-light rounded-lg text-neutral-text hover:border-primary hover:text-primary transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Plus className="w-5 h-5" />
+                      Add Link
+                    </button>
+                  </div>
+                  <p className="text-xs text-neutral-text mt-2">
+                    Add multiple links that players can click on. Each link needs a label and URL.
+                  </p>
                 </div>
                 {(user?.role === 'admin' || user?.role === 'coach') && (
                   <div className="flex items-center gap-2">
@@ -1402,15 +1452,65 @@ export default function PerformancePage() {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-neutral-text mb-2">
-                    Attachment URL (optional)
+                    External Links (optional)
                   </label>
-                  <input
-                    type="url"
-                    value={resourceForm.attachment_url}
-                    onChange={(e) => setResourceForm({ ...resourceForm, attachment_url: e.target.value })}
-                    className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                    placeholder="https://example.com/file.pdf"
-                  />
+                  <div className="space-y-3">
+                    {resourceForm.links.map((link, index) => (
+                      <div key={index} className="flex gap-2 items-start">
+                        <div className="flex-1 grid grid-cols-2 gap-2">
+                          <input
+                            type="text"
+                            value={link.label}
+                            onChange={(e) => {
+                              const newLinks = [...resourceForm.links]
+                              newLinks[index].label = e.target.value
+                              setResourceForm({ ...resourceForm, links: newLinks })
+                            }}
+                            className="px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                            placeholder="Link label (e.g., PDF, Video)"
+                          />
+                          <input
+                            type="url"
+                            value={link.url}
+                            onChange={(e) => {
+                              const newLinks = [...resourceForm.links]
+                              newLinks[index].url = e.target.value
+                              setResourceForm({ ...resourceForm, links: newLinks })
+                            }}
+                            className="px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                            placeholder="https://example.com/file.pdf"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newLinks = resourceForm.links.filter((_, i) => i !== index)
+                            setResourceForm({ ...resourceForm, links: newLinks })
+                          }}
+                          className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Remove link"
+                        >
+                          <X className="w-5 h-5" />
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setResourceForm({
+                          ...resourceForm,
+                          links: [...resourceForm.links, { url: '', label: '' }]
+                        })
+                      }}
+                      className="w-full px-4 py-2 border-2 border-dashed border-neutral-light rounded-lg text-neutral-text hover:border-primary hover:text-primary transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Plus className="w-5 h-5" />
+                      Add Link
+                    </button>
+                  </div>
+                  <p className="text-xs text-neutral-text mt-2">
+                    Add multiple links that players can click on. Each link needs a label and URL.
+                  </p>
                 </div>
                 {(user?.role === 'admin' || user?.role === 'coach') && (
                   <div className="flex items-center gap-2">
@@ -1853,15 +1953,65 @@ export default function PerformancePage() {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-neutral-text mb-2">
-                    Attachment URL (optional)
+                    External Links (optional)
                   </label>
-                  <input
-                    type="url"
-                    value={resourceForm.attachment_url}
-                    onChange={(e) => setResourceForm({ ...resourceForm, attachment_url: e.target.value })}
-                    className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                    placeholder="https://example.com/file.pdf"
-                  />
+                  <div className="space-y-3">
+                    {resourceForm.links.map((link, index) => (
+                      <div key={index} className="flex gap-2 items-start">
+                        <div className="flex-1 grid grid-cols-2 gap-2">
+                          <input
+                            type="text"
+                            value={link.label}
+                            onChange={(e) => {
+                              const newLinks = [...resourceForm.links]
+                              newLinks[index].label = e.target.value
+                              setResourceForm({ ...resourceForm, links: newLinks })
+                            }}
+                            className="px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                            placeholder="Link label (e.g., PDF, Video)"
+                          />
+                          <input
+                            type="url"
+                            value={link.url}
+                            onChange={(e) => {
+                              const newLinks = [...resourceForm.links]
+                              newLinks[index].url = e.target.value
+                              setResourceForm({ ...resourceForm, links: newLinks })
+                            }}
+                            className="px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                            placeholder="https://example.com/file.pdf"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newLinks = resourceForm.links.filter((_, i) => i !== index)
+                            setResourceForm({ ...resourceForm, links: newLinks })
+                          }}
+                          className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Remove link"
+                        >
+                          <X className="w-5 h-5" />
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setResourceForm({
+                          ...resourceForm,
+                          links: [...resourceForm.links, { url: '', label: '' }]
+                        })
+                      }}
+                      className="w-full px-4 py-2 border-2 border-dashed border-neutral-light rounded-lg text-neutral-text hover:border-primary hover:text-primary transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Plus className="w-5 h-5" />
+                      Add Link
+                    </button>
+                  </div>
+                  <p className="text-xs text-neutral-text mt-2">
+                    Add multiple links that players can click on. Each link needs a label and URL.
+                  </p>
                 </div>
                 {(user?.role === 'admin' || user?.role === 'coach') && (
                   <div className="flex items-center gap-2">
@@ -2562,15 +2712,65 @@ export default function PerformancePage() {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-neutral-text mb-2">
-                    Attachment URL (optional)
+                    External Links (optional)
                   </label>
-                  <input
-                    type="url"
-                    value={resourceForm.attachment_url}
-                    onChange={(e) => setResourceForm({ ...resourceForm, attachment_url: e.target.value })}
-                    className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                    placeholder="https://example.com/file.pdf"
-                  />
+                  <div className="space-y-3">
+                    {resourceForm.links.map((link, index) => (
+                      <div key={index} className="flex gap-2 items-start">
+                        <div className="flex-1 grid grid-cols-2 gap-2">
+                          <input
+                            type="text"
+                            value={link.label}
+                            onChange={(e) => {
+                              const newLinks = [...resourceForm.links]
+                              newLinks[index].label = e.target.value
+                              setResourceForm({ ...resourceForm, links: newLinks })
+                            }}
+                            className="px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                            placeholder="Link label (e.g., PDF, Video)"
+                          />
+                          <input
+                            type="url"
+                            value={link.url}
+                            onChange={(e) => {
+                              const newLinks = [...resourceForm.links]
+                              newLinks[index].url = e.target.value
+                              setResourceForm({ ...resourceForm, links: newLinks })
+                            }}
+                            className="px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                            placeholder="https://example.com/file.pdf"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newLinks = resourceForm.links.filter((_, i) => i !== index)
+                            setResourceForm({ ...resourceForm, links: newLinks })
+                          }}
+                          className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Remove link"
+                        >
+                          <X className="w-5 h-5" />
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setResourceForm({
+                          ...resourceForm,
+                          links: [...resourceForm.links, { url: '', label: '' }]
+                        })
+                      }}
+                      className="w-full px-4 py-2 border-2 border-dashed border-neutral-light rounded-lg text-neutral-text hover:border-primary hover:text-primary transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Plus className="w-5 h-5" />
+                      Add Link
+                    </button>
+                  </div>
+                  <p className="text-xs text-neutral-text mt-2">
+                    Add multiple links that players can click on. Each link needs a label and URL.
+                  </p>
                 </div>
                 {(user?.role === 'admin' || user?.role === 'coach') && (
                   <div className="flex items-center gap-2">

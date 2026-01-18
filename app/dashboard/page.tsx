@@ -53,6 +53,7 @@ export default function DashboardPage() {
     totalRevenue: 0,
     totalExpenses: 0,
     trainingSessionsAttended: 0,
+    matchesAttended: 0,
   })
   const [trainingSessionsData, setTrainingSessionsData] = useState<any[]>([])
   const [gymStats, setGymStats] = useState({
@@ -223,9 +224,16 @@ export default function DashboardPage() {
                 const { db } = await import('@/lib/db-helpers')
                 const sessionCount = await db.getCoachTrainingSessionsCount(authUser.id)
                 const sessions = await db.getCoachTrainingSessions(authUser.id)
+                const { count: matchAttendanceCount } = await supabase
+                  .from('match_staff_attendance')
+                  .select('match_id, matches!inner(status)', { count: 'exact', head: true })
+                  .eq('staff_id', authUser.id)
+                  .eq('attendance_status', 'P')
+                  .eq('matches.status', 'played')
                 setStats(prev => ({
                   ...prev,
                   trainingSessionsAttended: sessionCount,
+                  matchesAttended: matchAttendanceCount || 0,
                 }))
                 setTrainingSessionsData(sessions)
                 
@@ -1334,6 +1342,12 @@ export default function DashboardPage() {
               value={stats.trainingSessionsAttended}
               icon={Calendar}
               iconColor="bg-info"
+            />
+            <StatCard
+              title="Matches Attended"
+              value={stats.matchesAttended}
+              icon={Trophy}
+              iconColor="bg-warning"
             />
           </div>
 

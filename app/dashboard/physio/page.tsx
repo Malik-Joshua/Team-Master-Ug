@@ -266,9 +266,14 @@ export default function PhysioDashboard() {
       try {
         const { db } = await import('@/lib/db-helpers')
         const sessionsCount = await db.getTotalTrainingSessions()
-        const matchesCount = await db.getTotalMatches()
         setTrainingSessionsAttended(sessionsCount)
-        setGamesAttended(matchesCount)
+        const { count: attendedMatches } = await supabase
+          .from('match_staff_attendance')
+          .select('match_id, matches!inner(status)', { count: 'exact', head: true })
+          .eq('staff_id', authUser.id)
+          .eq('attendance_status', 'P')
+          .eq('matches.status', 'played')
+        setGamesAttended(attendedMatches || 0)
       } catch (error) {
         console.error('Error loading physio stats:', error)
       }

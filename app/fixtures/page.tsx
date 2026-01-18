@@ -104,6 +104,16 @@ export default function FixturesPage() {
   const [selectedMatchForStats, setSelectedMatchForStats] = useState<string>('')
   const [players, setPlayers] = useState<any[]>([])
   const [teamSelectionsForStats, setTeamSelectionsForStats] = useState<any[]>([])
+  const [matchStaff, setMatchStaff] = useState<{
+    coach: { id: string; name: string } | null
+    physio: { id: string; name: string } | null
+    team_manager: { id: string; name: string } | null
+  }>({
+    coach: null,
+    physio: null,
+    team_manager: null,
+  })
+  const [staffAttendance, setStaffAttendance] = useState<Record<string, boolean>>({})
   // For admin match summaries
   const [matchSummaries, setMatchSummaries] = useState<Array<{
     matchId: string
@@ -705,6 +715,26 @@ export default function FixturesPage() {
 
       if (matchError) throw matchError
 
+      // Save staff attendance for this match
+      const assignedStaff = [matchStaff.coach, matchStaff.physio, matchStaff.team_manager].filter(Boolean) as Array<{
+        id: string
+        name: string
+      }>
+      if (assignedStaff.length > 0) {
+        const attendanceRecords = assignedStaff.map((staff) => ({
+          match_id: selectedMatchForStats,
+          staff_id: staff.id,
+          attendance_status: staffAttendance[staff.id] === false ? 'A' : 'P',
+          recorded_by: authUser.id,
+        }))
+
+        const { error: attendanceError } = await supabase
+          .from('match_staff_attendance')
+          .upsert(attendanceRecords, { onConflict: 'match_id,staff_id' })
+
+        if (attendanceError) throw attendanceError
+      }
+
       // Get selected team for this match (if exists)
       const { data: teamSelectionData } = await supabase
         .from('fixture_team_selections')
@@ -768,6 +798,8 @@ export default function FixturesPage() {
       })
       setPlayerStats({})
       setSelectedMatchForStats('')
+      setMatchStaff({ coach: null, physio: null, team_manager: null })
+      setStaffAttendance({})
       
       // Reload matches
       const { data: matchesData, error: reloadError } = await supabase
@@ -801,6 +833,7 @@ export default function FixturesPage() {
   useEffect(() => {
     const loadDataForMatchStats = async () => {
       if (!showMatchForm) return
+      const supabase = createClient()
 
       // Load players using API route to bypass RLS
       try {
@@ -820,7 +853,6 @@ export default function FixturesPage() {
         } else {
           console.error('Error loading players from API:', response.statusText)
           // Fallback to direct query
-          const supabase = createClient()
           const { data: playersData, error: playersError } = await supabase
             .from('user_profiles')
             .select('user_id, name')
@@ -834,7 +866,6 @@ export default function FixturesPage() {
       } catch (error) {
         console.error('Error loading players:', error)
         // Fallback to direct query
-        const supabase = createClient()
         try {
           const { data: playersData, error: playersError } = await supabase
             .from('user_profiles')
@@ -862,13 +893,49 @@ export default function FixturesPage() {
             } else {
               setTeamSelectionsForStats([])
             }
+
+            const matchDetails = data.match
+            const nextMatchStaff = {
+              coach: matchDetails?.coach_id
+                ? { id: matchDetails.coach_id, name: matchDetails.coach?.name || 'Coach' }
+                : null,
+              physio: matchDetails?.physio_id
+                ? { id: matchDetails.physio_id, name: matchDetails.physio?.name || 'Physio' }
+                : null,
+              team_manager: matchDetails?.team_manager_id
+                ? { id: matchDetails.team_manager_id, name: matchDetails.team_manager?.name || 'Team Manager' }
+                : null,
+            }
+            setMatchStaff(nextMatchStaff)
+
+            const { data: staffAttendanceRows } = await supabase
+              .from('match_staff_attendance')
+              .select('staff_id, attendance_status')
+              .eq('match_id', selectedMatchForStats)
+
+            const attendanceMap: Record<string, boolean> = {}
+            staffAttendanceRows?.forEach((row: any) => {
+              attendanceMap[row.staff_id] = row.attendance_status === 'P'
+            })
+
+            ;[nextMatchStaff.coach, nextMatchStaff.physio, nextMatchStaff.team_manager].forEach((staff) => {
+              if (staff && attendanceMap[staff.id] === undefined) {
+                attendanceMap[staff.id] = true
+              }
+            })
+
+            setStaffAttendance(attendanceMap)
           }
         } catch (error) {
           console.error('Error loading team selection:', error)
           setTeamSelectionsForStats([])
+          setMatchStaff({ coach: null, physio: null, team_manager: null })
+          setStaffAttendance({})
         }
       } else {
         setTeamSelectionsForStats([])
+        setMatchStaff({ coach: null, physio: null, team_manager: null })
+        setStaffAttendance({})
       }
     }
 
@@ -1325,6 +1392,8 @@ export default function FixturesPage() {
                         })
                         setPlayerStats({})
                         setSelectedMatchForStats('')
+                        setMatchStaff({ coach: null, physio: null, team_manager: null })
+                        setStaffAttendance({})
                       }}
                       className="text-neutral-medium hover:text-neutral-text"
                     >
@@ -1477,6 +1546,68 @@ export default function FixturesPage() {
                     </div>
                   </div>
 
+                  {/* Staff Attendance */}
+                  <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                    <h3 className="text-lg font-semibold text-neutral-text mb-4">Staff Attendance</h3>
+                    {(matchStaff.coach || matchStaff.physio || matchStaff.team_manager) ? (
+                      <div className="space-y-3">
+                        {matchStaff.coach && (
+                          <label className="flex items-center gap-3 text-sm text-neutral-text">
+                            <input
+                              type="checkbox"
+                              checked={staffAttendance[matchStaff.coach.id] ?? true}
+                              onChange={(e) =>
+                                setStaffAttendance((prev) => ({
+                                  ...prev,
+                                  [matchStaff.coach!.id]: e.target.checked,
+                                }))
+                              }
+                              className="h-4 w-4 rounded border-neutral-light text-primary focus:ring-primary"
+                            />
+                            Coach: {matchStaff.coach.name}
+                          </label>
+                        )}
+                        {matchStaff.physio && (
+                          <label className="flex items-center gap-3 text-sm text-neutral-text">
+                            <input
+                              type="checkbox"
+                              checked={staffAttendance[matchStaff.physio.id] ?? true}
+                              onChange={(e) =>
+                                setStaffAttendance((prev) => ({
+                                  ...prev,
+                                  [matchStaff.physio!.id]: e.target.checked,
+                                }))
+                              }
+                              className="h-4 w-4 rounded border-neutral-light text-primary focus:ring-primary"
+                            />
+                            Physio: {matchStaff.physio.name}
+                          </label>
+                        )}
+                        {matchStaff.team_manager && (
+                          <label className="flex items-center gap-3 text-sm text-neutral-text">
+                            <input
+                              type="checkbox"
+                              checked={staffAttendance[matchStaff.team_manager.id] ?? true}
+                              onChange={(e) =>
+                                setStaffAttendance((prev) => ({
+                                  ...prev,
+                                  [matchStaff.team_manager!.id]: e.target.checked,
+                                }))
+                              }
+                              className="h-4 w-4 rounded border-neutral-light text-primary focus:ring-primary"
+                            />
+                            Team Manager: {matchStaff.team_manager.name}
+                          </label>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-neutral-medium">No staff assigned to this fixture.</p>
+                    )}
+                    <p className="text-xs text-neutral-medium mt-3">
+                      Uncheck a staff member if they were not available on match day.
+                    </p>
+                  </div>
+
                   {/* Player Statistics */}
                   <div>
                     <h3 className="text-lg font-semibold text-neutral-text mb-4">
@@ -1624,6 +1755,8 @@ export default function FixturesPage() {
                         })
                         setPlayerStats({})
                         setSelectedMatchForStats('')
+                        setMatchStaff({ coach: null, physio: null, team_manager: null })
+                        setStaffAttendance({})
                       }}
                       disabled={savingMatchStats}
                       className="px-6 py-3 bg-neutral-light text-neutral-text rounded-button hover:bg-neutral-medium transition-all duration-300 font-semibold disabled:opacity-50"

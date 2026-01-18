@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
 import BirthdayAlert from '@/components/BirthdayAlert'
-import { Users, Activity, BarChart3, Calendar, Trophy, Plus, X, Save, MapPin } from 'lucide-react'
+import { Users, Activity, BarChart3, Calendar, Trophy, Plus, X, Save, MapPin, CheckCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import RefreshButton from '@/components/RefreshButton'
 import { isActivityPast } from '@/lib/utils'
@@ -43,6 +43,7 @@ export default function DataAdminDashboard() {
   const [activePlayersCount, setActivePlayersCount] = useState(0)
   const [matchesCount, setMatchesCount] = useState(0)
   const [trainingSessionsCount, setTrainingSessionsCount] = useState(0)
+  const [staffMatchesAttended, setStaffMatchesAttended] = useState(0)
   const [recentGymSchedules, setRecentGymSchedules] = useState<any[]>([])
   const [showMatchForm, setShowMatchForm] = useState(false)
   const [showCreateFixtureForm, setShowCreateFixtureForm] = useState(false)
@@ -192,6 +193,20 @@ export default function DataAdminDashboard() {
             if (!trainingError && trainingCount !== null) {
               setTrainingSessionsCount(trainingCount)
             }
+          }
+
+          // Fetch staff match attendance for this user
+          try {
+            const { count: attendedMatches } = await supabase
+              .from('match_staff_attendance')
+              .select('match_id, matches!inner(status)', { count: 'exact', head: true })
+              .eq('staff_id', authUser.id)
+              .eq('attendance_status', 'P')
+              .eq('matches.status', 'played')
+            setStaffMatchesAttended(attendedMatches || 0)
+          } catch (attendanceError) {
+            console.error('Error fetching staff match attendance:', attendanceError)
+            setStaffMatchesAttended(0)
           }
 
           // Fetch available physios, team managers, and coaches for fixture staff assignment
@@ -612,6 +627,7 @@ export default function DataAdminDashboard() {
           <StatCard title="Active Players" value={activePlayersCount} icon={Activity} iconColor="bg-success" />
           <StatCard title="Matches Logged" value={matchesCount} icon={Trophy} iconColor="bg-warning" />
           <StatCard title="Training Sessions" value={trainingSessionsCount} icon={Calendar} iconColor="bg-info" />
+          <StatCard title="Matches Attended" value={staffMatchesAttended} icon={CheckCircle} iconColor="bg-primary" />
         </div>
 
         {/* Match Stats Entry Form Modal */}

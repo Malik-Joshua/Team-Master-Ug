@@ -346,7 +346,12 @@ export default function FixturesPage() {
         }
 
         if (matchesData.length > 0) {
-          setSelectedMatchId(matchesData[0].id)
+          if (profile.role === 'coach') {
+            const nextUpcoming = matchesData.find((match) => !isActivityPast(match.match_date, null) && match.status !== 'played')
+            setSelectedMatchId(nextUpcoming?.id || '')
+          } else {
+            setSelectedMatchId(matchesData[0].id)
+          }
         }
       } catch (error) {
         console.error('Error loading data:', error)
@@ -1093,6 +1098,7 @@ export default function FixturesPage() {
     const isPlayed = isActivityPast(match.match_date, null) || match.status === 'played'
     return !isPlayed
   })
+  const coachUpcomingMatches = matches.filter((match) => !isActivityPast(match.match_date, null) && match.status !== 'played')
 
   // For data_admin, show fixtures list with create and match stats options
   if (user?.role === 'data_admin') {
@@ -2135,7 +2141,7 @@ export default function FixturesPage() {
               className="w-full md:w-auto px-4 py-2 border border-neutral-light rounded-button focus:outline-none focus:ring-2 focus:ring-primary"
             >
               <option value="">-- Select a match --</option>
-              {matches.map((match) => (
+              {coachUpcomingMatches.map((match) => (
                 <option key={match.id} value={match.id}>
                   {new Date(match.match_date).toLocaleDateString()} vs {match.opponent}
                 </option>

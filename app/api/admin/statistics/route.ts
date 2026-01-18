@@ -100,55 +100,74 @@ export async function GET(request: NextRequest) {
     const totalPlayed = matches?.filter(m => m.result).length || 0
     const winRate = totalPlayed > 0 ? Math.round((wins / totalPlayed) * 100) : 0
 
-    // Get top performers with accurate stats
-    const { db } = await import('@/lib/db-helpers')
+    // Get top performers with accurate stats (service role, bypass RLS)
     let topPerformers: any[] = []
     try {
-      const allPerformers = await db.getPlayersPerformanceSummary()
-      if (allPerformers && allPerformers.length > 0) {
-        // Get player positions
-        const playerIds = allPerformers.map((p: any) => p.playerId)
-        if (playerIds.length > 0) {
-          const { data: playerDetails } = await supabaseAdmin
-            .from('players')
-            .select('user_id, position')
-            .in('user_id', playerIds)
-          
-          const positionMap: Record<string, string> = {}
-          if (playerDetails) {
-            playerDetails.forEach((p: any) => {
-              positionMap[p.user_id] = p.position
-            })
-          }
-          
-          // Add positions and calculate performance score
-          const performersWithPositions = allPerformers.map((p: any) => ({
-            ...p,
-            position: positionMap[p.playerId] || null,
-            // Calculate a performance score: tries weighted more, then tackles, then attendance
-            performanceScore: (p.totalTries * 10) + (p.totalTackles * 2) + (p.attendanceRate || 0),
-          }))
-          
-          // Sort by performance score (best to least), then by tries, then tackles
-          topPerformers = performersWithPositions
-            .sort((a: any, b: any) => {
-              // First sort by performance score
-              if (b.performanceScore !== a.performanceScore) {
-                return b.performanceScore - a.performanceScore
-              }
-              // Then by tries
-              if (b.totalTries !== a.totalTries) {
-                return b.totalTries - a.totalTries
-              }
-              // Then by tackles
-              if (b.totalTackles !== a.totalTackles) {
-                return b.totalTackles - a.totalTackles
-              }
-              // Finally by attendance rate
-              return (b.attendanceRate || 0) - (a.attendanceRate || 0)
-            })
-            .slice(0, 10) // Top 10 performers
+      const [{ data: players }, { data: allMatchStats }, { data: attendance }] = await Promise.all([
+        supabaseAdmin
+          .from('user_profiles')
+          .select('user_id, name, status')
+          .eq('role', 'player'),
+        supabaseAdmin
+          .from('match_stats')
+          .select('match_id, player_id, tries_scored, tackles_made, minutes_played'),
+        supabaseAdmin
+          .from('training_attendance')
+          .select('player_id, attendance_status'),
+      ])
+
+      if (players && players.length > 0) {
+        const playerIds = players.map((p) => p.user_id)
+        const { data: playerDetails } = await supabaseAdmin
+          .from('players')
+          .select('user_id, position')
+          .in('user_id', playerIds)
+
+        const positionMap: Record<string, string> = {}
+        if (playerDetails) {
+          playerDetails.forEach((p: any) => {
+            positionMap[p.user_id] = p.position
+          })
         }
+
+        const performers = players.map((player) => {
+          const playerStats = (allMatchStats || []).filter((stat: any) => stat.player_id === player.user_id)
+          const playerAttendance = (attendance || []).filter((att: any) => att.player_id === player.user_id)
+
+          const totalMatches = new Set(playerStats.map((stat: any) => stat.match_id)).size
+          const totalTries = playerStats.reduce((sum: number, stat: any) => sum + (stat.tries_scored || 0), 0)
+          const totalTackles = playerStats.reduce((sum: number, stat: any) => sum + (stat.tackles_made || 0), 0)
+          const totalMinutes = playerStats.reduce((sum: number, stat: any) => sum + (stat.minutes_played || 0), 0)
+
+          const presentCount = playerAttendance.filter((att: any) => att.attendance_status === 'P').length
+          const totalSessions = playerAttendance.length
+          const attendanceRate = totalSessions > 0 ? (presentCount / totalSessions) * 100 : 0
+
+          return {
+            playerId: player.user_id,
+            name: player.name,
+            status: player.status,
+            position: positionMap[player.user_id] || null,
+            totalMatches,
+            totalTries,
+            totalTackles,
+            totalMinutes,
+            avgMinutes: totalMatches > 0 ? Math.round(totalMinutes / totalMatches) : 0,
+            attendanceRate: Math.round(attendanceRate * 10) / 10,
+            totalSessions,
+            presentCount,
+            performanceScore: (totalTries * 10) + (totalTackles * 2) + (attendanceRate || 0),
+          }
+        })
+
+        topPerformers = performers
+          .sort((a: any, b: any) => {
+            if (b.performanceScore !== a.performanceScore) return b.performanceScore - a.performanceScore
+            if (b.totalTries !== a.totalTries) return b.totalTries - a.totalTries
+            if (b.totalTackles !== a.totalTackles) return b.totalTackles - a.totalTackles
+            return (b.attendanceRate || 0) - (a.attendanceRate || 0)
+          })
+          .slice(0, 10)
       }
     } catch (perfError) {
       console.error('Error fetching top performers:', perfError)

@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Layout from '@/components/Layout'
-import { Users, Check, X, Save, Calendar, MapPin, Trophy, Plus, Eye } from 'lucide-react'
+import { Users, Check, X, Save, Calendar, MapPin, Trophy, Plus, Eye, Trash2 } from 'lucide-react'
 import RefreshButton from '@/components/RefreshButton'
 import { createClient } from '@/lib/supabase/client'
 import { db } from '@/lib/db-helpers'
@@ -27,6 +27,7 @@ interface Match {
   opponent: string
   venue?: string
   tournament_type: string
+  status?: string
 }
 
 interface TeamSelection {
@@ -89,6 +90,7 @@ export default function FixturesPage() {
   const [availableTeamManagers, setAvailableTeamManagers] = useState<any[]>([])
   const [availableCoaches, setAvailableCoaches] = useState<any[]>([])
   const [creatingFixture, setCreatingFixture] = useState(false)
+  const [deletingFixtureId, setDeletingFixtureId] = useState<string | null>(null)
   const [matchForm, setMatchForm] = useState<MatchForm>({
     match_date: '',
     opponent: '',
@@ -168,7 +170,7 @@ export default function FixturesPage() {
             // Get all matches first
             const { data: allMatches, error: matchesError } = await supabase
               .from('matches')
-              .select('id, match_date, opponent, venue, tournament_type')
+              .select('id, match_date, opponent, venue, tournament_type, status')
               .order('match_date', { ascending: false })
             
             if (matchesError) {
@@ -212,6 +214,7 @@ export default function FixturesPage() {
                   opponent: m.opponent,
                   venue: m.venue || undefined,
                   tournament_type: m.tournament_type,
+                  status: m.status,
                 }))
               
               console.log(`Loaded ${matchesData.length} matches for admin (played with stats or upcoming with selections)`)
@@ -234,6 +237,7 @@ export default function FixturesPage() {
                   opponent: m.opponent,
                   venue: m.venue || undefined,
                   tournament_type: m.tournament_type,
+                  status: m.status,
                 }))
                 console.log('Loaded matches from API:', matchesData.length)
               }
@@ -250,7 +254,7 @@ export default function FixturesPage() {
             try {
               const { data: allMatches, error: matchesError } = await supabase
                 .from('matches')
-                .select('id, match_date, opponent, venue, tournament_type')
+                .select('id, match_date, opponent, venue, tournament_type, status')
                 .order('match_date', { ascending: true })
               
               if (matchesError) {
@@ -263,6 +267,7 @@ export default function FixturesPage() {
                   opponent: m.opponent,
                   venue: m.venue || undefined,
                   tournament_type: m.tournament_type,
+                  status: m.status,
                 }))
                 console.log('Loaded matches from direct query:', matchesData.length)
               }
@@ -670,6 +675,47 @@ export default function FixturesPage() {
     }
   }
 
+  const handleDeleteFixture = async (matchId: string) => {
+    if (!confirm('Delete this fixture? This will remove team selections, match stats, and staff attendance for this match.')) {
+      return
+    }
+
+    setDeletingFixtureId(matchId)
+    try {
+      const response = await fetch(`/api/fixtures/${matchId}`, {
+        method: 'DELETE',
+      })
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete fixture')
+      }
+
+      setMatches((prev) => prev.filter((m) => m.id !== matchId))
+      if (selectedMatchForStats === matchId) {
+        setSelectedMatchForStats('')
+        setMatchForm({
+          match_date: '',
+          opponent: '',
+          tournament_type: 'friendly',
+          venue: '',
+          result: 'win',
+          score_our_team: '0',
+          score_opponent: '0',
+          notes: '',
+        })
+        setPlayerStats({})
+        setMatchStaff({ coach: null, physio: null, team_manager: null })
+        setStaffAttendance({})
+      }
+    } catch (error: any) {
+      console.error('Error deleting fixture:', error)
+      alert(`Error deleting fixture: ${error.message}`)
+    } finally {
+      setDeletingFixtureId(null)
+    }
+  }
+
   const handleSaveMatchStats = async () => {
     if (!selectedMatchForStats) {
       alert('Please select a match first')
@@ -1043,11 +1089,13 @@ export default function FixturesPage() {
   const selectedPlayers = Array.from(teamSelections.values())
   const startingPlayers = selectedPlayers.filter(p => p.is_starting && !p.is_substitute)
   const substitutes = selectedPlayers.filter(p => p.is_substitute)
+  const statsEligibleMatches = matches.filter((match) => {
+    const isPlayed = isActivityPast(match.match_date, null) || match.status === 'played'
+    return !isPlayed
+  })
 
   // For data_admin, show fixtures list with create and match stats options
   if (user?.role === 'data_admin') {
-    const today = new Date().toISOString().split('T')[0]
-    
     return (
       <Layout pageTitle="Fixtures">
         <div className="space-y-6">
@@ -1090,7 +1138,7 @@ export default function FixturesPage() {
             ) : (
               <div className="space-y-4">
                 {matches.map((match) => {
-                  const isUpcoming = match.match_date >= today
+                  const isUpcoming = !isActivityPast(match.match_date, null) && match.status !== 'played'
                   const isPlayed = !isUpcoming
                   
                   return (
@@ -1164,6 +1212,16 @@ export default function FixturesPage() {
                             >
                               <Plus className="w-4 h-4 mr-2" />
                               Add Match Stats
+                            </button>
+                          )}
+                          {user?.role === 'data_admin' && (
+                            <button
+                              onClick={() => handleDeleteFixture(match.id)}
+                              disabled={deletingFixtureId === match.id}
+                              className="px-4 py-2 bg-red-600 text-white rounded-button font-semibold hover:bg-red-700 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center disabled:opacity-50"
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              {deletingFixtureId === match.id ? 'Deleting...' : 'Delete'}
                             </button>
                           )}
                         </div>
@@ -1435,7 +1493,7 @@ export default function FixturesPage() {
                           className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                         >
                           <option value="">Select a match...</option>
-                          {matches.map((match) => (
+                          {statsEligibleMatches.map((match) => (
                             <option key={match.id} value={match.id}>
                               {new Date(match.match_date).toLocaleDateString()} - vs {match.opponent} ({match.tournament_type})
                             </option>

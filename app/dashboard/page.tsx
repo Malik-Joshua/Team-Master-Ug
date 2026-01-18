@@ -237,41 +237,18 @@ export default function DashboardPage() {
                 }))
                 setTrainingSessionsData(sessions)
                 
-                // Load top performers for coach dashboard
-                const performers = await db.getPlayersPerformanceSummary()
-                if (performers) {
-                  // Get player positions
-                  const playerIds = performers.map((p: any) => p.playerId)
-                  if (playerIds.length > 0) {
-                    const { data: playerDetails } = await supabase
-                      .from('players')
-                      .select('user_id, position')
-                      .in('user_id', playerIds)
-                    
-                    const positionMap: Record<string, string> = {}
-                    if (playerDetails) {
-                      playerDetails.forEach((p: any) => {
-                        positionMap[p.user_id] = p.position
-                      })
-                    }
-                    
-                    // Add positions to performers and sort
-                    const performersWithPositions = performers.map((p: any) => ({
-                      ...p,
-                      position: positionMap[p.playerId] || null,
-                    }))
-                    
-                    // Sort by total tries, then tackles, and take top 5
-                    const sorted = performersWithPositions
-                      .sort((a: any, b: any) => {
-                        if (b.totalTries !== a.totalTries) return b.totalTries - a.totalTries
-                        return b.totalTackles - a.totalTackles
-                      })
-                      .slice(0, 5)
-                    setTopPerformers(sorted)
+                // Load top performers using API (accurate, ranked best to least)
+                try {
+                  const statsResponse = await fetch('/api/admin/statistics', { cache: 'no-store' })
+                  if (statsResponse.ok) {
+                    const statsData = await statsResponse.json()
+                    setTopPerformers((statsData.topPerformers || []).slice(0, 5))
                   } else {
                     setTopPerformers([])
                   }
+                } catch (performerError) {
+                  console.error('Error loading top performers:', performerError)
+                  setTopPerformers([])
                 }
                 
                 // Get recent training schedules (last 5, ordered by date desc)

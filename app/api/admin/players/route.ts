@@ -128,9 +128,38 @@ export async function GET(request: NextRequest) {
       console.log('Sample player:', validPlayers[0])
     }
 
+    // Load match stats for accurate games/tries/tackles
+    const { data: matchStats, error: matchStatsError } = await supabaseAdmin
+      .from('match_stats')
+      .select('player_id, match_id, tries_scored, tackles_made')
+      .in('player_id', validPlayers.map((p: any) => p.user_id))
+
+    if (matchStatsError) {
+      console.error('Error fetching match stats:', matchStatsError)
+    }
+
+    const statsByPlayer = new Map<string, {
+      matchIds: Set<string>
+      tries: number
+      tackles: number
+    }>()
+
+    ;(matchStats || []).forEach((stat: any) => {
+      const entry = statsByPlayer.get(stat.player_id) || {
+        matchIds: new Set<string>(),
+        tries: 0,
+        tackles: 0,
+      }
+      if (stat.match_id) entry.matchIds.add(stat.match_id)
+      entry.tries += stat.tries_scored || 0
+      entry.tackles += stat.tackles_made || 0
+      statsByPlayer.set(stat.player_id, entry)
+    })
+
     // Format players data (using validPlayers instead of players)
     const formattedPlayers = validPlayers.map((player: any) => {
       const details = playerDetailsMap[player.user_id] || {}
+      const playerStats = statsByPlayer.get(player.user_id)
       return {
         id: player.user_id || player.id,
         user_id: player.user_id,
@@ -144,9 +173,9 @@ export async function GET(request: NextRequest) {
         height_cm: details.height_cm || null,
         weight_kg: details.weight_kg || null,
         status: player.status || 'active',
-        games_played: 0, // Can be calculated from match_stats if needed
-        tries: 0, // Can be calculated from match_stats if needed
-        tackles: 0, // Can be calculated from match_stats if needed
+        games_played: playerStats ? playerStats.matchIds.size : 0,
+        tries: playerStats ? playerStats.tries : 0,
+        tackles: playerStats ? playerStats.tackles : 0,
       }
     }) || []
 

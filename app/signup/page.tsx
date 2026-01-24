@@ -39,6 +39,7 @@ export default function SignupPage() {
     phone: '',
     role: 'player' as Role,
     position: '',
+    birthDate: '',
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -64,6 +65,17 @@ export default function SignupPage() {
     // Validate position for players
     if (formData.role === 'player' && !formData.position) {
       setError('Please select a position for players')
+      return
+    }
+
+    if (!formData.birthDate) {
+      setError('Please provide your date of birth')
+      return
+    }
+
+    const birthDateValue = new Date(formData.birthDate)
+    if (Number.isNaN(birthDateValue.getTime()) || birthDateValue > new Date()) {
+      setError('Please provide a valid date of birth')
       return
     }
 
@@ -158,6 +170,7 @@ export default function SignupPage() {
           phone: formData.phone || null,
           role: formData.role,
           position: formData.role === 'player' ? formData.position : null,
+          birth_date: formData.birthDate,
           user_id: authData.user.id,
         }),
       })
@@ -372,6 +385,21 @@ export default function SignupPage() {
                 disabled={loading || success}
               />
             </div>
+          </div>
+
+          <div>
+            <label htmlFor="birthDate" className="block text-sm font-medium text-neutral-text mb-2">
+              Date of Birth <span className="text-red-500">*</span>
+            </label>
+            <input
+              id="birthDate"
+              type="date"
+              value={formData.birthDate}
+              onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
+              required
+              className="w-full px-4 py-3 border border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+              disabled={loading || success}
+            />
           </div>
 
           <div>

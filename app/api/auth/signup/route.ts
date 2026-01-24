@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { name, email, phone, role, position, user_id } = body
+    const { name, email, phone, role, position, user_id, birth_date } = body
 
     // Validate required fields
     if (!name || !email || !user_id || !role) {
@@ -29,6 +29,13 @@ export async function POST(request: NextRequest) {
     if (role === 'player' && !position) {
       return NextResponse.json(
         { error: 'Position is required for players' },
+        { status: 400 }
+      )
+    }
+
+    if (!birth_date) {
+      return NextResponse.json(
+        { error: 'Date of birth is required' },
         { status: 400 }
       )
     }
@@ -72,6 +79,7 @@ export async function POST(request: NextRequest) {
           phone: phone || null,
           role: role as Role,
           position: role === 'player' ? position : null,
+          birth_date,
           expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days from now
         })
         .eq('id', existingPending.id)
@@ -95,6 +103,7 @@ export async function POST(request: NextRequest) {
           phone: phone || null,
           role: role as Role,
           position: role === 'player' ? position : null,
+          birth_date,
         })
 
       if (pendingError) {

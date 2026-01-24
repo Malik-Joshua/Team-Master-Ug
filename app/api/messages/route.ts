@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
       if (clubCaptainUserId) {
         messagesQuery = messagesQuery.or(`sender_id.eq.${authUser.id},recipient_id.eq.${authUser.id},recipient_id.eq.${clubCaptainUserId}`)
       } else {
-        messagesQuery = messagesQuery.or(`sender_id.eq.${authUser.id},recipient_id.eq.${authUser.id}`)
+      messagesQuery = messagesQuery.or(`sender_id.eq.${authUser.id},recipient_id.eq.${authUser.id}`)
       }
     } else {
       // Admins, coaches, etc. can see role-based messages

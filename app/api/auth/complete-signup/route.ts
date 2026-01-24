@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { name, email, phone, role, position, linked_player_email } = pendingSignup
+    const { name, email, phone, role, position, linked_player_email, birth_date } = pendingSignup
 
     // Validate role
     if (!Object.keys(ROLE_LIMITS).includes(role)) {
@@ -209,6 +209,7 @@ export async function POST(request: NextRequest) {
         role: role as Role,
         status: 'active',
         linked_player_id: linkedPlayerId || null,
+        birth_date: birth_date || null,
       })
       .select()
       .single()

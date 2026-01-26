@@ -105,6 +105,7 @@ export default function FixturesPage() {
   const [savingMatchStats, setSavingMatchStats] = useState(false)
   const [selectedMatchForStats, setSelectedMatchForStats] = useState<string>('')
   const [players, setPlayers] = useState<any[]>([])
+  const [injuredPlayerIds, setInjuredPlayerIds] = useState<string[]>([])
   const [teamSelectionsForStats, setTeamSelectionsForStats] = useState<any[]>([])
   const [matchStaff, setMatchStaff] = useState<{
     coach: { id: string; name: string } | null
@@ -886,6 +887,23 @@ export default function FixturesPage() {
       if (!showMatchForm) return
       const supabase = createClient()
 
+      let activeInjuredIds: string[] = []
+      try {
+        const injuriesResponse = await fetch('/api/admin/injuries', { cache: 'no-store' })
+        if (injuriesResponse.ok) {
+          const injuriesData = await injuriesResponse.json()
+          activeInjuredIds = (injuriesData.injuries || [])
+            .map((injury: any) => injury.player_id)
+            .filter(Boolean)
+          setInjuredPlayerIds(activeInjuredIds)
+        } else {
+          setInjuredPlayerIds([])
+        }
+      } catch (error) {
+        console.error('Error loading injuries:', error)
+        setInjuredPlayerIds([])
+      }
+
       // Load players using API route to bypass RLS
       try {
         const response = await fetch('/api/admin/players')
@@ -893,10 +911,13 @@ export default function FixturesPage() {
           const data = await response.json()
           if (data.players && data.players.length > 0) {
             // Transform to match the expected format
-            setPlayers(data.players.map((p: any) => ({
-              user_id: p.user_id,
-              name: p.name,
-            })))
+            const nextPlayers = data.players
+              .map((p: any) => ({
+                user_id: p.user_id,
+                name: p.name,
+              }))
+              .filter((p: any) => !activeInjuredIds.includes(p.user_id))
+            setPlayers(nextPlayers)
             console.log('Loaded players for match stats:', data.players.length)
           } else {
             setPlayers([])
@@ -911,7 +932,8 @@ export default function FixturesPage() {
             .eq('status', 'active')
 
           if (!playersError && playersData) {
-            setPlayers(playersData)
+            const filteredPlayers = playersData.filter((p: any) => !activeInjuredIds.includes(p.user_id))
+            setPlayers(filteredPlayers)
           }
         }
       } catch (error) {
@@ -925,7 +947,8 @@ export default function FixturesPage() {
             .eq('status', 'active')
 
           if (!playersError && playersData) {
-            setPlayers(playersData)
+            const filteredPlayers = playersData.filter((p: any) => !activeInjuredIds.includes(p.user_id))
+            setPlayers(filteredPlayers)
           }
         } catch (fallbackError) {
           console.error('Error in fallback player query:', fallbackError)
@@ -1099,6 +1122,410 @@ export default function FixturesPage() {
     return !isPlayed
   })
   const coachUpcomingMatches = matches.filter((match) => !isActivityPast(match.match_date, null) && match.status !== 'played')
+  const matchStatsModal = showMatchForm ? (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+      <div className="bg-white rounded-card shadow-large max-w-6xl w-full border border-neutral-light max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="p-6 border-b border-neutral-light flex-shrink-0">
+          <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-bold text-neutral-text">Enter Match Statistics</h2>
+            <button
+              onClick={() => {
+                setShowMatchForm(false)
+                setMatchForm({
+                  match_date: '',
+                  opponent: '',
+                  tournament_type: 'friendly',
+                  venue: '',
+                  result: 'win',
+                  score_our_team: '0',
+                  score_opponent: '0',
+                  notes: '',
+                })
+                setPlayerStats({})
+                setSelectedMatchForStats('')
+                setMatchStaff({ coach: null, physio: null, team_manager: null })
+                setStaffAttendance({})
+              }}
+              className="text-neutral-medium hover:text-neutral-text"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+        </div>
+
+        <div className="p-6 space-y-6 overflow-y-auto flex-1">
+          {/* Match Selection */}
+          {!selectedMatchForStats && (
+            <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+              <h3 className="text-lg font-semibold text-neutral-text mb-4">Select Match for Stats</h3>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-neutral-medium mb-2">
+                  Select Existing Match
+                </label>
+                <select
+                  value={selectedMatchForStats}
+                  onChange={(e) => {
+                    setSelectedMatchForStats(e.target.value)
+                    if (e.target.value) {
+                      const match = matches.find(m => m.id === e.target.value)
+                      if (match) {
+                        setMatchForm({
+                          match_date: match.match_date,
+                          opponent: match.opponent,
+                          tournament_type: match.tournament_type as any,
+                          venue: match.venue || '',
+                          result: 'win',
+                          score_our_team: '0',
+                          score_opponent: '0',
+                          notes: '',
+                        })
+                      }
+                    }
+                    setPlayerStats({})
+                  }}
+                  className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                >
+                  <option value="">Select a match...</option>
+                  {statsEligibleMatches.map((match) => (
+                    <option key={match.id} value={match.id}>
+                      {new Date(match.match_date).toLocaleDateString()} - vs {match.opponent} ({match.tournament_type})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+
+          {/* Match Information */}
+          <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+            <h3 className="text-lg font-semibold text-neutral-text mb-4">Match Information</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-medium mb-2">
+                  Match Date <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={matchForm.match_date}
+                  onChange={(e) => setMatchForm({ ...matchForm, match_date: e.target.value })}
+                  className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-medium mb-2">
+                  Opponent <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={matchForm.opponent}
+                  onChange={(e) => setMatchForm({ ...matchForm, opponent: e.target.value })}
+                  placeholder="e.g., Heathens RFC"
+                  className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-medium mb-2">
+                  Tournament Type
+                </label>
+                <select
+                  value={matchForm.tournament_type}
+                  onChange={(e) => setMatchForm({ ...matchForm, tournament_type: e.target.value as any })}
+                  className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                >
+                  <option value="friendly">Friendly</option>
+                  <option value="league">League</option>
+                  <option value="uganda_cup">Uganda Cup</option>
+                  <option value="sevens">Sevens</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-medium mb-2">Venue</label>
+                <input
+                  type="text"
+                  value={matchForm.venue}
+                  onChange={(e) => setMatchForm({ ...matchForm, venue: e.target.value })}
+                  placeholder="e.g., Kyadondo Rugby Club"
+                  className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-medium mb-2">Result</label>
+                <select
+                  value={matchForm.result}
+                  onChange={(e) => setMatchForm({ ...matchForm, result: e.target.value as any })}
+                  className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                >
+                  <option value="win">Win</option>
+                  <option value="loss">Loss</option>
+                  <option value="draw">Draw</option>
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-neutral-medium mb-2">Our Score</label>
+                  <input
+                    type="number"
+                    value={matchForm.score_our_team}
+                    onChange={(e) => setMatchForm({ ...matchForm, score_our_team: e.target.value })}
+                    min="0"
+                    className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-neutral-medium mb-2">Opponent Score</label>
+                  <input
+                    type="number"
+                    value={matchForm.score_opponent}
+                    onChange={(e) => setMatchForm({ ...matchForm, score_opponent: e.target.value })}
+                    min="0"
+                    className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                  />
+                </div>
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-neutral-medium mb-2">Notes</label>
+                <textarea
+                  value={matchForm.notes}
+                  onChange={(e) => setMatchForm({ ...matchForm, notes: e.target.value })}
+                  rows={3}
+                  placeholder="Additional match notes..."
+                  className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Staff Attendance */}
+          <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+            <h3 className="text-lg font-semibold text-neutral-text mb-4">Staff Attendance</h3>
+            {(matchStaff.coach || matchStaff.physio || matchStaff.team_manager) ? (
+              <div className="space-y-3">
+                {matchStaff.coach && (
+                  <label className="flex items-center gap-3 text-sm text-neutral-text">
+                    <input
+                      type="checkbox"
+                      checked={staffAttendance[matchStaff.coach.id] ?? true}
+                      onChange={(e) =>
+                        setStaffAttendance((prev) => ({
+                          ...prev,
+                          [matchStaff.coach!.id]: e.target.checked,
+                        }))
+                      }
+                      className="h-4 w-4 rounded border-neutral-light text-primary focus:ring-primary"
+                    />
+                    Coach: {matchStaff.coach.name}
+                  </label>
+                )}
+                {matchStaff.physio && (
+                  <label className="flex items-center gap-3 text-sm text-neutral-text">
+                    <input
+                      type="checkbox"
+                      checked={staffAttendance[matchStaff.physio.id] ?? true}
+                      onChange={(e) =>
+                        setStaffAttendance((prev) => ({
+                          ...prev,
+                          [matchStaff.physio!.id]: e.target.checked,
+                        }))
+                      }
+                      className="h-4 w-4 rounded border-neutral-light text-primary focus:ring-primary"
+                    />
+                    Physio: {matchStaff.physio.name}
+                  </label>
+                )}
+                {matchStaff.team_manager && (
+                  <label className="flex items-center gap-3 text-sm text-neutral-text">
+                    <input
+                      type="checkbox"
+                      checked={staffAttendance[matchStaff.team_manager.id] ?? true}
+                      onChange={(e) =>
+                        setStaffAttendance((prev) => ({
+                          ...prev,
+                          [matchStaff.team_manager!.id]: e.target.checked,
+                        }))
+                      }
+                      className="h-4 w-4 rounded border-neutral-light text-primary focus:ring-primary"
+                    />
+                    Team Manager: {matchStaff.team_manager.name}
+                  </label>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-neutral-medium">No staff assigned to this fixture.</p>
+            )}
+            <p className="text-xs text-neutral-medium mt-3">
+              Uncheck a staff member if they were not available on match day.
+            </p>
+          </div>
+
+          {/* Player Statistics */}
+          <div>
+            <h3 className="text-lg font-semibold text-neutral-text mb-4">
+              Player Statistics {selectedMatchForStats && '(Only players in selected team can have stats)'}
+            </h3>
+            {selectedMatchForStats && (
+              <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-sm text-yellow-800">
+                  <strong>Note:</strong> Match stats can only be entered for players who are in the selected team for this fixture.
+                </p>
+              </div>
+            )}
+            {injuredPlayerIds.length > 0 && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-sm text-red-800">
+                  <strong>Note:</strong> Injured players are hidden from the stats sheet.
+                </p>
+              </div>
+            )}
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[1000px]">
+                <thead className="bg-neutral-light">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-sm font-bold text-neutral-text sticky left-0 bg-neutral-light z-10">
+                      Player
+                    </th>
+                    <th className="px-3 py-3 text-center text-xs font-bold text-neutral-text">Tackles Made</th>
+                    <th className="px-3 py-3 text-center text-xs font-bold text-neutral-text">Tackles Missed</th>
+                    <th className="px-3 py-3 text-center text-xs font-bold text-neutral-text">Ball Handling Errors</th>
+                    <th className="px-3 py-3 text-center text-xs font-bold text-neutral-text">Ball Carries</th>
+                    <th className="px-3 py-3 text-center text-xs font-bold text-neutral-text">Tries Scored</th>
+                    <th className="px-3 py-3 text-center text-xs font-bold text-neutral-text">Minutes Played</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-light">
+                  {players.map((player, index) => {
+                    const stats = playerStats[player.user_id] || {
+                      player_id: player.user_id,
+                      tackles_made: '0',
+                      tackles_missed: '0',
+                      ball_handling_errors: '0',
+                      ball_carries: '0',
+                      tries_scored: '0',
+                      minutes_played: '0',
+                    }
+                    const isInSelectedTeam = selectedMatchForStats
+                      ? teamSelectionsForStats.some((s: any) => s.player_id === player.user_id)
+                      : true
+
+                    return (
+                      <tr
+                        key={player.user_id}
+                        className={`${index % 2 === 0 ? 'bg-white' : 'bg-blue-50/30'} ${!isInSelectedTeam && selectedMatchForStats ? 'opacity-50' : ''}`}
+                      >
+                        <td className="px-4 py-3 text-sm font-medium text-neutral-text sticky left-0 bg-inherit z-10 border-r border-neutral-light">
+                          {player.name}
+                          {!isInSelectedTeam && selectedMatchForStats && (
+                            <span className="ml-2 text-xs text-neutral-medium">(Not in selected team)</span>
+                          )}
+                        </td>
+                        <td className="px-2 py-2">
+                          <input
+                            type="number"
+                            min="0"
+                            value={stats.tackles_made}
+                            onChange={(e) => updatePlayerStat(player.user_id, 'tackles_made', e.target.value)}
+                            disabled={!isInSelectedTeam && !!selectedMatchForStats}
+                            className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm disabled:bg-neutral-light disabled:cursor-not-allowed"
+                          />
+                        </td>
+                        <td className="px-2 py-2">
+                          <input
+                            type="number"
+                            min="0"
+                            value={stats.tackles_missed}
+                            onChange={(e) => updatePlayerStat(player.user_id, 'tackles_missed', e.target.value)}
+                            disabled={!isInSelectedTeam && !!selectedMatchForStats}
+                            className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm disabled:bg-neutral-light disabled:cursor-not-allowed"
+                          />
+                        </td>
+                        <td className="px-2 py-2">
+                          <input
+                            type="number"
+                            min="0"
+                            value={stats.ball_handling_errors}
+                            onChange={(e) => updatePlayerStat(player.user_id, 'ball_handling_errors', e.target.value)}
+                            disabled={!isInSelectedTeam && !!selectedMatchForStats}
+                            className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm disabled:bg-neutral-light disabled:cursor-not-allowed"
+                          />
+                        </td>
+                        <td className="px-2 py-2">
+                          <input
+                            type="number"
+                            min="0"
+                            value={stats.ball_carries}
+                            onChange={(e) => updatePlayerStat(player.user_id, 'ball_carries', e.target.value)}
+                            disabled={!isInSelectedTeam && !!selectedMatchForStats}
+                            className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm disabled:bg-neutral-light disabled:cursor-not-allowed"
+                          />
+                        </td>
+                        <td className="px-2 py-2">
+                          <input
+                            type="number"
+                            min="0"
+                            value={stats.tries_scored}
+                            onChange={(e) => updatePlayerStat(player.user_id, 'tries_scored', e.target.value)}
+                            disabled={!isInSelectedTeam && !!selectedMatchForStats}
+                            className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm disabled:bg-neutral-light disabled:cursor-not-allowed"
+                          />
+                        </td>
+                        <td className="px-2 py-2">
+                          <input
+                            type="number"
+                            min="0"
+                            max="80"
+                            value={stats.minutes_played}
+                            onChange={(e) => updatePlayerStat(player.user_id, 'minutes_played', e.target.value)}
+                            disabled={!isInSelectedTeam && !!selectedMatchForStats}
+                            className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm disabled:bg-neutral-light disabled:cursor-not-allowed"
+                          />
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex gap-3 pt-4 border-t border-neutral-light">
+            <button
+              onClick={handleSaveMatchStats}
+              disabled={savingMatchStats}
+              className="flex-1 px-6 py-3 bg-club-gradient text-white rounded-button hover:opacity-90 transition-all duration-300 font-semibold shadow-soft hover:shadow-medium disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center"
+            >
+              <Save className="w-5 h-5 mr-2" />
+              {savingMatchStats ? 'Saving...' : 'Save Match Stats'}
+            </button>
+            <button
+              onClick={() => {
+                setShowMatchForm(false)
+                setMatchForm({
+                  match_date: '',
+                  opponent: '',
+                  tournament_type: 'friendly',
+                  venue: '',
+                  result: 'win',
+                  score_our_team: '0',
+                  score_opponent: '0',
+                  notes: '',
+                })
+                setPlayerStats({})
+                setSelectedMatchForStats('')
+                setMatchStaff({ coach: null, physio: null, team_manager: null })
+                setStaffAttendance({})
+              }}
+              disabled={savingMatchStats}
+              className="px-6 py-3 bg-neutral-light text-neutral-text rounded-button hover:bg-neutral-medium transition-all duration-300 font-semibold disabled:opacity-50"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  ) : null
 
   // For data_admin, show fixtures list with create and match stats options
   if (user?.role === 'data_admin') {
@@ -1684,6 +2111,13 @@ export default function FixturesPage() {
                         </p>
                       </div>
                     )}
+                    {injuredPlayerIds.length > 0 && (
+                      <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                        <p className="text-sm text-red-800">
+                          <strong>Note:</strong> Injured players are hidden from the stats sheet.
+                        </p>
+                      </div>
+                    )}
                     <div className="overflow-x-auto">
                       <table className="w-full min-w-[1000px]">
                         <thead className="bg-neutral-light">
@@ -2117,14 +2551,26 @@ export default function FixturesPage() {
               <Trophy className="w-6 h-6 text-primary" />
               Select Team for Fixture
             </h2>
-            <button
-              onClick={handleSave}
-              disabled={saving || teamSelections.size === 0}
-              className="bg-club-gradient text-white px-6 py-2 rounded-button font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              <Save className="w-4 h-4" />
-              {saving ? 'Saving...' : 'Save Team Selection'}
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => {
+                  setSelectedMatchForStats('')
+                  setShowMatchForm(true)
+                }}
+                className="bg-secondary text-white px-6 py-2 rounded-button font-semibold hover:opacity-90 transition-opacity flex items-center gap-2"
+              >
+                <Save className="w-4 h-4" />
+                Enter Match Stats
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={saving || teamSelections.size === 0}
+                className="bg-club-gradient text-white px-6 py-2 rounded-button font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                <Save className="w-4 h-4" />
+                {saving ? 'Saving...' : 'Save Team Selection'}
+              </button>
+            </div>
           </div>
 
           {/* Match Selector */}
@@ -2468,6 +2914,7 @@ export default function FixturesPage() {
           </div>
         )}
       </div>
+      {matchStatsModal}
     </Layout>
   )
 }

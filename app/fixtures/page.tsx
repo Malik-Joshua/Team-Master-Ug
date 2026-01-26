@@ -1122,6 +1122,10 @@ export default function FixturesPage() {
     return !isPlayed
   })
   const coachUpcomingMatches = matches.filter((match) => !isActivityPast(match.match_date, null) && match.status !== 'played')
+  const selectedTeamIds = new Set(teamSelectionsForStats.map((selection: any) => selection.player_id))
+  const statsPlayers = selectedMatchForStats
+    ? players.filter((player) => selectedTeamIds.has(player.user_id))
+    : players
   const matchStatsModal = showMatchForm ? (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
       <div className="bg-white rounded-card shadow-large max-w-6xl w-full border border-neutral-light max-h-[90vh] overflow-hidden flex flex-col">
@@ -1362,15 +1366,8 @@ export default function FixturesPage() {
           {/* Player Statistics */}
           <div>
             <h3 className="text-lg font-semibold text-neutral-text mb-4">
-              Player Statistics {selectedMatchForStats && '(Only players in selected team can have stats)'}
+              Player Statistics
             </h3>
-            {selectedMatchForStats && (
-              <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <p className="text-sm text-yellow-800">
-                  <strong>Note:</strong> Match stats can only be entered for players who are in the selected team for this fixture.
-                </p>
-              </div>
-            )}
             {injuredPlayerIds.length > 0 && (
               <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
                 <p className="text-sm text-red-800">
@@ -1378,114 +1375,108 @@ export default function FixturesPage() {
                 </p>
               </div>
             )}
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[1000px]">
-                <thead className="bg-neutral-light">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-sm font-bold text-neutral-text sticky left-0 bg-neutral-light z-10">
-                      Player
-                    </th>
-                    <th className="px-3 py-3 text-center text-xs font-bold text-neutral-text">Tackles Made</th>
-                    <th className="px-3 py-3 text-center text-xs font-bold text-neutral-text">Tackles Missed</th>
-                    <th className="px-3 py-3 text-center text-xs font-bold text-neutral-text">Ball Handling Errors</th>
-                    <th className="px-3 py-3 text-center text-xs font-bold text-neutral-text">Ball Carries</th>
-                    <th className="px-3 py-3 text-center text-xs font-bold text-neutral-text">Tries Scored</th>
-                    <th className="px-3 py-3 text-center text-xs font-bold text-neutral-text">Minutes Played</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-neutral-light">
-                  {players.map((player, index) => {
-                    const stats = playerStats[player.user_id] || {
-                      player_id: player.user_id,
-                      tackles_made: '0',
-                      tackles_missed: '0',
-                      ball_handling_errors: '0',
-                      ball_carries: '0',
-                      tries_scored: '0',
-                      minutes_played: '0',
-                    }
-                    const isInSelectedTeam = selectedMatchForStats
-                      ? teamSelectionsForStats.some((s: any) => s.player_id === player.user_id)
-                      : true
+            {selectedMatchForStats && selectedTeamIds.size === 0 ? (
+              <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
+                No team selection found for this fixture. Select the team first to enter stats.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[1000px]">
+                  <thead className="bg-neutral-light">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-sm font-bold text-neutral-text sticky left-0 bg-neutral-light z-10">
+                        Player
+                      </th>
+                      <th className="px-3 py-3 text-center text-xs font-bold text-neutral-text">Tackles Made</th>
+                      <th className="px-3 py-3 text-center text-xs font-bold text-neutral-text">Tackles Missed</th>
+                      <th className="px-3 py-3 text-center text-xs font-bold text-neutral-text">Ball Handling Errors</th>
+                      <th className="px-3 py-3 text-center text-xs font-bold text-neutral-text">Ball Carries</th>
+                      <th className="px-3 py-3 text-center text-xs font-bold text-neutral-text">Tries Scored</th>
+                      <th className="px-3 py-3 text-center text-xs font-bold text-neutral-text">Minutes Played</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-neutral-light">
+                    {statsPlayers.map((player, index) => {
+                      const stats = playerStats[player.user_id] || {
+                        player_id: player.user_id,
+                        tackles_made: '0',
+                        tackles_missed: '0',
+                        ball_handling_errors: '0',
+                        ball_carries: '0',
+                        tries_scored: '0',
+                        minutes_played: '0',
+                      }
 
-                    return (
-                      <tr
-                        key={player.user_id}
-                        className={`${index % 2 === 0 ? 'bg-white' : 'bg-blue-50/30'} ${!isInSelectedTeam && selectedMatchForStats ? 'opacity-50' : ''}`}
-                      >
-                        <td className="px-4 py-3 text-sm font-medium text-neutral-text sticky left-0 bg-inherit z-10 border-r border-neutral-light">
-                          {player.name}
-                          {!isInSelectedTeam && selectedMatchForStats && (
-                            <span className="ml-2 text-xs text-neutral-medium">(Not in selected team)</span>
-                          )}
-                        </td>
-                        <td className="px-2 py-2">
-                          <input
-                            type="number"
-                            min="0"
-                            value={stats.tackles_made}
-                            onChange={(e) => updatePlayerStat(player.user_id, 'tackles_made', e.target.value)}
-                            disabled={!isInSelectedTeam && !!selectedMatchForStats}
-                            className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm disabled:bg-neutral-light disabled:cursor-not-allowed"
-                          />
-                        </td>
-                        <td className="px-2 py-2">
-                          <input
-                            type="number"
-                            min="0"
-                            value={stats.tackles_missed}
-                            onChange={(e) => updatePlayerStat(player.user_id, 'tackles_missed', e.target.value)}
-                            disabled={!isInSelectedTeam && !!selectedMatchForStats}
-                            className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm disabled:bg-neutral-light disabled:cursor-not-allowed"
-                          />
-                        </td>
-                        <td className="px-2 py-2">
-                          <input
-                            type="number"
-                            min="0"
-                            value={stats.ball_handling_errors}
-                            onChange={(e) => updatePlayerStat(player.user_id, 'ball_handling_errors', e.target.value)}
-                            disabled={!isInSelectedTeam && !!selectedMatchForStats}
-                            className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm disabled:bg-neutral-light disabled:cursor-not-allowed"
-                          />
-                        </td>
-                        <td className="px-2 py-2">
-                          <input
-                            type="number"
-                            min="0"
-                            value={stats.ball_carries}
-                            onChange={(e) => updatePlayerStat(player.user_id, 'ball_carries', e.target.value)}
-                            disabled={!isInSelectedTeam && !!selectedMatchForStats}
-                            className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm disabled:bg-neutral-light disabled:cursor-not-allowed"
-                          />
-                        </td>
-                        <td className="px-2 py-2">
-                          <input
-                            type="number"
-                            min="0"
-                            value={stats.tries_scored}
-                            onChange={(e) => updatePlayerStat(player.user_id, 'tries_scored', e.target.value)}
-                            disabled={!isInSelectedTeam && !!selectedMatchForStats}
-                            className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm disabled:bg-neutral-light disabled:cursor-not-allowed"
-                          />
-                        </td>
-                        <td className="px-2 py-2">
-                          <input
-                            type="number"
-                            min="0"
-                            max="80"
-                            value={stats.minutes_played}
-                            onChange={(e) => updatePlayerStat(player.user_id, 'minutes_played', e.target.value)}
-                            disabled={!isInSelectedTeam && !!selectedMatchForStats}
-                            className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm disabled:bg-neutral-light disabled:cursor-not-allowed"
-                          />
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
+                      return (
+                        <tr
+                          key={player.user_id}
+                          className={index % 2 === 0 ? 'bg-white' : 'bg-blue-50/30'}
+                        >
+                          <td className="px-4 py-3 text-sm font-medium text-neutral-text sticky left-0 bg-inherit z-10 border-r border-neutral-light">
+                            {player.name}
+                          </td>
+                          <td className="px-2 py-2">
+                            <input
+                              type="number"
+                              min="0"
+                              value={stats.tackles_made}
+                              onChange={(e) => updatePlayerStat(player.user_id, 'tackles_made', e.target.value)}
+                              className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm"
+                            />
+                          </td>
+                          <td className="px-2 py-2">
+                            <input
+                              type="number"
+                              min="0"
+                              value={stats.tackles_missed}
+                              onChange={(e) => updatePlayerStat(player.user_id, 'tackles_missed', e.target.value)}
+                              className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm"
+                            />
+                          </td>
+                          <td className="px-2 py-2">
+                            <input
+                              type="number"
+                              min="0"
+                              value={stats.ball_handling_errors}
+                              onChange={(e) => updatePlayerStat(player.user_id, 'ball_handling_errors', e.target.value)}
+                              className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm"
+                            />
+                          </td>
+                          <td className="px-2 py-2">
+                            <input
+                              type="number"
+                              min="0"
+                              value={stats.ball_carries}
+                              onChange={(e) => updatePlayerStat(player.user_id, 'ball_carries', e.target.value)}
+                              className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm"
+                            />
+                          </td>
+                          <td className="px-2 py-2">
+                            <input
+                              type="number"
+                              min="0"
+                              value={stats.tries_scored}
+                              onChange={(e) => updatePlayerStat(player.user_id, 'tries_scored', e.target.value)}
+                              className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm"
+                            />
+                          </td>
+                          <td className="px-2 py-2">
+                            <input
+                              type="number"
+                              min="0"
+                              max="80"
+                              value={stats.minutes_played}
+                              onChange={(e) => updatePlayerStat(player.user_id, 'minutes_played', e.target.value)}
+                              className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm"
+                            />
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
 
           {/* Action Buttons */}
@@ -2102,15 +2093,8 @@ export default function FixturesPage() {
                   {/* Player Statistics */}
                   <div>
                     <h3 className="text-lg font-semibold text-neutral-text mb-4">
-                      Player Statistics {selectedMatchForStats && '(Only players in selected team can have stats)'}
+                      Player Statistics
                     </h3>
-                    {selectedMatchForStats && (
-                      <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                        <p className="text-sm text-yellow-800">
-                          <strong>Note:</strong> Match stats can only be entered for players who are in the selected team for this fixture.
-                        </p>
-                      </div>
-                    )}
                     {injuredPlayerIds.length > 0 && (
                       <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
                         <p className="text-sm text-red-800">
@@ -2118,114 +2102,108 @@ export default function FixturesPage() {
                         </p>
                       </div>
                     )}
-                    <div className="overflow-x-auto">
-                      <table className="w-full min-w-[1000px]">
-                        <thead className="bg-neutral-light">
-                          <tr>
-                            <th className="px-4 py-3 text-left text-sm font-bold text-neutral-text sticky left-0 bg-neutral-light z-10">
-                              Player
-                            </th>
-                            <th className="px-3 py-3 text-center text-xs font-bold text-neutral-text">Tackles Made</th>
-                            <th className="px-3 py-3 text-center text-xs font-bold text-neutral-text">Tackles Missed</th>
-                            <th className="px-3 py-3 text-center text-xs font-bold text-neutral-text">Ball Handling Errors</th>
-                            <th className="px-3 py-3 text-center text-xs font-bold text-neutral-text">Ball Carries</th>
-                            <th className="px-3 py-3 text-center text-xs font-bold text-neutral-text">Tries Scored</th>
-                            <th className="px-3 py-3 text-center text-xs font-bold text-neutral-text">Minutes Played</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-neutral-light">
-                          {players.map((player, index) => {
-                            const stats = playerStats[player.user_id] || {
-                              player_id: player.user_id,
-                              tackles_made: '0',
-                              tackles_missed: '0',
-                              ball_handling_errors: '0',
-                              ball_carries: '0',
-                              tries_scored: '0',
-                              minutes_played: '0',
-                            }
-                            const isInSelectedTeam = selectedMatchForStats 
-                              ? teamSelectionsForStats.some((s: any) => s.player_id === player.user_id)
-                              : true
-                            
-                            return (
-                              <tr 
-                                key={player.user_id} 
-                                className={`${index % 2 === 0 ? 'bg-white' : 'bg-blue-50/30'} ${!isInSelectedTeam && selectedMatchForStats ? 'opacity-50' : ''}`}
-                              >
-                                <td className="px-4 py-3 text-sm font-medium text-neutral-text sticky left-0 bg-inherit z-10 border-r border-neutral-light">
-                                  {player.name}
-                                  {!isInSelectedTeam && selectedMatchForStats && (
-                                    <span className="ml-2 text-xs text-neutral-medium">(Not in selected team)</span>
-                                  )}
-                                </td>
-                                <td className="px-2 py-2">
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    value={stats.tackles_made}
-                                    onChange={(e) => updatePlayerStat(player.user_id, 'tackles_made', e.target.value)}
-                                    disabled={!isInSelectedTeam && !!selectedMatchForStats}
-                                    className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm disabled:bg-neutral-light disabled:cursor-not-allowed"
-                                  />
-                                </td>
-                                <td className="px-2 py-2">
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    value={stats.tackles_missed}
-                                    onChange={(e) => updatePlayerStat(player.user_id, 'tackles_missed', e.target.value)}
-                                    disabled={!isInSelectedTeam && !!selectedMatchForStats}
-                                    className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm disabled:bg-neutral-light disabled:cursor-not-allowed"
-                                  />
-                                </td>
-                                <td className="px-2 py-2">
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    value={stats.ball_handling_errors}
-                                    onChange={(e) => updatePlayerStat(player.user_id, 'ball_handling_errors', e.target.value)}
-                                    disabled={!isInSelectedTeam && !!selectedMatchForStats}
-                                    className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm disabled:bg-neutral-light disabled:cursor-not-allowed"
-                                  />
-                                </td>
-                                <td className="px-2 py-2">
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    value={stats.ball_carries}
-                                    onChange={(e) => updatePlayerStat(player.user_id, 'ball_carries', e.target.value)}
-                                    disabled={!isInSelectedTeam && !!selectedMatchForStats}
-                                    className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm disabled:bg-neutral-light disabled:cursor-not-allowed"
-                                  />
-                                </td>
-                                <td className="px-2 py-2">
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    value={stats.tries_scored}
-                                    onChange={(e) => updatePlayerStat(player.user_id, 'tries_scored', e.target.value)}
-                                    disabled={!isInSelectedTeam && !!selectedMatchForStats}
-                                    className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm disabled:bg-neutral-light disabled:cursor-not-allowed"
-                                  />
-                                </td>
-                                <td className="px-2 py-2">
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    max="80"
-                                    value={stats.minutes_played}
-                                    onChange={(e) => updatePlayerStat(player.user_id, 'minutes_played', e.target.value)}
-                                    disabled={!isInSelectedTeam && !!selectedMatchForStats}
-                                    className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm disabled:bg-neutral-light disabled:cursor-not-allowed"
-                                  />
-                                </td>
-                              </tr>
-                            )
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
+                    {selectedMatchForStats && selectedTeamIds.size === 0 ? (
+                      <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
+                        No team selection found for this fixture. Select the team first to enter stats.
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full min-w-[1000px]">
+                          <thead className="bg-neutral-light">
+                            <tr>
+                              <th className="px-4 py-3 text-left text-sm font-bold text-neutral-text sticky left-0 bg-neutral-light z-10">
+                                Player
+                              </th>
+                              <th className="px-3 py-3 text-center text-xs font-bold text-neutral-text">Tackles Made</th>
+                              <th className="px-3 py-3 text-center text-xs font-bold text-neutral-text">Tackles Missed</th>
+                              <th className="px-3 py-3 text-center text-xs font-bold text-neutral-text">Ball Handling Errors</th>
+                              <th className="px-3 py-3 text-center text-xs font-bold text-neutral-text">Ball Carries</th>
+                              <th className="px-3 py-3 text-center text-xs font-bold text-neutral-text">Tries Scored</th>
+                              <th className="px-3 py-3 text-center text-xs font-bold text-neutral-text">Minutes Played</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-neutral-light">
+                            {statsPlayers.map((player, index) => {
+                              const stats = playerStats[player.user_id] || {
+                                player_id: player.user_id,
+                                tackles_made: '0',
+                                tackles_missed: '0',
+                                ball_handling_errors: '0',
+                                ball_carries: '0',
+                                tries_scored: '0',
+                                minutes_played: '0',
+                              }
+
+                              return (
+                                <tr
+                                  key={player.user_id}
+                                  className={index % 2 === 0 ? 'bg-white' : 'bg-blue-50/30'}
+                                >
+                                  <td className="px-4 py-3 text-sm font-medium text-neutral-text sticky left-0 bg-inherit z-10 border-r border-neutral-light">
+                                    {player.name}
+                                  </td>
+                                  <td className="px-2 py-2">
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      value={stats.tackles_made}
+                                      onChange={(e) => updatePlayerStat(player.user_id, 'tackles_made', e.target.value)}
+                                      className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm"
+                                    />
+                                  </td>
+                                  <td className="px-2 py-2">
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      value={stats.tackles_missed}
+                                      onChange={(e) => updatePlayerStat(player.user_id, 'tackles_missed', e.target.value)}
+                                      className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm"
+                                    />
+                                  </td>
+                                  <td className="px-2 py-2">
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      value={stats.ball_handling_errors}
+                                      onChange={(e) => updatePlayerStat(player.user_id, 'ball_handling_errors', e.target.value)}
+                                      className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm"
+                                    />
+                                  </td>
+                                  <td className="px-2 py-2">
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      value={stats.ball_carries}
+                                      onChange={(e) => updatePlayerStat(player.user_id, 'ball_carries', e.target.value)}
+                                      className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm"
+                                    />
+                                  </td>
+                                  <td className="px-2 py-2">
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      value={stats.tries_scored}
+                                      onChange={(e) => updatePlayerStat(player.user_id, 'tries_scored', e.target.value)}
+                                      className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm"
+                                    />
+                                  </td>
+                                  <td className="px-2 py-2">
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      max="80"
+                                      value={stats.minutes_played}
+                                      onChange={(e) => updatePlayerStat(player.user_id, 'minutes_played', e.target.value)}
+                                      className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm"
+                                    />
+                                  </td>
+                                </tr>
+                              )
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
                   </div>
 
                   {/* Action Buttons */}

@@ -555,6 +555,26 @@ export default function AdminDashboard() {
                         <p className="text-sm text-neutral-medium mb-1">
                           {budget.event_type.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())} • {new Date(budget.event_date).toLocaleDateString()}
                         </p>
+                        {budget.budget_items && budget.budget_items.length > 0 && (
+                          <div className="mb-2">
+                            <p className="text-xs font-semibold text-neutral-medium uppercase mb-1">Items</p>
+                            <div className="space-y-1">
+                              {budget.budget_items.slice(0, 3).map((item: any, index: number) => (
+                                <div key={index} className="flex items-center justify-between text-sm text-neutral-text">
+                                  <span className="truncate">{item.item_name}</span>
+                                  <span className="text-xs text-neutral-medium">
+                                    {formatCurrency(parseFloat(item.total_amount.toString()))}
+                                  </span>
+                                </div>
+                              ))}
+                              {budget.budget_items.length > 3 && (
+                                <p className="text-xs text-neutral-medium">
+                                  +{budget.budget_items.length - 3} more items
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        )}
                         <p className="text-lg font-bold text-success mt-2">
                           {formatCurrency(parseFloat(budget.total_amount.toString()))}
                         </p>
@@ -660,6 +680,26 @@ export default function AdminDashboard() {
                         {budget.event_type.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())} • {new Date(budget.event_date).toLocaleDateString()}
                       </p>
                       <p className="text-sm text-neutral-medium mb-2">{budget.description}</p>
+                      {budget.budget_items && budget.budget_items.length > 0 && (
+                        <div className="mb-2">
+                          <p className="text-xs font-semibold text-neutral-medium uppercase mb-1">Items</p>
+                          <div className="space-y-1">
+                            {budget.budget_items.slice(0, 3).map((item: any, index: number) => (
+                              <div key={index} className="flex items-center justify-between text-sm text-neutral-text">
+                                <span className="truncate">{item.item_name}</span>
+                                <span className="text-xs text-neutral-medium">
+                                  {formatCurrency(parseFloat(item.total_amount.toString()))}
+                                </span>
+                              </div>
+                            ))}
+                            {budget.budget_items.length > 3 && (
+                              <p className="text-xs text-neutral-medium">
+                                +{budget.budget_items.length - 3} more items
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )}
                       <p className="text-lg font-bold text-primary">{formatCurrency(parseFloat(budget.total_amount.toString()))}</p>
                       <p className="text-xs text-neutral-medium mt-1">
                         Created by: {budget.created_by_profile?.name || 'Finance Admin'}

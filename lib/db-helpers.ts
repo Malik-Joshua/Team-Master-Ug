@@ -682,7 +682,10 @@ export const db = {
     
     let query = supabase
       .from('budgets')
-      .select('*')
+      .select(`
+        *,
+        budget_items (*)
+      `)
       .order('created_at', { ascending: false })
     
     // Finance admins can see all budgets, others only their own
@@ -701,7 +704,10 @@ export const db = {
     
     const { data, error } = await supabase
       .from('budgets')
-      .select('*')
+      .select(`
+        *,
+        budget_items (*)
+      `)
       .eq('status', 'pending')
       .order('created_at', { ascending: false })
     

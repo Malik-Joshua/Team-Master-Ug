@@ -215,7 +215,8 @@ export default function AdminDashboard() {
               .select(`
                 *,
                 created_by_profile:user_profiles!budgets_created_by_fkey(name),
-                approved_by_profile:user_profiles!budgets_approved_by_fkey(name)
+                approved_by_profile:user_profiles!budgets_approved_by_fkey(name),
+                budget_items (*)
               `)
               .eq('status', 'approved')
               .order('approved_at', { ascending: false })

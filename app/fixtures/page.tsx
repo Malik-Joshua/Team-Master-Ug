@@ -722,6 +722,15 @@ export default function FixturesPage() {
     }
   }
 
+  const isWithinStatsWindow = (matchDate: string) => {
+    if (!matchDate) return false
+    const start = new Date(`${matchDate}T00:00:00`)
+    const end = new Date(start)
+    end.setDate(end.getDate() + 2)
+    const now = new Date()
+    return now >= start && now <= end
+  }
+
   const handleSaveMatchStats = async () => {
     if (!selectedMatchForStats) {
       alert('Please select a match first')
@@ -733,9 +742,17 @@ export default function FixturesPage() {
       return
     }
 
-    // Validate that the match date has passed
-    if (!isActivityPast(matchForm.match_date, null)) {
-      alert('Cannot enter match stats for a future match. The match must have occurred before stats can be entered.')
+    // Allow stats entry only on game day and up to 2 days after
+    if (!isWithinStatsWindow(matchForm.match_date)) {
+      const matchStart = new Date(`${matchForm.match_date}T00:00:00`)
+      const windowEnd = new Date(matchStart)
+      windowEnd.setDate(windowEnd.getDate() + 2)
+      const now = new Date()
+      if (now < matchStart) {
+        alert('Match stats can only be entered on or after game day.')
+      } else {
+        alert('Match stats entry is closed 2 days after game day.')
+      }
       return
     }
 
@@ -1117,10 +1134,7 @@ export default function FixturesPage() {
   const selectedPlayers = Array.from(teamSelections.values())
   const startingPlayers = selectedPlayers.filter(p => p.is_starting && !p.is_substitute)
   const substitutes = selectedPlayers.filter(p => p.is_substitute)
-  const statsEligibleMatches = matches.filter((match) => {
-    const isPlayed = isActivityPast(match.match_date, null) || match.status === 'played'
-    return !isPlayed
-  })
+  const statsEligibleMatches = matches.filter((match) => isWithinStatsWindow(match.match_date))
   const coachUpcomingMatches = matches.filter((match) => !isActivityPast(match.match_date, null) && match.status !== 'played')
   const selectedTeamIds = new Set(teamSelectionsForStats.map((selection: any) => selection.player_id))
   const statsPlayers = selectedMatchForStats
@@ -1564,6 +1578,7 @@ export default function FixturesPage() {
                 {matches.map((match) => {
                   const isUpcoming = !isActivityPast(match.match_date, null) && match.status !== 'played'
                   const isPlayed = !isUpcoming
+                  const canEnterStats = isWithinStatsWindow(match.match_date)
                   
                   return (
                     <div
@@ -1616,7 +1631,7 @@ export default function FixturesPage() {
                               View Team
                             </button>
                           )}
-                          {isUpcoming && (
+                          {canEnterStats && (
                             <button
                               onClick={() => {
                                 setSelectedMatchForStats(match.id)

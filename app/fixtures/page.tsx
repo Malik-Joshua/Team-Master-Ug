@@ -737,6 +737,11 @@ export default function FixturesPage() {
       return
     }
 
+    if (user?.role !== 'data_admin') {
+      alert('Only the team manager can enter match stats.')
+      return
+    }
+
     if (!matchForm.match_date || !matchForm.opponent) {
       alert('Please fill in match date and opponent')
       return
@@ -2544,26 +2549,14 @@ export default function FixturesPage() {
               <Trophy className="w-6 h-6 text-primary" />
               Select Team for Fixture
             </h2>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => {
-                  setSelectedMatchForStats('')
-                  setShowMatchForm(true)
-                }}
-                className="bg-secondary text-white px-6 py-2 rounded-button font-semibold hover:opacity-90 transition-opacity flex items-center gap-2"
-              >
-                <Save className="w-4 h-4" />
-                Enter Match Stats
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={saving || teamSelections.size === 0}
-                className="bg-club-gradient text-white px-6 py-2 rounded-button font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                <Save className="w-4 h-4" />
-                {saving ? 'Saving...' : 'Save Team Selection'}
-              </button>
-            </div>
+            <button
+              onClick={handleSave}
+              disabled={saving || teamSelections.size === 0}
+              className="bg-club-gradient text-white px-6 py-2 rounded-button font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              <Save className="w-4 h-4" />
+              {saving ? 'Saving...' : 'Save Team Selection'}
+            </button>
           </div>
 
           {/* Match Selector */}

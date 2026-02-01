@@ -96,11 +96,11 @@ export default function TopBar({ title, userName, userRole, userAvatar }: TopBar
 
   return (
     <header className="sticky top-0 z-20 bg-white border-b border-neutral-light shadow-sm">
-      <div className="max-w-container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+      <div className="max-w-container mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-14 sm:h-16">
           {/* Title */}
-          <div className="flex-1">
-            <h1 className="text-2xl font-bold text-neutral-text">{title}</h1>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-neutral-text truncate">{title}</h1>
           </div>
 
           {/* Right Actions */}
@@ -135,7 +135,7 @@ export default function TopBar({ title, userName, userRole, userAvatar }: TopBar
                     className="fixed inset-0 z-10"
                     onClick={() => setNotificationsOpen(false)}
                   />
-                  <div className="absolute right-0 mt-2 w-80 bg-white rounded-card shadow-large border border-neutral-light z-20 max-h-96 overflow-y-auto">
+                  <div className="absolute right-0 mt-2 w-[90vw] max-w-sm sm:w-80 bg-white rounded-card shadow-large border border-neutral-light z-20 max-h-96 overflow-y-auto">
                     <div className="p-4 border-b border-neutral-light flex items-center justify-between">
                       <div className="flex items-center space-x-2">
                       <h3 className="font-bold text-neutral-text">Notifications</h3>
@@ -241,7 +241,7 @@ export default function TopBar({ title, userName, userRole, userAvatar }: TopBar
             </button>
 
             {/* Profile Avatar */}
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-2 sm:space-x-3">
               {userAvatar ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -254,7 +254,7 @@ export default function TopBar({ title, userName, userRole, userAvatar }: TopBar
                   {userName.charAt(0).toUpperCase()}
                 </div>
               )}
-              <div className="hidden md:block text-right">
+              <div className="hidden sm:block text-right">
                 <p className="text-sm font-semibold text-neutral-text">{userName}</p>
                 <p className="text-xs text-neutral-medium capitalize">
                   {userRole.replace('_', ' ')}

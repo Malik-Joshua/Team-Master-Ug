@@ -551,8 +551,65 @@ export default function InventoryPage() {
               <p className="text-neutral-medium">Try adjusting your search or filters</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
+            <>
+              <div className="md:hidden divide-y divide-neutral-light">
+                {filteredItems.map((item) => (
+                  <div key={item.id} className="p-4 space-y-3">
+                    <div>
+                      <p className="font-semibold text-neutral-text">{item.name}</p>
+                      {item.description && (
+                        <p className="text-sm text-neutral-medium">{item.description}</p>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-2 text-xs">
+                      <span className="px-2 py-1 rounded-full bg-neutral-light text-neutral-text">{item.category}</span>
+                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(item.status)}`}>
+                        {getStatusIcon(item.status)}
+                        {item.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 text-sm text-neutral-medium">
+                      <div>
+                        <p className="text-xs text-neutral-medium">Quantity</p>
+                        <p className="font-semibold text-neutral-text">{item.quantity} {item.unit}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-neutral-medium">Location</p>
+                        <p className="font-semibold text-neutral-text">{item.location || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-neutral-medium">Updated</p>
+                        <p className="font-semibold text-neutral-text">{new Date(item.lastUpdated).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {(user.role === 'admin' || user.role === 'data_admin') && (
+                        <>
+                          <button
+                            onClick={() => handleEditItem(item)}
+                            className="p-2 text-info hover:bg-info/10 rounded-lg transition-colors"
+                            title="Edit Item"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteItem(item.id)}
+                            className="p-2 text-secondary hover:bg-secondary/10 rounded-lg transition-colors"
+                            title="Delete Item"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </>
+                      )}
+                      {user.role === 'physio' && (
+                        <span className="text-sm text-neutral-medium">View Only</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full">
                 <thead className="bg-neutral-light">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-bold text-neutral-text uppercase">Item Name</th>
@@ -616,19 +673,20 @@ export default function InventoryPage() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
-            </div>
+                </table>
+              </div>
+            </>
           )}
         </div>
 
         {/* Add Item Modal */}
         {showAddModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-            <div className="bg-white rounded-card shadow-large max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-neutral-light">
-              <div className="p-6 border-b border-neutral-light">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-3 sm:p-4 z-50 backdrop-blur-sm">
+            <div className="bg-white rounded-card shadow-large w-full max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto border border-neutral-light">
+              <div className="p-4 sm:p-6 border-b border-neutral-light">
                 <h2 className="text-2xl font-bold text-neutral-text">Add New Item</h2>
               </div>
-              <div className="p-6 space-y-4">
+              <div className="p-4 sm:p-6 space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-neutral-medium mb-2">Item Name</label>
                   <input
@@ -720,12 +778,12 @@ export default function InventoryPage() {
 
         {/* Edit Item Modal */}
         {showEditModal && selectedItem && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-            <div className="bg-white rounded-card shadow-large max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-neutral-light">
-              <div className="p-6 border-b border-neutral-light">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-3 sm:p-4 z-50 backdrop-blur-sm">
+            <div className="bg-white rounded-card shadow-large w-full max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto border border-neutral-light">
+              <div className="p-4 sm:p-6 border-b border-neutral-light">
                 <h2 className="text-2xl font-bold text-neutral-text">Edit Item</h2>
               </div>
-              <div className="p-6 space-y-4">
+              <div className="p-4 sm:p-6 space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-neutral-medium mb-2">Item Name</label>
                   <input

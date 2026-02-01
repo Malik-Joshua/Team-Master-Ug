@@ -846,7 +846,7 @@ export default function PerformancePage() {
         {/* Resource Modal */}
         {showResourceModal && (
           <div 
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4"
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-3 sm:p-4"
             style={{ position: 'fixed', zIndex: 9999 }}
             onClick={(e) => {
               if (e.target === e.currentTarget) {
@@ -855,8 +855,8 @@ export default function PerformancePage() {
               }
             }}
           >
-            <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="sticky top-0 bg-white border-b border-neutral-light p-6 flex items-center justify-between">
+            <div className="bg-white rounded-lg w-full max-w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+              <div className="sticky top-0 bg-white border-b border-neutral-light p-4 sm:p-6 flex items-center justify-between">
                 <h3 className="text-2xl font-bold text-neutral-text">
                   {editingResource ? 'Edit Resource' : 'Create New Resource'}
                 </h3>
@@ -1366,7 +1366,7 @@ export default function PerformancePage() {
         {/* Resource Modal */}
         {showResourceModal && (
           <div 
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4"
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-3 sm:p-4"
             style={{ position: 'fixed', zIndex: 9999 }}
             onClick={(e) => {
               if (e.target === e.currentTarget) {
@@ -1375,8 +1375,8 @@ export default function PerformancePage() {
               }
             }}
           >
-            <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="sticky top-0 bg-white border-b border-neutral-light p-6 flex items-center justify-between">
+            <div className="bg-white rounded-lg w-full max-w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+              <div className="sticky top-0 bg-white border-b border-neutral-light p-4 sm:p-6 flex items-center justify-between">
                 <h3 className="text-2xl font-bold text-neutral-text">
                   {editingResource ? 'Edit Resource' : 'Create New Resource'}
                 </h3>
@@ -1779,7 +1779,59 @@ export default function PerformancePage() {
                     <Users className="w-6 h-6 mr-2 text-primary" />
                     Players Performance Summary
                   </h2>
-                  <div className="overflow-x-auto">
+                  <div className="md:hidden divide-y divide-neutral-light">
+                    {adminClubPerformance.playersSummary.map((player: any) => {
+                      const getStatusColor = (status: string) => {
+                        switch (status) {
+                          case 'active':
+                            return 'bg-success/10 text-success'
+                          case 'injured':
+                            return 'bg-warning/10 text-warning'
+                          case 'inactive':
+                            return 'bg-neutral-medium/10 text-neutral-medium'
+                          default:
+                            return 'bg-neutral-light/10 text-neutral-medium'
+                        }
+                      }
+                      return (
+                        <div key={player.playerId || player.id} className="p-4 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <p className="font-semibold text-neutral-text">{player.name}</p>
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(player.status)}`}>
+                              {player.status || 'N/A'}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2 text-sm text-neutral-medium">
+                            <div>
+                              <p className="text-xs text-neutral-medium">Matches</p>
+                              <p className="font-semibold text-neutral-text">{player.totalMatches || 0}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-neutral-medium">Tries</p>
+                              <p className="font-semibold text-neutral-text">{player.totalTries || 0}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-neutral-medium">Tackles</p>
+                              <p className="font-semibold text-neutral-text">{player.totalTackles || 0}</p>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 text-sm text-neutral-medium">
+                            <div>
+                              <p className="text-xs text-neutral-medium">Avg Minutes</p>
+                              <p className="font-semibold text-neutral-text">{player.avgMinutes || 0} min</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-neutral-medium">Attendance</p>
+                              <p className={`font-semibold ${player.attendanceRate >= 80 ? 'text-success' : player.attendanceRate >= 60 ? 'text-warning' : 'text-secondary'}`}>
+                                {player.attendanceRate || 0}%
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <div className="hidden md:block overflow-x-auto">
                     <table className="w-full">
                       <thead>
                         <tr className="border-b border-neutral-light">
@@ -1875,8 +1927,8 @@ export default function PerformancePage() {
               }
             }}
           >
-            <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="sticky top-0 bg-white border-b border-neutral-light p-6 flex items-center justify-between">
+            <div className="bg-white rounded-lg w-full max-w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+              <div className="sticky top-0 bg-white border-b border-neutral-light p-4 sm:p-6 flex items-center justify-between">
                 <h3 className="text-2xl font-bold text-neutral-text">
                   {editingResource ? 'Edit Resource' : 'Create New Resource'}
                 </h3>
@@ -2635,8 +2687,8 @@ export default function PerformancePage() {
               }
             }}
           >
-            <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="sticky top-0 bg-white border-b border-neutral-light p-6 flex items-center justify-between">
+            <div className="bg-white rounded-lg w-full max-w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+              <div className="sticky top-0 bg-white border-b border-neutral-light p-4 sm:p-6 flex items-center justify-between">
                 <h3 className="text-2xl font-bold text-neutral-text">
                   {editingResource ? 'Edit Resource' : 'Create New Resource'}
                 </h3>

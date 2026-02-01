@@ -440,7 +440,103 @@ export default function PlayersPage() {
         </div>
 
         <div className="bg-white rounded-card border border-neutral-light shadow-soft overflow-hidden">
-          <div className="overflow-x-auto">
+          <div className="md:hidden divide-y divide-neutral-light">
+            {filteredPlayers.length === 0 ? (
+              <div className="px-4 py-8 text-center text-neutral-medium">No players found</div>
+            ) : (
+              filteredPlayers.map((player) => (
+                <div key={player.id} className="p-4 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-club-gradient flex items-center justify-center text-white font-bold">
+                      {player.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="font-semibold text-neutral-text">{player.name}</p>
+                      <p className="text-sm text-neutral-medium">{player.email}</p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2 text-xs">
+                    <span className="px-2 py-1 rounded-full bg-neutral-light text-neutral-text capitalize">
+                      {player.position.replace('_', ' ')}
+                    </span>
+                    <span className={`px-2 py-1 rounded-full font-medium ${
+                      player.status === 'active'
+                        ? 'bg-success/10 text-success'
+                        : player.status === 'injured'
+                        ? 'bg-secondary/10 text-secondary'
+                        : 'bg-warning/10 text-warning'
+                    }`}>
+                      {player.status}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3 text-sm text-neutral-medium">
+                    <div>
+                      <p className="text-xs text-neutral-medium">Games</p>
+                      <p className="font-semibold text-neutral-text">{player.games_played || 0}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-neutral-medium">Tries</p>
+                      <p className="font-semibold text-neutral-text">{player.tries || 0}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-neutral-medium">Tackles</p>
+                      <p className="font-semibold text-neutral-text">{player.tackles || 0}</p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button onClick={() => { setSelectedPlayer(player); setShowViewModal(true) }} className="p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors" title="View Details">
+                      <Eye className="w-4 h-4" />
+                    </button>
+                    {(user?.role === 'coach' || user?.role === 'admin' || user?.role === 'data_admin') && (
+                      <>
+                        <button onClick={() => { setSelectedPlayer(player); const pos = positions.find(p => p.value === player.position); setPlayerForm({ name: player.name, email: player.email, phone: player.phone || '', position: player.position, category: (pos?.category === 'forwards' || pos?.category === 'backs') ? pos.category : ('forwards' as 'forwards' | 'backs'), jersey_number: '', date_of_birth: '', height_cm: '', weight_kg: '', status: player.status, benchPressPB: '', squatPB: '', deadliftPB: '', pullUpPB: '' }); setShowEditModal(true) }} className="p-2 text-info hover:bg-info/10 rounded-lg transition-colors" title="Edit Player">
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button onClick={async () => {
+                          setSelectedPlayerForGym(player)
+                          const playerId = player.user_id || player.id
+                          try {
+                            const { db } = await import('@/lib/db-helpers')
+                            const gymStats = await db.getPlayerGymStats(playerId)
+                            setGymMetricsForm({
+                              benchPressPB: gymStats.benchPressPB?.toString() || '',
+                              squatPB: gymStats.squatPB?.toString() || '',
+                              deadliftPB: gymStats.deadliftPB?.toString() || '',
+                              pullUpPB: gymStats.pullUpPB?.toString() || '',
+                            })
+                          } catch (error) {
+                            setGymMetricsForm({ benchPressPB: '', squatPB: '', deadliftPB: '', pullUpPB: '' })
+                          }
+                          setShowGymMetricsModal(true)
+                        }} className="p-2 text-warning hover:bg-warning/10 rounded-lg transition-colors" title="Update Gym Metrics">
+                          <Dumbbell className="w-4 h-4" />
+                        </button>
+                      </>
+                    )}
+                    {user?.role === 'admin' && (
+                      <button
+                        onClick={() => toggleClubCaptain(player)}
+                        disabled={togglingClubCaptain === (player.user_id || player.id)}
+                        className={`p-2 rounded-lg transition-colors ${
+                          clubCaptainStatus[player.user_id || player.id]
+                            ? 'text-yellow-600 bg-yellow-100 hover:bg-yellow-200'
+                            : 'text-neutral-medium hover:bg-neutral-light'
+                        } disabled:opacity-50 disabled:cursor-not-allowed`}
+                        title={clubCaptainStatus[player.user_id || player.id] ? 'Remove Club Captain' : 'Make Club Captain'}
+                      >
+                        {togglingClubCaptain === (player.user_id || player.id) ? (
+                          <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <Award className={`w-4 h-4 ${clubCaptainStatus[player.user_id || player.id] ? 'fill-current' : ''}`} />
+                        )}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full">
               <thead className="bg-neutral-light">
                 <tr>
@@ -542,9 +638,9 @@ export default function PlayersPage() {
       </div>
 
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-card shadow-soft max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-neutral-light">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:p-4">
+          <div className="bg-white rounded-card shadow-soft w-full max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="p-4 sm:p-6 border-b border-neutral-light">
               <div className="flex items-center justify-between">
                 <h3 className="text-2xl font-bold text-neutral-text">Add New Player</h3>
                 <button onClick={() => setShowAddModal(false)} className="text-neutral-medium hover:text-neutral-text transition-colors">
@@ -552,7 +648,7 @@ export default function PlayersPage() {
                 </button>
               </div>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="p-4 sm:p-6 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-neutral-text mb-2">Name *</label>
@@ -592,7 +688,7 @@ export default function PlayersPage() {
                 </div>
               </div>
             </div>
-            <div className="p-6 border-t border-neutral-light flex justify-end space-x-3">
+            <div className="p-4 sm:p-6 border-t border-neutral-light flex justify-end space-x-3">
               <button onClick={() => setShowAddModal(false)} className="px-6 py-2 border border-neutral-light rounded-button font-semibold text-neutral-text hover:bg-neutral-light transition-colors" disabled={saving}>
                 Cancel
               </button>
@@ -606,9 +702,9 @@ export default function PlayersPage() {
       )}
 
       {showEditModal && selectedPlayer && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-card shadow-soft max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-neutral-light">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:p-4">
+          <div className="bg-white rounded-card shadow-soft w-full max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="p-4 sm:p-6 border-b border-neutral-light">
               <div className="flex items-center justify-between">
                 <h3 className="text-2xl font-bold text-neutral-text">Edit Player</h3>
                 <button onClick={() => setShowEditModal(false)} className="text-neutral-medium hover:text-neutral-text transition-colors">
@@ -616,7 +712,7 @@ export default function PlayersPage() {
                 </button>
               </div>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="p-4 sm:p-6 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-neutral-text mb-2">Name *</label>
@@ -640,7 +736,7 @@ export default function PlayersPage() {
                 </div>
               </div>
             </div>
-            <div className="p-6 border-t border-neutral-light flex justify-end space-x-3">
+            <div className="p-4 sm:p-6 border-t border-neutral-light flex justify-end space-x-3">
               <button onClick={() => setShowEditModal(false)} className="px-6 py-2 border border-neutral-light rounded-button font-semibold text-neutral-text hover:bg-neutral-light transition-colors" disabled={saving}>
                 Cancel
               </button>
@@ -654,9 +750,9 @@ export default function PlayersPage() {
       )}
 
       {showViewModal && selectedPlayer && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-card shadow-soft max-w-2xl w-full">
-            <div className="p-6 border-b border-neutral-light">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:p-4">
+          <div className="bg-white rounded-card shadow-soft w-full max-w-[95vw] sm:max-w-2xl">
+            <div className="p-4 sm:p-6 border-b border-neutral-light">
               <div className="flex items-center justify-between">
                 <h3 className="text-2xl font-bold text-neutral-text">Player Details</h3>
                 <button onClick={() => setShowViewModal(false)} className="text-neutral-medium hover:text-neutral-text transition-colors">
@@ -664,7 +760,7 @@ export default function PlayersPage() {
                 </button>
               </div>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="p-4 sm:p-6 space-y-4">
               <div className="flex items-center space-x-4">
                 <div className="w-20 h-20 rounded-full bg-club-gradient flex items-center justify-center text-white font-bold text-2xl">
                   {selectedPlayer.name.charAt(0).toUpperCase()}
@@ -700,7 +796,7 @@ export default function PlayersPage() {
                 </div>
               </div>
             </div>
-            <div className="p-6 border-t border-neutral-light flex justify-end">
+            <div className="p-4 sm:p-6 border-t border-neutral-light flex justify-end">
               <button onClick={() => setShowViewModal(false)} className="px-6 py-2 bg-primary text-white rounded-button font-semibold hover:bg-primary-dark transition-colors">
                 Close
               </button>
@@ -710,9 +806,9 @@ export default function PlayersPage() {
       )}
 
       {showGymMetricsModal && selectedPlayerForGym && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-card shadow-soft max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-neutral-light">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:p-4">
+          <div className="bg-white rounded-card shadow-soft w-full max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="p-4 sm:p-6 border-b border-neutral-light">
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
                   <Dumbbell className="w-6 h-6 text-primary mr-2" />
@@ -723,7 +819,7 @@ export default function PlayersPage() {
                 </button>
               </div>
             </div>
-            <div className="p-6 space-y-6">
+            <div className="p-4 sm:p-6 space-y-6">
               <div>
                 <label className="block text-sm font-semibold text-neutral-text mb-2">
                   Bench Press Personal Best (kg)

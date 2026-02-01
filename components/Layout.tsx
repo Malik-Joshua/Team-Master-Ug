@@ -145,7 +145,7 @@ function LayoutContent({ children, pageTitle }: LayoutProps) {
       <Sidebar userRole={user.role} onLogout={handleLogout} />
       <div
         className={`flex-1 transition-all duration-300 ${
-          collapsed ? 'lg:ml-16' : 'lg:ml-64'
+          collapsed ? 'ml-0 lg:ml-16' : 'ml-0 lg:ml-64'
         }`}
       >
         <TopBar
@@ -154,7 +154,7 @@ function LayoutContent({ children, pageTitle }: LayoutProps) {
           userRole={user.role}
           userAvatar={user.profile_picture_url}
         />
-        <main className="max-w-container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <main className="max-w-container mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-6 sm:py-8">
           {children}
         </main>
         <AIAssistant />

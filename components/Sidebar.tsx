@@ -150,7 +150,7 @@ export default function Sidebar({ userRole, onLogout }: SidebarProps) {
     <>
       <button
         onClick={() => setMobileOpen(true)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-white rounded-lg shadow-md border border-neutral-light"
+        className="lg:hidden fixed top-3 left-3 z-50 p-2 bg-white rounded-lg shadow-md border border-neutral-light"
         aria-label="Open menu"
       >
         <Menu className="w-6 h-6" />
@@ -162,7 +162,7 @@ export default function Sidebar({ userRole, onLogout }: SidebarProps) {
             className="lg:hidden fixed inset-0 bg-black/50 z-40"
             onClick={() => setMobileOpen(false)}
           />
-          <aside className="lg:hidden fixed left-0 top-0 h-full w-64 bg-white shadow-xl z-50 flex flex-col">
+          <aside className="lg:hidden fixed left-0 top-0 h-full w-64 sm:w-72 md:w-80 bg-white shadow-xl z-50 flex flex-col">
             <SidebarContent isMobile />
           </aside>
         </>

@@ -1146,8 +1146,8 @@ export default function FixturesPage() {
     ? players.filter((player) => selectedTeamIds.has(player.user_id))
     : players
   const matchStatsModal = showMatchForm ? (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-      <div className="bg-white rounded-card shadow-large max-w-6xl w-full border border-neutral-light max-h-[90vh] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-3 sm:p-4 z-50 backdrop-blur-sm">
+      <div className="bg-white rounded-card shadow-large w-full max-w-[95vw] sm:max-w-6xl border border-neutral-light max-h-[90vh] overflow-hidden flex flex-col">
         <div className="p-6 border-b border-neutral-light flex-shrink-0">
           <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold text-neutral-text">Enter Match Statistics</h2>
@@ -1874,8 +1874,8 @@ export default function FixturesPage() {
 
           {/* Enter Match Stats Modal */}
           {showMatchForm && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-              <div className="bg-white rounded-card shadow-large max-w-6xl w-full border border-neutral-light max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-3 sm:p-4 z-50 backdrop-blur-sm">
+              <div className="bg-white rounded-card shadow-large w-full max-w-[95vw] sm:max-w-6xl border border-neutral-light max-h-[90vh] overflow-hidden flex flex-col">
                 <div className="p-6 border-b border-neutral-light flex-shrink-0">
                   <div className="flex justify-between items-center">
                     <h2 className="text-2xl font-bold text-neutral-text">Enter Match Statistics</h2>

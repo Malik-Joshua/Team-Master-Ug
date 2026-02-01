@@ -113,7 +113,7 @@ export default function AIAssistant() {
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          'fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full shadow-large flex items-center justify-center transition-all duration-300 hover:scale-110 hover:shadow-xl border-2 border-white',
+          'fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 w-12 h-12 sm:w-14 sm:h-14 rounded-full shadow-large flex items-center justify-center transition-all duration-300 hover:scale-110 hover:shadow-xl border-2 border-white',
           isOpen ? 'bg-secondary' : 'bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500'
         )}
         aria-label="Open AI Assistant"
@@ -141,7 +141,7 @@ export default function AIAssistant() {
 
       {/* AI Assistant Chat Panel */}
       {isOpen && (
-        <div className="fixed bottom-24 right-6 z-50 w-96 h-[600px] bg-white rounded-card shadow-large border border-neutral-light flex flex-col">
+        <div className="fixed bottom-20 right-0 sm:right-6 z-50 w-[calc(100vw-2rem)] sm:w-96 max-w-[420px] h-[70vh] sm:h-[600px] bg-white rounded-card shadow-large border border-neutral-light flex flex-col mx-4 sm:mx-0">
           {/* Header */}
           <div className="bg-club-gradient p-4 rounded-t-card flex items-center justify-between">
             <div className="flex items-center space-x-3">

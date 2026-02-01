@@ -846,8 +846,28 @@ export default function FinancePage() {
               <p className="text-neutral-medium">Add your first revenue or expense transaction</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
+            <>
+              <div className="md:hidden divide-y divide-neutral-light">
+                {filteredTransactions.map((transaction) => (
+                  <div key={transaction.id} className="p-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-neutral-medium">{new Date(transaction.date).toLocaleDateString()}</p>
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${transaction.type === 'revenue' ? 'bg-success/10 text-success' : 'bg-secondary/10 text-secondary'}`}>
+                        {transaction.type === 'revenue' ? 'Revenue' : 'Expense'}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-neutral-text">{transaction.category}</p>
+                      <p className="text-sm text-neutral-medium">{transaction.description || 'No description'}</p>
+                    </div>
+                    <div className={`text-lg font-bold ${transaction.type === 'revenue' ? 'text-success' : 'text-secondary'}`}>
+                      {transaction.type === 'revenue' ? '+' : '-'}{formatCurrency(transaction.amount)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full">
                 <thead className="bg-neutral-light">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-bold text-neutral-text uppercase">Date</th>
@@ -874,16 +894,17 @@ export default function FinancePage() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
-            </div>
+                </table>
+              </div>
+            </>
           )}
         </div>
       </div>
 
       {showBudgetModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-card shadow-soft max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-neutral-light">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:p-4">
+          <div className="bg-white rounded-card shadow-soft w-full max-w-[95vw] sm:max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="p-4 sm:p-6 border-b border-neutral-light">
               <div className="flex items-center justify-between">
                 <h3 className="text-2xl font-bold text-neutral-text">Create Budget Request</h3>
                 <button onClick={() => setShowBudgetModal(false)} className="text-neutral-medium hover:text-neutral-text transition-colors">
@@ -891,7 +912,7 @@ export default function FinancePage() {
                 </button>
               </div>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="p-4 sm:p-6 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-neutral-text mb-2">Event Name *</label>
@@ -997,12 +1018,12 @@ export default function FinancePage() {
       )}
 
       {showRevenueModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-card shadow-soft max-w-2xl w-full">
-            <div className="p-6 border-b border-neutral-light">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:p-4">
+          <div className="bg-white rounded-card shadow-soft w-full max-w-[95vw] sm:max-w-2xl">
+            <div className="p-4 sm:p-6 border-b border-neutral-light">
               <h3 className="text-2xl font-bold text-neutral-text">Add Revenue</h3>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="p-4 sm:p-6 space-y-4">
               <div>
                 <label className="block text-sm font-semibold text-neutral-text mb-2">Type</label>
                 <select value={revenueForm.type} onChange={(e) => setRevenueForm({ ...revenueForm, type: e.target.value })} className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-success">
@@ -1040,12 +1061,12 @@ export default function FinancePage() {
       )}
 
       {showExpenseModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-card shadow-soft max-w-2xl w-full">
-            <div className="p-6 border-b border-neutral-light">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:p-4">
+          <div className="bg-white rounded-card shadow-soft w-full max-w-[95vw] sm:max-w-2xl">
+            <div className="p-4 sm:p-6 border-b border-neutral-light">
               <h3 className="text-2xl font-bold text-neutral-text">Add Expense</h3>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="p-4 sm:p-6 space-y-4">
               <div>
                 <label className="block text-sm font-semibold text-neutral-text mb-2">Type</label>
                 <select value={expenseForm.type} onChange={(e) => setExpenseForm({ ...expenseForm, type: e.target.value })} className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary">

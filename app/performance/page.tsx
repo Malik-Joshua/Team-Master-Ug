@@ -68,6 +68,16 @@ export default function PerformancePage() {
     avgMinutes: 0,
     winRate: 0,
   })
+  const [recentMatches, setRecentMatches] = useState<Array<{
+    matchId: string
+    opponent: string
+    tournamentType: string
+    matchDate: string
+    result?: string | null
+    tries: number
+    tackles: number
+    minutes: number
+  }>>([])
 
   // Physio-specific stats
   const [physioStats, setPhysioStats] = useState({
@@ -288,7 +298,7 @@ export default function PerformancePage() {
             try {
               const { data: matchStats } = await supabase
                 .from('match_stats')
-                .select('match_id, tries_scored, tackles_made, minutes_played')
+                .select('match_id, tries_scored, tackles_made, minutes_played, matches:matches (opponent, tournament_type, match_date, result)')
                 .eq('player_id', authUser.id)
 
               if (matchStats && matchStats.length > 0) {
@@ -307,6 +317,22 @@ export default function PerformancePage() {
                   avgMinutes: totalMatches > 0 ? Math.round(totalMinutes / totalMatches) : 0,
                   winRate: 0,
                 })
+
+                const recent = matchStats
+                  .map((stat: any) => ({
+                    matchId: stat.match_id,
+                    opponent: stat.matches?.opponent || 'Unknown Opponent',
+                    tournamentType: stat.matches?.tournament_type || 'match',
+                    matchDate: stat.matches?.match_date || '',
+                    result: stat.matches?.result || null,
+                    tries: stat.tries_scored || 0,
+                    tackles: stat.tackles_made || 0,
+                    minutes: stat.minutes_played || 0,
+                  }))
+                  .filter((item: any) => item.matchDate)
+                  .sort((a: any, b: any) => (a.matchDate < b.matchDate ? 1 : -1))
+                  .slice(0, 5)
+                setRecentMatches(recent)
               } else {
                 // No match stats means no games played
                 setPlayerStats({
@@ -316,9 +342,11 @@ export default function PerformancePage() {
                   avgMinutes: 0,
                   winRate: 0,
                 })
+                setRecentMatches([])
               }
             } catch (error) {
               console.error('Error loading player performance data:', error)
+              setRecentMatches([])
             }
           }
         }
@@ -2445,30 +2473,39 @@ export default function PerformancePage() {
         {/* Match History */}
         <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
           <h2 className="text-2xl font-bold text-neutral-text mb-6">Recent Matches</h2>
-          <div className="space-y-3">
-            <div className="p-4 bg-neutral-light/50 rounded-lg hover:bg-neutral-light transition-colors">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-neutral-text">Uganda Cup Final</p>
-                  <p className="text-sm text-neutral-medium">2 tries, 5 tackles, 80 minutes</p>
-                </div>
-                <span className="px-3 py-1 bg-success/10 text-success rounded-full text-sm font-medium">
-                  Win
-                </span>
-              </div>
+          {recentMatches.length === 0 ? (
+            <div className="p-6 text-center text-neutral-medium">
+              No recent matches yet.
             </div>
-            <div className="p-4 bg-neutral-light/50 rounded-lg hover:bg-neutral-light transition-colors">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-neutral-text">League Match vs Lions</p>
-                  <p className="text-sm text-neutral-medium">1 try, 4 tackles, 75 minutes</p>
+          ) : (
+            <div className="space-y-3">
+              {recentMatches.map((match) => (
+                <div key={match.matchId} className="p-4 bg-neutral-light/50 rounded-lg hover:bg-neutral-light transition-colors">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium text-neutral-text">
+                        {match.tournamentType.replace('_', ' ')} vs {match.opponent}
+                      </p>
+                      <p className="text-sm text-neutral-medium">
+                        {match.tries} tries, {match.tackles} tackles, {match.minutes} minutes
+                      </p>
+                    </div>
+                    {match.result && (
+                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                        match.result === 'win'
+                          ? 'bg-success/10 text-success'
+                          : match.result === 'loss'
+                          ? 'bg-secondary/10 text-secondary'
+                          : 'bg-neutral-light text-neutral-text'
+                      }`}>
+                        {match.result.charAt(0).toUpperCase() + match.result.slice(1)}
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <span className="px-3 py-1 bg-secondary/10 text-secondary rounded-full text-sm font-medium">
-                  Loss
-                </span>
-              </div>
+              ))}
             </div>
-          </div>
+          )}
         </div>
 
         {/* Performance Resources Section for Players */}

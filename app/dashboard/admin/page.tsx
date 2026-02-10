@@ -69,76 +69,6 @@ export default function AdminDashboard() {
   const [recentApprovals, setRecentApprovals] = useState<any[]>([])
 
   const loadData = useCallback(async () => {
-      if (typeof window !== 'undefined') {
-        const devUser = localStorage.getItem('dev_user')
-        if (devUser) {
-          try {
-            const userData = JSON.parse(devUser)
-            setUser(userData)
-            setAttendanceSummary({
-              totalSessions: 24,
-              totalPlayers: 30,
-              presentCount: 520,
-              absentCount: 120,
-              justifiedAbsenceCount: 45,
-              injuredCount: 15,
-              attendanceRate: 74.3,
-              recentSessions: [
-                { sessionDate: '2024-12-15', sessionTitle: 'Training Session 24', present: 22, absent: 8, total: 30 },
-                { sessionDate: '2024-12-10', sessionTitle: 'Training Session 23', present: 25, absent: 5, total: 30 },
-                { sessionDate: '2024-12-05', sessionTitle: 'Training Session 22', present: 20, absent: 10, total: 30 },
-                { sessionDate: '2024-12-01', sessionTitle: 'Training Session 21', present: 23, absent: 7, total: 30 },
-                { sessionDate: '2024-11-26', sessionTitle: 'Training Session 20', present: 24, absent: 6, total: 30 },
-              ],
-            })
-            setPendingBudgets([
-              {
-                id: '1',
-                event_name: 'Uganda Cup Final',
-                event_type: 'game_day',
-                event_date: '2024-12-20',
-                description: 'Match day expenses',
-                total_amount: 5000000,
-                created_by_profile: { name: 'Finance Admin', email: 'finance@example.com' },
-                budget_items: [
-                  { item_name: 'Transport', category: 'Travel', quantity: 1, unit_price: 2000000, total_amount: 2000000 },
-                  { item_name: 'Food & Beverages', category: 'Catering', quantity: 1, unit_price: 3000000, total_amount: 3000000 },
-                ],
-              },
-            ])
-            // Mock active injuries for dev mode
-            setActiveInjuries([
-              {
-                id: '1',
-                player_id: 'player1',
-                player: { name: 'John Doe' },
-                injury_date: '2024-12-01',
-                cause: 'Training collision',
-                diagnosis: 'Sprained ankle',
-                return_to_play_date: '2024-12-20',
-                return_to_training_date: '2024-12-15',
-                status: 'active',
-              },
-              {
-                id: '2',
-                player_id: 'player2',
-                player: { name: 'Mike Johnson' },
-                injury_date: '2024-12-05',
-                cause: 'Match injury',
-                diagnosis: 'Shoulder strain',
-                return_to_play_date: '2024-12-25',
-                return_to_training_date: '2024-12-18',
-                status: 'active',
-              },
-            ])
-            setLoading(false)
-            return
-          } catch (e) {
-            // Fall through
-          }
-        }
-      }
-
       const supabase = createClient()
       const { data: { user: authUser } } = await supabase.auth.getUser()
 
@@ -337,12 +267,6 @@ export default function AdminDashboard() {
 
   const handleApproveBudget = async (budgetId: string) => {
     try {
-      if (typeof window !== 'undefined' && localStorage.getItem('dev_user')) {
-        setPendingBudgets(pendingBudgets.filter(b => b.id !== budgetId))
-        alert('Budget approved! (Dev Mode)')
-        return
-      }
-
       const supabase = createClient()
       const { data: { user: authUser } } = await supabase.auth.getUser()
       if (!authUser) {
@@ -371,15 +295,6 @@ export default function AdminDashboard() {
     }
 
     try {
-      if (typeof window !== 'undefined' && localStorage.getItem('dev_user')) {
-        setPendingBudgets(pendingBudgets.filter(b => b.id !== budgetId))
-        setRejectionReason('')
-        setShowBudgetModal(false)
-        setSelectedBudget(null)
-        alert('Budget rejected! (Dev Mode)')
-        return
-      }
-
       const supabase = createClient()
       const { data: { user: authUser } } = await supabase.auth.getUser()
       if (!authUser) {
@@ -416,11 +331,7 @@ export default function AdminDashboard() {
     { name: 'Inventory', icon: Package, href: '/inventory', color: 'bg-info' },
   ]
 
-  const activities = [
-    { type: 'player', message: 'New player registered: James Anderson', time: '10 minutes ago', color: 'bg-primary' },
-    { type: 'match', message: 'Match stats logged: Uganda Cup Final', time: '2 hours ago', color: 'bg-info' },
-    { type: 'finance', message: 'Revenue added: UGX 5,000,000 sponsorship', time: '5 hours ago', color: 'bg-success' },
-  ]
+  const activities: Array<{ message: string; time: string; color: string }> = []
 
   const attendanceChartData = attendanceSummary ? {
     labels: attendanceSummary.recentSessions.map(s => 
@@ -937,17 +848,21 @@ export default function AdminDashboard() {
 
         <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
           <h3 className="text-xl font-bold text-neutral-text mb-6">Recent Activity Feed</h3>
-          <div className="space-y-4">
-            {activities.map((activity, index) => (
-              <div key={index} className="flex items-start space-x-3 p-3 hover:bg-neutral-light rounded-lg transition-colors">
-                <div className={`w-2 h-2 rounded-full ${activity.color} mt-2 flex-shrink-0`} />
-                <div className="flex-1">
-                  <p className="text-sm text-neutral-text">{activity.message}</p>
-                  <p className="text-xs text-neutral-medium mt-1">{activity.time}</p>
+          {activities.length === 0 ? (
+            <p className="text-sm text-neutral-medium">No recent activity yet.</p>
+          ) : (
+            <div className="space-y-4">
+              {activities.map((activity, index) => (
+                <div key={index} className="flex items-start space-x-3 p-3 hover:bg-neutral-light rounded-lg transition-colors">
+                  <div className={`w-2 h-2 rounded-full ${activity.color} mt-2 flex-shrink-0`} />
+                  <div className="flex-1">
+                    <p className="text-sm text-neutral-text">{activity.message}</p>
+                    <p className="text-xs text-neutral-medium mt-1">{activity.time}</p>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

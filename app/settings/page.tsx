@@ -39,27 +39,6 @@ export default function SettingsPage() {
   useEffect(() => {
     const loadSettings = async () => {
       try {
-        // Check for dev mode first
-        if (typeof window !== 'undefined') {
-          const devUser = localStorage.getItem('dev_user')
-          if (devUser) {
-            try {
-              const userData = JSON.parse(devUser)
-              setUser(userData)
-              setProfileData({
-                name: userData.name || '',
-                phone: userData.phone || '',
-                emergency_contact: userData.emergency_contact || '',
-                emergency_phone: userData.emergency_phone || '',
-              })
-              setLoading(false)
-              return
-            } catch (e) {
-              // Invalid dev data, fall through
-            }
-          }
-        }
-
         const supabase = createClient()
         const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
 

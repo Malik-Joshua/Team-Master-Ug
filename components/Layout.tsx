@@ -21,26 +21,8 @@ function LayoutContent({ children, pageTitle }: LayoutProps) {
 
   useEffect(() => {
     const loadUser = async () => {
-      // Real authentication first (prioritize real auth over dev mode)
       try {
         if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-          // Fall back to dev mode if Supabase is not configured
-          if (typeof window !== 'undefined') {
-            const devRole = localStorage.getItem('dev_role')
-            const devUser = localStorage.getItem('dev_user')
-            if (devRole && devUser) {
-              try {
-                const userData = JSON.parse(devUser)
-                setUser(userData)
-                setLoading(false)
-                return
-              } catch (e) {
-                console.error('Error parsing dev user data:', e)
-                localStorage.removeItem('dev_role')
-                localStorage.removeItem('dev_user')
-              }
-            }
-          }
           router.push('/login')
           return
         }
@@ -57,11 +39,6 @@ function LayoutContent({ children, pageTitle }: LayoutProps) {
             .single()
 
           if (profile) {
-            // Clear dev mode data when using real auth
-            if (typeof window !== 'undefined') {
-              localStorage.removeItem('dev_role')
-              localStorage.removeItem('dev_user')
-            }
             setUser(profile)
             setLoading(false)
             return
@@ -70,25 +47,6 @@ function LayoutContent({ children, pageTitle }: LayoutProps) {
             await supabase.auth.signOut()
             router.push('/login')
             return
-          }
-        }
-
-        // No authenticated user - check for dev mode as fallback
-        if (typeof window !== 'undefined') {
-          const devRole = localStorage.getItem('dev_role')
-          const devUser = localStorage.getItem('dev_user')
-
-          if (devRole && devUser) {
-            try {
-              const userData = JSON.parse(devUser)
-              setUser(userData)
-              setLoading(false)
-              return
-            } catch (e) {
-              console.error('Error parsing dev user data:', e)
-              localStorage.removeItem('dev_role')
-              localStorage.removeItem('dev_user')
-            }
           }
         }
 
@@ -106,12 +64,6 @@ function LayoutContent({ children, pageTitle }: LayoutProps) {
   }, [router])
 
   const handleLogout = async () => {
-    // Clear dev mode data
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('dev_role')
-      localStorage.removeItem('dev_user')
-    }
-
     // Sign out from Supabase
     try {
       const supabase = createClient()

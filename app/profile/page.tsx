@@ -20,28 +20,6 @@ export default function ProfilePage() {
 
   useEffect(() => {
     const loadProfile = async () => {
-      // Check for dev mode first
-      if (typeof window !== 'undefined') {
-        const devUser = localStorage.getItem('dev_user')
-        if (devUser) {
-          try {
-            const userData = JSON.parse(devUser)
-            setUser(userData)
-            setFormData({
-              name: userData.name || '',
-              phone: userData.phone || '',
-              emergency_contact: userData.emergency_contact || '',
-              emergency_phone: userData.emergency_phone || '',
-              birth_date: userData.birth_date || '',
-            })
-            setLoading(false)
-            return
-          } catch (e) {
-            // Invalid dev data, fall through
-          }
-        }
-      }
-
       const supabase = createClient()
       const { data: { user: authUser } } = await supabase.auth.getUser()
 
@@ -70,17 +48,6 @@ export default function ProfilePage() {
   }, [])
 
   const handleSave = async () => {
-    // In dev mode, just update localStorage
-    if (typeof window !== 'undefined' && localStorage.getItem('dev_user')) {
-      const devUser = JSON.parse(localStorage.getItem('dev_user') || '{}')
-      const updatedUser = { ...devUser, ...formData }
-      localStorage.setItem('dev_user', JSON.stringify(updatedUser))
-      setUser(updatedUser)
-      setEditing(false)
-      alert('Profile updated! (Dev Mode)')
-      return
-    }
-
     // Use API route to update profile (bypasses RLS and schema cache issues)
     try {
       const response = await fetch('/api/profile/update', {
@@ -125,27 +92,6 @@ export default function ProfilePage() {
   if (!user) return null
 
   const loadProfile = async () => {
-    if (typeof window !== 'undefined') {
-      const devUser = localStorage.getItem('dev_user')
-      if (devUser) {
-        try {
-          const userData = JSON.parse(devUser)
-          setUser(userData)
-          setFormData({
-            name: userData.name || '',
-            phone: userData.phone || '',
-            emergency_contact: userData.emergency_contact || '',
-            emergency_phone: userData.emergency_phone || '',
-            birth_date: userData.birth_date || '',
-          })
-          setLoading(false)
-          return
-        } catch (e) {
-          // Fall through
-        }
-      }
-    }
-
     const supabase = createClient()
     const { data: { user: authUser } } = await supabase.auth.getUser()
 

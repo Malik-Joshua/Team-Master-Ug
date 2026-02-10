@@ -342,148 +342,121 @@ export default function PhysioDashboard() {
 
     setSaving(true)
     try {
-      if (typeof window !== 'undefined' && localStorage.getItem('dev_user')) {
-        // Dev mode
-        const newInjury: Injury = {
-          id: editingInjury?.id || `injury-${Date.now()}`,
-          player_id: injuryForm.player_id,
-          player_name: players.find(p => p.user_id === injuryForm.player_id)?.name,
-          injury_date: injuryForm.injury_date,
-          cause: injuryForm.cause,
-          diagnosis: injuryForm.diagnosis,
-          action_taken: injuryForm.action_taken,
-          further_treatment: injuryForm.further_treatment || undefined,
-          medication: injuryForm.medication || undefined,
-          return_to_training_date: injuryForm.return_to_training_date || undefined,
-          return_to_play_date: injuryForm.return_to_play_date || undefined,
-          status: editingInjury?.status || 'active',
-          notes: injuryForm.notes || undefined,
-          created_at: editingInjury?.created_at || new Date().toISOString(),
-        }
-
-        if (editingInjury) {
-          setInjuries(injuries.map(i => i.id === editingInjury.id ? newInjury : i))
-        } else {
-          setInjuries([newInjury, ...injuries])
-        }
-        alert('Injury saved! (Dev Mode)')
-      } else {
-        const supabase = createClient()
-        const { data: { user: authUser } } = await supabase.auth.getUser()
-        if (!authUser) {
-          alert('Please log in to save injuries')
-          return
-        }
-
-        const injuryData = {
-          player_id: injuryForm.player_id,
-          injury_date: injuryForm.injury_date,
-          cause: injuryForm.cause,
-          diagnosis: injuryForm.diagnosis,
-          action_taken: injuryForm.action_taken,
-          further_treatment: injuryForm.further_treatment || null,
-          medication: injuryForm.medication || null,
-          return_to_training_date: injuryForm.return_to_training_date || null,
-          return_to_play_date: injuryForm.return_to_play_date || null,
-          notes: injuryForm.notes || null,
-          created_by: authUser.id,
-        }
-
-        if (editingInjury) {
-          const { error } = await supabase
-            .from('injuries')
-            .update(injuryData)
-            .eq('id', editingInjury.id)
-
-          if (error) throw error
-        } else {
-          const { error } = await supabase
-            .from('injuries')
-            .insert(injuryData)
-
-          if (error) throw error
-        }
-
-        await loadInjuries()
-        
-        // Send message to player if checkbox is checked
-        if (sendInjuryMessage && injuryForm.player_id) {
-          try {
-            const playerName = players.find(p => p.user_id === injuryForm.player_id)?.name || 'Player'
-            const injuryDate = new Date(injuryForm.injury_date).toLocaleDateString('en-US', {
-              month: 'short',
-              day: 'numeric',
-              year: 'numeric',
-            })
-            
-            const messageSubject = `Injury Recorded - ${injuryDate}`
-            let messageBody = `Dear ${playerName},\n\nAn injury has been recorded for you with the following details:\n\n`
-            messageBody += `Injury Date: ${injuryDate}\n`
-            messageBody += `Cause: ${injuryForm.cause}\n`
-            messageBody += `Diagnosis: ${injuryForm.diagnosis}\n`
-            messageBody += `Action Taken: ${injuryForm.action_taken}\n`
-            
-            if (injuryForm.further_treatment) {
-              messageBody += `Further Treatment: ${injuryForm.further_treatment}\n`
-            }
-            
-            if (injuryForm.medication) {
-              messageBody += `Medication: ${injuryForm.medication}\n`
-            }
-            
-            if (injuryForm.return_to_training_date) {
-              messageBody += `Return to Training: ${new Date(injuryForm.return_to_training_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}\n`
-            }
-            
-            if (injuryForm.return_to_play_date) {
-              messageBody += `Return to Play: ${new Date(injuryForm.return_to_play_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}\n`
-            }
-            
-            if (injuryForm.notes) {
-              messageBody += `\nAdditional Notes: ${injuryForm.notes}\n`
-            }
-            
-            messageBody += `\nPlease follow the treatment plan and recovery guidelines provided. If you have any questions or concerns, please contact the physiotherapy team.`
-
-            const { data: newMessage, error: messageError } = await supabase
-              .from('messages')
-              .insert({
-                sender_id: authUser.id,
-                recipient_id: injuryForm.player_id,
-                recipient_role: 'player',
-                subject: messageSubject,
-                message: messageBody,
-              })
-              .select()
-              .single()
-
-            if (messageError) {
-              console.error('Error sending injury message:', messageError)
-            } else {
-              // Create notification for player
-              try {
-                const { db } = await import('@/lib/db-helpers')
-                await db.createNotification({
-                  user_id: injuryForm.player_id,
-                  title: 'Injury Recorded',
-                  message: `An injury has been recorded for you. Check your messages for details.`,
-                  type: 'info',
-                  action_url: '/messages',
-                  reference_id: newMessage.id,
-                  reference_type: 'message',
-                })
-              } catch (notifError) {
-                console.error('Error creating notification:', notifError)
-              }
-            }
-          } catch (messageError) {
-            console.error('Error sending injury message to player:', messageError)
-            // Don't fail the injury save if message fails
-          }
-        }
-        
-        alert('Injury saved successfully!')
+      const supabase = createClient()
+      const { data: { user: authUser } } = await supabase.auth.getUser()
+      if (!authUser) {
+        alert('Please log in to save injuries')
+        return
       }
+
+      const injuryData = {
+        player_id: injuryForm.player_id,
+        injury_date: injuryForm.injury_date,
+        cause: injuryForm.cause,
+        diagnosis: injuryForm.diagnosis,
+        action_taken: injuryForm.action_taken,
+        further_treatment: injuryForm.further_treatment || null,
+        medication: injuryForm.medication || null,
+        return_to_training_date: injuryForm.return_to_training_date || null,
+        return_to_play_date: injuryForm.return_to_play_date || null,
+        notes: injuryForm.notes || null,
+        created_by: authUser.id,
+      }
+
+      if (editingInjury) {
+        const { error } = await supabase
+          .from('injuries')
+          .update(injuryData)
+          .eq('id', editingInjury.id)
+
+        if (error) throw error
+      } else {
+        const { error } = await supabase
+          .from('injuries')
+          .insert(injuryData)
+
+        if (error) throw error
+      }
+
+      await loadInjuries()
+      
+      // Send message to player if checkbox is checked
+      if (sendInjuryMessage && injuryForm.player_id) {
+        try {
+          const playerName = players.find(p => p.user_id === injuryForm.player_id)?.name || 'Player'
+          const injuryDate = new Date(injuryForm.injury_date).toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+          })
+          
+          const messageSubject = `Injury Recorded - ${injuryDate}`
+          let messageBody = `Dear ${playerName},\n\nAn injury has been recorded for you with the following details:\n\n`
+          messageBody += `Injury Date: ${injuryDate}\n`
+          messageBody += `Cause: ${injuryForm.cause}\n`
+          messageBody += `Diagnosis: ${injuryForm.diagnosis}\n`
+          messageBody += `Action Taken: ${injuryForm.action_taken}\n`
+          
+          if (injuryForm.further_treatment) {
+            messageBody += `Further Treatment: ${injuryForm.further_treatment}\n`
+          }
+          
+          if (injuryForm.medication) {
+            messageBody += `Medication: ${injuryForm.medication}\n`
+          }
+          
+          if (injuryForm.return_to_training_date) {
+            messageBody += `Return to Training: ${new Date(injuryForm.return_to_training_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}\n`
+          }
+          
+          if (injuryForm.return_to_play_date) {
+            messageBody += `Return to Play: ${new Date(injuryForm.return_to_play_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}\n`
+          }
+          
+          if (injuryForm.notes) {
+            messageBody += `\nAdditional Notes: ${injuryForm.notes}\n`
+          }
+          
+          messageBody += `\nPlease follow the treatment plan and recovery guidelines provided. If you have any questions or concerns, please contact the physiotherapy team.`
+
+          const { data: newMessage, error: messageError } = await supabase
+            .from('messages')
+            .insert({
+              sender_id: authUser.id,
+              recipient_id: injuryForm.player_id,
+              recipient_role: 'player',
+              subject: messageSubject,
+              message: messageBody,
+            })
+            .select()
+            .single()
+
+          if (messageError) {
+            console.error('Error sending injury message:', messageError)
+          } else {
+            // Create notification for player
+            try {
+              const { db } = await import('@/lib/db-helpers')
+              await db.createNotification({
+                user_id: injuryForm.player_id,
+                title: 'Injury Recorded',
+                message: `An injury has been recorded for you. Check your messages for details.`,
+                type: 'info',
+                action_url: '/messages',
+                reference_id: newMessage.id,
+                reference_type: 'message',
+              })
+            } catch (notifError) {
+              console.error('Error creating notification:', notifError)
+            }
+          }
+        } catch (messageError) {
+          console.error('Error sending injury message to player:', messageError)
+          // Don't fail the injury save if message fails
+        }
+      }
+      
+      alert('Injury saved successfully!')
 
       // Reset form
       setInjuryForm({
@@ -513,36 +486,26 @@ export default function PhysioDashboard() {
     if (!confirm('Are you sure you want to clear this injury?')) return
 
     try {
-      if (typeof window !== 'undefined' && localStorage.getItem('dev_user')) {
-        // Dev mode
-        setInjuries(injuries.map(i => 
-          i.id === injuryId 
-            ? { ...i, status: 'cleared' as const, cleared_at: new Date().toISOString() }
-            : i
-        ))
-        alert('Injury cleared! (Dev Mode)')
-      } else {
-        const supabase = createClient()
-        const { data: { user: authUser } } = await supabase.auth.getUser()
-        if (!authUser) {
-          alert('Please log in to clear injuries')
-          return
-        }
-
-        const { error } = await supabase
-          .from('injuries')
-          .update({
-            status: 'cleared',
-            cleared_at: new Date().toISOString(),
-            cleared_by: authUser.id,
-          })
-          .eq('id', injuryId)
-
-        if (error) throw error
-
-        await loadInjuries()
-        alert('Injury cleared successfully!')
+      const supabase = createClient()
+      const { data: { user: authUser } } = await supabase.auth.getUser()
+      if (!authUser) {
+        alert('Please log in to clear injuries')
+        return
       }
+
+      const { error } = await supabase
+        .from('injuries')
+        .update({
+          status: 'cleared',
+          cleared_at: new Date().toISOString(),
+          cleared_by: authUser.id,
+        })
+        .eq('id', injuryId)
+
+      if (error) throw error
+
+      await loadInjuries()
+      alert('Injury cleared successfully!')
     } catch (error: any) {
       console.error('Error clearing injury:', error)
       alert(`Error clearing injury: ${error.message}`)

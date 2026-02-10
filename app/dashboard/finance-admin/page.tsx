@@ -47,6 +47,7 @@ export default function FinanceAdminDashboard() {
   const [sessionAttendance, setSessionAttendance] = useState<any>(null)
   const [matchAttendance, setMatchAttendance] = useState<any>(null)
   const [loadingAttendance, setLoadingAttendance] = useState(false)
+  const [transactions, setTransactions] = useState<any[]>([])
 
   const loadData = useCallback(async () => {
     const supabase = createClient()
@@ -74,6 +75,15 @@ export default function FinanceAdminDashboard() {
     
     if (matchesData) {
       setMatches(matchesData)
+    }
+
+    const { data: transactionsData } = await supabase
+      .from('financial_transactions')
+      .select('transaction_date, type, amount')
+      .order('transaction_date', { ascending: false })
+
+    if (transactionsData) {
+      setTransactions(transactionsData)
     }
   }, [])
 
@@ -147,16 +157,55 @@ export default function FinanceAdminDashboard() {
     return `UGX ${amount.toLocaleString()}`
   }
 
-  const totalRevenue = 45000000
-  const totalExpenses = 32000000
+  const totalRevenue = transactions
+    .filter((t: any) => t.type === 'revenue')
+    .reduce((sum: number, t: any) => sum + (t.amount || 0), 0)
+  const totalExpenses = transactions
+    .filter((t: any) => t.type === 'expense')
+    .reduce((sum: number, t: any) => sum + (t.amount || 0), 0)
   const netBalance = totalRevenue - totalExpenses
 
-  // Monthly financial data for the last 6 months
-  const monthlyData = {
-    labels: ['Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov'],
-    revenue: [6500000, 7200000, 6800000, 7500000, 8200000, 7800000],
-    expenses: [4800000, 5200000, 5100000, 5500000, 5800000, 5600000],
+  const buildMonthlyData = (items: any[]) => {
+    const now = new Date()
+    const months: Array<{ key: string; label: string }> = []
+    for (let i = 5; i >= 0; i -= 1) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      const key = `${date.getFullYear()}-${date.getMonth() + 1}`
+      const label = date.toLocaleDateString('en-US', { month: 'short' })
+      months.push({ key, label })
+    }
+
+    const revenue = months.map((month) => {
+      return items
+        .filter((t: any) => t.type === 'revenue' && t.transaction_date)
+        .filter((t: any) => {
+          const d = new Date(t.transaction_date)
+          const key = `${d.getFullYear()}-${d.getMonth() + 1}`
+          return key === month.key
+        })
+        .reduce((sum: number, t: any) => sum + (t.amount || 0), 0)
+    })
+
+    const expenses = months.map((month) => {
+      return items
+        .filter((t: any) => t.type === 'expense' && t.transaction_date)
+        .filter((t: any) => {
+          const d = new Date(t.transaction_date)
+          const key = `${d.getFullYear()}-${d.getMonth() + 1}`
+          return key === month.key
+        })
+        .reduce((sum: number, t: any) => sum + (t.amount || 0), 0)
+    })
+
+    return {
+      labels: months.map((m) => m.label),
+      revenue,
+      expenses,
+    }
   }
+
+  // Monthly financial data for the last 6 months
+  const monthlyData = buildMonthlyData(transactions)
 
   const chartData = {
     labels: monthlyData.labels,

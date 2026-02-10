@@ -494,12 +494,46 @@ export default function FinancePage() {
   const totalRevenue = transactions.filter(t => t.type === 'revenue').reduce((sum, t) => sum + t.amount, 0)
   const totalExpenses = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0)
   const netBalance = totalRevenue - totalExpenses
+  const buildMonthlyData = (items: Transaction[]) => {
+    const now = new Date()
+    const months: Array<{ key: string; label: string }> = []
+    for (let i = 5; i >= 0; i -= 1) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      const key = `${date.getFullYear()}-${date.getMonth() + 1}`
+      const label = date.toLocaleDateString('en-US', { month: 'short' })
+      months.push({ key, label })
+    }
 
-  const monthlyData = {
-    labels: ['Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov'],
-    revenue: [6500000, 7200000, 6800000, 7500000, 8200000, 7800000],
-    expenses: [4800000, 5200000, 5100000, 5500000, 5800000, 5600000],
+    const revenue = months.map((month) => {
+      return items
+        .filter((t) => t.type === 'revenue' && t.date)
+        .filter((t) => {
+          const d = new Date(t.date)
+          const key = `${d.getFullYear()}-${d.getMonth() + 1}`
+          return key === month.key
+        })
+        .reduce((sum, t) => sum + t.amount, 0)
+    })
+
+    const expenses = months.map((month) => {
+      return items
+        .filter((t) => t.type === 'expense' && t.date)
+        .filter((t) => {
+          const d = new Date(t.date)
+          const key = `${d.getFullYear()}-${d.getMonth() + 1}`
+          return key === month.key
+        })
+        .reduce((sum, t) => sum + t.amount, 0)
+    })
+
+    return {
+      labels: months.map((m) => m.label),
+      revenue,
+      expenses,
+    }
   }
+
+  const monthlyData = buildMonthlyData(transactions)
 
   const chartData = {
     labels: monthlyData.labels,

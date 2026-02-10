@@ -62,6 +62,7 @@ export default function AdminDashboard() {
     totalUsers: 0,
     totalPlayers: 0,
     activePlayers: 0,
+    totalStaff: 0,
     totalRevenue: 0,
     inventoryItems: 0,
   })
@@ -91,6 +92,7 @@ export default function AdminDashboard() {
                 totalUsers: data.totalUsers || 0,
                 totalPlayers: data.totalPlayers || 0,
                 activePlayers: data.activePlayers || 0,
+                totalStaff: data.totalStaff || 0,
                 totalRevenue: data.totalRevenue || 0,
                 inventoryItems: data.inventoryItems || 0,
               })
@@ -376,8 +378,9 @@ export default function AdminDashboard() {
           </div>
           <RefreshButton onRefresh={loadData} />
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-6">
           <StatCard title="Total Users" value={stats.totalUsers} icon={Users} iconColor="bg-primary" />
+          <StatCard title="Total Staff" value={stats.totalStaff} icon={Users} iconColor="bg-info" />
           <StatCard title="Total Players" value={stats.totalPlayers} icon={Users} iconColor="bg-primary" />
           <StatCard title="Active Players" value={stats.activePlayers} icon={Activity} iconColor="bg-success" />
           <StatCard title="Total Revenue" value={formatCurrency(stats.totalRevenue)} icon={DollarSign} iconColor="bg-success" />

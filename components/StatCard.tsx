@@ -26,9 +26,9 @@ export default function StatCard({
       )}
     >
       <div className="flex items-center justify-between mb-4">
-        <div className="flex-1">
-          <p className="text-sm font-medium text-neutral-medium mb-1">{title}</p>
-          <p className="text-3xl font-bold text-neutral-text">{value}</p>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs sm:text-sm font-medium text-neutral-medium mb-1 truncate">{title}</p>
+          <p className="text-2xl sm:text-3xl font-bold text-neutral-text break-words">{value}</p>
           {description && (
             <p className="text-xs text-neutral-medium mt-1">{description}</p>
           )}

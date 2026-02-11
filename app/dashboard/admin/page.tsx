@@ -371,14 +371,14 @@ export default function AdminDashboard() {
     <Layout pageTitle="Admin Control Panel">
       <div className="space-y-6">
         <BirthdayAlert />
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-center mb-4">
           <div>
-            <h1 className="text-4xl font-extrabold text-club-gradient">Admin Dashboard</h1>
-            <p className="text-lg text-neutral-medium font-medium mt-2">Overview of club operations and statistics</p>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-club-gradient">Admin Dashboard</h1>
+            <p className="text-sm sm:text-lg text-neutral-medium font-medium mt-1 sm:mt-2">Overview of club operations and statistics</p>
           </div>
           <RefreshButton onRefresh={loadData} />
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-6 gap-6">
+        <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-3 lg:grid-cols-6">
           <StatCard title="Total Users" value={stats.totalUsers} icon={Users} iconColor="bg-primary" />
           <StatCard title="Total Staff" value={stats.totalStaff} icon={Users} iconColor="bg-info" />
           <StatCard title="Total Players" value={stats.totalPlayers} icon={Users} iconColor="bg-primary" />

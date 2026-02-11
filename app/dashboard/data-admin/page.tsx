@@ -611,18 +611,18 @@ export default function DataAdminDashboard() {
       <div className="space-y-6">
         <BirthdayAlert />
         {/* Header */}
-        <div className="bg-club-gradient rounded-card p-6 text-white shadow-soft">
-          <div className="flex items-center justify-between">
+        <div className="bg-club-gradient rounded-card p-4 sm:p-6 text-white shadow-soft">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h1 className="text-3xl font-bold mb-2">Team Manager Control Center</h1>
-              <p className="text-blue-100">Manage players, training attendance, and match statistics</p>
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-1 sm:mb-2">Team Manager Control Center</h1>
+              <p className="text-sm sm:text-base text-blue-100">Manage players, training attendance, and match statistics</p>
             </div>
             <RefreshButton onRefresh={loadData} size="sm" className="bg-white/20 hover:bg-white/30 border-white/30 text-white" />
           </div>
         </div>
 
         {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-3 lg:grid-cols-5">
           <StatCard title="Total Players" value={players.length} icon={Users} iconColor="bg-primary" />
           <StatCard title="Active Players" value={activePlayersCount} icon={Activity} iconColor="bg-success" />
           <StatCard title="Matches Logged" value={matchesCount} icon={Trophy} iconColor="bg-warning" />

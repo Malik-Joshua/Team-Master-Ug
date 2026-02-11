@@ -1292,10 +1292,10 @@ export default function DashboardPage() {
   if (user.role === 'coach') {
     return (
       <Layout pageTitle="Coach Control Center">
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           <BirthdayAlert />
           {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-3 lg:grid-cols-5">
             <StatCard
               title="Total Players"
               value={stats.totalPlayers}
@@ -1304,7 +1304,7 @@ export default function DashboardPage() {
             />
             <StatCard
               title="Active Players"
-              value={`${stats.activePlayers} (${Math.round((stats.activePlayers / stats.totalPlayers) * 100)}%)`}
+              value={`${stats.activePlayers} (${stats.totalPlayers > 0 ? Math.round((stats.activePlayers / stats.totalPlayers) * 100) : 0}%)`}
               icon={Activity}
               iconColor="bg-success"
             />
@@ -1329,12 +1329,12 @@ export default function DashboardPage() {
           </div>
 
           {/* Training Sessions Track */}
-          <div className="bg-white rounded-card border border-neutral-light shadow-soft p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-neutral-text">Training Sessions Track</h3>
+          <div className="bg-white rounded-card border border-neutral-light shadow-soft p-4 sm:p-6">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6">
+              <h3 className="text-lg sm:text-xl font-bold text-neutral-text">Training Sessions Track</h3>
               <span className="text-sm text-neutral-medium">Total: {stats.trainingSessionsAttended} sessions</span>
             </div>
-            <div className="h-64">
+            <div className="h-48 sm:h-64 min-w-0">
               <Line
                 data={{
                   labels: trainingSessionsData.length > 0
@@ -1421,10 +1421,10 @@ export default function DashboardPage() {
           {/* Recent Training Schedules */}
           {recentTrainingSchedules.length > 0 && (
             <div className="bg-white rounded-card border border-neutral-light shadow-soft">
-              <div className="p-6 border-b border-neutral-light">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xl font-bold text-neutral-text flex items-center gap-2">
-                    <Calendar className="w-5 h-5 text-primary" />
+              <div className="p-4 sm:p-6 border-b border-neutral-light">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <h3 className="text-lg sm:text-xl font-bold text-neutral-text flex items-center gap-2">
+                    <Calendar className="w-5 h-5 text-primary flex-shrink-0" />
                     Recent Training Schedules
                   </h3>
                   <Link
@@ -1435,21 +1435,21 @@ export default function DashboardPage() {
                   </Link>
                 </div>
               </div>
-              <div className="p-6">
+              <div className="p-4 sm:p-6">
                 <div className="space-y-3">
                   {recentTrainingSchedules.map((session: any) => (
-                    <div key={session.id} className="border border-neutral-light rounded-lg p-4 hover:bg-neutral-light/50 transition-colors">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <h4 className="font-semibold text-neutral-text">
+                    <div key={session.id} className="border border-neutral-light rounded-lg p-3 sm:p-4 hover:bg-neutral-light/50 transition-colors">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2">
+                            <h4 className="font-semibold text-neutral-text text-sm sm:text-base truncate">
                               {session.description || `Training Session ${session.session_number}`}
                             </h4>
-                            <span className="px-2 py-1 bg-primary/10 text-primary rounded text-xs font-medium">
+                            <span className="px-2 py-1 bg-primary/10 text-primary rounded text-xs font-medium flex-shrink-0">
                               Session #{session.session_number}
                             </span>
                           </div>
-                          <div className="flex flex-wrap gap-4 text-sm text-neutral-medium">
+                          <div className="flex flex-wrap gap-2 sm:gap-4 text-xs sm:text-sm text-neutral-medium">
                             <div className="flex items-center gap-1">
                               <Calendar className="w-4 h-4" />
                               {new Date(session.session_date).toLocaleDateString('en-US', {
@@ -1484,10 +1484,10 @@ export default function DashboardPage() {
           {/* Recent Team Selections */}
           {recentTeamSelections.length > 0 && (
             <div className="bg-white rounded-card border border-neutral-light shadow-soft">
-              <div className="p-6 border-b border-neutral-light">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xl font-bold text-neutral-text flex items-center gap-2">
-                    <Trophy className="w-5 h-5 text-primary" />
+              <div className="p-4 sm:p-6 border-b border-neutral-light">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <h3 className="text-lg sm:text-xl font-bold text-neutral-text flex items-center gap-2">
+                    <Trophy className="w-5 h-5 text-primary flex-shrink-0" />
                     Recent Team Selections
                   </h3>
                   <Link
@@ -1498,7 +1498,7 @@ export default function DashboardPage() {
                   </Link>
                 </div>
               </div>
-              <div className="p-6">
+              <div className="p-4 sm:p-6">
                 <div className="space-y-4">
                   {recentTeamSelections.map((selectionGroup: any, index: number) => {
                     const match = selectionGroup.match
@@ -1507,20 +1507,20 @@ export default function DashboardPage() {
                     const totalSelected = selectionGroup.selections.length
                     
                     return (
-                      <div key={match?.id || index} className="border border-neutral-light rounded-lg p-4 hover:bg-neutral-light/50 transition-colors">
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                              <h4 className="font-semibold text-neutral-text">
+                      <div key={match?.id || index} className="border border-neutral-light rounded-lg p-3 sm:p-4 hover:bg-neutral-light/50 transition-colors">
+                        <div className="flex items-start justify-between gap-2 mb-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex flex-wrap items-center gap-2 mb-2">
+                              <h4 className="font-semibold text-neutral-text text-sm sm:text-base truncate">
                                 {match?.opponent ? `vs ${match.opponent}` : 'Match Team Selection'}
                               </h4>
                               {match?.tournament_type && (
-                                <span className="px-2 py-1 bg-secondary/10 text-secondary rounded text-xs font-medium capitalize">
+                                <span className="px-2 py-1 bg-secondary/10 text-secondary rounded text-xs font-medium capitalize flex-shrink-0">
                                   {match.tournament_type.replace('_', ' ')}
                                 </span>
                               )}
                             </div>
-                            <div className="flex flex-wrap gap-4 text-sm text-neutral-medium">
+                            <div className="flex flex-wrap gap-2 sm:gap-4 text-xs sm:text-sm text-neutral-medium">
                               {match?.match_date && (
                                 <div className="flex items-center gap-1">
                                   <Calendar className="w-4 h-4" />
@@ -1551,17 +1551,17 @@ export default function DashboardPage() {
                             </div>
                           </div>
                         </div>
-                        <div className="grid grid-cols-3 gap-3 mt-3 pt-3 border-t border-neutral-light">
+                        <div className="grid grid-cols-3 gap-2 sm:gap-3 mt-3 pt-3 border-t border-neutral-light">
                           <div className="text-center">
-                            <p className="text-2xl font-bold text-success">{startingCount}</p>
+                            <p className="text-xl sm:text-2xl font-bold text-success">{startingCount}</p>
                             <p className="text-xs text-neutral-medium">Starting</p>
                           </div>
                           <div className="text-center">
-                            <p className="text-2xl font-bold text-warning">{substituteCount}</p>
+                            <p className="text-xl sm:text-2xl font-bold text-warning">{substituteCount}</p>
                             <p className="text-xs text-neutral-medium">Substitutes</p>
                           </div>
                           <div className="text-center">
-                            <p className="text-2xl font-bold text-primary">{totalSelected}</p>
+                            <p className="text-xl sm:text-2xl font-bold text-primary">{totalSelected}</p>
                             <p className="text-xs text-neutral-medium">Total Selected</p>
                           </div>
                         </div>
@@ -1576,10 +1576,10 @@ export default function DashboardPage() {
           {/* Upcoming Fixture Team Selection */}
           {playerFixtureSelection && playerFixtureSelection.match && (
             <div className="bg-white rounded-card border border-neutral-light shadow-soft">
-              <div className="p-6 border-b border-neutral-light">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xl font-bold text-neutral-text flex items-center gap-2">
-                    <Trophy className="w-5 h-5 text-primary" />
+              <div className="p-4 sm:p-6 border-b border-neutral-light">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <h3 className="text-lg sm:text-xl font-bold text-neutral-text flex items-center gap-2">
+                    <Trophy className="w-5 h-5 text-primary flex-shrink-0" />
                     Upcoming Fixture Team Selection
                   </h3>
                   <Link
@@ -1590,7 +1590,7 @@ export default function DashboardPage() {
                   </Link>
                 </div>
               </div>
-              <div className="p-6">
+              <div className="p-4 sm:p-6">
                 <div className="mb-4">
                   <h4 className="font-semibold text-neutral-text mb-2">
                     {new Date(playerFixtureSelection.match.match_date).toLocaleDateString('en-US', {
@@ -1607,8 +1607,8 @@ export default function DashboardPage() {
                 
                 {playerFixtureSelection.starting && playerFixtureSelection.starting.length > 0 && (
                   <div className="mb-4">
-                    <h5 className="font-semibold text-neutral-text mb-2">Starting Lineup ({playerFixtureSelection.starting.length})</h5>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <h5 className="font-semibold text-neutral-text mb-2 text-sm sm:text-base">Starting Lineup ({playerFixtureSelection.starting.length})</h5>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
                       {playerFixtureSelection.starting.map((selection: any) => (
                         <div key={selection.id} className="bg-success/5 border border-success/20 rounded-lg p-3">
                           <div className="flex items-center justify-between">
@@ -1628,8 +1628,8 @@ export default function DashboardPage() {
 
                 {playerFixtureSelection.substitutes && playerFixtureSelection.substitutes.length > 0 && (
                   <div>
-                    <h5 className="font-semibold text-neutral-text mb-2">Substitutes ({playerFixtureSelection.substitutes.length})</h5>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <h5 className="font-semibold text-neutral-text mb-2 text-sm sm:text-base">Substitutes ({playerFixtureSelection.substitutes.length})</h5>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
                       {playerFixtureSelection.substitutes.map((selection: any) => (
                         <div key={selection.id} className="bg-warning/5 border border-warning/20 rounded-lg p-3">
                           <div className="flex items-center justify-between">
@@ -1658,25 +1658,25 @@ export default function DashboardPage() {
           {/* Active Injuries View (Read-Only) */}
           {activeInjuriesView.length > 0 && (
             <div className="bg-white rounded-card border border-neutral-light shadow-soft">
-              <div className="p-6 border-b border-neutral-light">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xl font-bold text-neutral-text flex items-center gap-2">
-                    <AlertCircle className="w-5 h-5 text-secondary" />
+              <div className="p-4 sm:p-6 border-b border-neutral-light">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <h3 className="text-lg sm:text-xl font-bold text-neutral-text flex items-center gap-2">
+                    <AlertCircle className="w-5 h-5 text-secondary flex-shrink-0" />
                     Active Player Injuries
                   </h3>
                   <span className="text-sm text-neutral-medium">{activeInjuriesView.length} active injury{activeInjuriesView.length !== 1 ? 'ies' : ''}</span>
                 </div>
               </div>
-              <div className="p-6">
+              <div className="p-4 sm:p-6">
                 <div className="space-y-4">
                   {activeInjuriesView.map((injury: any) => {
                     const playerName = injury.player?.name || 'Unknown Player'
                     const returnDate = injury.return_to_play_date || injury.return_to_training_date
                     return (
-                      <div key={injury.id} className="border border-secondary/20 bg-secondary/5 rounded-lg p-4">
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="flex-1">
-                            <h4 className="font-semibold text-neutral-text text-lg mb-1">{playerName}</h4>
+                      <div key={injury.id} className="border border-secondary/20 bg-secondary/5 rounded-lg p-3 sm:p-4">
+                        <div className="flex items-start justify-between gap-2 mb-3">
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-semibold text-neutral-text text-base sm:text-lg mb-1 truncate">{playerName}</h4>
                             <p className="text-sm text-neutral-medium">Injured on {new Date(injury.injury_date).toLocaleDateString()}</p>
                           </div>
                           <span className="px-3 py-1 bg-secondary text-white rounded-full text-xs font-medium">
@@ -1713,12 +1713,47 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* Top Performers Table */}
+          {/* Top Performers */}
           <div className="bg-white rounded-card border border-neutral-light shadow-soft overflow-hidden">
-            <div className="p-6 border-b border-neutral-light">
-              <h3 className="text-xl font-bold text-neutral-text">Top Performers</h3>
+            <div className="p-4 sm:p-6 border-b border-neutral-light">
+              <h3 className="text-lg sm:text-xl font-bold text-neutral-text">Top Performers</h3>
             </div>
-            <div className="overflow-x-auto">
+            {/* Mobile card layout */}
+            <div className="md:hidden p-4 space-y-3">
+              {topPerformers.length > 0 ? (
+                topPerformers.map((player: any) => (
+                  <div
+                    key={player.playerId || player.user_id || player.id}
+                    className="border border-neutral-light rounded-lg p-4 hover:bg-neutral-light/50 transition-colors"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-semibold text-neutral-text">{player.name || 'Unknown'}</span>
+                      <span className="text-xs text-neutral-medium capitalize px-2 py-1 bg-neutral-light rounded">
+                        {player.position?.replace(/_/g, ' ') || 'N/A'}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-sm text-neutral-medium">
+                      <div>
+                        <p className="text-xs text-neutral-medium">Games</p>
+                        <p className="font-medium text-neutral-text">{player.totalMatches || 0}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-neutral-medium">Tries</p>
+                        <p className="font-medium text-neutral-text">{player.totalTries || 0}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-neutral-medium">Tackles</p>
+                        <p className="font-medium text-neutral-text">{player.totalTackles || 0}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="py-8 text-center text-neutral-medium text-sm">No performance data available yet</p>
+              )}
+            </div>
+            {/* Desktop table */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-neutral-light">
                   <tr>
@@ -1740,22 +1775,22 @@ export default function DashboardPage() {
                         <td className="px-6 py-4 text-sm text-neutral-medium">{player.totalMatches || 0}</td>
                         <td className="px-6 py-4 text-sm text-neutral-medium">{player.totalTries || 0}</td>
                         <td className="px-6 py-4 text-sm text-neutral-medium">{player.totalTackles || 0}</td>
-                  </tr>
+                      </tr>
                     ))
                   ) : (
                     <tr>
                       <td colSpan={5} className="px-6 py-8 text-center text-neutral-medium">
                         No performance data available yet
                       </td>
-                  </tr>
+                    </tr>
                   )}
                 </tbody>
               </table>
             </div>
-            <div className="p-6 border-t border-neutral-light">
+            <div className="p-4 sm:p-6 border-t border-neutral-light">
               <button
                 onClick={() => router.push('/players')}
-                className="px-6 py-2 bg-club-gradient text-white rounded-button font-semibold hover:opacity-90 transition-opacity"
+                className="w-full sm:w-auto px-6 py-2 bg-club-gradient text-white rounded-button font-semibold hover:opacity-90 transition-opacity"
               >
                 View All Players
               </button>

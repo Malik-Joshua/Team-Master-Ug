@@ -96,7 +96,7 @@ export default function TopBar({ title, userName, userRole, userAvatar }: TopBar
 
   return (
     <header className="sticky top-0 z-20 bg-white border-b border-neutral-light shadow-sm">
-      <div className="max-w-container mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
+      <div className="max-w-container mx-auto pl-14 pr-3 sm:pr-4 md:pr-6 lg:pl-8 lg:pr-8">
         <div className="flex items-center justify-between h-14 sm:h-16">
           {/* Title */}
           <div className="flex-1 min-w-0">

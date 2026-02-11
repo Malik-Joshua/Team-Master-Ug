@@ -553,12 +553,12 @@ export default function PhysioDashboard() {
     <Layout pageTitle="Physio Dashboard">
       <div className="space-y-6">
         <BirthdayAlert />
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-neutral-text">Injury Management</h1>
-            <p className="text-lg text-neutral-medium font-medium mt-2">Manage injuries and player health</p>
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-neutral-text">Injury Management</h1>
+            <p className="text-sm sm:text-lg text-neutral-medium font-medium mt-1 sm:mt-2">Manage injuries and player health</p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-2 sm:gap-3">
             <RefreshButton onRefresh={loadData} />
             <button
               onClick={() => {
@@ -686,7 +686,7 @@ export default function PhysioDashboard() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-4">
           <StatCard 
             title="Training Sessions Attended" 
             value={trainingSessionsAttended} 

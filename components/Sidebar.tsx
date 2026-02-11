@@ -19,6 +19,7 @@ import {
   User,
   Trophy,
   HeartPulse,
+  UserCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useSidebar } from '@/contexts/SidebarContext'
@@ -42,6 +43,7 @@ const navigationItems: NavItem[] = [
   { name: 'Inventory', href: '/inventory', icon: Package, roles: ['data_admin', 'admin', 'physio'] },
   { name: 'Messages', href: '/messages', icon: MessageSquare },
   { name: 'Reports', href: '/reports', icon: FileText, roles: ['data_admin', 'finance_admin', 'admin', 'club_captain'] },
+  { name: 'Staff', href: '/staff', icon: UserCircle, roles: ['admin'] },
 ]
 
 interface SidebarProps {

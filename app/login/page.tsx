@@ -123,7 +123,7 @@ export default function LoginPage() {
     <div className="min-h-screen bg-club-gradient flex items-center justify-center p-4">
       <div className="max-w-md w-full bg-white rounded-card shadow-soft p-8">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-neutral-text mb-2">Mongers Rugby Club</h1>
+          <h1 className="text-3xl font-bold text-neutral-text mb-2">Team Master</h1>
           <p className="text-neutral-medium">Sign in to your account</p>
         </div>
 

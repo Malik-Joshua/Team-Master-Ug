@@ -67,7 +67,7 @@ export default function Sidebar({ userRole, onLogout }: SidebarProps) {
           {(!collapsed || isMobile) && (
             <div className="flex items-center space-x-2">
               <Trophy className="w-6 h-6 text-white" />
-              <span className="text-lg font-bold text-white">MONGERS RFC</span>
+              <span className="text-lg font-bold text-white">TEAM MASTER</span>
             </div>
           )}
           {!isMobile && (

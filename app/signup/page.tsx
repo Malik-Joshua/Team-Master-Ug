@@ -241,7 +241,7 @@ export default function SignupPage() {
     <div className="min-h-screen bg-club-gradient flex items-center justify-center p-4">
       <div className="max-w-md w-full bg-white rounded-card shadow-soft p-8">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-neutral-text mb-2">Join Mongers Rugby Club</h1>
+          <h1 className="text-3xl font-bold text-neutral-text mb-2">Join Team Master</h1>
           <p className="text-neutral-medium">Create your account</p>
         </div>
 

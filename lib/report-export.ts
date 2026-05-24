@@ -38,7 +38,7 @@ export function generateExcelReport(report: ReportData): Blob {
 
   // Create a worksheet with professional report metadata
   const metadata = [
-    ['MONGERS RUGBY CLUB'],
+    ['TEAM MASTER'],
     ['Official Performance Report'],
     [],
     ['Report Information'],
@@ -473,7 +473,7 @@ export function generateExcelReport(report: ReportData): Blob {
 export function generateCSVReport(report: ReportData): Blob {
   const lines: string[] = []
   
-  lines.push('MONGERS RUGBY CLUB')
+  lines.push('TEAM MASTER')
   lines.push('Official Performance Report')
   lines.push('')
   lines.push('Report Information')

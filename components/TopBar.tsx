@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Bell, MessageSquare, X, CheckCheck } from 'lucide-react'
+import { Bell, MessageSquare, X, CheckCheck, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useNotifications } from '@/hooks/useNotifications'
 import { formatDistanceToNow } from 'date-fns'
@@ -94,39 +94,59 @@ export default function TopBar({ title, userName, userRole, userAvatar }: TopBar
     }
   }
 
-  return (
-    <header className="sticky top-0 z-20 bg-white border-b border-neutral-light shadow-sm">
-      <div className="max-w-container mx-auto pl-14 pr-3 sm:pr-4 md:pr-6 lg:pl-8 lg:pr-8">
-        <div className="flex items-center justify-between h-14 sm:h-16">
-          {/* Title */}
-          <div className="flex-1 min-w-0">
-            <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-neutral-text truncate">{title}</h1>
-          </div>
+  // Get greeting based on time of day
+  const getGreeting = () => {
+    const hour = new Date().getHours()
+    if (hour < 12) return 'Good morning'
+    if (hour < 17) return 'Good afternoon'
+    return 'Good evening'
+  }
 
-          {/* Right Actions */}
-          <div className="flex items-center space-x-4">
-            {/* Notifications */}
-            <div className="relative">
-              <button
-                onClick={() => setNotificationsOpen(!notificationsOpen)}
-                className="relative p-2 text-neutral-dark hover:text-primary hover:bg-neutral-light rounded-lg transition-colors"
-                aria-label="Notifications"
-              >
-                <Bell className="w-5 h-5" />
-                {unreadCount > 0 && (
-                  <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white" />
-                )}
-                {unreadCount > 0 && unreadCount <= 9 && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                    {unreadCount}
-                  </span>
-                )}
-                {unreadCount > 9 && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
-                    9+
-                  </span>
-                )}
-              </button>
+  const formatDate = () => {
+    return new Date().toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    })
+  }
+
+  const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+
+  return (
+    <header className="h-[60px] flex items-center pl-16 pr-4 sm:px-6 gap-3 sm:gap-4 flex-shrink-0" style={{ background: 'var(--tm-surface)', borderBottom: '1px solid var(--tm-border)' }}>
+      {/* Greeting */}
+      <div className="flex-1">
+        <h1 className="text-[15px] font-medium mb-[1px]" style={{ color: 'var(--tm-text-1)' }}>{getGreeting()}, {userName} 👋</h1>
+        <p className="text-[12px]" style={{ color: 'var(--tm-text-3)' }}>{formatDate()} · Season 2026</p>
+      </div>
+
+      {/* Search bar */}
+      <div className="hidden md:flex items-center gap-2 rounded-[6px] px-3 py-2 w-[200px] transition-all focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/30 group" style={{ background: 'var(--tm-input-bg)', border: '1px solid var(--tm-input-border)' }}>
+        <Search className="w-[15px] h-[15px] transition-colors group-focus-within:text-primary" style={{ color: 'var(--tm-text-3)' }} />
+        <input
+          type="text"
+          placeholder="Search players, sessions…"
+          className="border-none bg-transparent outline-none text-[13px] w-full placeholder:text-[var(--tm-text-3)]"
+          style={{ color: 'var(--tm-text-1)' }}
+        />
+      </div>
+
+      {/* Icon buttons */}
+      <div className="flex items-center gap-2">
+        {/* Notifications */}
+        <div className="relative">
+          <button
+            onClick={() => setNotificationsOpen(!notificationsOpen)}
+            className="w-[34px] h-[34px] rounded-[6px] flex items-center justify-center cursor-pointer text-[17px] transition-all duration-200 hover:border-primary hover:text-primary hover:bg-primary-subtle hover:scale-105"
+            style={{ border: '1px solid var(--tm-border)', color: 'var(--tm-text-2)' }}
+            aria-label="Notifications"
+          >
+            <Bell className="w-[17px] h-[17px]" />
+            {unreadCount > 0 && (
+              <span className="absolute top-[7px] right-[8px] w-[7px] h-[7px] rounded-full bg-secondary border-[1.5px]" style={{ borderColor: 'var(--tm-surface)' }} />
+            )}
+          </button>
 
               {/* Notifications Dropdown */}
               {notificationsOpen && (
@@ -135,12 +155,12 @@ export default function TopBar({ title, userName, userRole, userAvatar }: TopBar
                     className="fixed inset-0 z-10"
                     onClick={() => setNotificationsOpen(false)}
                   />
-                  <div className="absolute right-0 mt-2 w-[90vw] max-w-sm sm:w-80 bg-white rounded-card shadow-large border border-neutral-light z-20 max-h-96 overflow-y-auto">
-                    <div className="p-4 border-b border-neutral-light flex items-center justify-between">
+                  <div className="absolute right-0 mt-2 w-[90vw] max-w-sm sm:w-80 bg-tm-surface rounded-card shadow-large border border-tm-border z-20 max-h-96 overflow-y-auto">
+                    <div className="p-4 border-b border-tm-border flex items-center justify-between">
                       <div className="flex items-center space-x-2">
-                      <h3 className="font-bold text-neutral-text">Notifications</h3>
+                      <h3 className="font-bold text-tm-text-1">Notifications</h3>
                         {unreadCount > 0 && (
-                          <span className="bg-primary text-white text-xs font-bold rounded-full px-2 py-0.5">
+                          <span className="bg-primary text-tm-on-secondary text-xs font-bold rounded-full px-2 py-0.5">
                             {unreadCount}
                           </span>
                         )}
@@ -149,7 +169,7 @@ export default function TopBar({ title, userName, userRole, userAvatar }: TopBar
                         {unreadCount > 0 && (
                           <button
                             onClick={markAllAsRead}
-                            className="p-1 hover:bg-neutral-light rounded text-xs text-primary"
+                            className="p-1 hover:bg-tm-surface-hover rounded text-xs text-primary"
                             title="Mark all as read"
                           >
                             <CheckCheck className="w-4 h-4" />
@@ -157,17 +177,17 @@ export default function TopBar({ title, userName, userRole, userAvatar }: TopBar
                         )}
                       <button
                         onClick={() => setNotificationsOpen(false)}
-                        className="p-1 hover:bg-neutral-light rounded"
+                        className="p-1 hover:bg-tm-surface-hover rounded"
                       >
                         <X className="w-4 h-4" />
                       </button>
                     </div>
                     </div>
-                    <div className="divide-y divide-neutral-light max-h-96 overflow-y-auto">
+                    <div className="divide-y divide-tm-border max-h-96 overflow-y-auto">
                       {notifications.filter((n) => !n.read).length === 0 ? (
                         <div className="p-8 text-center">
-                          <Bell className="w-12 h-12 text-neutral-medium mx-auto mb-2 opacity-50" />
-                          <p className="text-sm text-neutral-medium">No unread notifications</p>
+                          <Bell className="w-12 h-12 text-tm-text-3 mx-auto mb-2 opacity-50" />
+                          <p className="text-sm text-tm-text-3">No unread notifications</p>
                         </div>
                       ) : (
                         notifications
@@ -190,8 +210,8 @@ export default function TopBar({ title, userName, userRole, userAvatar }: TopBar
                           key={notification.id}
                                 onClick={() => handleNotificationClick(notification)}
                           className={cn(
-                            'p-4 hover:bg-neutral-light transition-colors cursor-pointer',
-                                  !read && 'bg-blue-50/50'
+                            'p-4 hover:bg-tm-surface-hover transition-colors cursor-pointer',
+                                  !read && 'bg-tm-surface-hover'
                           )}
                         >
                           <div className="flex items-start space-x-3">
@@ -206,15 +226,15 @@ export default function TopBar({ title, userName, userRole, userAvatar }: TopBar
                             />
                             <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-1">
-                                      <p className="text-sm font-semibold text-neutral-text">
+                                      <p className="text-sm font-semibold text-tm-text-1">
                                         {title}
                                       </p>
                                       {getNotificationLink(notification) && (
                                         <span className="text-xs text-primary font-medium">→ Click to view</span>
                                       )}
                                     </div>
-                                    <p className="text-sm text-neutral-text">{message}</p>
-                              <p className="text-xs text-neutral-medium mt-1">
+                                    <p className="text-sm text-tm-text-1">{message}</p>
+                              <p className="text-xs text-tm-text-3 mt-1">
                                       {formatDistanceToNow(new Date(created_at), { addSuffix: true })}
                               </p>
                             </div>
@@ -232,37 +252,43 @@ export default function TopBar({ title, userName, userRole, userAvatar }: TopBar
               )}
             </div>
 
-            {/* Chat Icon */}
-            <button
-              className="p-2 text-neutral-dark hover:text-primary hover:bg-neutral-light rounded-lg transition-colors"
-              aria-label="Chat"
-            >
-              <MessageSquare className="w-5 h-5" />
-            </button>
+        {/* Messages */}
+        <button
+          onClick={() => router.push('/messages')}
+          className="w-[34px] h-[34px] rounded-[6px] flex items-center justify-center cursor-pointer text-[17px] transition-all duration-200 hover:border-primary hover:text-primary hover:bg-primary-subtle hover:scale-105"
+          style={{ border: '1px solid var(--tm-border)', color: 'var(--tm-text-2)' }}
+          aria-label="Messages"
+          title="Messages"
+        >
+          <MessageSquare className="w-[17px] h-[17px]" />
+        </button>
 
-            {/* Profile Avatar */}
-            <div className="flex items-center space-x-2 sm:space-x-3">
-              {userAvatar ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={userAvatar}
-                  alt={userName}
-                  className="w-10 h-10 rounded-full border-2 border-primary"
-                />
-              ) : (
-                <div className="w-10 h-10 rounded-full bg-club-gradient flex items-center justify-center text-white font-bold">
-                  {userName.charAt(0).toUpperCase()}
-                </div>
-              )}
-              <div className="hidden sm:block text-right">
-                <p className="text-sm font-semibold text-neutral-text">{userName}</p>
-                <p className="text-xs text-neutral-medium capitalize">
-                  {userRole.replace('_', ' ')}
-                </p>
-              </div>
-            </div>
+        {/* Divider */}
+        <div className="w-[0.5px] h-[20px] mx-1" style={{ background: 'var(--tm-divider)' }} />
+
+        {/* User — links to profile */}
+        <button
+          onClick={() => router.push('/profile')}
+          className="flex items-center gap-2 rounded-[8px] px-1 py-1 cursor-pointer transition-colors hover:bg-tm-surface-hover"
+          aria-label="View your profile"
+          title="View your profile"
+        >
+          <div className="text-right hidden sm:block">
+            <p className="text-[12px] font-medium" style={{ color: 'var(--tm-text-1)' }}>{userName}</p>
+            <p className="text-[11px] capitalize" style={{ color: 'var(--tm-text-3)' }}>{userRole.replace('_', ' ')}</p>
           </div>
-        </div>
+          {userAvatar ? (
+            <img
+              src={userAvatar}
+              alt={userName}
+              className="w-[34px] h-[34px] rounded-full flex-shrink-0 transition-transform duration-200 hover:scale-110 object-cover"
+            />
+          ) : (
+            <div className="w-[34px] h-[34px] rounded-full flex items-center justify-center text-[12px] font-medium flex-shrink-0 transition-all duration-200 hover:scale-110" style={{ background: 'var(--tm-primary, #1A3A5C)', color: 'var(--tm-text-on-primary, #ffffff)' }}>
+              {getInitials(userName)}
+            </div>
+          )}
+        </button>
       </div>
     </header>
   )

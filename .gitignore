@@ -37,3 +37,11 @@ next-env.d.ts
 
 
 
+
+# Local design references / mockups (not part of the app)
+/Color Engine/
+*.bak
+team-master-*.html
+team_master_*.html
+# Local Claude settings
+.claude/settings.local.json

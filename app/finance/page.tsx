@@ -587,11 +587,11 @@ export default function FinancePage() {
       case 'approved':
         return 'bg-success/10 text-success'
       case 'rejected':
-        return 'bg-secondary/10 text-secondary'
+        return 'bg-[#E05757]/10 text-[#E05757]'
       case 'pending':
         return 'bg-warning/10 text-warning'
       default:
-        return 'bg-neutral-light/10 text-neutral-medium'
+        return 'bg-tm-surface-hover/10 text-tm-text-3'
     }
   }
 
@@ -600,22 +600,22 @@ export default function FinancePage() {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-4xl font-extrabold text-club-gradient mb-2">Financial Management</h1>
-            <p className="text-lg text-neutral-medium font-medium">Track revenue, expenses, and budgets</p>
+            <h1 className="text-[20px] font-medium text-tm-text-1">Financial Management</h1>
+            <p className="text-[13px] text-tm-text-3">Track revenue, expenses, and budgets</p>
           </div>
           <div className="flex items-center space-x-3">
             {user?.role === 'finance_admin' && (
               <>
                 <button
                   onClick={() => setShowAttendanceView(!showAttendanceView)}
-                  className="bg-primary text-white px-6 py-3 rounded-button font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
+                  className="bg-primary text-tm-on-secondary px-6 py-3 rounded-[6px] font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
                 >
                   <Calendar className="w-5 h-5 mr-2" />
                   View Attendance
                 </button>
                 <button
                   onClick={() => setShowBudgetModal(true)}
-                  className="bg-info text-white px-6 py-3 rounded-button font-semibold hover:bg-info-dark transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
+                  className="bg-info text-white px-6 py-3 rounded-[6px] font-semibold hover:bg-info-dark transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
                 >
                   <FileText className="w-5 h-5 mr-2" />
                   Create Budget
@@ -624,14 +624,14 @@ export default function FinancePage() {
             )}
             <button
               onClick={() => setShowRevenueModal(true)}
-              className="bg-success text-white px-6 py-3 rounded-button font-semibold hover:bg-success-dark transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
+              className="bg-success text-white px-6 py-3 rounded-[6px] font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
             >
               <Plus className="w-5 h-5 mr-2" />
               Add Revenue
             </button>
             <button
               onClick={() => setShowExpenseModal(true)}
-              className="bg-secondary text-white px-6 py-3 rounded-button font-semibold hover:bg-secondary-dark transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
+              className="bg-secondary text-tm-on-secondary px-6 py-3 rounded-[6px] font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
             >
               <Plus className="w-5 h-5 mr-2" />
               Add Expense
@@ -640,16 +640,16 @@ export default function FinancePage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <StatCard title="Total Revenue" value={formatCurrency(totalRevenue)} icon={TrendingUp} iconColor="bg-success" description="All revenue transactions" />
-          <StatCard title="Total Expenses" value={formatCurrency(totalExpenses)} icon={TrendingDown} iconColor="bg-secondary" description="All expense transactions" />
-          <StatCard title="Net Balance" value={formatCurrency(netBalance)} icon={DollarSign} iconColor="bg-primary" description="Revenue minus expenses" />
+          <StatCard title="Total Revenue" value={formatCurrency(totalRevenue)} icon={TrendingUp} iconColor="bg-success" iconTextColor="text-white" description="All revenue transactions" />
+          <StatCard title="Total Expenses" value={formatCurrency(totalExpenses)} icon={TrendingDown} iconColor="bg-secondary" iconTextColor="text-tm-on-secondary" description="All expense transactions" />
+          <StatCard title="Net Balance" value={formatCurrency(netBalance)} icon={DollarSign} iconColor="bg-primary" iconTextColor="text-tm-on-secondary" description="Revenue minus expenses" />
         </div>
 
         {/* Attendance View Section for Finance Admin */}
         {user?.role === 'finance_admin' && showAttendanceView && (
-          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+          <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-neutral-text flex items-center">
+              <h2 className="text-2xl font-bold text-tm-text-1 flex items-center">
                 <Calendar className="w-6 h-6 mr-2 text-primary" />
                 Attendance Summary
               </h2>
@@ -661,7 +661,7 @@ export default function FinancePage() {
                   setSessionAttendance(null)
                   setMatchAttendance(null)
                 }}
-                className="text-neutral-medium hover:text-neutral-text"
+                className="text-tm-text-3 hover:text-tm-text-1"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -670,7 +670,7 @@ export default function FinancePage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Training Session Attendance */}
               <div>
-                <h3 className="text-lg font-semibold text-neutral-text mb-4">Training Session Attendance</h3>
+                <h3 className="text-lg font-semibold text-tm-text-1 mb-4">Training Session Attendance</h3>
                 <select
                   value={selectedSessionId}
                   onChange={(e) => {
@@ -683,7 +683,7 @@ export default function FinancePage() {
                       setSessionAttendance(null)
                     }
                   }}
-                  className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all mb-4"
+                  className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all mb-4"
                 >
                   <option value="">Select a training session...</option>
                   {trainingSessions.map((session) => (
@@ -700,29 +700,29 @@ export default function FinancePage() {
                 )}
 
                 {sessionAttendance && !loadingAttendance && (
-                  <div className="bg-neutral-light/50 rounded-lg p-4 space-y-2">
+                  <div className="bg-tm-surface-hover/50 rounded-lg p-4 space-y-2">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <p className="text-sm text-neutral-medium">Present</p>
+                        <p className="text-sm text-tm-text-3">Present</p>
                         <p className="text-2xl font-bold text-success">{sessionAttendance.present}</p>
                       </div>
                       <div>
-                        <p className="text-sm text-neutral-medium">Absent</p>
+                        <p className="text-sm text-tm-text-3">Absent</p>
                         <p className="text-2xl font-bold text-secondary">{sessionAttendance.absent}</p>
                       </div>
                       <div>
-                        <p className="text-sm text-neutral-medium">Justified Absence</p>
+                        <p className="text-sm text-tm-text-3">Justified Absence</p>
                         <p className="text-2xl font-bold text-warning">{sessionAttendance.justified}</p>
                       </div>
                       <div>
-                        <p className="text-sm text-neutral-medium">Injured</p>
+                        <p className="text-sm text-tm-text-3">Injured</p>
                         <p className="text-2xl font-bold text-info">{sessionAttendance.injured}</p>
                       </div>
                     </div>
-                    <div className="pt-2 border-t border-neutral-light">
-                      <p className="text-sm text-neutral-medium">Total Players</p>
-                      <p className="text-xl font-bold text-neutral-text">{sessionAttendance.total}</p>
-                      <p className="text-sm text-neutral-medium mt-1">Attendance Rate: {sessionAttendance.attendanceRate}%</p>
+                    <div className="pt-2 border-t border-tm-border">
+                      <p className="text-sm text-tm-text-3">Total Players</p>
+                      <p className="text-xl font-bold text-tm-text-1">{sessionAttendance.total}</p>
+                      <p className="text-sm text-tm-text-3 mt-1">Attendance Rate: {sessionAttendance.attendanceRate}%</p>
                     </div>
                   </div>
                 )}
@@ -730,7 +730,7 @@ export default function FinancePage() {
 
               {/* Game Day/Match Attendance */}
               <div>
-                <h3 className="text-lg font-semibold text-neutral-text mb-4">Game Day Attendance</h3>
+                <h3 className="text-lg font-semibold text-tm-text-1 mb-4">Game Day Attendance</h3>
                 <select
                   value={selectedMatchId}
                   onChange={(e) => {
@@ -743,7 +743,7 @@ export default function FinancePage() {
                       setMatchAttendance(null)
                     }
                   }}
-                  className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all mb-4"
+                  className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all mb-4"
                 >
                   <option value="">Select a match...</option>
                   {matches.map((match) => (
@@ -760,20 +760,20 @@ export default function FinancePage() {
                 )}
 
                 {matchAttendance && !loadingAttendance && (
-                  <div className="bg-neutral-light/50 rounded-lg p-4 space-y-2">
+                  <div className="bg-tm-surface-hover/50 rounded-lg p-4 space-y-2">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <p className="text-sm text-neutral-medium">Starting Lineup</p>
+                        <p className="text-sm text-tm-text-3">Starting Lineup</p>
                         <p className="text-2xl font-bold text-success">{matchAttendance.starting}</p>
                       </div>
                       <div>
-                        <p className="text-sm text-neutral-medium">Substitutes</p>
+                        <p className="text-sm text-tm-text-3">Substitutes</p>
                         <p className="text-2xl font-bold text-primary">{matchAttendance.substitutes}</p>
                       </div>
                     </div>
-                    <div className="pt-2 border-t border-neutral-light">
-                      <p className="text-sm text-neutral-medium">Total Selected</p>
-                      <p className="text-xl font-bold text-neutral-text">{matchAttendance.total}</p>
+                    <div className="pt-2 border-t border-tm-border">
+                      <p className="text-sm text-tm-text-3">Total Selected</p>
+                      <p className="text-xl font-bold text-tm-text-1">{matchAttendance.total}</p>
                     </div>
                   </div>
                 )}
@@ -783,33 +783,33 @@ export default function FinancePage() {
         )}
 
         {(user?.role === 'finance_admin' || user?.role === 'admin') && budgets.length > 0 && (
-          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
-            <h2 className="text-2xl font-bold text-neutral-text mb-6 flex items-center">
+          <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
+            <h2 className="text-2xl font-bold text-tm-text-1 mb-6 flex items-center">
               <FileText className="w-6 h-6 mr-2 text-info" />
               Budget Requests
             </h2>
             <div className="space-y-4">
               {budgets.map((budget) => (
-                <div key={budget.id} className="p-4 bg-neutral-light/50 rounded-lg border border-neutral-light hover:bg-neutral-light transition-colors">
+                <div key={budget.id} className="p-4 bg-tm-surface-hover/50 rounded-lg border border-tm-border hover:bg-tm-surface-hover transition-colors">
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
                       <div className="flex items-center space-x-3 mb-2">
-                        <h3 className="font-bold text-neutral-text">{budget.event_name}</h3>
+                        <h3 className="font-bold text-tm-text-1">{budget.event_name}</h3>
                         <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(budget.status)}`}>
                           {budget.status.charAt(0).toUpperCase() + budget.status.slice(1)}
                         </span>
                       </div>
-                      <p className="text-sm text-neutral-medium mb-1">
+                      <p className="text-sm text-tm-text-3 mb-1">
                         {budget.event_type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())} • {new Date(budget.event_date).toLocaleDateString()}
                       </p>
-                      <p className="text-sm text-neutral-medium">{budget.description}</p>
+                      <p className="text-sm text-tm-text-3">{budget.description}</p>
                       <p className="text-lg font-bold text-primary mt-2">{formatCurrency(budget.total_amount)}</p>
                     </div>
                     {user?.role === 'admin' && budget.status === 'pending' && (
                       <div className="flex items-center space-x-2 ml-4">
                         <button
                           onClick={() => handleApproveBudget(budget.id)}
-                          className="px-4 py-2 bg-success text-white rounded-button font-semibold hover:bg-success-dark transition-colors text-sm"
+                          className="px-4 py-2 bg-success text-white rounded-[6px] font-semibold hover:opacity-90 transition-colors text-sm"
                         >
                           Approve
                         </button>
@@ -818,7 +818,7 @@ export default function FinancePage() {
                             const reason = prompt('Enter rejection reason:')
                             if (reason) handleRejectBudget(budget.id, reason)
                           }}
-                          className="px-4 py-2 bg-secondary text-white rounded-button font-semibold hover:bg-secondary-dark transition-colors text-sm"
+                          className="px-4 py-2 bg-secondary text-tm-on-secondary rounded-[6px] font-semibold hover:opacity-90 transition-colors text-sm"
                         >
                           Reject
                         </button>
@@ -831,40 +831,40 @@ export default function FinancePage() {
           </div>
         )}
 
-        <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
-          <h3 className="text-xl font-bold text-neutral-text mb-4">Monthly Financial Trend</h3>
+        <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
+          <h3 className="text-xl font-bold text-tm-text-1 mb-4">Monthly Financial Trend</h3>
           <div className="h-64">
             <Bar data={chartData} options={chartOptions} />
           </div>
         </div>
 
-        <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
-          <h3 className="text-lg font-bold text-neutral-text mb-4">Filter Transactions</h3>
+        <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
+          <h3 className="text-lg font-bold text-tm-text-1 mb-4">Filter Transactions</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-neutral-medium mb-2">Type</label>
-              <select value={filterType} onChange={(e) => setFilterType(e.target.value as 'all' | 'revenue' | 'expense')} className="w-full px-4 py-3 border-2 border-neutral-light rounded-button focus:ring-2 focus:ring-primary focus:border-primary transition-all">
+              <label className="block text-sm font-medium text-tm-text-3 mb-2">Type</label>
+              <select value={filterType} onChange={(e) => setFilterType(e.target.value as 'all' | 'revenue' | 'expense')} className="w-full px-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary focus:border-primary transition-all">
                 <option value="all">All Types</option>
                 <option value="revenue">Revenue</option>
                 <option value="expense">Expense</option>
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-neutral-medium mb-2">Date From</label>
-              <input type="date" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} className="w-full px-4 py-3 border-2 border-neutral-light rounded-button focus:ring-2 focus:ring-primary focus:border-primary transition-all" />
+              <label className="block text-sm font-medium text-tm-text-3 mb-2">Date From</label>
+              <input type="date" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} className="w-full px-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary focus:border-primary transition-all" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-neutral-medium mb-2">Date To</label>
-              <input type="date" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} className="w-full px-4 py-3 border-2 border-neutral-light rounded-button focus:ring-2 focus:ring-primary focus:border-primary transition-all" />
+              <label className="block text-sm font-medium text-tm-text-3 mb-2">Date To</label>
+              <input type="date" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} className="w-full px-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary focus:border-primary transition-all" />
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-card shadow-soft border border-neutral-light overflow-hidden">
-          <div className="px-6 py-4 border-b border-neutral-light bg-neutral-light">
+        <div className="bg-tm-surface rounded-card shadow-soft border border-tm-border overflow-hidden">
+          <div className="px-6 py-4 border-b border-tm-border bg-tm-surface-hover">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold text-neutral-text">Transactions ({filteredTransactions.length})</h2>
-              <button className="px-4 py-2 bg-primary text-white rounded-button font-medium hover:bg-primary-dark transition-colors inline-flex items-center text-sm">
+              <h2 className="text-xl font-bold text-tm-text-1">Transactions ({filteredTransactions.length})</h2>
+              <button className="px-4 py-2 bg-primary text-tm-on-secondary rounded-[6px] font-medium hover:opacity-90 transition-colors inline-flex items-center text-sm">
                 <Download className="w-4 h-4 mr-2" />
                 Export
               </button>
@@ -873,26 +873,26 @@ export default function FinancePage() {
 
           {filteredTransactions.length === 0 ? (
             <div className="p-12 text-center">
-              <div className="inline-flex items-center justify-center w-20 h-20 bg-neutral-light rounded-full mb-4">
-                <DollarSign className="w-10 h-10 text-neutral-medium" />
+              <div className="inline-flex items-center justify-center w-20 h-20 bg-tm-surface-hover rounded-full mb-4">
+                <DollarSign className="w-10 h-10 text-tm-text-3" />
               </div>
-              <p className="text-xl font-bold text-neutral-text mb-2">No transactions found</p>
-              <p className="text-neutral-medium">Add your first revenue or expense transaction</p>
+              <p className="text-xl font-bold text-tm-text-1 mb-2">No transactions found</p>
+              <p className="text-tm-text-3">Add your first revenue or expense transaction</p>
             </div>
           ) : (
             <>
-              <div className="md:hidden divide-y divide-neutral-light">
+              <div className="md:hidden divide-y divide-tm-border">
                 {filteredTransactions.map((transaction) => (
                   <div key={transaction.id} className="p-4 space-y-2">
                     <div className="flex items-center justify-between">
-                      <p className="text-sm text-neutral-medium">{new Date(transaction.date).toLocaleDateString()}</p>
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${transaction.type === 'revenue' ? 'bg-success/10 text-success' : 'bg-secondary/10 text-secondary'}`}>
+                      <p className="text-sm text-tm-text-3">{new Date(transaction.date).toLocaleDateString()}</p>
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${transaction.type === 'revenue' ? 'bg-success/10 text-success' : 'bg-[#E05757]/10 text-[#E05757]'}`}>
                         {transaction.type === 'revenue' ? 'Revenue' : 'Expense'}
                       </span>
                     </div>
                     <div>
-                      <p className="font-semibold text-neutral-text">{transaction.category}</p>
-                      <p className="text-sm text-neutral-medium">{transaction.description || 'No description'}</p>
+                      <p className="font-semibold text-tm-text-1">{transaction.category}</p>
+                      <p className="text-sm text-tm-text-3">{transaction.description || 'No description'}</p>
                     </div>
                     <div className={`text-lg font-bold ${transaction.type === 'revenue' ? 'text-success' : 'text-secondary'}`}>
                       {transaction.type === 'revenue' ? '+' : '-'}{formatCurrency(transaction.amount)}
@@ -902,29 +902,29 @@ export default function FinancePage() {
               </div>
               <div className="hidden md:block overflow-x-auto">
                 <table className="w-full">
-                <thead className="bg-neutral-light">
+                <thead className="bg-tm-surface-hover">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-neutral-text uppercase">Date</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-neutral-text uppercase">Type</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-neutral-text uppercase">Category</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-neutral-text uppercase">Amount</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-neutral-text uppercase">Notes</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-tm-text-1 uppercase">Date</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-tm-text-1 uppercase">Type</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-tm-text-1 uppercase">Category</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-tm-text-1 uppercase">Amount</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-tm-text-1 uppercase">Notes</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-neutral-light">
+                <tbody className="divide-y divide-tm-border">
                   {filteredTransactions.map((transaction) => (
-                    <tr key={transaction.id} className="hover:bg-neutral-light transition-colors">
-                      <td className="px-6 py-4 text-sm text-neutral-medium">{new Date(transaction.date).toLocaleDateString()}</td>
+                    <tr key={transaction.id} className="hover:bg-tm-surface-hover transition-colors">
+                      <td className="px-6 py-4 text-sm text-tm-text-3">{new Date(transaction.date).toLocaleDateString()}</td>
                       <td className="px-6 py-4">
-                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${transaction.type === 'revenue' ? 'bg-success/10 text-success' : 'bg-secondary/10 text-secondary'}`}>
+                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${transaction.type === 'revenue' ? 'bg-success/10 text-success' : 'bg-[#E05757]/10 text-[#E05757]'}`}>
                           {transaction.type === 'revenue' ? 'Revenue' : 'Expense'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-neutral-text font-medium">{transaction.category}</td>
+                      <td className="px-6 py-4 text-tm-text-1 font-medium">{transaction.category}</td>
                       <td className={`px-6 py-4 font-bold ${transaction.type === 'revenue' ? 'text-success' : 'text-secondary'}`}>
                         {transaction.type === 'revenue' ? '+' : '-'}{formatCurrency(transaction.amount)}
                       </td>
-                      <td className="px-6 py-4 text-sm text-neutral-medium">{transaction.description || 'No description'}</td>
+                      <td className="px-6 py-4 text-sm text-tm-text-3">{transaction.description || 'No description'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -937,11 +937,11 @@ export default function FinancePage() {
 
       {showBudgetModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:p-4">
-          <div className="bg-white rounded-card shadow-soft w-full max-w-[95vw] sm:max-w-4xl max-h-[90vh] overflow-y-auto">
-            <div className="p-4 sm:p-6 border-b border-neutral-light">
+          <div className="bg-tm-surface rounded-card shadow-soft w-full max-w-[95vw] sm:max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="p-4 sm:p-6 border-b border-tm-border">
               <div className="flex items-center justify-between">
-                <h3 className="text-2xl font-bold text-neutral-text">Create Budget Request</h3>
-                <button onClick={() => setShowBudgetModal(false)} className="text-neutral-medium hover:text-neutral-text transition-colors">
+                <h3 className="text-2xl font-bold text-tm-text-1">Create Budget Request</h3>
+                <button onClick={() => setShowBudgetModal(false)} className="text-tm-text-3 hover:text-tm-text-1 transition-colors">
                   <X className="w-6 h-6" />
                 </button>
               </div>
@@ -949,12 +949,12 @@ export default function FinancePage() {
             <div className="p-4 sm:p-6 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-neutral-text mb-2">Event Name *</label>
-                  <input type="text" value={budgetForm.event_name} onChange={(e) => setBudgetForm({ ...budgetForm, event_name: e.target.value })} className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" required />
+                  <label className="block text-sm font-semibold text-tm-text-1 mb-2">Event Name *</label>
+                  <input type="text" value={budgetForm.event_name} onChange={(e) => setBudgetForm({ ...budgetForm, event_name: e.target.value })} className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" required />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-neutral-text mb-2">Event Type *</label>
-                  <select value={budgetForm.event_type} onChange={(e) => setBudgetForm({ ...budgetForm, event_type: e.target.value })} className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
+                  <label className="block text-sm font-semibold text-tm-text-1 mb-2">Event Type *</label>
+                  <select value={budgetForm.event_type} onChange={(e) => setBudgetForm({ ...budgetForm, event_type: e.target.value })} className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
                     <option value="game_day">Game Day</option>
                     <option value="training_session">Training Session</option>
                     <option value="gathering">Gathering</option>
@@ -963,44 +963,44 @@ export default function FinancePage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-neutral-text mb-2">Event Date *</label>
-                  <input type="date" value={budgetForm.event_date} onChange={(e) => setBudgetForm({ ...budgetForm, event_date: e.target.value })} className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" required />
+                  <label className="block text-sm font-semibold text-tm-text-1 mb-2">Event Date *</label>
+                  <input type="date" value={budgetForm.event_date} onChange={(e) => setBudgetForm({ ...budgetForm, event_date: e.target.value })} className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" required />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-neutral-text mb-2">Total Budget (UGX) *</label>
+                  <label className="block text-sm font-semibold text-tm-text-1 mb-2">Total Budget (UGX) *</label>
                   <input 
                     type="number" 
                     min="0" 
                     step="0.01"
                     value={budgetForm.total_amount} 
                     onChange={(e) => setBudgetForm({ ...budgetForm, total_amount: e.target.value })} 
-                    className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" 
+                    className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" 
                     placeholder="Enter total budget amount"
                     required
                   />
-                  <p className="text-xs text-neutral-medium mt-1">
+                  <p className="text-xs text-tm-text-3 mt-1">
                     Calculated from items: {formatCurrency(budgetForm.items.reduce((sum, item) => sum + (parseFloat(item.total_amount) || 0), 0))}
                   </p>
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-neutral-text mb-2">Description</label>
-                <textarea value={budgetForm.description} onChange={(e) => setBudgetForm({ ...budgetForm, description: e.target.value })} rows={3} className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Describe the event and budget purpose..." />
+                <label className="block text-sm font-semibold text-tm-text-1 mb-2">Description</label>
+                <textarea value={budgetForm.description} onChange={(e) => setBudgetForm({ ...budgetForm, description: e.target.value })} rows={3} className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Describe the event and budget purpose..." />
               </div>
               
-              <div className="border-t border-neutral-light pt-4">
+              <div className="border-t border-tm-border pt-4">
                 <div className="flex items-center justify-between mb-4">
-                  <h4 className="text-lg font-bold text-neutral-text">Budget Items</h4>
-                  <button onClick={handleAddBudgetItem} className="px-4 py-2 bg-primary text-white rounded-button font-semibold hover:bg-primary-dark transition-colors flex items-center text-sm">
+                  <h4 className="text-lg font-bold text-tm-text-1">Budget Items</h4>
+                  <button onClick={handleAddBudgetItem} className="px-4 py-2 bg-primary text-tm-on-secondary rounded-[6px] font-semibold hover:opacity-90 transition-colors flex items-center text-sm">
                     <Plus className="w-4 h-4 mr-2" />
                     Add Item
                   </button>
                 </div>
                 <div className="space-y-4">
                   {budgetForm.items.map((item, index) => (
-                    <div key={index} className="p-4 bg-neutral-light/50 rounded-lg border border-neutral-light">
+                    <div key={index} className="p-4 bg-tm-surface-hover/50 rounded-lg border border-tm-border">
                       <div className="flex items-start justify-between mb-3">
-                        <h5 className="font-semibold text-neutral-text">Item {index + 1}</h5>
+                        <h5 className="font-semibold text-tm-text-1">Item {index + 1}</h5>
                         {budgetForm.items.length > 1 && (
                           <button onClick={() => handleRemoveBudgetItem(index)} className="p-1 text-secondary hover:bg-secondary/10 rounded transition-colors">
                             <Trash2 className="w-4 h-4" />
@@ -1009,28 +1009,28 @@ export default function FinancePage() {
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-sm font-medium text-neutral-medium mb-1">Item Name *</label>
-                          <input type="text" value={item.item_name} onChange={(e) => handleBudgetItemChange(index, 'item_name', e.target.value)} className="w-full px-3 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm" />
+                          <label className="block text-sm font-medium text-tm-text-3 mb-1">Item Name *</label>
+                          <input type="text" value={item.item_name} onChange={(e) => handleBudgetItemChange(index, 'item_name', e.target.value)} className="w-full px-3 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm" />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-neutral-medium mb-1">Category</label>
-                          <input type="text" value={item.category} onChange={(e) => handleBudgetItemChange(index, 'category', e.target.value)} className="w-full px-3 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm" placeholder="e.g., Equipment, Food, Transport" />
+                          <label className="block text-sm font-medium text-tm-text-3 mb-1">Category</label>
+                          <input type="text" value={item.category} onChange={(e) => handleBudgetItemChange(index, 'category', e.target.value)} className="w-full px-3 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm" placeholder="e.g., Equipment, Food, Transport" />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-neutral-medium mb-1">Quantity</label>
-                          <input type="number" min="1" value={item.quantity} onChange={(e) => handleBudgetItemChange(index, 'quantity', e.target.value)} className="w-full px-3 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm" />
+                          <label className="block text-sm font-medium text-tm-text-3 mb-1">Quantity</label>
+                          <input type="number" min="1" value={item.quantity} onChange={(e) => handleBudgetItemChange(index, 'quantity', e.target.value)} className="w-full px-3 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm" />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-neutral-medium mb-1">Unit Price (UGX)</label>
-                          <input type="number" min="0" step="0.01" value={item.unit_price} onChange={(e) => handleBudgetItemChange(index, 'unit_price', e.target.value)} className="w-full px-3 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm" />
+                          <label className="block text-sm font-medium text-tm-text-3 mb-1">Unit Price (UGX)</label>
+                          <input type="number" min="0" step="0.01" value={item.unit_price} onChange={(e) => handleBudgetItemChange(index, 'unit_price', e.target.value)} className="w-full px-3 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm" />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-neutral-medium mb-1">Total Amount</label>
-                          <input type="text" value={formatCurrency(parseFloat(item.total_amount) || 0)} disabled className="w-full px-3 py-2 border border-neutral-light rounded-lg bg-neutral-light text-sm font-semibold" />
+                          <label className="block text-sm font-medium text-tm-text-3 mb-1">Total Amount</label>
+                          <input type="text" value={formatCurrency(parseFloat(item.total_amount) || 0)} disabled className="w-full px-3 py-2 border border-tm-border rounded-lg bg-tm-surface-hover text-sm font-semibold" />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-neutral-medium mb-1">Notes</label>
-                          <input type="text" value={item.notes} onChange={(e) => handleBudgetItemChange(index, 'notes', e.target.value)} className="w-full px-3 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm" />
+                          <label className="block text-sm font-medium text-tm-text-3 mb-1">Notes</label>
+                          <input type="text" value={item.notes} onChange={(e) => handleBudgetItemChange(index, 'notes', e.target.value)} className="w-full px-3 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm" />
                         </div>
                       </div>
                     </div>
@@ -1038,11 +1038,11 @@ export default function FinancePage() {
                 </div>
               </div>
             </div>
-            <div className="p-6 border-t border-neutral-light flex justify-end space-x-3">
-              <button onClick={() => setShowBudgetModal(false)} className="px-6 py-2 border border-neutral-light rounded-button font-semibold text-neutral-text hover:bg-neutral-light transition-colors" disabled={savingBudget}>
+            <div className="p-6 border-t border-tm-border flex justify-end space-x-3">
+              <button onClick={() => setShowBudgetModal(false)} className="px-6 py-2 border border-tm-border rounded-[6px] font-semibold text-tm-text-1 hover:bg-tm-surface-hover transition-colors" disabled={savingBudget}>
                 Cancel
               </button>
-              <button onClick={handleSubmitBudget} className="px-6 py-2 bg-info text-white rounded-button font-semibold hover:bg-info-dark transition-colors flex items-center disabled:opacity-50 disabled:cursor-not-allowed" disabled={savingBudget || !budgetForm.event_name || !budgetForm.event_date}>
+              <button onClick={handleSubmitBudget} className="px-6 py-2 bg-info text-white rounded-[6px] font-semibold hover:bg-info-dark transition-colors flex items-center disabled:opacity-50 disabled:cursor-not-allowed" disabled={savingBudget || !budgetForm.event_name || !budgetForm.event_date}>
                 <Send className="w-4 h-4 mr-2" />
                 {savingBudget ? 'Submitting...' : 'Submit for Approval'}
               </button>
@@ -1053,14 +1053,14 @@ export default function FinancePage() {
 
       {showRevenueModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:p-4">
-          <div className="bg-white rounded-card shadow-soft w-full max-w-[95vw] sm:max-w-2xl">
-            <div className="p-4 sm:p-6 border-b border-neutral-light">
-              <h3 className="text-2xl font-bold text-neutral-text">Add Revenue</h3>
+          <div className="bg-tm-surface rounded-card shadow-soft w-full max-w-[95vw] sm:max-w-2xl">
+            <div className="p-4 sm:p-6 border-b border-tm-border">
+              <h3 className="text-2xl font-bold text-tm-text-1">Add Revenue</h3>
             </div>
             <div className="p-4 sm:p-6 space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-neutral-text mb-2">Type</label>
-                <select value={revenueForm.type} onChange={(e) => setRevenueForm({ ...revenueForm, type: e.target.value })} className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-success">
+                <label className="block text-sm font-semibold text-tm-text-1 mb-2">Type</label>
+                <select value={revenueForm.type} onChange={(e) => setRevenueForm({ ...revenueForm, type: e.target.value })} className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-success">
                   <option value="">Select type...</option>
                   <option value="Sponsorship">Sponsorship</option>
                   <option value="Membership Fees">Membership Fees</option>
@@ -1070,23 +1070,23 @@ export default function FinancePage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-neutral-text mb-2">Amount (UGX)</label>
-                <input type="number" value={revenueForm.amount} onChange={(e) => setRevenueForm({ ...revenueForm, amount: e.target.value })} className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-success" placeholder="0" />
+                <label className="block text-sm font-semibold text-tm-text-1 mb-2">Amount (UGX)</label>
+                <input type="number" value={revenueForm.amount} onChange={(e) => setRevenueForm({ ...revenueForm, amount: e.target.value })} className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-success" placeholder="0" />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-neutral-text mb-2">Date</label>
-                <input type="date" value={revenueForm.date} onChange={(e) => setRevenueForm({ ...revenueForm, date: e.target.value })} className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-success" />
+                <label className="block text-sm font-semibold text-tm-text-1 mb-2">Date</label>
+                <input type="date" value={revenueForm.date} onChange={(e) => setRevenueForm({ ...revenueForm, date: e.target.value })} className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-success" />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-neutral-text mb-2">Notes</label>
-                <textarea value={revenueForm.notes} onChange={(e) => setRevenueForm({ ...revenueForm, notes: e.target.value })} rows={3} className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-success" placeholder="Optional notes..." />
+                <label className="block text-sm font-semibold text-tm-text-1 mb-2">Notes</label>
+                <textarea value={revenueForm.notes} onChange={(e) => setRevenueForm({ ...revenueForm, notes: e.target.value })} rows={3} className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-success" placeholder="Optional notes..." />
               </div>
             </div>
-            <div className="p-6 border-t border-neutral-light flex justify-end space-x-3">
-              <button onClick={() => { setShowRevenueModal(false); setRevenueForm({ type: '', amount: '', date: '', notes: '' }) }} className="px-6 py-2 border border-neutral-light rounded-button font-semibold text-neutral-text hover:bg-neutral-light transition-colors">
+            <div className="p-6 border-t border-tm-border flex justify-end space-x-3">
+              <button onClick={() => { setShowRevenueModal(false); setRevenueForm({ type: '', amount: '', date: '', notes: '' }) }} className="px-6 py-2 border border-tm-border rounded-[6px] font-semibold text-tm-text-1 hover:bg-tm-surface-hover transition-colors">
                 Cancel
               </button>
-              <button onClick={handleAddRevenue} className="px-6 py-2 bg-success text-white rounded-button font-semibold hover:bg-success-dark transition-colors">
+              <button onClick={handleAddRevenue} className="px-6 py-2 bg-success text-white rounded-[6px] font-semibold hover:opacity-90 transition-colors">
                 Add Revenue
               </button>
             </div>
@@ -1096,14 +1096,14 @@ export default function FinancePage() {
 
       {showExpenseModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:p-4">
-          <div className="bg-white rounded-card shadow-soft w-full max-w-[95vw] sm:max-w-2xl">
-            <div className="p-4 sm:p-6 border-b border-neutral-light">
-              <h3 className="text-2xl font-bold text-neutral-text">Add Expense</h3>
+          <div className="bg-tm-surface rounded-card shadow-soft w-full max-w-[95vw] sm:max-w-2xl">
+            <div className="p-4 sm:p-6 border-b border-tm-border">
+              <h3 className="text-2xl font-bold text-tm-text-1">Add Expense</h3>
             </div>
             <div className="p-4 sm:p-6 space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-neutral-text mb-2">Type</label>
-                <select value={expenseForm.type} onChange={(e) => setExpenseForm({ ...expenseForm, type: e.target.value })} className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary">
+                <label className="block text-sm font-semibold text-tm-text-1 mb-2">Type</label>
+                <select value={expenseForm.type} onChange={(e) => setExpenseForm({ ...expenseForm, type: e.target.value })} className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary">
                   <option value="">Select type...</option>
                   <option value="Equipment">Equipment</option>
                   <option value="Travel">Travel</option>
@@ -1113,23 +1113,23 @@ export default function FinancePage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-neutral-text mb-2">Amount (UGX)</label>
-                <input type="number" value={expenseForm.amount} onChange={(e) => setExpenseForm({ ...expenseForm, amount: e.target.value })} className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary" placeholder="0" />
+                <label className="block text-sm font-semibold text-tm-text-1 mb-2">Amount (UGX)</label>
+                <input type="number" value={expenseForm.amount} onChange={(e) => setExpenseForm({ ...expenseForm, amount: e.target.value })} className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary" placeholder="0" />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-neutral-text mb-2">Date</label>
-                <input type="date" value={expenseForm.date} onChange={(e) => setExpenseForm({ ...expenseForm, date: e.target.value })} className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary" />
+                <label className="block text-sm font-semibold text-tm-text-1 mb-2">Date</label>
+                <input type="date" value={expenseForm.date} onChange={(e) => setExpenseForm({ ...expenseForm, date: e.target.value })} className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary" />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-neutral-text mb-2">Notes</label>
-                <textarea value={expenseForm.notes} onChange={(e) => setExpenseForm({ ...expenseForm, notes: e.target.value })} rows={3} className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary" placeholder="Optional notes..." />
+                <label className="block text-sm font-semibold text-tm-text-1 mb-2">Notes</label>
+                <textarea value={expenseForm.notes} onChange={(e) => setExpenseForm({ ...expenseForm, notes: e.target.value })} rows={3} className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary" placeholder="Optional notes..." />
               </div>
             </div>
-            <div className="p-6 border-t border-neutral-light flex justify-end space-x-3">
-              <button onClick={() => { setShowExpenseModal(false); setExpenseForm({ type: '', amount: '', date: '', notes: '' }) }} className="px-6 py-2 border border-neutral-light rounded-button font-semibold text-neutral-text hover:bg-neutral-light transition-colors">
+            <div className="p-6 border-t border-tm-border flex justify-end space-x-3">
+              <button onClick={() => { setShowExpenseModal(false); setExpenseForm({ type: '', amount: '', date: '', notes: '' }) }} className="px-6 py-2 border border-tm-border rounded-[6px] font-semibold text-tm-text-1 hover:bg-tm-surface-hover transition-colors">
                 Cancel
               </button>
-              <button onClick={handleAddExpense} className="px-6 py-2 bg-secondary text-white rounded-button font-semibold hover:bg-secondary-dark transition-colors">
+              <button onClick={handleAddExpense} className="px-6 py-2 bg-secondary text-tm-on-secondary rounded-[6px] font-semibold hover:opacity-90 transition-colors">
                 Add Expense
               </button>
             </div>

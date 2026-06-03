@@ -558,9 +558,9 @@ export default function PerformancePage() {
         case 'injured':
           return 'bg-warning/10 text-warning'
         case 'inactive':
-          return 'bg-neutral-medium/10 text-neutral-medium'
+          return 'bg-neutral-medium/10 text-tm-text-3'
         default:
-          return 'bg-neutral-light/10 text-neutral-medium'
+          return 'bg-tm-surface-hover/10 text-tm-text-3'
       }
     }
 
@@ -568,8 +568,8 @@ export default function PerformancePage() {
       <Layout pageTitle="Team Manager Performance">
         <div className="space-y-6">
           <div className="mb-2">
-            <h1 className="text-4xl font-extrabold text-club-gradient mb-2">Team Manager Performance Dashboard</h1>
-            <p className="text-lg text-neutral-medium font-medium">Track your management activities and team overview</p>
+            <h1 className="text-[20px] font-medium text-tm-text-1">Team Manager Performance Dashboard</h1>
+            <p className="text-[13px] text-tm-text-3">Track your management activities and team overview</p>
           </div>
 
           {/* Team Manager Stats Overview */}
@@ -590,37 +590,37 @@ export default function PerformancePage() {
           </div>
 
           {/* Injury Reports Section */}
-          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
-            <h2 className="text-2xl font-bold text-neutral-text mb-6 flex items-center">
+          <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
+            <h2 className="text-2xl font-bold text-tm-text-1 mb-6 flex items-center">
               <AlertCircle className="w-6 h-6 mr-2 text-secondary" />
               Injury Reports
             </h2>
             {injuryReports.length === 0 ? (
               <div className="text-center py-12">
-                <AlertCircle className="w-16 h-16 text-neutral-medium mx-auto mb-4" />
-                <p className="text-neutral-medium">No injury reports at this time</p>
+                <AlertCircle className="w-16 h-16 text-tm-text-3 mx-auto mb-4" />
+                <p className="text-tm-text-3">No injury reports at this time</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-neutral-light">
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-text">Player Name</th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-text">Position</th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-text">Email</th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-text">Status</th>
+                    <tr className="border-b border-tm-border">
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-tm-text-1">Player Name</th>
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-tm-text-1">Position</th>
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-tm-text-1">Email</th>
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-tm-text-1">Status</th>
                     </tr>
                   </thead>
                   <tbody>
                     {injuryReports.map((player) => (
-                      <tr key={player.user_id || player.id} className="border-b border-neutral-light/50 hover:bg-neutral-light/30 transition-colors">
+                      <tr key={player.user_id || player.id} className="border-b border-tm-border/50 hover:bg-tm-surface-hover/30 transition-colors">
                         <td className="py-3 px-4">
-                          <p className="font-medium text-neutral-text">{player.name}</p>
+                          <p className="font-medium text-tm-text-1">{player.name}</p>
                         </td>
-                        <td className="py-3 px-4 text-neutral-medium capitalize">
+                        <td className="py-3 px-4 text-tm-text-3 capitalize">
                           {player.position?.replace('_', ' ') || 'N/A'}
                         </td>
-                        <td className="py-3 px-4 text-neutral-medium">{player.email}</td>
+                        <td className="py-3 px-4 text-tm-text-3">{player.email}</td>
                         <td className="py-3 px-4">
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(player.status)}`}>
                             {player.status || 'injured'}
@@ -635,45 +635,45 @@ export default function PerformancePage() {
           </div>
 
           {/* Players Performance Summary */}
-          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
-            <h2 className="text-2xl font-bold text-neutral-text mb-6 flex items-center">
+          <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
+            <h2 className="text-2xl font-bold text-tm-text-1 mb-6 flex items-center">
               <Users className="w-6 h-6 mr-2 text-primary" />
               Players Performance Summary
             </h2>
             {playersSummary.length === 0 ? (
               <div className="text-center py-12">
-                <Users className="w-16 h-16 text-neutral-medium mx-auto mb-4" />
-                <p className="text-neutral-medium">No player data available yet</p>
+                <Users className="w-16 h-16 text-tm-text-3 mx-auto mb-4" />
+                <p className="text-tm-text-3">No player data available yet</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-neutral-light">
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-text">Player Name</th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-text">Status</th>
-                      <th className="text-center py-3 px-4 text-sm font-semibold text-neutral-text">Matches</th>
-                      <th className="text-center py-3 px-4 text-sm font-semibold text-neutral-text">Tries</th>
-                      <th className="text-center py-3 px-4 text-sm font-semibold text-neutral-text">Tackles</th>
-                      <th className="text-center py-3 px-4 text-sm font-semibold text-neutral-text">Avg Minutes</th>
-                      <th className="text-center py-3 px-4 text-sm font-semibold text-neutral-text">Attendance Rate</th>
+                    <tr className="border-b border-tm-border">
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-tm-text-1">Player Name</th>
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-tm-text-1">Status</th>
+                      <th className="text-center py-3 px-4 text-sm font-semibold text-tm-text-1">Matches</th>
+                      <th className="text-center py-3 px-4 text-sm font-semibold text-tm-text-1">Tries</th>
+                      <th className="text-center py-3 px-4 text-sm font-semibold text-tm-text-1">Tackles</th>
+                      <th className="text-center py-3 px-4 text-sm font-semibold text-tm-text-1">Avg Minutes</th>
+                      <th className="text-center py-3 px-4 text-sm font-semibold text-tm-text-1">Attendance Rate</th>
                     </tr>
                   </thead>
                   <tbody>
                     {playersSummary.map((player) => (
-                      <tr key={player.playerId || player.id} className="border-b border-neutral-light/50 hover:bg-neutral-light/30 transition-colors">
+                      <tr key={player.playerId || player.id} className="border-b border-tm-border/50 hover:bg-tm-surface-hover/30 transition-colors">
                         <td className="py-3 px-4">
-                          <p className="font-medium text-neutral-text">{player.name}</p>
+                          <p className="font-medium text-tm-text-1">{player.name}</p>
                         </td>
                         <td className="py-3 px-4">
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(player.status)}`}>
                             {player.status || 'N/A'}
                           </span>
                         </td>
-                        <td className="py-3 px-4 text-center text-neutral-text">{player.totalMatches || 0}</td>
-                        <td className="py-3 px-4 text-center text-neutral-text">{player.totalTries || 0}</td>
-                        <td className="py-3 px-4 text-center text-neutral-text">{player.totalTackles || 0}</td>
-                        <td className="py-3 px-4 text-center text-neutral-text">{player.avgMinutes || 0} min</td>
+                        <td className="py-3 px-4 text-center text-tm-text-1">{player.totalMatches || 0}</td>
+                        <td className="py-3 px-4 text-center text-tm-text-1">{player.totalTries || 0}</td>
+                        <td className="py-3 px-4 text-center text-tm-text-1">{player.totalTackles || 0}</td>
+                        <td className="py-3 px-4 text-center text-tm-text-1">{player.avgMinutes || 0} min</td>
                         <td className="py-3 px-4 text-center">
                           <span className={`font-semibold ${player.attendanceRate >= 80 ? 'text-success' : player.attendanceRate >= 60 ? 'text-warning' : 'text-secondary'}`}>
                             {player.attendanceRate || 0}%
@@ -688,9 +688,9 @@ export default function PerformancePage() {
           </div>
 
           {/* Performance Resources Management */}
-          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+          <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-neutral-text">Performance Resources</h2>
+              <h2 className="text-2xl font-bold text-tm-text-1">Performance Resources</h2>
               <button
                 type="button"
                 onClick={(e) => {
@@ -698,7 +698,7 @@ export default function PerformancePage() {
                   e.stopPropagation()
                   handleNewResource()
                 }}
-                className="bg-primary text-white px-4 py-2 rounded-lg font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
+                className="bg-primary text-tm-on-secondary px-4 py-2 rounded-lg font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
               >
                 <Plus className="w-5 h-5 mr-2" />
                 Add Resource
@@ -715,8 +715,8 @@ export default function PerformancePage() {
 
           {/* Recent Game Days */}
           {teamManagerMatches.length > 0 && (
-            <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
-              <h2 className="text-2xl font-bold text-neutral-text mb-6 flex items-center">
+            <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
+              <h2 className="text-2xl font-bold text-tm-text-1 mb-6 flex items-center">
                 <Trophy className="w-6 h-6 mr-2 text-primary" />
                 Recent Game Days
               </h2>
@@ -728,20 +728,20 @@ export default function PerformancePage() {
                       case 'win':
                         return 'bg-success/10 text-success'
                       case 'loss':
-                        return 'bg-secondary/10 text-secondary'
+                        return 'bg-[#E05757]/10 text-[#E05757]'
                       case 'draw':
                         return 'bg-warning/10 text-warning'
                       default:
-                        return 'bg-neutral-light/10 text-neutral-medium'
+                        return 'bg-tm-surface-hover/10 text-tm-text-3'
                     }
                   }
                   
                   return (
-                    <div key={match.id} className="p-4 bg-neutral-light/50 rounded-lg hover:bg-neutral-light transition-colors">
+                    <div key={match.id} className="p-4 bg-tm-surface-hover/50 rounded-lg hover:bg-tm-surface-hover transition-colors">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="font-medium text-neutral-text">{match.opponent}</p>
-                          <p className="text-sm text-neutral-medium">
+                          <p className="font-medium text-tm-text-1">{match.opponent}</p>
+                          <p className="text-sm text-tm-text-3">
                             {matchDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} • {match.tournament_type}
                             {match.score_our_team !== null && match.score_opponent !== null && (
                               <span className="ml-2">
@@ -776,9 +776,9 @@ export default function PerformancePage() {
               }
             }}
           >
-            <div className="bg-white rounded-lg w-full max-w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto">
-              <div className="sticky top-0 bg-white border-b border-neutral-light p-4 sm:p-6 flex items-center justify-between">
-                <h3 className="text-2xl font-bold text-neutral-text">
+            <div className="bg-tm-surface rounded-lg w-full max-w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+              <div className="sticky top-0 bg-tm-surface border-b border-tm-border p-4 sm:p-6 flex items-center justify-between">
+                <h3 className="text-2xl font-bold text-tm-text-1">
                   {editingResource ? 'Edit Resource' : 'Create New Resource'}
                 </h3>
                 <button
@@ -795,32 +795,32 @@ export default function PerformancePage() {
                       is_active: true,
                     })
                   }}
-                  className="p-2 hover:bg-neutral-light rounded-lg transition-colors"
+                  className="p-2 hover:bg-tm-surface-hover rounded-lg transition-colors"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
               <div className="p-6 space-y-4">
                 <div>
-                  <label className="block text-sm font-semibold text-neutral-text mb-2">
+                  <label className="block text-sm font-semibold text-tm-text-1 mb-2">
                     Title *
                   </label>
                   <input
                     type="text"
                     value={resourceForm.title}
                     onChange={(e) => setResourceForm({ ...resourceForm, title: e.target.value })}
-                    className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                     placeholder="Enter resource title"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-neutral-text mb-2">
+                  <label className="block text-sm font-semibold text-tm-text-1 mb-2">
                     Resource Type *
                   </label>
                   <select
                     value={resourceForm.resource_type}
                     onChange={(e) => setResourceForm({ ...resourceForm, resource_type: e.target.value })}
-                    className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                   >
                     <option value="diet_plan">Diet Plan</option>
                     <option value="gym_programme">Gym Programme</option>
@@ -829,30 +829,30 @@ export default function PerformancePage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-neutral-text mb-2">
+                  <label className="block text-sm font-semibold text-tm-text-1 mb-2">
                     Description
                   </label>
                   <input
                     type="text"
                     value={resourceForm.description}
                     onChange={(e) => setResourceForm({ ...resourceForm, description: e.target.value })}
-                    className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                     placeholder="Brief description (optional)"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-neutral-text mb-2">
+                  <label className="block text-sm font-semibold text-tm-text-1 mb-2">
                     Content *
                   </label>
                   <textarea
                     value={resourceForm.content}
                     onChange={(e) => setResourceForm({ ...resourceForm, content: e.target.value })}
-                    className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary min-h-[200px]"
+                    className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary min-h-[200px]"
                     placeholder="Enter the resource content (supports markdown)"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-neutral-text mb-2">
+                  <label className="block text-sm font-semibold text-tm-text-1 mb-2">
                     External Links (optional)
                   </label>
                   <div className="space-y-3">
@@ -867,7 +867,7 @@ export default function PerformancePage() {
                               newLinks[index].label = e.target.value
                               setResourceForm({ ...resourceForm, links: newLinks })
                             }}
-                            className="px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                            className="px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                             placeholder="Link label (e.g., PDF, Video)"
                           />
                           <input
@@ -878,7 +878,7 @@ export default function PerformancePage() {
                               newLinks[index].url = e.target.value
                               setResourceForm({ ...resourceForm, links: newLinks })
                             }}
-                            className="px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                            className="px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                             placeholder="https://example.com/file.pdf"
                           />
                         </div>
@@ -888,7 +888,7 @@ export default function PerformancePage() {
                             const newLinks = resourceForm.links.filter((_, i) => i !== index)
                             setResourceForm({ ...resourceForm, links: newLinks })
                           }}
-                          className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          className="p-2 text-[#E05757] hover:bg-[#E05757]/10 rounded-lg transition-colors"
                           title="Remove link"
                         >
                           <X className="w-5 h-5" />
@@ -903,13 +903,13 @@ export default function PerformancePage() {
                           links: [...resourceForm.links, { url: '', label: '' }]
                         })
                       }}
-                      className="w-full px-4 py-2 border-2 border-dashed border-neutral-light rounded-lg text-neutral-text hover:border-primary hover:text-primary transition-colors flex items-center justify-center gap-2"
+                      className="w-full px-4 py-2 border-2 border-dashed border-tm-border rounded-lg text-tm-text-1 hover:border-primary hover:text-primary transition-colors flex items-center justify-center gap-2"
                     >
                       <Plus className="w-5 h-5" />
                       Add Link
                     </button>
                   </div>
-                  <p className="text-xs text-neutral-text mt-2">
+                  <p className="text-xs text-tm-text-1 mt-2">
                     Add multiple links that players can click on. Each link needs a label and URL.
                   </p>
                 </div>
@@ -922,7 +922,7 @@ export default function PerformancePage() {
                       onChange={(e) => setResourceForm({ ...resourceForm, is_active: e.target.checked })}
                       className="w-4 h-4"
                     />
-                    <label htmlFor="is_active_data_admin" className="text-sm text-neutral-text">
+                    <label htmlFor="is_active_data_admin" className="text-sm text-tm-text-1">
                       Active (visible to players)
                     </label>
                   </div>
@@ -942,13 +942,13 @@ export default function PerformancePage() {
                         is_active: true,
                       })
                     }}
-                    className="px-4 py-2 border border-neutral-light rounded-lg text-neutral-text hover:bg-neutral-light transition-colors"
+                    className="px-4 py-2 border border-tm-border rounded-lg text-tm-text-1 hover:bg-tm-surface-hover transition-colors"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleSaveResource}
-                    className="px-4 py-2 bg-primary text-white rounded-lg font-semibold hover:opacity-90 transition-all"
+                    className="px-4 py-2 bg-primary text-tm-on-secondary rounded-lg font-semibold hover:opacity-90 transition-all"
                   >
                     <Save className="w-4 h-4 inline mr-2" />
                     {editingResource ? 'Update' : 'Create'}
@@ -1083,9 +1083,9 @@ export default function PerformancePage() {
         case 'injured':
           return 'bg-warning/10 text-warning'
         case 'inactive':
-          return 'bg-neutral-medium/10 text-neutral-medium'
+          return 'bg-neutral-medium/10 text-tm-text-3'
         default:
-          return 'bg-neutral-light/10 text-neutral-medium'
+          return 'bg-tm-surface-hover/10 text-tm-text-3'
       }
     }
 
@@ -1093,8 +1093,8 @@ export default function PerformancePage() {
       <Layout pageTitle="Coach Performance">
         <div className="space-y-6">
           <div className="mb-2">
-            <h1 className="text-4xl font-extrabold text-club-gradient mb-2">Coach Performance Dashboard</h1>
-            <p className="text-lg text-neutral-medium font-medium">Track your coaching activities and team performance</p>
+            <h1 className="text-[20px] font-medium text-tm-text-1">Coach Performance Dashboard</h1>
+            <p className="text-[13px] text-tm-text-3">Track your coaching activities and team performance</p>
           </div>
 
           {/* Coach Stats Overview */}
@@ -1116,27 +1116,27 @@ export default function PerformancePage() {
 
           {/* Team Performance Chart */}
           {teamChartData && (
-            <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
-              <h2 className="text-2xl font-bold text-neutral-text mb-6">Team Performance Overview</h2>
+            <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
+              <h2 className="text-2xl font-bold text-tm-text-1 mb-6">Team Performance Overview</h2>
               <div className="h-64">
                 <Bar data={teamChartData} options={teamChartOptions} />
               </div>
               {teamStats && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 pt-6 border-t border-neutral-light">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 pt-6 border-t border-tm-border">
                   <div>
-                    <p className="text-sm text-neutral-medium">Avg Tries/Match</p>
+                    <p className="text-sm text-tm-text-3">Avg Tries/Match</p>
                     <p className="text-2xl font-bold text-primary">{teamStats.avgTriesPerMatch}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-neutral-medium">Avg Tackles/Match</p>
+                    <p className="text-sm text-tm-text-3">Avg Tackles/Match</p>
                     <p className="text-2xl font-bold text-success">{teamStats.avgTacklesPerMatch}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-neutral-medium">Total Matches</p>
+                    <p className="text-sm text-tm-text-3">Total Matches</p>
                     <p className="text-2xl font-bold text-info">{teamStats.matchCount}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-neutral-medium">Tackle Success Rate</p>
+                    <p className="text-sm text-tm-text-3">Tackle Success Rate</p>
                     <p className="text-2xl font-bold text-warning">{teamStats.tackleSuccessRate}%</p>
                   </div>
                 </div>
@@ -1146,8 +1146,8 @@ export default function PerformancePage() {
 
           {/* Player Attendance Chart */}
           {attendanceChartData && topPlayers.length > 0 && (
-            <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
-              <h2 className="text-2xl font-bold text-neutral-text mb-6">Top Players - Training Attendance</h2>
+            <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
+              <h2 className="text-2xl font-bold text-tm-text-1 mb-6">Top Players - Training Attendance</h2>
               <div className="h-64">
                 <Bar data={attendanceChartData} options={teamChartOptions} />
               </div>
@@ -1155,45 +1155,45 @@ export default function PerformancePage() {
           )}
 
           {/* Players Performance Summary */}
-          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
-            <h2 className="text-2xl font-bold text-neutral-text mb-6 flex items-center">
+          <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
+            <h2 className="text-2xl font-bold text-tm-text-1 mb-6 flex items-center">
               <Users className="w-6 h-6 mr-2 text-primary" />
               Players Performance Summary
             </h2>
             {playersSummary.length === 0 ? (
               <div className="text-center py-12">
-                <Users className="w-16 h-16 text-neutral-medium mx-auto mb-4" />
-                <p className="text-neutral-medium">No player data available yet</p>
+                <Users className="w-16 h-16 text-tm-text-3 mx-auto mb-4" />
+                <p className="text-tm-text-3">No player data available yet</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-neutral-light">
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-text">Player Name</th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-text">Status</th>
-                      <th className="text-center py-3 px-4 text-sm font-semibold text-neutral-text">Matches</th>
-                      <th className="text-center py-3 px-4 text-sm font-semibold text-neutral-text">Tries</th>
-                      <th className="text-center py-3 px-4 text-sm font-semibold text-neutral-text">Tackles</th>
-                      <th className="text-center py-3 px-4 text-sm font-semibold text-neutral-text">Avg Minutes</th>
-                      <th className="text-center py-3 px-4 text-sm font-semibold text-neutral-text">Attendance Rate</th>
+                    <tr className="border-b border-tm-border">
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-tm-text-1">Player Name</th>
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-tm-text-1">Status</th>
+                      <th className="text-center py-3 px-4 text-sm font-semibold text-tm-text-1">Matches</th>
+                      <th className="text-center py-3 px-4 text-sm font-semibold text-tm-text-1">Tries</th>
+                      <th className="text-center py-3 px-4 text-sm font-semibold text-tm-text-1">Tackles</th>
+                      <th className="text-center py-3 px-4 text-sm font-semibold text-tm-text-1">Avg Minutes</th>
+                      <th className="text-center py-3 px-4 text-sm font-semibold text-tm-text-1">Attendance Rate</th>
                     </tr>
                   </thead>
                   <tbody>
                     {playersSummary.map((player) => (
-                      <tr key={player.playerId} className="border-b border-neutral-light/50 hover:bg-neutral-light/30 transition-colors">
+                      <tr key={player.playerId} className="border-b border-tm-border/50 hover:bg-tm-surface-hover/30 transition-colors">
                         <td className="py-3 px-4">
-                          <p className="font-medium text-neutral-text">{player.name}</p>
+                          <p className="font-medium text-tm-text-1">{player.name}</p>
                         </td>
                         <td className="py-3 px-4">
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(player.status)}`}>
                             {player.status || 'N/A'}
                           </span>
                         </td>
-                        <td className="py-3 px-4 text-center text-neutral-text">{player.totalMatches}</td>
-                        <td className="py-3 px-4 text-center text-neutral-text">{player.totalTries}</td>
-                        <td className="py-3 px-4 text-center text-neutral-text">{player.totalTackles}</td>
-                        <td className="py-3 px-4 text-center text-neutral-text">{player.avgMinutes} min</td>
+                        <td className="py-3 px-4 text-center text-tm-text-1">{player.totalMatches}</td>
+                        <td className="py-3 px-4 text-center text-tm-text-1">{player.totalTries}</td>
+                        <td className="py-3 px-4 text-center text-tm-text-1">{player.totalTackles}</td>
+                        <td className="py-3 px-4 text-center text-tm-text-1">{player.avgMinutes} min</td>
                         <td className="py-3 px-4 text-center">
                           <span className={`font-semibold ${player.attendanceRate >= 80 ? 'text-success' : player.attendanceRate >= 60 ? 'text-warning' : 'text-secondary'}`}>
                             {player.attendanceRate}%
@@ -1209,8 +1209,8 @@ export default function PerformancePage() {
 
           {/* Recent Matches */}
           {coachMatches.length > 0 && (
-            <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
-              <h2 className="text-2xl font-bold text-neutral-text mb-6 flex items-center">
+            <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
+              <h2 className="text-2xl font-bold text-tm-text-1 mb-6 flex items-center">
                 <Trophy className="w-6 h-6 mr-2 text-primary" />
                 Recent Matches
               </h2>
@@ -1222,20 +1222,20 @@ export default function PerformancePage() {
                       case 'win':
                         return 'bg-success/10 text-success'
                       case 'loss':
-                        return 'bg-secondary/10 text-secondary'
+                        return 'bg-[#E05757]/10 text-[#E05757]'
                       case 'draw':
                         return 'bg-warning/10 text-warning'
                       default:
-                        return 'bg-neutral-light/10 text-neutral-medium'
+                        return 'bg-tm-surface-hover/10 text-tm-text-3'
                     }
                   }
                   
                   return (
-                    <div key={match.id} className="p-4 bg-neutral-light/50 rounded-lg hover:bg-neutral-light transition-colors">
+                    <div key={match.id} className="p-4 bg-tm-surface-hover/50 rounded-lg hover:bg-tm-surface-hover transition-colors">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="font-medium text-neutral-text">{match.opponent}</p>
-                          <p className="text-sm text-neutral-medium">
+                          <p className="font-medium text-tm-text-1">{match.opponent}</p>
+                          <p className="text-sm text-tm-text-3">
                             {matchDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} • {match.tournament_type}
                             {match.score_our_team !== null && match.score_opponent !== null && (
                               <span className="ml-2">
@@ -1258,9 +1258,9 @@ export default function PerformancePage() {
           )}
 
           {/* Performance Resources Management */}
-          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+          <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-neutral-text">Performance Resources</h2>
+              <h2 className="text-2xl font-bold text-tm-text-1">Performance Resources</h2>
               <button
                 type="button"
                 onClick={(e) => {
@@ -1268,7 +1268,7 @@ export default function PerformancePage() {
                   e.stopPropagation()
                   handleNewResource()
                 }}
-                className="bg-primary text-white px-4 py-2 rounded-lg font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
+                className="bg-primary text-tm-on-secondary px-4 py-2 rounded-lg font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
               >
                 <Plus className="w-5 h-5 mr-2" />
                 Add Resource
@@ -1296,9 +1296,9 @@ export default function PerformancePage() {
               }
             }}
           >
-            <div className="bg-white rounded-lg w-full max-w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto">
-              <div className="sticky top-0 bg-white border-b border-neutral-light p-4 sm:p-6 flex items-center justify-between">
-                <h3 className="text-2xl font-bold text-neutral-text">
+            <div className="bg-tm-surface rounded-lg w-full max-w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+              <div className="sticky top-0 bg-tm-surface border-b border-tm-border p-4 sm:p-6 flex items-center justify-between">
+                <h3 className="text-2xl font-bold text-tm-text-1">
                   {editingResource ? 'Edit Resource' : 'Create New Resource'}
                 </h3>
                 <button
@@ -1315,32 +1315,32 @@ export default function PerformancePage() {
                       is_active: true,
                     })
                   }}
-                  className="p-2 hover:bg-neutral-light rounded-lg transition-colors"
+                  className="p-2 hover:bg-tm-surface-hover rounded-lg transition-colors"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
               <div className="p-6 space-y-4">
                 <div>
-                  <label className="block text-sm font-semibold text-neutral-text mb-2">
+                  <label className="block text-sm font-semibold text-tm-text-1 mb-2">
                     Title *
                   </label>
                   <input
                     type="text"
                     value={resourceForm.title}
                     onChange={(e) => setResourceForm({ ...resourceForm, title: e.target.value })}
-                    className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                     placeholder="Enter resource title"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-neutral-text mb-2">
+                  <label className="block text-sm font-semibold text-tm-text-1 mb-2">
                     Resource Type *
                   </label>
                   <select
                     value={resourceForm.resource_type}
                     onChange={(e) => setResourceForm({ ...resourceForm, resource_type: e.target.value })}
-                    className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                   >
                     <option value="diet_plan">Diet Plan</option>
                     <option value="gym_programme">Gym Programme</option>
@@ -1349,30 +1349,30 @@ export default function PerformancePage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-neutral-text mb-2">
+                  <label className="block text-sm font-semibold text-tm-text-1 mb-2">
                     Description
                   </label>
                   <input
                     type="text"
                     value={resourceForm.description}
                     onChange={(e) => setResourceForm({ ...resourceForm, description: e.target.value })}
-                    className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                     placeholder="Brief description (optional)"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-neutral-text mb-2">
+                  <label className="block text-sm font-semibold text-tm-text-1 mb-2">
                     Content *
                   </label>
                   <textarea
                     value={resourceForm.content}
                     onChange={(e) => setResourceForm({ ...resourceForm, content: e.target.value })}
-                    className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary min-h-[200px]"
+                    className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary min-h-[200px]"
                     placeholder="Enter the resource content (supports markdown)"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-neutral-text mb-2">
+                  <label className="block text-sm font-semibold text-tm-text-1 mb-2">
                     External Links (optional)
                   </label>
                   <div className="space-y-3">
@@ -1387,7 +1387,7 @@ export default function PerformancePage() {
                               newLinks[index].label = e.target.value
                               setResourceForm({ ...resourceForm, links: newLinks })
                             }}
-                            className="px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                            className="px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                             placeholder="Link label (e.g., PDF, Video)"
                           />
                           <input
@@ -1398,7 +1398,7 @@ export default function PerformancePage() {
                               newLinks[index].url = e.target.value
                               setResourceForm({ ...resourceForm, links: newLinks })
                             }}
-                            className="px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                            className="px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                             placeholder="https://example.com/file.pdf"
                           />
                         </div>
@@ -1408,7 +1408,7 @@ export default function PerformancePage() {
                             const newLinks = resourceForm.links.filter((_, i) => i !== index)
                             setResourceForm({ ...resourceForm, links: newLinks })
                           }}
-                          className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          className="p-2 text-[#E05757] hover:bg-[#E05757]/10 rounded-lg transition-colors"
                           title="Remove link"
                         >
                           <X className="w-5 h-5" />
@@ -1423,13 +1423,13 @@ export default function PerformancePage() {
                           links: [...resourceForm.links, { url: '', label: '' }]
                         })
                       }}
-                      className="w-full px-4 py-2 border-2 border-dashed border-neutral-light rounded-lg text-neutral-text hover:border-primary hover:text-primary transition-colors flex items-center justify-center gap-2"
+                      className="w-full px-4 py-2 border-2 border-dashed border-tm-border rounded-lg text-tm-text-1 hover:border-primary hover:text-primary transition-colors flex items-center justify-center gap-2"
                     >
                       <Plus className="w-5 h-5" />
                       Add Link
                     </button>
                   </div>
-                  <p className="text-xs text-neutral-text mt-2">
+                  <p className="text-xs text-tm-text-1 mt-2">
                     Add multiple links that players can click on. Each link needs a label and URL.
                   </p>
                 </div>
@@ -1442,7 +1442,7 @@ export default function PerformancePage() {
                       onChange={(e) => setResourceForm({ ...resourceForm, is_active: e.target.checked })}
                       className="w-4 h-4"
                     />
-                    <label htmlFor="is_active" className="text-sm text-neutral-text">
+                    <label htmlFor="is_active" className="text-sm text-tm-text-1">
                       Active (visible to players)
                     </label>
                   </div>
@@ -1462,13 +1462,13 @@ export default function PerformancePage() {
                         is_active: true,
                       })
                     }}
-                    className="px-4 py-2 border border-neutral-light rounded-lg text-neutral-text hover:bg-neutral-light transition-colors"
+                    className="px-4 py-2 border border-tm-border rounded-lg text-tm-text-1 hover:bg-tm-surface-hover transition-colors"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleSaveResource}
-                    className="px-4 py-2 bg-primary text-white rounded-lg font-semibold hover:opacity-90 transition-all"
+                    className="px-4 py-2 bg-primary text-tm-on-secondary rounded-lg font-semibold hover:opacity-90 transition-all"
                   >
                     <Save className="w-4 h-4 inline mr-2" />
                     {editingResource ? 'Update' : 'Create'}
@@ -1540,8 +1540,8 @@ export default function PerformancePage() {
       <Layout pageTitle="Club Performance">
         <div className="space-y-6">
           <div className="mb-2">
-            <h1 className="text-4xl font-extrabold text-club-gradient mb-2">Club Performance Dashboard</h1>
-            <p className="text-lg text-neutral-medium font-medium">Comprehensive overview of club performance and statistics</p>
+            <h1 className="text-[20px] font-medium text-tm-text-1">Club Performance Dashboard</h1>
+            <p className="text-[13px] text-tm-text-3">Comprehensive overview of club performance and statistics</p>
           </div>
 
           {adminClubPerformance && (
@@ -1564,26 +1564,26 @@ export default function PerformancePage() {
 
               {/* Team Performance Section */}
               {adminClubPerformance.teamStats && (
-                <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
-                  <h2 className="text-2xl font-bold text-neutral-text mb-6 flex items-center">
+                <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
+                  <h2 className="text-2xl font-bold text-tm-text-1 mb-6 flex items-center">
                     <Trophy className="w-6 h-6 mr-2 text-primary" />
                     Team Performance
                   </h2>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                     <div className="p-4 bg-primary/10 rounded-lg border border-primary/20">
-                      <p className="text-sm text-neutral-medium mb-1">Total Tries</p>
+                      <p className="text-sm text-tm-text-3 mb-1">Total Tries</p>
                       <p className="text-3xl font-bold text-primary">{adminClubPerformance.teamStats.totalTries}</p>
                     </div>
                     <div className="p-4 bg-success/10 rounded-lg border border-success/20">
-                      <p className="text-sm text-neutral-medium mb-1">Total Tackles</p>
+                      <p className="text-sm text-tm-text-3 mb-1">Total Tackles</p>
                       <p className="text-3xl font-bold text-success">{adminClubPerformance.teamStats.totalTackles}</p>
                     </div>
                     <div className="p-4 bg-info/10 rounded-lg border border-info/20">
-                      <p className="text-sm text-neutral-medium mb-1">Tackle Success Rate</p>
+                      <p className="text-sm text-tm-text-3 mb-1">Tackle Success Rate</p>
                       <p className="text-3xl font-bold text-info">{adminClubPerformance.teamStats.tackleSuccessRate}%</p>
                     </div>
                     <div className="p-4 bg-warning/10 rounded-lg border border-warning/20">
-                      <p className="text-sm text-neutral-medium mb-1">Avg Tries/Match</p>
+                      <p className="text-sm text-tm-text-3 mb-1">Avg Tries/Match</p>
                       <p className="text-3xl font-bold text-warning">{adminClubPerformance.teamStats.avgTriesPerMatch}</p>
                     </div>
                   </div>
@@ -1592,26 +1592,26 @@ export default function PerformancePage() {
 
               {/* Match Statistics */}
               {adminClubPerformance.clubStats && (
-                <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
-                  <h2 className="text-2xl font-bold text-neutral-text mb-6 flex items-center">
+                <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
+                  <h2 className="text-2xl font-bold text-tm-text-1 mb-6 flex items-center">
                     <BarChart3 className="w-6 h-6 mr-2 text-primary" />
                     Match Statistics
                   </h2>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                     <div className="p-4 bg-success/10 rounded-lg border border-success/20">
-                      <p className="text-sm text-neutral-medium mb-1">Wins</p>
+                      <p className="text-sm text-tm-text-3 mb-1">Wins</p>
                       <p className="text-3xl font-bold text-success">{adminClubPerformance.clubStats.wins}</p>
                     </div>
                     <div className="p-4 bg-secondary/10 rounded-lg border border-secondary/20">
-                      <p className="text-sm text-neutral-medium mb-1">Losses</p>
+                      <p className="text-sm text-tm-text-3 mb-1">Losses</p>
                       <p className="text-3xl font-bold text-secondary">{adminClubPerformance.clubStats.losses}</p>
                     </div>
                     <div className="p-4 bg-warning/10 rounded-lg border border-warning/20">
-                      <p className="text-sm text-neutral-medium mb-1">Draws</p>
+                      <p className="text-sm text-tm-text-3 mb-1">Draws</p>
                       <p className="text-3xl font-bold text-warning">{adminClubPerformance.clubStats.draws}</p>
                     </div>
                     <div className="p-4 bg-primary/10 rounded-lg border border-primary/20">
-                      <p className="text-sm text-neutral-medium mb-1">Win Rate</p>
+                      <p className="text-sm text-tm-text-3 mb-1">Win Rate</p>
                       <p className="text-3xl font-bold text-primary">{adminClubPerformance.clubStats.winRate}%</p>
                     </div>
                   </div>
@@ -1621,22 +1621,22 @@ export default function PerformancePage() {
               {/* Financial Overview */}
               {adminClubPerformance.financial && (
                 <>
-                  <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
-                    <h2 className="text-2xl font-bold text-neutral-text mb-6 flex items-center">
+                  <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
+                    <h2 className="text-2xl font-bold text-tm-text-1 mb-6 flex items-center">
                       <DollarSign className="w-6 h-6 mr-2 text-success" />
                       Financial Overview
                     </h2>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <div className="p-4 bg-success/10 rounded-lg border border-success/20">
-                        <p className="text-sm text-neutral-medium mb-1">Total Revenue</p>
+                        <p className="text-sm text-tm-text-3 mb-1">Total Revenue</p>
                         <p className="text-3xl font-bold text-success">{formatCurrency(adminClubPerformance.financial.totalRevenue)}</p>
                       </div>
                       <div className="p-4 bg-secondary/10 rounded-lg border border-secondary/20">
-                        <p className="text-sm text-neutral-medium mb-1">Total Expenses</p>
+                        <p className="text-sm text-tm-text-3 mb-1">Total Expenses</p>
                         <p className="text-3xl font-bold text-secondary">{formatCurrency(adminClubPerformance.financial.totalExpenses)}</p>
                       </div>
                       <div className="p-4 bg-primary/10 rounded-lg border border-primary/20">
-                        <p className="text-sm text-neutral-medium mb-1">Net Balance</p>
+                        <p className="text-sm text-tm-text-3 mb-1">Net Balance</p>
                         <p className="text-3xl font-bold text-primary">{formatCurrency(adminClubPerformance.financial.netBalance)}</p>
                       </div>
                     </div>
@@ -1644,38 +1644,38 @@ export default function PerformancePage() {
 
                   {/* Recent Transactions Table for Admin */}
                   {adminClubPerformance.financial.recentTransactions && adminClubPerformance.financial.recentTransactions.length > 0 && (
-                    <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
-                      <h2 className="text-2xl font-bold text-neutral-text mb-6 flex items-center">
+                    <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
+                      <h2 className="text-2xl font-bold text-tm-text-1 mb-6 flex items-center">
                         <DollarSign className="w-6 h-6 mr-2 text-primary" />
                         Recent Financial Transactions
                       </h2>
                       <div className="overflow-x-auto">
                         <table className="w-full">
                           <thead>
-                            <tr className="border-b border-neutral-light">
-                              <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-text">Date</th>
-                              <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-text">Type</th>
-                              <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-text">Category</th>
-                              <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-text">Amount</th>
-                              <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-text">Description</th>
+                            <tr className="border-b border-tm-border">
+                              <th className="text-left py-3 px-4 text-sm font-semibold text-tm-text-1">Date</th>
+                              <th className="text-left py-3 px-4 text-sm font-semibold text-tm-text-1">Type</th>
+                              <th className="text-left py-3 px-4 text-sm font-semibold text-tm-text-1">Category</th>
+                              <th className="text-left py-3 px-4 text-sm font-semibold text-tm-text-1">Amount</th>
+                              <th className="text-left py-3 px-4 text-sm font-semibold text-tm-text-1">Description</th>
                             </tr>
                           </thead>
                           <tbody>
                             {adminClubPerformance.financial.recentTransactions.map((transaction: any) => (
-                              <tr key={transaction.id} className="border-b border-neutral-light/50 hover:bg-neutral-light/30 transition-colors">
-                                <td className="py-3 px-4 text-sm text-neutral-medium">
+                              <tr key={transaction.id} className="border-b border-tm-border/50 hover:bg-tm-surface-hover/30 transition-colors">
+                                <td className="py-3 px-4 text-sm text-tm-text-3">
                                   {new Date(transaction.transaction_date).toLocaleDateString()}
                                 </td>
                                 <td className="py-3 px-4">
-                                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${transaction.type === 'revenue' ? 'bg-success/10 text-success' : 'bg-secondary/10 text-secondary'}`}>
+                                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${transaction.type === 'revenue' ? 'bg-success/10 text-success' : 'bg-[#E05757]/10 text-[#E05757]'}`}>
                                     {transaction.type === 'revenue' ? 'Revenue' : 'Expense'}
                                   </span>
                                 </td>
-                                <td className="py-3 px-4 text-neutral-text font-medium">{transaction.category}</td>
+                                <td className="py-3 px-4 text-tm-text-1 font-medium">{transaction.category}</td>
                                 <td className={`py-3 px-4 font-bold ${transaction.type === 'revenue' ? 'text-success' : 'text-secondary'}`}>
                                   {transaction.type === 'revenue' ? '+' : '-'}{formatCurrency(parseFloat(transaction.amount.toString()))}
                                 </td>
-                                <td className="py-3 px-4 text-sm text-neutral-medium">{transaction.description || 'No description'}</td>
+                                <td className="py-3 px-4 text-sm text-tm-text-3">{transaction.description || 'No description'}</td>
                               </tr>
                             ))}
                           </tbody>
@@ -1685,9 +1685,9 @@ export default function PerformancePage() {
                   )}
 
                   {(!adminClubPerformance.financial.recentTransactions || adminClubPerformance.financial.recentTransactions.length === 0) && (
-                    <div className="bg-white rounded-card p-8 border border-neutral-light shadow-soft text-center">
-                      <DollarSign className="w-12 h-12 text-neutral-light mx-auto mb-4" />
-                      <p className="text-neutral-medium">No recent transactions found</p>
+                    <div className="bg-tm-surface rounded-card p-8 border border-tm-border shadow-soft text-center">
+                      <DollarSign className="w-12 h-12 text-tm-text-3 mx-auto mb-4" />
+                      <p className="text-tm-text-3">No recent transactions found</p>
                     </div>
                   )}
                 </>
@@ -1695,12 +1695,12 @@ export default function PerformancePage() {
 
               {/* Players Performance Summary */}
               {adminClubPerformance.playersPerf && adminClubPerformance.playersPerf.length > 0 && (
-                <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
-                  <h2 className="text-2xl font-bold text-neutral-text mb-6 flex items-center">
+                <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
+                  <h2 className="text-2xl font-bold text-tm-text-1 mb-6 flex items-center">
                     <Users className="w-6 h-6 mr-2 text-primary" />
                     Players Performance Summary
                   </h2>
-                  <div className="md:hidden divide-y divide-neutral-light">
+                  <div className="md:hidden divide-y divide-tm-border">
                     {adminClubPerformance.playersSummary.map((player: any) => {
                       const getStatusColor = (status: string) => {
                         switch (status) {
@@ -1709,40 +1709,40 @@ export default function PerformancePage() {
                           case 'injured':
                             return 'bg-warning/10 text-warning'
                           case 'inactive':
-                            return 'bg-neutral-medium/10 text-neutral-medium'
+                            return 'bg-neutral-medium/10 text-tm-text-3'
                           default:
-                            return 'bg-neutral-light/10 text-neutral-medium'
+                            return 'bg-tm-surface-hover/10 text-tm-text-3'
                         }
                       }
                       return (
                         <div key={player.playerId || player.id} className="p-4 space-y-2">
                           <div className="flex items-center justify-between">
-                            <p className="font-semibold text-neutral-text">{player.name}</p>
+                            <p className="font-semibold text-tm-text-1">{player.name}</p>
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(player.status)}`}>
                               {player.status || 'N/A'}
                             </span>
                           </div>
-                          <div className="grid grid-cols-3 gap-2 text-sm text-neutral-medium">
+                          <div className="grid grid-cols-3 gap-2 text-sm text-tm-text-3">
                             <div>
-                              <p className="text-xs text-neutral-medium">Matches</p>
-                              <p className="font-semibold text-neutral-text">{player.totalMatches || 0}</p>
+                              <p className="text-xs text-tm-text-3">Matches</p>
+                              <p className="font-semibold text-tm-text-1">{player.totalMatches || 0}</p>
                             </div>
                             <div>
-                              <p className="text-xs text-neutral-medium">Tries</p>
-                              <p className="font-semibold text-neutral-text">{player.totalTries || 0}</p>
+                              <p className="text-xs text-tm-text-3">Tries</p>
+                              <p className="font-semibold text-tm-text-1">{player.totalTries || 0}</p>
                             </div>
                             <div>
-                              <p className="text-xs text-neutral-medium">Tackles</p>
-                              <p className="font-semibold text-neutral-text">{player.totalTackles || 0}</p>
+                              <p className="text-xs text-tm-text-3">Tackles</p>
+                              <p className="font-semibold text-tm-text-1">{player.totalTackles || 0}</p>
                             </div>
                           </div>
-                          <div className="grid grid-cols-2 gap-2 text-sm text-neutral-medium">
+                          <div className="grid grid-cols-2 gap-2 text-sm text-tm-text-3">
                             <div>
-                              <p className="text-xs text-neutral-medium">Avg Minutes</p>
-                              <p className="font-semibold text-neutral-text">{player.avgMinutes || 0} min</p>
+                              <p className="text-xs text-tm-text-3">Avg Minutes</p>
+                              <p className="font-semibold text-tm-text-1">{player.avgMinutes || 0} min</p>
                             </div>
                             <div>
-                              <p className="text-xs text-neutral-medium">Attendance</p>
+                              <p className="text-xs text-tm-text-3">Attendance</p>
                               <p className={`font-semibold ${player.attendanceRate >= 80 ? 'text-success' : player.attendanceRate >= 60 ? 'text-warning' : 'text-secondary'}`}>
                                 {player.attendanceRate || 0}%
                               </p>
@@ -1755,14 +1755,14 @@ export default function PerformancePage() {
                   <div className="hidden md:block overflow-x-auto">
                     <table className="w-full">
                       <thead>
-                        <tr className="border-b border-neutral-light">
-                          <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-text">Player Name</th>
-                          <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-text">Status</th>
-                          <th className="text-center py-3 px-4 text-sm font-semibold text-neutral-text">Matches</th>
-                          <th className="text-center py-3 px-4 text-sm font-semibold text-neutral-text">Tries</th>
-                          <th className="text-center py-3 px-4 text-sm font-semibold text-neutral-text">Tackles</th>
-                          <th className="text-center py-3 px-4 text-sm font-semibold text-neutral-text">Avg Minutes</th>
-                          <th className="text-center py-3 px-4 text-sm font-semibold text-neutral-text">Attendance Rate</th>
+                        <tr className="border-b border-tm-border">
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-tm-text-1">Player Name</th>
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-tm-text-1">Status</th>
+                          <th className="text-center py-3 px-4 text-sm font-semibold text-tm-text-1">Matches</th>
+                          <th className="text-center py-3 px-4 text-sm font-semibold text-tm-text-1">Tries</th>
+                          <th className="text-center py-3 px-4 text-sm font-semibold text-tm-text-1">Tackles</th>
+                          <th className="text-center py-3 px-4 text-sm font-semibold text-tm-text-1">Avg Minutes</th>
+                          <th className="text-center py-3 px-4 text-sm font-semibold text-tm-text-1">Attendance Rate</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1774,25 +1774,25 @@ export default function PerformancePage() {
                               case 'injured':
                                 return 'bg-warning/10 text-warning'
                               case 'inactive':
-                                return 'bg-neutral-medium/10 text-neutral-medium'
+                                return 'bg-neutral-medium/10 text-tm-text-3'
                               default:
-                                return 'bg-neutral-light/10 text-neutral-medium'
+                                return 'bg-tm-surface-hover/10 text-tm-text-3'
                             }
                           }
                           return (
-                            <tr key={player.playerId || player.id} className="border-b border-neutral-light/50 hover:bg-neutral-light/30 transition-colors">
+                            <tr key={player.playerId || player.id} className="border-b border-tm-border/50 hover:bg-tm-surface-hover/30 transition-colors">
                               <td className="py-3 px-4">
-                                <p className="font-medium text-neutral-text">{player.name}</p>
+                                <p className="font-medium text-tm-text-1">{player.name}</p>
                               </td>
                               <td className="py-3 px-4">
                                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(player.status)}`}>
                                   {player.status || 'N/A'}
                                 </span>
                               </td>
-                              <td className="py-3 px-4 text-center text-neutral-text">{player.totalMatches || 0}</td>
-                              <td className="py-3 px-4 text-center text-neutral-text">{player.totalTries || 0}</td>
-                              <td className="py-3 px-4 text-center text-neutral-text">{player.totalTackles || 0}</td>
-                              <td className="py-3 px-4 text-center text-neutral-text">{player.avgMinutes || 0} min</td>
+                              <td className="py-3 px-4 text-center text-tm-text-1">{player.totalMatches || 0}</td>
+                              <td className="py-3 px-4 text-center text-tm-text-1">{player.totalTries || 0}</td>
+                              <td className="py-3 px-4 text-center text-tm-text-1">{player.totalTackles || 0}</td>
+                              <td className="py-3 px-4 text-center text-tm-text-1">{player.avgMinutes || 0} min</td>
                               <td className="py-3 px-4 text-center">
                                 <span className={`font-semibold ${player.attendanceRate >= 80 ? 'text-success' : player.attendanceRate >= 60 ? 'text-warning' : 'text-secondary'}`}>
                                   {player.attendanceRate || 0}%
@@ -1810,9 +1810,9 @@ export default function PerformancePage() {
           )}
 
           {/* Performance Resources Management */}
-          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+          <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-neutral-text">Performance Resources</h2>
+              <h2 className="text-2xl font-bold text-tm-text-1">Performance Resources</h2>
               <button
                 type="button"
                 onClick={(e) => {
@@ -1820,7 +1820,7 @@ export default function PerformancePage() {
                   e.stopPropagation()
                   handleNewResource()
                 }}
-                className="bg-primary text-white px-4 py-2 rounded-lg font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
+                className="bg-primary text-tm-on-secondary px-4 py-2 rounded-lg font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
               >
                 <Plus className="w-5 h-5 mr-2" />
                 Add Resource
@@ -1848,9 +1848,9 @@ export default function PerformancePage() {
               }
             }}
           >
-            <div className="bg-white rounded-lg w-full max-w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto">
-              <div className="sticky top-0 bg-white border-b border-neutral-light p-4 sm:p-6 flex items-center justify-between">
-                <h3 className="text-2xl font-bold text-neutral-text">
+            <div className="bg-tm-surface rounded-lg w-full max-w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+              <div className="sticky top-0 bg-tm-surface border-b border-tm-border p-4 sm:p-6 flex items-center justify-between">
+                <h3 className="text-2xl font-bold text-tm-text-1">
                   {editingResource ? 'Edit Resource' : 'Create New Resource'}
                 </h3>
                 <button
@@ -1868,32 +1868,32 @@ export default function PerformancePage() {
                       is_active: true,
                     })
                   }}
-                  className="p-2 hover:bg-neutral-light rounded-lg transition-colors"
+                  className="p-2 hover:bg-tm-surface-hover rounded-lg transition-colors"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
               <div className="p-6 space-y-4">
                 <div>
-                  <label className="block text-sm font-semibold text-neutral-text mb-2">
+                  <label className="block text-sm font-semibold text-tm-text-1 mb-2">
                     Title *
                   </label>
                   <input
                     type="text"
                     value={resourceForm.title}
                     onChange={(e) => setResourceForm({ ...resourceForm, title: e.target.value })}
-                    className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                     placeholder="Enter resource title"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-neutral-text mb-2">
+                  <label className="block text-sm font-semibold text-tm-text-1 mb-2">
                     Resource Type *
                   </label>
                   <select
                     value={resourceForm.resource_type}
                     onChange={(e) => setResourceForm({ ...resourceForm, resource_type: e.target.value })}
-                    className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                   >
                     <option value="diet_plan">Diet Plan</option>
                     <option value="gym_programme">Gym Programme</option>
@@ -1902,30 +1902,30 @@ export default function PerformancePage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-neutral-text mb-2">
+                  <label className="block text-sm font-semibold text-tm-text-1 mb-2">
                     Description
                   </label>
                   <input
                     type="text"
                     value={resourceForm.description}
                     onChange={(e) => setResourceForm({ ...resourceForm, description: e.target.value })}
-                    className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                     placeholder="Brief description (optional)"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-neutral-text mb-2">
+                  <label className="block text-sm font-semibold text-tm-text-1 mb-2">
                     Content *
                   </label>
                   <textarea
                     value={resourceForm.content}
                     onChange={(e) => setResourceForm({ ...resourceForm, content: e.target.value })}
-                    className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary min-h-[200px]"
+                    className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary min-h-[200px]"
                     placeholder="Enter the resource content (supports markdown)"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-neutral-text mb-2">
+                  <label className="block text-sm font-semibold text-tm-text-1 mb-2">
                     External Links (optional)
                   </label>
                   <div className="space-y-3">
@@ -1940,7 +1940,7 @@ export default function PerformancePage() {
                               newLinks[index].label = e.target.value
                               setResourceForm({ ...resourceForm, links: newLinks })
                             }}
-                            className="px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                            className="px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                             placeholder="Link label (e.g., PDF, Video)"
                           />
                           <input
@@ -1951,7 +1951,7 @@ export default function PerformancePage() {
                               newLinks[index].url = e.target.value
                               setResourceForm({ ...resourceForm, links: newLinks })
                             }}
-                            className="px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                            className="px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                             placeholder="https://example.com/file.pdf"
                           />
                         </div>
@@ -1961,7 +1961,7 @@ export default function PerformancePage() {
                             const newLinks = resourceForm.links.filter((_, i) => i !== index)
                             setResourceForm({ ...resourceForm, links: newLinks })
                           }}
-                          className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          className="p-2 text-[#E05757] hover:bg-[#E05757]/10 rounded-lg transition-colors"
                           title="Remove link"
                         >
                           <X className="w-5 h-5" />
@@ -1976,13 +1976,13 @@ export default function PerformancePage() {
                           links: [...resourceForm.links, { url: '', label: '' }]
                         })
                       }}
-                      className="w-full px-4 py-2 border-2 border-dashed border-neutral-light rounded-lg text-neutral-text hover:border-primary hover:text-primary transition-colors flex items-center justify-center gap-2"
+                      className="w-full px-4 py-2 border-2 border-dashed border-tm-border rounded-lg text-tm-text-1 hover:border-primary hover:text-primary transition-colors flex items-center justify-center gap-2"
                     >
                       <Plus className="w-5 h-5" />
                       Add Link
                     </button>
                   </div>
-                  <p className="text-xs text-neutral-text mt-2">
+                  <p className="text-xs text-tm-text-1 mt-2">
                     Add multiple links that players can click on. Each link needs a label and URL.
                   </p>
                 </div>
@@ -1995,7 +1995,7 @@ export default function PerformancePage() {
                       onChange={(e) => setResourceForm({ ...resourceForm, is_active: e.target.checked })}
                       className="w-4 h-4"
                     />
-                    <label htmlFor="is_active_admin_modal" className="text-sm text-neutral-text">
+                    <label htmlFor="is_active_admin_modal" className="text-sm text-tm-text-1">
                       Active (visible to players)
                     </label>
                   </div>
@@ -2016,14 +2016,14 @@ export default function PerformancePage() {
                         is_active: true,
                       })
                     }}
-                    className="px-4 py-2 border border-neutral-light rounded-lg text-neutral-text hover:bg-neutral-light transition-colors"
+                    className="px-4 py-2 border border-tm-border rounded-lg text-tm-text-1 hover:bg-tm-surface-hover transition-colors"
                   >
                     Cancel
                   </button>
                   <button
                     type="button"
                     onClick={handleSaveResource}
-                    className="px-4 py-2 bg-primary text-white rounded-lg font-semibold hover:opacity-90 transition-all"
+                    className="px-4 py-2 bg-primary text-tm-on-secondary rounded-lg font-semibold hover:opacity-90 transition-all"
                   >
                     <Save className="w-4 h-4 inline mr-2" />
                     {editingResource ? 'Update' : 'Create'}
@@ -2089,7 +2089,7 @@ export default function PerformancePage() {
         title: 'Total Budgets',
         value: clubPerformance.budgetStats?.total || 0,
         icon: FileText,
-        color: 'bg-neutral-light',
+        color: 'bg-tm-surface-hover',
         description: 'All budget requests',
       },
     ] : []
@@ -2099,15 +2099,15 @@ export default function PerformancePage() {
         <div className="space-y-8">
           {/* Header */}
           <div className="mb-6">
-            <h1 className="text-4xl font-extrabold text-club-gradient mb-2">Financial Performance Dashboard</h1>
-            <p className="text-lg text-neutral-medium font-medium">Comprehensive financial overview and budget management</p>
+            <h1 className="text-[20px] font-medium text-tm-text-1">Financial Performance Dashboard</h1>
+            <p className="text-[13px] text-tm-text-3">Comprehensive financial overview and budget management</p>
           </div>
 
           {clubPerformance ? (
             <>
               {/* Financial Metrics Section */}
               <div>
-                <h2 className="text-2xl font-bold text-neutral-text mb-4 flex items-center">
+                <h2 className="text-2xl font-bold text-tm-text-1 mb-4 flex items-center">
                   <DollarSign className="w-6 h-6 mr-2 text-success" />
                   Financial Metrics
                 </h2>
@@ -2128,31 +2128,31 @@ export default function PerformancePage() {
               </div>
 
                 {/* Financial Summary Cards */}
-              <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+              <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="p-6 bg-gradient-to-br from-success/10 to-success/5 rounded-lg border border-success/20">
                       <div className="flex items-center justify-between mb-2">
-                        <p className="text-sm font-medium text-neutral-medium">Total Revenue</p>
+                        <p className="text-sm font-medium text-tm-text-3">Total Revenue</p>
                         <TrendingUp className="w-5 h-5 text-success" />
                   </div>
                       <p className="text-3xl font-bold text-success mb-1">{formatCurrency(clubPerformance.totalRevenue)}</p>
-                      <p className="text-xs text-neutral-medium">All income sources</p>
+                      <p className="text-xs text-tm-text-3">All income sources</p>
                   </div>
                     <div className="p-6 bg-gradient-to-br from-secondary/10 to-secondary/5 rounded-lg border border-secondary/20">
                       <div className="flex items-center justify-between mb-2">
-                        <p className="text-sm font-medium text-neutral-medium">Total Expenses</p>
+                        <p className="text-sm font-medium text-tm-text-3">Total Expenses</p>
                         <TrendingDown className="w-5 h-5 text-secondary" />
                   </div>
                       <p className="text-3xl font-bold text-secondary mb-1">{formatCurrency(clubPerformance.totalExpenses)}</p>
-                      <p className="text-xs text-neutral-medium">All club expenditures</p>
+                      <p className="text-xs text-tm-text-3">All club expenditures</p>
                     </div>
                     <div className="p-6 bg-gradient-to-br from-primary/10 to-primary/5 rounded-lg border border-primary/20">
                       <div className="flex items-center justify-between mb-2">
-                        <p className="text-sm font-medium text-neutral-medium">Net Balance</p>
+                        <p className="text-sm font-medium text-tm-text-3">Net Balance</p>
                         <DollarSign className="w-5 h-5 text-primary" />
                       </div>
                       <p className="text-3xl font-bold text-primary mb-1">{formatCurrency(clubPerformance.netBalance)}</p>
-                      <p className="text-xs text-neutral-medium">Current financial position</p>
+                      <p className="text-xs text-tm-text-3">Current financial position</p>
                     </div>
                   </div>
                 </div>
@@ -2161,7 +2161,7 @@ export default function PerformancePage() {
               {/* Budget Management Section */}
               {clubPerformance.budgetStats && (
                 <div>
-                  <h2 className="text-2xl font-bold text-neutral-text mb-4 flex items-center">
+                  <h2 className="text-2xl font-bold text-tm-text-1 mb-4 flex items-center">
                     <FileText className="w-6 h-6 mr-2 text-warning" />
                     Budget Management
                   </h2>
@@ -2186,38 +2186,38 @@ export default function PerformancePage() {
               {/* Recent Transactions Section */}
               {clubPerformance.recentTransactions && clubPerformance.recentTransactions.length > 0 && (
                 <div>
-                  <h2 className="text-2xl font-bold text-neutral-text mb-4 flex items-center">
+                  <h2 className="text-2xl font-bold text-tm-text-1 mb-4 flex items-center">
                     <DollarSign className="w-6 h-6 mr-2 text-primary" />
                     Recent Financial Transactions
                   </h2>
-                <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+                <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
                   <div className="overflow-x-auto">
                     <table className="w-full">
                       <thead>
-                        <tr className="border-b border-neutral-light">
-                          <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-text">Date</th>
-                          <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-text">Type</th>
-                          <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-text">Category</th>
-                          <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-text">Amount</th>
-                          <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-text">Description</th>
+                        <tr className="border-b border-tm-border">
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-tm-text-1">Date</th>
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-tm-text-1">Type</th>
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-tm-text-1">Category</th>
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-tm-text-1">Amount</th>
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-tm-text-1">Description</th>
                         </tr>
                       </thead>
                       <tbody>
                         {clubPerformance.recentTransactions.map((transaction: any) => (
-                          <tr key={transaction.id} className="border-b border-neutral-light/50 hover:bg-neutral-light/30 transition-colors">
-                            <td className="py-3 px-4 text-sm text-neutral-medium">
+                          <tr key={transaction.id} className="border-b border-tm-border/50 hover:bg-tm-surface-hover/30 transition-colors">
+                            <td className="py-3 px-4 text-sm text-tm-text-3">
                               {new Date(transaction.transaction_date).toLocaleDateString()}
                             </td>
                             <td className="py-3 px-4">
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${transaction.type === 'revenue' ? 'bg-success/10 text-success' : 'bg-secondary/10 text-secondary'}`}>
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${transaction.type === 'revenue' ? 'bg-success/10 text-success' : 'bg-[#E05757]/10 text-[#E05757]'}`}>
                                 {transaction.type === 'revenue' ? 'Revenue' : 'Expense'}
                               </span>
                             </td>
-                              <td className="py-3 px-4 text-neutral-text font-medium">{transaction.category}</td>
+                              <td className="py-3 px-4 text-tm-text-1 font-medium">{transaction.category}</td>
                             <td className={`py-3 px-4 font-bold ${transaction.type === 'revenue' ? 'text-success' : 'text-secondary'}`}>
                               {transaction.type === 'revenue' ? '+' : '-'}{formatCurrency(parseFloat(transaction.amount.toString()))}
                             </td>
-                            <td className="py-3 px-4 text-sm text-neutral-medium">{transaction.description}</td>
+                            <td className="py-3 px-4 text-sm text-tm-text-3">{transaction.description}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -2228,23 +2228,23 @@ export default function PerformancePage() {
               )}
 
               {(!clubPerformance.recentTransactions || clubPerformance.recentTransactions.length === 0) && (
-                <div className="bg-white rounded-card p-8 border border-neutral-light shadow-soft text-center">
-                  <DollarSign className="w-12 h-12 text-neutral-light mx-auto mb-4" />
-                  <p className="text-neutral-medium">No recent transactions found</p>
+                <div className="bg-tm-surface rounded-card p-8 border border-tm-border shadow-soft text-center">
+                  <DollarSign className="w-12 h-12 text-tm-text-3 mx-auto mb-4" />
+                  <p className="text-tm-text-3">No recent transactions found</p>
                 </div>
               )}
             </>
           ) : (
-            <div className="bg-white rounded-card p-8 border border-neutral-light shadow-soft text-center">
-              <DollarSign className="w-12 h-12 text-neutral-light mx-auto mb-4" />
-              <p className="text-neutral-medium">Loading financial data...</p>
+            <div className="bg-tm-surface rounded-card p-8 border border-tm-border shadow-soft text-center">
+              <DollarSign className="w-12 h-12 text-tm-text-3 mx-auto mb-4" />
+              <p className="text-tm-text-3">Loading financial data...</p>
             </div>
           )}
 
           {/* Performance Resources Management */}
-          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+          <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-neutral-text">Performance Resources</h2>
+              <h2 className="text-2xl font-bold text-tm-text-1">Performance Resources</h2>
               <button
                 type="button"
                 onClick={(e) => {
@@ -2252,7 +2252,7 @@ export default function PerformancePage() {
                   e.stopPropagation()
                   handleNewResource()
                 }}
-                className="bg-primary text-white px-4 py-2 rounded-lg font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
+                className="bg-primary text-tm-on-secondary px-4 py-2 rounded-lg font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
               >
                 <Plus className="w-5 h-5 mr-2" />
                 Add Resource
@@ -2294,8 +2294,8 @@ export default function PerformancePage() {
       <Layout pageTitle="Physio Performance">
         <div className="space-y-6">
           <div className="mb-2">
-            <h1 className="text-4xl font-extrabold text-club-gradient mb-2">Physiotherapist Activity Dashboard</h1>
-            <p className="text-lg text-neutral-medium font-medium">Track your training sessions and games attended</p>
+            <h1 className="text-[20px] font-medium text-tm-text-1">Physiotherapist Activity Dashboard</h1>
+            <p className="text-[13px] text-tm-text-3">Track your training sessions and games attended</p>
           </div>
 
           {/* Stats Overview */}
@@ -2316,24 +2316,24 @@ export default function PerformancePage() {
           </div>
 
           {/* Activity Summary */}
-          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
-            <h2 className="text-2xl font-bold text-neutral-text mb-6">Activity Summary</h2>
+          <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
+            <h2 className="text-2xl font-bold text-tm-text-1 mb-6">Activity Summary</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="p-6 bg-gradient-to-br from-primary/10 to-primary/5 rounded-lg border border-primary/20">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-bold text-neutral-text">Training Sessions</h3>
+                  <h3 className="text-lg font-bold text-tm-text-1">Training Sessions</h3>
                   <Calendar className="w-8 h-8 text-primary" />
                 </div>
-                <p className="text-4xl font-bold text-neutral-text mb-2">{physioStats.trainingSessionsAttended}</p>
-                <p className="text-sm text-neutral-medium">Total sessions attended to provide medical support</p>
+                <p className="text-4xl font-bold text-tm-text-1 mb-2">{physioStats.trainingSessionsAttended}</p>
+                <p className="text-sm text-tm-text-3">Total sessions attended to provide medical support</p>
               </div>
               <div className="p-6 bg-gradient-to-br from-secondary/10 to-secondary/5 rounded-lg border border-secondary/20">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-bold text-neutral-text">Games Attended</h3>
+                  <h3 className="text-lg font-bold text-tm-text-1">Games Attended</h3>
                   <Trophy className="w-8 h-8 text-secondary" />
                 </div>
-                <p className="text-4xl font-bold text-neutral-text mb-2">{physioStats.gamesAttended}</p>
-                <p className="text-sm text-neutral-medium">Total matches attended for medical coverage</p>
+                <p className="text-4xl font-bold text-tm-text-1 mb-2">{physioStats.gamesAttended}</p>
+                <p className="text-sm text-tm-text-3">Total matches attended for medical coverage</p>
               </div>
             </div>
           </div>
@@ -2439,8 +2439,8 @@ export default function PerformancePage() {
       <div className="space-y-6">
         <div className="flex justify-between items-center mb-2">
           <div>
-            <h1 className="text-4xl font-extrabold text-club-gradient mb-2">My Performance</h1>
-            <p className="text-lg text-neutral-medium font-medium">Track your individual statistics and progress</p>
+            <h1 className="text-[20px] font-medium text-tm-text-1">My Performance</h1>
+            <p className="text-[13px] text-tm-text-3">Track your individual statistics and progress</p>
           </div>
           <RefreshButton onRefresh={loadData} />
         </div>
@@ -2463,30 +2463,30 @@ export default function PerformancePage() {
         </div>
 
         {/* Performance Chart */}
-        <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
-          <h2 className="text-2xl font-bold text-neutral-text mb-6">Performance Over Time</h2>
+        <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
+          <h2 className="text-2xl font-bold text-tm-text-1 mb-6">Performance Over Time</h2>
           <div className="h-64">
             <Line data={chartData} options={chartOptions} />
           </div>
         </div>
 
         {/* Match History */}
-        <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
-          <h2 className="text-2xl font-bold text-neutral-text mb-6">Recent Matches</h2>
+        <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
+          <h2 className="text-2xl font-bold text-tm-text-1 mb-6">Recent Matches</h2>
           {recentMatches.length === 0 ? (
-            <div className="p-6 text-center text-neutral-medium">
+            <div className="p-6 text-center text-tm-text-3">
               No recent matches yet.
             </div>
           ) : (
             <div className="space-y-3">
               {recentMatches.map((match) => (
-                <div key={match.matchId} className="p-4 bg-neutral-light/50 rounded-lg hover:bg-neutral-light transition-colors">
+                <div key={match.matchId} className="p-4 bg-tm-surface-hover/50 rounded-lg hover:bg-tm-surface-hover transition-colors">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="font-medium text-neutral-text">
+                      <p className="font-medium text-tm-text-1">
                         {match.tournamentType.replace('_', ' ')} vs {match.opponent}
                       </p>
-                      <p className="text-sm text-neutral-medium">
+                      <p className="text-sm text-tm-text-3">
                         {match.tries} tries, {match.tackles} tackles, {match.minutes} minutes
                       </p>
                     </div>
@@ -2495,8 +2495,8 @@ export default function PerformancePage() {
                         match.result === 'win'
                           ? 'bg-success/10 text-success'
                           : match.result === 'loss'
-                          ? 'bg-secondary/10 text-secondary'
-                          : 'bg-neutral-light text-neutral-text'
+                          ? 'bg-[#E05757]/10 text-[#E05757]'
+                          : 'bg-tm-surface-hover text-tm-text-1'
                       }`}>
                         {match.result.charAt(0).toUpperCase() + match.result.slice(1)}
                       </span>
@@ -2509,14 +2509,14 @@ export default function PerformancePage() {
         </div>
 
         {/* Performance Resources Section for Players */}
-        <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+        <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-neutral-text">Performance Resources</h2>
+            <h2 className="text-2xl font-bold text-tm-text-1">Performance Resources</h2>
             <div className="flex items-center gap-3">
               <select
                 value={selectedResourceType}
                 onChange={(e) => setSelectedResourceType(e.target.value)}
-                className="px-4 py-2 border border-neutral-light rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                className="px-4 py-2 border border-tm-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
               >
                 <option value="all">All Resources</option>
                 <option value="diet_plan">Diet Plans</option>
@@ -2533,8 +2533,8 @@ export default function PerformancePage() {
             </div>
           ) : performanceResources.length === 0 ? (
             <div className="text-center py-12">
-              <FileText className="w-16 h-16 text-neutral-medium mx-auto mb-4" />
-              <p className="text-neutral-medium">No performance resources available yet</p>
+              <FileText className="w-16 h-16 text-tm-text-3 mx-auto mb-4" />
+              <p className="text-tm-text-3">No performance resources available yet</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -2544,7 +2544,7 @@ export default function PerformancePage() {
                 return (
                   <div
                     key={resource.id}
-                    className="border border-neutral-light rounded-lg p-6 hover:shadow-md transition-shadow"
+                    className="border border-tm-border rounded-lg p-6 hover:shadow-md transition-shadow"
                   >
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center gap-3">
@@ -2552,21 +2552,21 @@ export default function PerformancePage() {
                           <Icon className="w-5 h-5 text-white" />
                         </div>
                         <div>
-                          <h3 className="text-lg font-bold text-neutral-text">{resource.title}</h3>
-                          <span className="text-xs text-neutral-medium">{typeInfo.label}</span>
+                          <h3 className="text-lg font-bold text-tm-text-1">{resource.title}</h3>
+                          <span className="text-xs text-tm-text-3">{typeInfo.label}</span>
                         </div>
                       </div>
                     </div>
                     {resource.description && (
-                      <p className="text-sm text-neutral-medium mb-4">{resource.description}</p>
+                      <p className="text-sm text-tm-text-3 mb-4">{resource.description}</p>
                     )}
                     <div className="prose prose-sm max-w-none mb-4">
-                      <div className="text-sm text-neutral-text whitespace-pre-wrap">{resource.content}</div>
+                      <div className="text-sm text-tm-text-1 whitespace-pre-wrap">{resource.content}</div>
                     </div>
                     {/* Display all links */}
                     {((resource.links && Array.isArray(resource.links) && resource.links.length > 0) || resource.attachment_url) && (
                       <div className="space-y-2">
-                        <p className="text-sm font-semibold text-neutral-text">Links:</p>
+                        <p className="text-sm font-semibold text-tm-text-1">Links:</p>
                         <div className="flex flex-wrap gap-2">
                           {resource.links && Array.isArray(resource.links) && resource.links.length > 0 ? (
                             resource.links.map((link: any, index: number) => (
@@ -2595,7 +2595,7 @@ export default function PerformancePage() {
                         </div>
                       </div>
                     )}
-                    <div className="mt-4 pt-4 border-t border-neutral-light text-xs text-neutral-medium">
+                    <div className="mt-4 pt-4 border-t border-tm-border text-xs text-tm-text-3">
                       Created {new Date(resource.created_at).toLocaleDateString()}
                     </div>
                   </div>
@@ -2617,9 +2617,9 @@ export default function PerformancePage() {
               }
             }}
           >
-            <div className="bg-white rounded-lg w-full max-w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto">
-              <div className="sticky top-0 bg-white border-b border-neutral-light p-4 sm:p-6 flex items-center justify-between">
-                <h3 className="text-2xl font-bold text-neutral-text">
+            <div className="bg-tm-surface rounded-lg w-full max-w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+              <div className="sticky top-0 bg-tm-surface border-b border-tm-border p-4 sm:p-6 flex items-center justify-between">
+                <h3 className="text-2xl font-bold text-tm-text-1">
                   {editingResource ? 'Edit Resource' : 'Create New Resource'}
                 </h3>
                 <button
@@ -2636,32 +2636,32 @@ export default function PerformancePage() {
                       is_active: true,
                     })
                   }}
-                  className="p-2 hover:bg-neutral-light rounded-lg transition-colors"
+                  className="p-2 hover:bg-tm-surface-hover rounded-lg transition-colors"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
               <div className="p-6 space-y-4">
                 <div>
-                  <label className="block text-sm font-semibold text-neutral-text mb-2">
+                  <label className="block text-sm font-semibold text-tm-text-1 mb-2">
                     Title *
                   </label>
                   <input
                     type="text"
                     value={resourceForm.title}
                     onChange={(e) => setResourceForm({ ...resourceForm, title: e.target.value })}
-                    className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                     placeholder="Enter resource title"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-neutral-text mb-2">
+                  <label className="block text-sm font-semibold text-tm-text-1 mb-2">
                     Resource Type *
                   </label>
                   <select
                     value={resourceForm.resource_type}
                     onChange={(e) => setResourceForm({ ...resourceForm, resource_type: e.target.value })}
-                    className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                   >
                     <option value="diet_plan">Diet Plan</option>
                     <option value="gym_programme">Gym Programme</option>
@@ -2670,30 +2670,30 @@ export default function PerformancePage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-neutral-text mb-2">
+                  <label className="block text-sm font-semibold text-tm-text-1 mb-2">
                     Description
                   </label>
                   <input
                     type="text"
                     value={resourceForm.description}
                     onChange={(e) => setResourceForm({ ...resourceForm, description: e.target.value })}
-                    className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                     placeholder="Brief description (optional)"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-neutral-text mb-2">
+                  <label className="block text-sm font-semibold text-tm-text-1 mb-2">
                     Content *
                   </label>
                   <textarea
                     value={resourceForm.content}
                     onChange={(e) => setResourceForm({ ...resourceForm, content: e.target.value })}
-                    className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary min-h-[200px]"
+                    className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary min-h-[200px]"
                     placeholder="Enter the resource content (supports markdown)"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-neutral-text mb-2">
+                  <label className="block text-sm font-semibold text-tm-text-1 mb-2">
                     External Links (optional)
                   </label>
                   <div className="space-y-3">
@@ -2708,7 +2708,7 @@ export default function PerformancePage() {
                               newLinks[index].label = e.target.value
                               setResourceForm({ ...resourceForm, links: newLinks })
                             }}
-                            className="px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                            className="px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                             placeholder="Link label (e.g., PDF, Video)"
                           />
                           <input
@@ -2719,7 +2719,7 @@ export default function PerformancePage() {
                               newLinks[index].url = e.target.value
                               setResourceForm({ ...resourceForm, links: newLinks })
                             }}
-                            className="px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                            className="px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                             placeholder="https://example.com/file.pdf"
                           />
                         </div>
@@ -2729,7 +2729,7 @@ export default function PerformancePage() {
                             const newLinks = resourceForm.links.filter((_, i) => i !== index)
                             setResourceForm({ ...resourceForm, links: newLinks })
                           }}
-                          className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          className="p-2 text-[#E05757] hover:bg-[#E05757]/10 rounded-lg transition-colors"
                           title="Remove link"
                         >
                           <X className="w-5 h-5" />
@@ -2744,13 +2744,13 @@ export default function PerformancePage() {
                           links: [...resourceForm.links, { url: '', label: '' }]
                         })
                       }}
-                      className="w-full px-4 py-2 border-2 border-dashed border-neutral-light rounded-lg text-neutral-text hover:border-primary hover:text-primary transition-colors flex items-center justify-center gap-2"
+                      className="w-full px-4 py-2 border-2 border-dashed border-tm-border rounded-lg text-tm-text-1 hover:border-primary hover:text-primary transition-colors flex items-center justify-center gap-2"
                     >
                       <Plus className="w-5 h-5" />
                       Add Link
                     </button>
                   </div>
-                  <p className="text-xs text-neutral-text mt-2">
+                  <p className="text-xs text-tm-text-1 mt-2">
                     Add multiple links that players can click on. Each link needs a label and URL.
                   </p>
                 </div>
@@ -2763,7 +2763,7 @@ export default function PerformancePage() {
                       onChange={(e) => setResourceForm({ ...resourceForm, is_active: e.target.checked })}
                       className="w-4 h-4"
                     />
-                    <label htmlFor="is_active" className="text-sm text-neutral-text">
+                    <label htmlFor="is_active" className="text-sm text-tm-text-1">
                       Active (visible to players)
                     </label>
                   </div>
@@ -2783,13 +2783,13 @@ export default function PerformancePage() {
                         is_active: true,
                       })
                     }}
-                    className="px-4 py-2 border border-neutral-light rounded-lg text-neutral-text hover:bg-neutral-light transition-colors"
+                    className="px-4 py-2 border border-tm-border rounded-lg text-tm-text-1 hover:bg-tm-surface-hover transition-colors"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleSaveResource}
-                    className="px-4 py-2 bg-primary text-white rounded-lg font-semibold hover:opacity-90 transition-all"
+                    className="px-4 py-2 bg-primary text-tm-on-secondary rounded-lg font-semibold hover:opacity-90 transition-all"
                   >
                     <Save className="w-4 h-4 inline mr-2" />
                     {editingResource ? 'Update' : 'Create'}
@@ -2845,7 +2845,7 @@ function PerformanceResourcesManagement({
         <select
           value={selectedType}
           onChange={(e) => setSelectedType(e.target.value)}
-          className="px-4 py-2 border border-neutral-light rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+          className="px-4 py-2 border border-tm-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
         >
           <option value="all">All Resources</option>
           <option value="diet_plan">Diet Plans</option>
@@ -2861,8 +2861,8 @@ function PerformanceResourcesManagement({
         </div>
       ) : filteredResources.length === 0 ? (
         <div className="text-center py-12">
-          <FileText className="w-16 h-16 text-neutral-medium mx-auto mb-4" />
-          <p className="text-neutral-medium">No resources found</p>
+          <FileText className="w-16 h-16 text-tm-text-3 mx-auto mb-4" />
+          <p className="text-tm-text-3">No resources found</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -2872,7 +2872,7 @@ function PerformanceResourcesManagement({
             return (
               <div
                 key={resource.id}
-                className="border border-neutral-light rounded-lg p-4 hover:shadow-md transition-shadow"
+                className="border border-tm-border rounded-lg p-4 hover:shadow-md transition-shadow"
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
@@ -2881,19 +2881,19 @@ function PerformanceResourcesManagement({
                         <Icon className="w-4 h-4 text-white" />
                       </div>
                       <div>
-                        <h3 className="text-lg font-bold text-neutral-text">{resource.title}</h3>
-                        <span className="text-xs text-neutral-medium">{typeInfo.label}</span>
+                        <h3 className="text-lg font-bold text-tm-text-1">{resource.title}</h3>
+                        <span className="text-xs text-tm-text-3">{typeInfo.label}</span>
                       </div>
                       {!resource.is_active && (
-                        <span className="px-2 py-1 bg-neutral-medium/10 text-neutral-medium rounded-full text-xs">
+                        <span className="px-2 py-1 bg-neutral-medium/10 text-tm-text-3 rounded-full text-xs">
                           Inactive
                         </span>
                       )}
                     </div>
                     {resource.description && (
-                      <p className="text-sm text-neutral-medium mb-2">{resource.description}</p>
+                      <p className="text-sm text-tm-text-3 mb-2">{resource.description}</p>
                     )}
-                    <div className="text-xs text-neutral-medium">
+                    <div className="text-xs text-tm-text-3">
                       Created {new Date(resource.created_at).toLocaleDateString()}
                     </div>
                   </div>

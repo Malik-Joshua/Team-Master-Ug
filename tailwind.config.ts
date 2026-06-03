@@ -10,15 +10,95 @@ const config: Config = {
     extend: {
       colors: {
         primary: {
-          DEFAULT: '#2563EB', // Blue
-          light: '#3b82f6',
-          dark: '#1e40af',
+          DEFAULT: 'var(--tm-primary, #2563EB)',
+          light: 'var(--tm-primary-light, #3b82f6)',
+          lighter: 'var(--tm-primary-lighter, #60a5fa)',
+          dark: 'var(--tm-primary-dark, #1e40af)',
+          subtle: 'var(--tm-primary-subtle, #eff6ff)',
+          border: 'var(--tm-primary-border, #bfdbfe)',
         },
         secondary: {
-          DEFAULT: '#DC2626', // Red
-          light: '#ef4444',
-          dark: '#b91c1c',
+          DEFAULT: 'var(--tm-secondary, #DC2626)',
+          light: 'var(--tm-secondary-light, #ef4444)',
+          dark: 'var(--tm-secondary-dark, #b91c1c)',
+          subtle: 'var(--tm-secondary-subtle, #fef2f2)',
         },
+        // ── Core brand (tm-* aliases for Color Engine compatibility) ──
+        'tm-primary':           'var(--tm-primary)',
+        'tm-primary-light':     'var(--tm-primary-light)',
+        'tm-primary-lighter':   'var(--tm-primary-lighter)',
+        'tm-primary-dark':      'var(--tm-primary-dark)',
+        'tm-primary-subtle':    'var(--tm-primary-subtle)',
+        'tm-primary-border':    'var(--tm-primary-border)',
+
+        'tm-secondary':         'var(--tm-secondary)',
+        'tm-secondary-light':   'var(--tm-secondary-light)',
+        'tm-secondary-dark':    'var(--tm-secondary-dark)',
+        'tm-secondary-subtle':  'var(--tm-secondary-subtle)',
+
+        // ── Text on brand ──
+        'tm-on-primary':        'var(--tm-text-on-primary)',
+        'tm-on-primary-muted':  'var(--tm-text-on-primary-muted)',
+        'tm-on-secondary':      'var(--tm-text-on-secondary)',
+
+        // ── Sidebar ──
+        'tm-sidebar':           'var(--tm-sidebar-bg)',
+        'tm-sidebar-text':      'var(--tm-sidebar-text)',
+        'tm-sidebar-muted':     'var(--tm-sidebar-text-muted)',
+        'tm-sidebar-active':    'var(--tm-sidebar-active-bg)',
+        'tm-sidebar-hover':     'var(--tm-sidebar-hover-bg)',
+        'tm-sidebar-border':    'var(--tm-sidebar-border)',
+
+        // ── Accent ──
+        'tm-accent':            'var(--tm-accent)',
+        'tm-accent-text':       'var(--tm-accent-text)',
+
+        // ── Stat icons ──
+        'tm-icon':              'var(--tm-icon-bg)',
+        'tm-icon-text':         'var(--tm-icon-color)',
+
+        // ── Buttons ──
+        'tm-btn-primary':       'var(--tm-btn-primary-bg)',
+        'tm-btn-primary-hover': 'var(--tm-btn-primary-hover)',
+        'tm-btn-secondary':     'var(--tm-btn-secondary-bg)',
+        'tm-btn-outline-border':'var(--tm-btn-outline-border)',
+
+        // ── Badges ──
+        'tm-badge':             'var(--tm-badge-bg)',
+        'tm-badge-text':        'var(--tm-badge-text)',
+        'tm-badge-sec':         'var(--tm-badge-secondary-bg)',
+        'tm-badge-sec-text':    'var(--tm-badge-secondary-text)',
+
+        // ── Charts ──
+        'tm-chart':             'var(--tm-chart-primary)',
+        'tm-chart-sec':         'var(--tm-chart-secondary)',
+
+        // ── Generic surface / text / border (dark/light mode adaptive) ──
+        'tm-bg': {
+          DEFAULT: 'var(--tm-bg)',
+          elevated: 'var(--tm-bg-elevated)',
+        },
+        'tm-surface': {
+          DEFAULT: 'var(--tm-surface)',
+          elevated: 'var(--tm-surface-elevated)',
+          hover: 'var(--tm-surface-hover)',
+        },
+        'tm-text': {
+          DEFAULT: 'var(--tm-text-1)',
+          1: 'var(--tm-text-1)',
+          2: 'var(--tm-text-2)',
+          3: 'var(--tm-text-3)',
+          muted: 'var(--tm-text-muted)',
+        },
+        'tm-border': {
+          DEFAULT: 'var(--tm-border)',
+          strong: 'var(--tm-border-strong)',
+        },
+        'tm-input': {
+          DEFAULT: 'var(--tm-input-bg)',
+          border: 'var(--tm-input-border)',
+        },
+        'tm-divider': 'var(--tm-divider)',
         success: {
           DEFAULT: '#059669',
           light: '#10b981',

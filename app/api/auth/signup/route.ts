@@ -17,25 +17,26 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Map wizard role values to internal roles
+    const roleMap: Record<string, string> = {
+      owner: 'admin',
+      team_manager: 'data_admin',
+      head_coach: 'coach',
+    }
+    const mappedRole = roleMap[role] || role
+
     // Validate role
-    if (!Object.keys(ROLE_LIMITS).includes(role)) {
+    if (!Object.keys(ROLE_LIMITS).includes(mappedRole)) {
       return NextResponse.json(
         { error: `Invalid role. Allowed roles: ${Object.keys(ROLE_LIMITS).join(', ')}` },
         { status: 400 }
       )
     }
 
-    // Validate position for players
+    // Validate position for players only
     if (role === 'player' && !position) {
       return NextResponse.json(
         { error: 'Position is required for players' },
-        { status: 400 }
-      )
-    }
-
-    if (!birth_date) {
-      return NextResponse.json(
-        { error: 'Date of birth is required' },
         { status: 400 }
       )
     }
@@ -77,9 +78,9 @@ export async function POST(request: NextRequest) {
           name,
           email,
           phone: phone || null,
-          role: role as Role,
-          position: role === 'player' ? position : null,
-          birth_date,
+          role: mappedRole as Role,
+          position: mappedRole === 'player' ? position : null,
+          birth_date: birth_date || null,
           expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days from now
         })
         .eq('id', existingPending.id)
@@ -101,9 +102,9 @@ export async function POST(request: NextRequest) {
           name,
           email,
           phone: phone || null,
-          role: role as Role,
-          position: role === 'player' ? position : null,
-          birth_date,
+          role: mappedRole as Role,
+          position: mappedRole === 'player' ? position : null,
+          birth_date: birth_date || null,
         })
 
       if (pendingError) {

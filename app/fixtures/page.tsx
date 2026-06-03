@@ -1147,10 +1147,10 @@ export default function FixturesPage() {
     : players
   const matchStatsModal = showMatchForm ? (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-3 sm:p-4 z-50 backdrop-blur-sm">
-      <div className="bg-white rounded-card shadow-large w-full max-w-[95vw] sm:max-w-6xl border border-neutral-light max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="p-6 border-b border-neutral-light flex-shrink-0">
+      <div className="bg-tm-surface rounded-card shadow-large w-full max-w-[95vw] sm:max-w-6xl border border-tm-border max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="p-6 border-b border-tm-border flex-shrink-0">
           <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-bold text-neutral-text">Enter Match Statistics</h2>
+            <h2 className="text-2xl font-bold text-tm-text-1">Enter Match Statistics</h2>
             <button
               onClick={() => {
                 setShowMatchForm(false)
@@ -1169,7 +1169,7 @@ export default function FixturesPage() {
                 setMatchStaff({ coach: null, physio: null, team_manager: null })
                 setStaffAttendance({})
               }}
-              className="text-neutral-medium hover:text-neutral-text"
+              className="text-tm-text-3 hover:text-tm-text-1"
             >
               <X className="w-6 h-6" />
             </button>
@@ -1179,10 +1179,10 @@ export default function FixturesPage() {
         <div className="p-6 space-y-6 overflow-y-auto flex-1">
           {/* Match Selection */}
           {!selectedMatchForStats && (
-            <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-              <h3 className="text-lg font-semibold text-neutral-text mb-4">Select Match for Stats</h3>
+            <div className="bg-tm-surface-hover rounded-lg p-4 border border-tm-border">
+              <h3 className="text-lg font-semibold text-tm-text-1 mb-4">Select Match for Stats</h3>
               <div className="mb-4">
-                <label className="block text-sm font-medium text-neutral-medium mb-2">
+                <label className="block text-sm font-medium text-tm-text-3 mb-2">
                   Select Existing Match
                 </label>
                 <select
@@ -1206,7 +1206,7 @@ export default function FixturesPage() {
                     }
                     setPlayerStats({})
                   }}
-                  className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                  className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                 >
                   <option value="">Select a match...</option>
                   {statsEligibleMatches.map((match) => (
@@ -1220,42 +1220,42 @@ export default function FixturesPage() {
           )}
 
           {/* Match Information */}
-          <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-            <h3 className="text-lg font-semibold text-neutral-text mb-4">Match Information</h3>
+          <div className="bg-tm-surface-hover rounded-lg p-4 border border-tm-border">
+            <h3 className="text-lg font-semibold text-tm-text-1 mb-4">Match Information</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-neutral-medium mb-2">
-                  Match Date <span className="text-red-500">*</span>
+                <label className="block text-sm font-medium text-tm-text-3 mb-2">
+                  Match Date <span className="text-[#E05757]">*</span>
                 </label>
                 <input
                   type="date"
                   value={matchForm.match_date}
                   onChange={(e) => setMatchForm({ ...matchForm, match_date: e.target.value })}
-                  className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                  className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-neutral-medium mb-2">
-                  Opponent <span className="text-red-500">*</span>
+                <label className="block text-sm font-medium text-tm-text-3 mb-2">
+                  Opponent <span className="text-[#E05757]">*</span>
                 </label>
                 <input
                   type="text"
                   value={matchForm.opponent}
                   onChange={(e) => setMatchForm({ ...matchForm, opponent: e.target.value })}
                   placeholder="e.g., Heathens RFC"
-                  className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                  className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-neutral-medium mb-2">
+                <label className="block text-sm font-medium text-tm-text-3 mb-2">
                   Tournament Type
                 </label>
                 <select
                   value={matchForm.tournament_type}
                   onChange={(e) => setMatchForm({ ...matchForm, tournament_type: e.target.value as any })}
-                  className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                  className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                 >
                   <option value="friendly">Friendly</option>
                   <option value="league">League</option>
@@ -1264,21 +1264,21 @@ export default function FixturesPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-neutral-medium mb-2">Venue</label>
+                <label className="block text-sm font-medium text-tm-text-3 mb-2">Venue</label>
                 <input
                   type="text"
                   value={matchForm.venue}
                   onChange={(e) => setMatchForm({ ...matchForm, venue: e.target.value })}
                   placeholder="e.g., Kyadondo Rugby Club"
-                  className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                  className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-neutral-medium mb-2">Result</label>
+                <label className="block text-sm font-medium text-tm-text-3 mb-2">Result</label>
                 <select
                   value={matchForm.result}
                   onChange={(e) => setMatchForm({ ...matchForm, result: e.target.value as any })}
-                  className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                  className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                 >
                   <option value="win">Win</option>
                   <option value="loss">Loss</option>
@@ -1287,46 +1287,46 @@ export default function FixturesPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-neutral-medium mb-2">Our Score</label>
+                  <label className="block text-sm font-medium text-tm-text-3 mb-2">Our Score</label>
                   <input
                     type="number"
                     value={matchForm.score_our_team}
                     onChange={(e) => setMatchForm({ ...matchForm, score_our_team: e.target.value })}
                     min="0"
-                    className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                    className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-neutral-medium mb-2">Opponent Score</label>
+                  <label className="block text-sm font-medium text-tm-text-3 mb-2">Opponent Score</label>
                   <input
                     type="number"
                     value={matchForm.score_opponent}
                     onChange={(e) => setMatchForm({ ...matchForm, score_opponent: e.target.value })}
                     min="0"
-                    className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                    className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                   />
                 </div>
               </div>
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-neutral-medium mb-2">Notes</label>
+                <label className="block text-sm font-medium text-tm-text-3 mb-2">Notes</label>
                 <textarea
                   value={matchForm.notes}
                   onChange={(e) => setMatchForm({ ...matchForm, notes: e.target.value })}
                   rows={3}
                   placeholder="Additional match notes..."
-                  className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                  className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                 />
               </div>
             </div>
           </div>
 
           {/* Staff Attendance */}
-          <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-            <h3 className="text-lg font-semibold text-neutral-text mb-4">Staff Attendance</h3>
+          <div className="bg-tm-surface-hover rounded-lg p-4 border border-tm-border">
+            <h3 className="text-lg font-semibold text-tm-text-1 mb-4">Staff Attendance</h3>
             {(matchStaff.coach || matchStaff.physio || matchStaff.team_manager) ? (
               <div className="space-y-3">
                 {matchStaff.coach && (
-                  <label className="flex items-center gap-3 text-sm text-neutral-text">
+                  <label className="flex items-center gap-3 text-sm text-tm-text-1">
                     <input
                       type="checkbox"
                       checked={staffAttendance[matchStaff.coach.id] ?? true}
@@ -1336,13 +1336,13 @@ export default function FixturesPage() {
                           [matchStaff.coach!.id]: e.target.checked,
                         }))
                       }
-                      className="h-4 w-4 rounded border-neutral-light text-primary focus:ring-primary"
+                      className="h-4 w-4 rounded border-tm-border text-primary focus:ring-primary"
                     />
                     Coach: {matchStaff.coach.name}
                   </label>
                 )}
                 {matchStaff.physio && (
-                  <label className="flex items-center gap-3 text-sm text-neutral-text">
+                  <label className="flex items-center gap-3 text-sm text-tm-text-1">
                     <input
                       type="checkbox"
                       checked={staffAttendance[matchStaff.physio.id] ?? true}
@@ -1352,13 +1352,13 @@ export default function FixturesPage() {
                           [matchStaff.physio!.id]: e.target.checked,
                         }))
                       }
-                      className="h-4 w-4 rounded border-neutral-light text-primary focus:ring-primary"
+                      className="h-4 w-4 rounded border-tm-border text-primary focus:ring-primary"
                     />
                     Physio: {matchStaff.physio.name}
                   </label>
                 )}
                 {matchStaff.team_manager && (
-                  <label className="flex items-center gap-3 text-sm text-neutral-text">
+                  <label className="flex items-center gap-3 text-sm text-tm-text-1">
                     <input
                       type="checkbox"
                       checked={staffAttendance[matchStaff.team_manager.id] ?? true}
@@ -1368,53 +1368,53 @@ export default function FixturesPage() {
                           [matchStaff.team_manager!.id]: e.target.checked,
                         }))
                       }
-                      className="h-4 w-4 rounded border-neutral-light text-primary focus:ring-primary"
+                      className="h-4 w-4 rounded border-tm-border text-primary focus:ring-primary"
                     />
                     Team Manager: {matchStaff.team_manager.name}
                   </label>
                 )}
               </div>
             ) : (
-              <p className="text-sm text-neutral-medium">No staff assigned to this fixture.</p>
+              <p className="text-sm text-tm-text-3">No staff assigned to this fixture.</p>
             )}
-            <p className="text-xs text-neutral-medium mt-3">
+            <p className="text-xs text-tm-text-3 mt-3">
               Uncheck a staff member if they were not available on match day.
             </p>
           </div>
 
           {/* Player Statistics */}
           <div>
-            <h3 className="text-lg font-semibold text-neutral-text mb-4">
+            <h3 className="text-lg font-semibold text-tm-text-1 mb-4">
               Player Statistics
             </h3>
             {injuredPlayerIds.length > 0 && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-sm text-red-800">
+              <div className="mb-4 p-3 bg-[#E05757]/10 border border-[#E05757]/30 rounded-lg">
+                <p className="text-sm text-[#E05757]">
                   <strong>Note:</strong> Injured players are hidden from the stats sheet.
                 </p>
               </div>
             )}
             {selectedMatchForStats && selectedTeamIds.size === 0 ? (
-              <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
+              <div className="p-4 bg-warning/10 border border-warning/30 rounded-lg text-sm text-warning">
                 No team selection found for this fixture. Select the team first to enter stats.
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[1000px]">
-                  <thead className="bg-neutral-light">
+                  <thead className="bg-tm-surface-hover">
                     <tr>
-                      <th className="px-4 py-3 text-left text-sm font-bold text-neutral-text sticky left-0 bg-neutral-light z-10">
+                      <th className="px-4 py-3 text-left text-sm font-bold text-tm-text-1 sticky left-0 bg-tm-surface-hover z-10">
                         Player
                       </th>
-                      <th className="px-3 py-3 text-center text-xs font-bold text-neutral-text">Tackles Made</th>
-                      <th className="px-3 py-3 text-center text-xs font-bold text-neutral-text">Tackles Missed</th>
-                      <th className="px-3 py-3 text-center text-xs font-bold text-neutral-text">Ball Handling Errors</th>
-                      <th className="px-3 py-3 text-center text-xs font-bold text-neutral-text">Ball Carries</th>
-                      <th className="px-3 py-3 text-center text-xs font-bold text-neutral-text">Tries Scored</th>
-                      <th className="px-3 py-3 text-center text-xs font-bold text-neutral-text">Minutes Played</th>
+                      <th className="px-3 py-3 text-center text-xs font-bold text-tm-text-1">Tackles Made</th>
+                      <th className="px-3 py-3 text-center text-xs font-bold text-tm-text-1">Tackles Missed</th>
+                      <th className="px-3 py-3 text-center text-xs font-bold text-tm-text-1">Ball Handling Errors</th>
+                      <th className="px-3 py-3 text-center text-xs font-bold text-tm-text-1">Ball Carries</th>
+                      <th className="px-3 py-3 text-center text-xs font-bold text-tm-text-1">Tries Scored</th>
+                      <th className="px-3 py-3 text-center text-xs font-bold text-tm-text-1">Minutes Played</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-neutral-light">
+                  <tbody className="divide-y divide-tm-border">
                     {statsPlayers.map((player, index) => {
                       const stats = playerStats[player.user_id] || {
                         player_id: player.user_id,
@@ -1429,9 +1429,9 @@ export default function FixturesPage() {
                       return (
                         <tr
                           key={player.user_id}
-                          className={index % 2 === 0 ? 'bg-white' : 'bg-blue-50/30'}
+                          className={index % 2 === 0 ? 'bg-tm-surface' : 'bg-tm-surface-hover'}
                         >
-                          <td className="px-4 py-3 text-sm font-medium text-neutral-text sticky left-0 bg-inherit z-10 border-r border-neutral-light">
+                          <td className="px-4 py-3 text-sm font-medium text-tm-text-1 sticky left-0 bg-inherit z-10 border-r border-tm-border">
                             {player.name}
                           </td>
                           <td className="px-2 py-2">
@@ -1440,7 +1440,7 @@ export default function FixturesPage() {
                               min="0"
                               value={stats.tackles_made}
                               onChange={(e) => updatePlayerStat(player.user_id, 'tackles_made', e.target.value)}
-                              className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm"
+                              className="w-full px-2 py-1 border border-tm-border rounded text-center text-sm"
                             />
                           </td>
                           <td className="px-2 py-2">
@@ -1449,7 +1449,7 @@ export default function FixturesPage() {
                               min="0"
                               value={stats.tackles_missed}
                               onChange={(e) => updatePlayerStat(player.user_id, 'tackles_missed', e.target.value)}
-                              className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm"
+                              className="w-full px-2 py-1 border border-tm-border rounded text-center text-sm"
                             />
                           </td>
                           <td className="px-2 py-2">
@@ -1458,7 +1458,7 @@ export default function FixturesPage() {
                               min="0"
                               value={stats.ball_handling_errors}
                               onChange={(e) => updatePlayerStat(player.user_id, 'ball_handling_errors', e.target.value)}
-                              className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm"
+                              className="w-full px-2 py-1 border border-tm-border rounded text-center text-sm"
                             />
                           </td>
                           <td className="px-2 py-2">
@@ -1467,7 +1467,7 @@ export default function FixturesPage() {
                               min="0"
                               value={stats.ball_carries}
                               onChange={(e) => updatePlayerStat(player.user_id, 'ball_carries', e.target.value)}
-                              className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm"
+                              className="w-full px-2 py-1 border border-tm-border rounded text-center text-sm"
                             />
                           </td>
                           <td className="px-2 py-2">
@@ -1476,7 +1476,7 @@ export default function FixturesPage() {
                               min="0"
                               value={stats.tries_scored}
                               onChange={(e) => updatePlayerStat(player.user_id, 'tries_scored', e.target.value)}
-                              className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm"
+                              className="w-full px-2 py-1 border border-tm-border rounded text-center text-sm"
                             />
                           </td>
                           <td className="px-2 py-2">
@@ -1486,7 +1486,7 @@ export default function FixturesPage() {
                               max="80"
                               value={stats.minutes_played}
                               onChange={(e) => updatePlayerStat(player.user_id, 'minutes_played', e.target.value)}
-                              className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm"
+                              className="w-full px-2 py-1 border border-tm-border rounded text-center text-sm"
                             />
                           </td>
                         </tr>
@@ -1499,11 +1499,11 @@ export default function FixturesPage() {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-3 pt-4 border-t border-neutral-light">
+          <div className="flex gap-3 pt-4 border-t border-tm-border">
             <button
               onClick={handleSaveMatchStats}
               disabled={savingMatchStats}
-              className="flex-1 px-6 py-3 bg-club-gradient text-white rounded-button hover:opacity-90 transition-all duration-300 font-semibold shadow-soft hover:shadow-medium disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center"
+              className="flex-1 px-6 py-3 bg-tm-secondary text-tm-on-secondary rounded-[6px] hover:opacity-90 transition-all duration-300 font-semibold shadow-soft hover:shadow-medium disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center"
             >
               <Save className="w-5 h-5 mr-2" />
               {savingMatchStats ? 'Saving...' : 'Save Match Stats'}
@@ -1527,7 +1527,7 @@ export default function FixturesPage() {
                 setStaffAttendance({})
               }}
               disabled={savingMatchStats}
-              className="px-6 py-3 bg-neutral-light text-neutral-text rounded-button hover:bg-neutral-medium transition-all duration-300 font-semibold disabled:opacity-50"
+              className="px-6 py-3 bg-tm-surface-hover text-tm-text-1 rounded-[6px] hover:bg-tm-surface-hover transition-all duration-300 font-semibold disabled:opacity-50"
             >
               Cancel
             </button>
@@ -1543,9 +1543,9 @@ export default function FixturesPage() {
       <Layout pageTitle="Fixtures">
         <div className="space-y-6">
           {/* Header with Create Fixture and Enter Match Stats buttons */}
-          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+          <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-neutral-text flex items-center gap-2">
+              <h2 className="text-2xl font-bold text-tm-text-1 flex items-center gap-2">
                 <Trophy className="w-6 h-6 text-primary" />
                 Fixtures
               </h2>
@@ -1553,7 +1553,7 @@ export default function FixturesPage() {
                 <RefreshButton onRefresh={loadData} />
                 <button
                   onClick={() => setShowCreateFixtureForm(true)}
-                  className="bg-primary text-white px-6 py-2 rounded-button font-semibold hover:opacity-90 transition-opacity flex items-center gap-2"
+                  className="bg-primary text-tm-on-secondary px-6 py-2 rounded-[6px] font-semibold hover:opacity-90 transition-opacity flex items-center gap-2"
                 >
                   <Plus className="w-4 h-4" />
                   Create Fixture
@@ -1563,7 +1563,7 @@ export default function FixturesPage() {
                     setSelectedMatchForStats('')
                     setShowMatchForm(true)
                   }}
-                  className="bg-secondary text-white px-6 py-2 rounded-button font-semibold hover:opacity-90 transition-opacity flex items-center gap-2"
+                  className="bg-secondary text-tm-on-secondary px-6 py-2 rounded-[6px] font-semibold hover:opacity-90 transition-opacity flex items-center gap-2"
                 >
                   <Save className="w-4 h-4" />
                   Enter Match Stats
@@ -1573,8 +1573,8 @@ export default function FixturesPage() {
 
             {/* Fixtures List */}
             {matches.length === 0 ? (
-              <div className="text-center py-12 text-neutral-medium">
-                <Trophy className="w-16 h-16 mx-auto mb-4 text-neutral-light" />
+              <div className="text-center py-12 text-tm-text-3">
+                <Trophy className="w-16 h-16 mx-auto mb-4 text-tm-text-3" />
                 <p className="text-lg font-semibold">No fixtures created yet</p>
                 <p className="text-sm mt-2">Click &quot;Create Fixture&quot; to add a new fixture</p>
               </div>
@@ -1588,12 +1588,12 @@ export default function FixturesPage() {
                   return (
                     <div
                       key={match.id}
-                      className="border-2 border-neutral-light rounded-lg p-4 hover:border-primary/50 transition-all"
+                      className="border-2 border-tm-border rounded-lg p-4 hover:border-primary/50 transition-all"
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2">
-                            <h3 className="text-lg font-bold text-neutral-text">
+                            <h3 className="text-lg font-bold text-tm-text-1">
                               vs {match.opponent}
                             </h3>
                             <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-semibold capitalize">
@@ -1601,13 +1601,13 @@ export default function FixturesPage() {
                             </span>
                             <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
                               isUpcoming 
-                                ? 'bg-green-100 text-green-700' 
-                                : 'bg-gray-100 text-gray-700'
+                                ? 'bg-success/15 text-success' 
+                                : 'bg-tm-surface-hover text-tm-text-2'
                             }`}>
                               {isUpcoming ? 'Upcoming' : 'Played'}
                             </span>
                           </div>
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-neutral-medium">
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-tm-text-3">
                             <div className="flex items-center gap-2">
                               <Calendar className="w-4 h-4" />
                               <span>{new Date(match.match_date).toLocaleDateString('en-US', {
@@ -1630,7 +1630,7 @@ export default function FixturesPage() {
                             <button
                               onClick={() => handleViewTeam(match.id)}
                               disabled={loadingTeamView && viewingTeamForMatch === match.id}
-                              className="px-4 py-2 bg-secondary text-white rounded-button font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center disabled:opacity-50"
+                              className="px-4 py-2 bg-secondary text-tm-on-secondary rounded-[6px] font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center disabled:opacity-50"
                             >
                               <Eye className="w-4 h-4 mr-2" />
                               View Team
@@ -1652,7 +1652,7 @@ export default function FixturesPage() {
                                 })
                                 setShowMatchForm(true)
                               }}
-                              className="px-4 py-2 bg-primary text-white rounded-button font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
+                              className="px-4 py-2 bg-primary text-tm-on-secondary rounded-[6px] font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
                             >
                               <Plus className="w-4 h-4 mr-2" />
                               Add Match Stats
@@ -1662,7 +1662,7 @@ export default function FixturesPage() {
                             <button
                               onClick={() => handleDeleteFixture(match.id)}
                               disabled={deletingFixtureId === match.id}
-                              className="px-4 py-2 bg-red-600 text-white rounded-button font-semibold hover:bg-red-700 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center disabled:opacity-50"
+                              className="px-4 py-2 bg-red-600 text-white rounded-[6px] font-semibold hover:bg-red-700 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center disabled:opacity-50"
                             >
                               <Trash2 className="w-4 h-4 mr-2" />
                               {deletingFixtureId === match.id ? 'Deleting...' : 'Delete'}
@@ -1680,10 +1680,10 @@ export default function FixturesPage() {
           {/* Create Fixture Modal */}
           {showCreateFixtureForm && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center p-4 z-50 backdrop-blur-sm overflow-y-auto">
-              <div className="bg-white rounded-card shadow-large max-w-2xl w-full border border-neutral-light my-8 max-h-[90vh] flex flex-col">
-                <div className="p-6 border-b border-neutral-light flex-shrink-0">
+              <div className="bg-tm-surface rounded-card shadow-large max-w-2xl w-full border border-tm-border my-8 max-h-[90vh] flex flex-col">
+                <div className="p-6 border-b border-tm-border flex-shrink-0">
                   <div className="flex justify-between items-center">
-                    <h2 className="text-2xl font-bold text-neutral-text">Create New Fixture</h2>
+                    <h2 className="text-2xl font-bold text-tm-text-1">Create New Fixture</h2>
                     <button
                       onClick={() => {
                         setShowCreateFixtureForm(false)
@@ -1698,7 +1698,7 @@ export default function FixturesPage() {
                           coach_id: '',
                         })
                       }}
-                      className="text-neutral-medium hover:text-neutral-text"
+                      className="text-tm-text-3 hover:text-tm-text-1"
                     >
                       <X className="w-6 h-6" />
                     </button>
@@ -1706,47 +1706,47 @@ export default function FixturesPage() {
                 </div>
 
                 <div className="p-6 space-y-4" style={{ maxHeight: 'calc(90vh - 120px)', overflowY: 'auto' }}>
-                  <div className="bg-blue-50 rounded-lg p-4 border border-blue-200 mb-4">
-                    <p className="text-sm text-blue-800">
+                  <div className="bg-tm-surface-hover rounded-lg p-4 border border-tm-border mb-4">
+                    <p className="text-sm text-primary">
                       <strong>Note:</strong> After creating a fixture, the coach will be able to select the team for this match on the Fixtures page.
                     </p>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-neutral-medium mb-2">
-                      Match Date <span className="text-red-500">*</span>
+                    <label className="block text-sm font-medium text-tm-text-3 mb-2">
+                      Match Date <span className="text-[#E05757]">*</span>
                     </label>
                     <input
                       type="date"
                       value={fixtureForm.match_date}
                       onChange={(e) => setFixtureForm({ ...fixtureForm, match_date: e.target.value })}
-                      className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                      className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                       required
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-neutral-medium mb-2">
-                      Opponent <span className="text-red-500">*</span>
+                    <label className="block text-sm font-medium text-tm-text-3 mb-2">
+                      Opponent <span className="text-[#E05757]">*</span>
                     </label>
                     <input
                       type="text"
                       value={fixtureForm.opponent}
                       onChange={(e) => setFixtureForm({ ...fixtureForm, opponent: e.target.value })}
                       placeholder="e.g., Heathens RFC"
-                      className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                      className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                       required
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-neutral-medium mb-2">
+                    <label className="block text-sm font-medium text-tm-text-3 mb-2">
                       Tournament Type
                     </label>
                     <select
                       value={fixtureForm.tournament_type}
                       onChange={(e) => setFixtureForm({ ...fixtureForm, tournament_type: e.target.value as any })}
-                      className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                      className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                     >
                       <option value="friendly">Friendly</option>
                       <option value="league">League</option>
@@ -1756,42 +1756,42 @@ export default function FixturesPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-neutral-medium mb-2">Venue</label>
+                    <label className="block text-sm font-medium text-tm-text-3 mb-2">Venue</label>
                     <input
                       type="text"
                       value={fixtureForm.venue}
                       onChange={(e) => setFixtureForm({ ...fixtureForm, venue: e.target.value })}
                       placeholder="e.g., Kyadondo Rugby Club"
-                      className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                      className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-neutral-medium mb-2">Notes</label>
+                    <label className="block text-sm font-medium text-tm-text-3 mb-2">Notes</label>
                     <textarea
                       value={fixtureForm.notes}
                       onChange={(e) => setFixtureForm({ ...fixtureForm, notes: e.target.value })}
                       rows={3}
                       placeholder="Additional fixture notes..."
-                      className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                      className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                     />
                   </div>
 
                   {/* Staff Assignment Section */}
-                  <div className="border-t-2 border-primary/30 pt-6 mt-6 bg-gray-50 rounded-lg p-4">
-                    <h3 className="text-xl font-bold text-neutral-text mb-4 flex items-center gap-2">
+                  <div className="border-t-2 border-primary/30 pt-6 mt-6 bg-tm-surface-hover rounded-lg p-4">
+                    <h3 className="text-xl font-bold text-tm-text-1 mb-4 flex items-center gap-2">
                       <span>👥</span>
                       Assign Staff for Game Day
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-neutral-medium mb-2">
+                        <label className="block text-sm font-medium text-tm-text-3 mb-2">
                           Physiotherapist
                         </label>
                         <select
                           value={fixtureForm.physio_id}
                           onChange={(e) => setFixtureForm({ ...fixtureForm, physio_id: e.target.value })}
-                          className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                          className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                         >
                           <option value="">Select physio...</option>
                           {availablePhysios.map((physio) => (
@@ -1802,13 +1802,13 @@ export default function FixturesPage() {
                         </select>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-neutral-medium mb-2">
+                        <label className="block text-sm font-medium text-tm-text-3 mb-2">
                           Team Manager
                         </label>
                         <select
                           value={fixtureForm.team_manager_id}
                           onChange={(e) => setFixtureForm({ ...fixtureForm, team_manager_id: e.target.value })}
-                          className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                          className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                         >
                           <option value="">Select team manager...</option>
                           {availableTeamManagers.map((tm) => (
@@ -1819,13 +1819,13 @@ export default function FixturesPage() {
                         </select>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-neutral-medium mb-2">
+                        <label className="block text-sm font-medium text-tm-text-3 mb-2">
                           Coach
                         </label>
                         <select
                           value={fixtureForm.coach_id}
                           onChange={(e) => setFixtureForm({ ...fixtureForm, coach_id: e.target.value })}
-                          className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                          className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                         >
                           <option value="">Select coach...</option>
                           {availableCoaches.map((coach) => (
@@ -1838,11 +1838,11 @@ export default function FixturesPage() {
                     </div>
                   </div>
 
-                  <div className="flex gap-3 pt-4 border-t border-neutral-light">
+                  <div className="flex gap-3 pt-4 border-t border-tm-border">
                     <button
                       onClick={handleCreateFixture}
                       disabled={creatingFixture}
-                      className="flex-1 px-6 py-3 bg-club-gradient text-white rounded-button hover:opacity-90 transition-all duration-300 font-semibold shadow-soft hover:shadow-medium disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center"
+                      className="flex-1 px-6 py-3 bg-tm-secondary text-tm-on-secondary rounded-[6px] hover:opacity-90 transition-all duration-300 font-semibold shadow-soft hover:shadow-medium disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center"
                     >
                       <Save className="w-5 h-5 mr-2" />
                       {creatingFixture ? 'Creating...' : 'Create Fixture'}
@@ -1862,7 +1862,7 @@ export default function FixturesPage() {
                         })
                       }}
                       disabled={creatingFixture}
-                      className="px-6 py-3 bg-neutral-light text-neutral-text rounded-button hover:bg-neutral-medium transition-all duration-300 font-semibold disabled:opacity-50"
+                      className="px-6 py-3 bg-tm-surface-hover text-tm-text-1 rounded-[6px] hover:bg-tm-surface-hover transition-all duration-300 font-semibold disabled:opacity-50"
                     >
                       Cancel
                     </button>
@@ -1875,10 +1875,10 @@ export default function FixturesPage() {
           {/* Enter Match Stats Modal */}
           {showMatchForm && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-3 sm:p-4 z-50 backdrop-blur-sm">
-              <div className="bg-white rounded-card shadow-large w-full max-w-[95vw] sm:max-w-6xl border border-neutral-light max-h-[90vh] overflow-hidden flex flex-col">
-                <div className="p-6 border-b border-neutral-light flex-shrink-0">
+              <div className="bg-tm-surface rounded-card shadow-large w-full max-w-[95vw] sm:max-w-6xl border border-tm-border max-h-[90vh] overflow-hidden flex flex-col">
+                <div className="p-6 border-b border-tm-border flex-shrink-0">
                   <div className="flex justify-between items-center">
-                    <h2 className="text-2xl font-bold text-neutral-text">Enter Match Statistics</h2>
+                    <h2 className="text-2xl font-bold text-tm-text-1">Enter Match Statistics</h2>
                     <button
                       onClick={() => {
                         setShowMatchForm(false)
@@ -1897,7 +1897,7 @@ export default function FixturesPage() {
                         setMatchStaff({ coach: null, physio: null, team_manager: null })
                         setStaffAttendance({})
                       }}
-                      className="text-neutral-medium hover:text-neutral-text"
+                      className="text-tm-text-3 hover:text-tm-text-1"
                     >
                       <X className="w-6 h-6" />
                     </button>
@@ -1907,10 +1907,10 @@ export default function FixturesPage() {
                 <div className="p-6 space-y-6 overflow-y-auto flex-1">
                   {/* Match Selection */}
                   {!selectedMatchForStats && (
-                    <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                      <h3 className="text-lg font-semibold text-neutral-text mb-4">Select Match for Stats</h3>
+                    <div className="bg-tm-surface-hover rounded-lg p-4 border border-tm-border">
+                      <h3 className="text-lg font-semibold text-tm-text-1 mb-4">Select Match for Stats</h3>
                       <div className="mb-4">
-                        <label className="block text-sm font-medium text-neutral-medium mb-2">
+                        <label className="block text-sm font-medium text-tm-text-3 mb-2">
                           Select Existing Match
                         </label>
                         <select
@@ -1934,7 +1934,7 @@ export default function FixturesPage() {
                             }
                             setPlayerStats({})
                           }}
-                          className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                          className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                         >
                           <option value="">Select a match...</option>
                           {statsEligibleMatches.map((match) => (
@@ -1948,42 +1948,42 @@ export default function FixturesPage() {
                   )}
 
                   {/* Match Information */}
-                  <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                    <h3 className="text-lg font-semibold text-neutral-text mb-4">Match Information</h3>
+                  <div className="bg-tm-surface-hover rounded-lg p-4 border border-tm-border">
+                    <h3 className="text-lg font-semibold text-tm-text-1 mb-4">Match Information</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-neutral-medium mb-2">
-                          Match Date <span className="text-red-500">*</span>
+                        <label className="block text-sm font-medium text-tm-text-3 mb-2">
+                          Match Date <span className="text-[#E05757]">*</span>
                         </label>
                         <input
                           type="date"
                           value={matchForm.match_date}
                           onChange={(e) => setMatchForm({ ...matchForm, match_date: e.target.value })}
-                          className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                          className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                           required
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-neutral-medium mb-2">
-                          Opponent <span className="text-red-500">*</span>
+                        <label className="block text-sm font-medium text-tm-text-3 mb-2">
+                          Opponent <span className="text-[#E05757]">*</span>
                         </label>
                         <input
                           type="text"
                           value={matchForm.opponent}
                           onChange={(e) => setMatchForm({ ...matchForm, opponent: e.target.value })}
                           placeholder="e.g., Heathens RFC"
-                          className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                          className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                           required
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-neutral-medium mb-2">
+                        <label className="block text-sm font-medium text-tm-text-3 mb-2">
                           Tournament Type
                         </label>
                         <select
                           value={matchForm.tournament_type}
                           onChange={(e) => setMatchForm({ ...matchForm, tournament_type: e.target.value as any })}
-                          className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                          className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                         >
                           <option value="friendly">Friendly</option>
                           <option value="league">League</option>
@@ -1992,21 +1992,21 @@ export default function FixturesPage() {
                         </select>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-neutral-medium mb-2">Venue</label>
+                        <label className="block text-sm font-medium text-tm-text-3 mb-2">Venue</label>
                         <input
                           type="text"
                           value={matchForm.venue}
                           onChange={(e) => setMatchForm({ ...matchForm, venue: e.target.value })}
                           placeholder="e.g., Kyadondo Rugby Club"
-                          className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                          className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-neutral-medium mb-2">Result</label>
+                        <label className="block text-sm font-medium text-tm-text-3 mb-2">Result</label>
                         <select
                           value={matchForm.result}
                           onChange={(e) => setMatchForm({ ...matchForm, result: e.target.value as any })}
-                          className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                          className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                         >
                           <option value="win">Win</option>
                           <option value="loss">Loss</option>
@@ -2015,46 +2015,46 @@ export default function FixturesPage() {
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-sm font-medium text-neutral-medium mb-2">Our Score</label>
+                          <label className="block text-sm font-medium text-tm-text-3 mb-2">Our Score</label>
                           <input
                             type="number"
                             value={matchForm.score_our_team}
                             onChange={(e) => setMatchForm({ ...matchForm, score_our_team: e.target.value })}
                             min="0"
-                            className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                            className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-neutral-medium mb-2">Opponent Score</label>
+                          <label className="block text-sm font-medium text-tm-text-3 mb-2">Opponent Score</label>
                           <input
                             type="number"
                             value={matchForm.score_opponent}
                             onChange={(e) => setMatchForm({ ...matchForm, score_opponent: e.target.value })}
                             min="0"
-                            className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                            className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                           />
                         </div>
                       </div>
                       <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-neutral-medium mb-2">Notes</label>
+                        <label className="block text-sm font-medium text-tm-text-3 mb-2">Notes</label>
                         <textarea
                           value={matchForm.notes}
                           onChange={(e) => setMatchForm({ ...matchForm, notes: e.target.value })}
                           rows={3}
                           placeholder="Additional match notes..."
-                          className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                          className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                         />
                       </div>
                     </div>
                   </div>
 
                   {/* Staff Attendance */}
-                  <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                    <h3 className="text-lg font-semibold text-neutral-text mb-4">Staff Attendance</h3>
+                  <div className="bg-tm-surface-hover rounded-lg p-4 border border-tm-border">
+                    <h3 className="text-lg font-semibold text-tm-text-1 mb-4">Staff Attendance</h3>
                     {(matchStaff.coach || matchStaff.physio || matchStaff.team_manager) ? (
                       <div className="space-y-3">
                         {matchStaff.coach && (
-                          <label className="flex items-center gap-3 text-sm text-neutral-text">
+                          <label className="flex items-center gap-3 text-sm text-tm-text-1">
                             <input
                               type="checkbox"
                               checked={staffAttendance[matchStaff.coach.id] ?? true}
@@ -2064,13 +2064,13 @@ export default function FixturesPage() {
                                   [matchStaff.coach!.id]: e.target.checked,
                                 }))
                               }
-                              className="h-4 w-4 rounded border-neutral-light text-primary focus:ring-primary"
+                              className="h-4 w-4 rounded border-tm-border text-primary focus:ring-primary"
                             />
                             Coach: {matchStaff.coach.name}
                           </label>
                         )}
                         {matchStaff.physio && (
-                          <label className="flex items-center gap-3 text-sm text-neutral-text">
+                          <label className="flex items-center gap-3 text-sm text-tm-text-1">
                             <input
                               type="checkbox"
                               checked={staffAttendance[matchStaff.physio.id] ?? true}
@@ -2080,13 +2080,13 @@ export default function FixturesPage() {
                                   [matchStaff.physio!.id]: e.target.checked,
                                 }))
                               }
-                              className="h-4 w-4 rounded border-neutral-light text-primary focus:ring-primary"
+                              className="h-4 w-4 rounded border-tm-border text-primary focus:ring-primary"
                             />
                             Physio: {matchStaff.physio.name}
                           </label>
                         )}
                         {matchStaff.team_manager && (
-                          <label className="flex items-center gap-3 text-sm text-neutral-text">
+                          <label className="flex items-center gap-3 text-sm text-tm-text-1">
                             <input
                               type="checkbox"
                               checked={staffAttendance[matchStaff.team_manager.id] ?? true}
@@ -2096,53 +2096,53 @@ export default function FixturesPage() {
                                   [matchStaff.team_manager!.id]: e.target.checked,
                                 }))
                               }
-                              className="h-4 w-4 rounded border-neutral-light text-primary focus:ring-primary"
+                              className="h-4 w-4 rounded border-tm-border text-primary focus:ring-primary"
                             />
                             Team Manager: {matchStaff.team_manager.name}
                           </label>
                         )}
                       </div>
                     ) : (
-                      <p className="text-sm text-neutral-medium">No staff assigned to this fixture.</p>
+                      <p className="text-sm text-tm-text-3">No staff assigned to this fixture.</p>
                     )}
-                    <p className="text-xs text-neutral-medium mt-3">
+                    <p className="text-xs text-tm-text-3 mt-3">
                       Uncheck a staff member if they were not available on match day.
                     </p>
                   </div>
 
                   {/* Player Statistics */}
                   <div>
-                    <h3 className="text-lg font-semibold text-neutral-text mb-4">
+                    <h3 className="text-lg font-semibold text-tm-text-1 mb-4">
                       Player Statistics
                     </h3>
                     {injuredPlayerIds.length > 0 && (
-                      <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                        <p className="text-sm text-red-800">
+                      <div className="mb-4 p-3 bg-[#E05757]/10 border border-[#E05757]/30 rounded-lg">
+                        <p className="text-sm text-[#E05757]">
                           <strong>Note:</strong> Injured players are hidden from the stats sheet.
                         </p>
                       </div>
                     )}
                     {selectedMatchForStats && selectedTeamIds.size === 0 ? (
-                      <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
+                      <div className="p-4 bg-warning/10 border border-warning/30 rounded-lg text-sm text-warning">
                         No team selection found for this fixture. Select the team first to enter stats.
                       </div>
                     ) : (
                       <div className="overflow-x-auto">
                         <table className="w-full min-w-[1000px]">
-                          <thead className="bg-neutral-light">
+                          <thead className="bg-tm-surface-hover">
                             <tr>
-                              <th className="px-4 py-3 text-left text-sm font-bold text-neutral-text sticky left-0 bg-neutral-light z-10">
+                              <th className="px-4 py-3 text-left text-sm font-bold text-tm-text-1 sticky left-0 bg-tm-surface-hover z-10">
                                 Player
                               </th>
-                              <th className="px-3 py-3 text-center text-xs font-bold text-neutral-text">Tackles Made</th>
-                              <th className="px-3 py-3 text-center text-xs font-bold text-neutral-text">Tackles Missed</th>
-                              <th className="px-3 py-3 text-center text-xs font-bold text-neutral-text">Ball Handling Errors</th>
-                              <th className="px-3 py-3 text-center text-xs font-bold text-neutral-text">Ball Carries</th>
-                              <th className="px-3 py-3 text-center text-xs font-bold text-neutral-text">Tries Scored</th>
-                              <th className="px-3 py-3 text-center text-xs font-bold text-neutral-text">Minutes Played</th>
+                              <th className="px-3 py-3 text-center text-xs font-bold text-tm-text-1">Tackles Made</th>
+                              <th className="px-3 py-3 text-center text-xs font-bold text-tm-text-1">Tackles Missed</th>
+                              <th className="px-3 py-3 text-center text-xs font-bold text-tm-text-1">Ball Handling Errors</th>
+                              <th className="px-3 py-3 text-center text-xs font-bold text-tm-text-1">Ball Carries</th>
+                              <th className="px-3 py-3 text-center text-xs font-bold text-tm-text-1">Tries Scored</th>
+                              <th className="px-3 py-3 text-center text-xs font-bold text-tm-text-1">Minutes Played</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-neutral-light">
+                          <tbody className="divide-y divide-tm-border">
                             {statsPlayers.map((player, index) => {
                               const stats = playerStats[player.user_id] || {
                                 player_id: player.user_id,
@@ -2157,9 +2157,9 @@ export default function FixturesPage() {
                               return (
                                 <tr
                                   key={player.user_id}
-                                  className={index % 2 === 0 ? 'bg-white' : 'bg-blue-50/30'}
+                                  className={index % 2 === 0 ? 'bg-tm-surface' : 'bg-tm-surface-hover'}
                                 >
-                                  <td className="px-4 py-3 text-sm font-medium text-neutral-text sticky left-0 bg-inherit z-10 border-r border-neutral-light">
+                                  <td className="px-4 py-3 text-sm font-medium text-tm-text-1 sticky left-0 bg-inherit z-10 border-r border-tm-border">
                                     {player.name}
                                   </td>
                                   <td className="px-2 py-2">
@@ -2168,7 +2168,7 @@ export default function FixturesPage() {
                                       min="0"
                                       value={stats.tackles_made}
                                       onChange={(e) => updatePlayerStat(player.user_id, 'tackles_made', e.target.value)}
-                                      className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm"
+                                      className="w-full px-2 py-1 border border-tm-border rounded text-center text-sm"
                                     />
                                   </td>
                                   <td className="px-2 py-2">
@@ -2177,7 +2177,7 @@ export default function FixturesPage() {
                                       min="0"
                                       value={stats.tackles_missed}
                                       onChange={(e) => updatePlayerStat(player.user_id, 'tackles_missed', e.target.value)}
-                                      className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm"
+                                      className="w-full px-2 py-1 border border-tm-border rounded text-center text-sm"
                                     />
                                   </td>
                                   <td className="px-2 py-2">
@@ -2186,7 +2186,7 @@ export default function FixturesPage() {
                                       min="0"
                                       value={stats.ball_handling_errors}
                                       onChange={(e) => updatePlayerStat(player.user_id, 'ball_handling_errors', e.target.value)}
-                                      className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm"
+                                      className="w-full px-2 py-1 border border-tm-border rounded text-center text-sm"
                                     />
                                   </td>
                                   <td className="px-2 py-2">
@@ -2195,7 +2195,7 @@ export default function FixturesPage() {
                                       min="0"
                                       value={stats.ball_carries}
                                       onChange={(e) => updatePlayerStat(player.user_id, 'ball_carries', e.target.value)}
-                                      className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm"
+                                      className="w-full px-2 py-1 border border-tm-border rounded text-center text-sm"
                                     />
                                   </td>
                                   <td className="px-2 py-2">
@@ -2204,7 +2204,7 @@ export default function FixturesPage() {
                                       min="0"
                                       value={stats.tries_scored}
                                       onChange={(e) => updatePlayerStat(player.user_id, 'tries_scored', e.target.value)}
-                                      className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm"
+                                      className="w-full px-2 py-1 border border-tm-border rounded text-center text-sm"
                                     />
                                   </td>
                                   <td className="px-2 py-2">
@@ -2214,7 +2214,7 @@ export default function FixturesPage() {
                                       max="80"
                                       value={stats.minutes_played}
                                       onChange={(e) => updatePlayerStat(player.user_id, 'minutes_played', e.target.value)}
-                                      className="w-full px-2 py-1 border border-neutral-light rounded text-center text-sm"
+                                      className="w-full px-2 py-1 border border-tm-border rounded text-center text-sm"
                                     />
                                   </td>
                                 </tr>
@@ -2227,11 +2227,11 @@ export default function FixturesPage() {
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="flex gap-3 pt-4 border-t border-neutral-light">
+                  <div className="flex gap-3 pt-4 border-t border-tm-border">
                     <button
                       onClick={handleSaveMatchStats}
                       disabled={savingMatchStats}
-                      className="flex-1 px-6 py-3 bg-club-gradient text-white rounded-button hover:opacity-90 transition-all duration-300 font-semibold shadow-soft hover:shadow-medium disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center"
+                      className="flex-1 px-6 py-3 bg-tm-secondary text-tm-on-secondary rounded-[6px] hover:opacity-90 transition-all duration-300 font-semibold shadow-soft hover:shadow-medium disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center"
                     >
                       <Save className="w-5 h-5 mr-2" />
                       {savingMatchStats ? 'Saving...' : 'Save Match Stats'}
@@ -2255,7 +2255,7 @@ export default function FixturesPage() {
                         setStaffAttendance({})
                       }}
                       disabled={savingMatchStats}
-                      className="px-6 py-3 bg-neutral-light text-neutral-text rounded-button hover:bg-neutral-medium transition-all duration-300 font-semibold disabled:opacity-50"
+                      className="px-6 py-3 bg-tm-surface-hover text-tm-text-1 rounded-[6px] hover:bg-tm-surface-hover transition-all duration-300 font-semibold disabled:opacity-50"
                     >
                       Cancel
                     </button>
@@ -2274,14 +2274,14 @@ export default function FixturesPage() {
     return (
       <Layout pageTitle="Fixtures Summary">
         <div className="space-y-6">
-          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+          <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h2 className="text-2xl font-bold text-neutral-text flex items-center gap-2 mb-2">
+                <h2 className="text-2xl font-bold text-tm-text-1 flex items-center gap-2 mb-2">
                   <Trophy className="w-6 h-6 text-primary" />
                   Match Summaries
                 </h2>
-                <p className="text-neutral-medium">
+                <p className="text-tm-text-3">
                   Summary of played matches with stats and upcoming fixtures with team selections
                 </p>
               </div>
@@ -2293,8 +2293,8 @@ export default function FixturesPage() {
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
               </div>
             ) : matchSummaries.length === 0 ? (
-              <div className="text-center py-12 text-neutral-medium">
-                <Trophy className="w-16 h-16 mx-auto mb-4 text-neutral-light" />
+              <div className="text-center py-12 text-tm-text-3">
+                <Trophy className="w-16 h-16 mx-auto mb-4 text-tm-text-3" />
                 <p className="text-lg font-semibold">No matches found</p>
                 <p className="text-sm mt-2">
                   Matches will appear here once they have stats (for played matches) or team selections (for upcoming fixtures)
@@ -2305,23 +2305,23 @@ export default function FixturesPage() {
                 {matchSummaries.map((summary) => (
                   <div
                     key={summary.matchId}
-                    className="bg-gradient-to-br from-white to-blue-50/30 rounded-lg border border-neutral-light shadow-soft p-5 hover:shadow-medium transition-all"
+                    className="bg-tm-surface rounded-lg border border-tm-border shadow-soft p-5 hover:shadow-medium transition-all"
                   >
                     {/* Match Header */}
-                    <div className="mb-4 pb-4 border-b border-neutral-light">
+                    <div className="mb-4 pb-4 border-b border-tm-border">
                       <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-lg font-bold text-neutral-text">
+                        <h3 className="text-lg font-bold text-tm-text-1">
                           vs {summary.opponent}
                         </h3>
                         <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
                           summary.isUpcoming
-                            ? 'bg-green-100 text-green-700'
-                            : 'bg-gray-100 text-gray-700'
+                            ? 'bg-success/15 text-success'
+                            : 'bg-tm-surface-hover text-tm-text-2'
                         }`}>
                           {summary.isUpcoming ? 'Upcoming' : 'Played'}
                         </span>
                       </div>
-                      <div className="flex flex-wrap gap-2 text-xs text-neutral-medium">
+                      <div className="flex flex-wrap gap-2 text-xs text-tm-text-3">
                         <div className="flex items-center">
                           <Calendar className="w-3 h-3 mr-1" />
                           {new Date(summary.matchDate).toLocaleDateString('en-US', {
@@ -2344,18 +2344,18 @@ export default function FixturesPage() {
 
                     {/* Match Result (for played matches) */}
                     {!summary.isUpcoming && summary.result && (
-                      <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                      <div className="mb-4 p-3 bg-tm-surface-hover rounded-lg border border-tm-border">
                         <div className="flex items-center justify-between">
-                          <span className="text-sm font-semibold text-neutral-text">Result:</span>
+                          <span className="text-sm font-semibold text-tm-text-1">Result:</span>
                           <span className={`text-sm font-bold capitalize ${
                             summary.result === 'win' ? 'text-success' :
-                            summary.result === 'loss' ? 'text-secondary' : 'text-neutral-medium'
+                            summary.result === 'loss' ? 'text-secondary' : 'text-tm-text-3'
                           }`}>
                             {summary.result}
                           </span>
                         </div>
                         {(summary.scoreOurTeam !== undefined && summary.scoreOpponent !== undefined) && (
-                          <div className="mt-2 text-center text-lg font-bold text-neutral-text">
+                          <div className="mt-2 text-center text-lg font-bold text-tm-text-1">
                             {summary.scoreOurTeam} - {summary.scoreOpponent}
                           </div>
                         )}
@@ -2365,18 +2365,18 @@ export default function FixturesPage() {
                     {/* Stats Summary (for played matches) */}
                     {!summary.isUpcoming && (
                       <div>
-                        <h4 className="text-sm font-semibold text-neutral-text mb-3">Match Statistics</h4>
+                        <h4 className="text-sm font-semibold text-tm-text-1 mb-3">Match Statistics</h4>
                         <div className="grid grid-cols-2 gap-2">
-                          <div className="bg-green-50 rounded-lg p-2 border border-green-200">
-                            <div className="text-xs text-neutral-medium">Players with Stats</div>
+                          <div className="bg-success/10 rounded-lg p-2 border border-success/30">
+                            <div className="text-xs text-tm-text-3">Players with Stats</div>
                             <div className="text-lg font-bold text-success">{summary.playersWithStats}</div>
                           </div>
-                          <div className="bg-blue-50 rounded-lg p-2 border border-blue-200">
-                            <div className="text-xs text-neutral-medium">Total Tries</div>
+                          <div className="bg-tm-surface-hover rounded-lg p-2 border border-tm-border">
+                            <div className="text-xs text-tm-text-3">Total Tries</div>
                             <div className="text-lg font-bold text-info">{summary.totalTries}</div>
                           </div>
-                          <div className="bg-purple-50 rounded-lg p-2 border border-purple-200 md:col-span-2">
-                            <div className="text-xs text-neutral-medium">Total Tackles</div>
+                          <div className="bg-info/10 rounded-lg p-2 border border-info/30 md:col-span-2">
+                            <div className="text-xs text-tm-text-3">Total Tackles</div>
                             <div className="text-lg font-bold text-primary">{summary.totalTackles}</div>
                           </div>
                         </div>
@@ -2385,14 +2385,14 @@ export default function FixturesPage() {
 
                     {/* Upcoming Fixture Note */}
                     {summary.isUpcoming && (
-                      <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-200 mb-4">
-                        <p className="text-sm text-yellow-800 mb-2">
+                      <div className="p-3 bg-warning/10 rounded-lg border border-warning/30 mb-4">
+                        <p className="text-sm text-warning mb-2">
                           <strong>Upcoming:</strong> Team selection has been recorded for this fixture.
                         </p>
                         <button
                           onClick={() => handleViewTeam(summary.matchId)}
                           disabled={loadingTeamView && viewingTeamForMatch === summary.matchId}
-                          className="w-full px-4 py-2 bg-secondary text-white rounded-button font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center justify-center disabled:opacity-50"
+                          className="w-full px-4 py-2 bg-secondary text-tm-on-secondary rounded-[6px] font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center justify-center disabled:opacity-50"
                         >
                           <Eye className="w-4 h-4 mr-2" />
                           {loadingTeamView && viewingTeamForMatch === summary.matchId ? 'Loading...' : 'View Selected Team'}
@@ -2409,23 +2409,23 @@ export default function FixturesPage() {
         {/* View Team Selection Modal */}
         {showTeamViewModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-            <div className="bg-white rounded-card shadow-large max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-neutral-light">
-              <div className="p-6 border-b border-neutral-light sticky top-0 bg-white z-10">
+            <div className="bg-tm-surface rounded-card shadow-large max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-tm-border">
+              <div className="p-6 border-b border-tm-border sticky top-0 bg-tm-surface z-10">
                 <div className="flex justify-between items-center">
-                  <h2 className="text-2xl font-bold text-neutral-text">Selected Team</h2>
+                  <h2 className="text-2xl font-bold text-tm-text-1">Selected Team</h2>
                   <button
                     onClick={() => {
                       setShowTeamViewModal(false)
                       setViewingTeamForMatch('')
                       setViewedTeamSelection([])
                     }}
-                    className="text-neutral-medium hover:text-neutral-text"
+                    className="text-tm-text-3 hover:text-tm-text-1"
                   >
                     <X className="w-6 h-6" />
                   </button>
                 </div>
                 {viewingTeamForMatch && (
-                  <p className="text-sm text-neutral-medium mt-2">
+                  <p className="text-sm text-tm-text-3 mt-2">
                     {matches.find(m => m.id === viewingTeamForMatch)?.opponent && 
                       `vs ${matches.find(m => m.id === viewingTeamForMatch)?.opponent} - ${new Date(matches.find(m => m.id === viewingTeamForMatch)?.match_date || '').toLocaleDateString()}`
                     }
@@ -2438,8 +2438,8 @@ export default function FixturesPage() {
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                   </div>
                 ) : viewedTeamSelection.length === 0 ? (
-                  <div className="text-center py-12 text-neutral-medium">
-                    <Users className="w-16 h-16 mx-auto mb-4 text-neutral-light" />
+                  <div className="text-center py-12 text-tm-text-3">
+                    <Users className="w-16 h-16 mx-auto mb-4 text-tm-text-3" />
                     <p className="text-lg font-semibold">No team selected yet</p>
                     <p className="text-sm mt-2">The coach has not selected a team for this fixture</p>
                   </div>
@@ -2447,7 +2447,7 @@ export default function FixturesPage() {
                   <div className="space-y-6">
                     {/* Starting Lineup */}
                     <div>
-                      <h3 className="text-lg font-bold text-neutral-text mb-4 flex items-center gap-2">
+                      <h3 className="text-lg font-bold text-tm-text-1 mb-4 flex items-center gap-2">
                         <Check className="w-5 h-5 text-success" />
                         Starting Lineup ({viewedTeamSelection.filter((s: any) => s.is_starting && !s.is_substitute).length})
                       </h3>
@@ -2455,28 +2455,28 @@ export default function FixturesPage() {
                         {viewedTeamSelection
                           .filter((s: any) => s.is_starting && !s.is_substitute)
                           .map((selection: any) => (
-                            <div key={selection.player_id} className="bg-neutral-light/50 rounded-lg p-3 border border-neutral-light">
+                            <div key={selection.player_id} className="bg-tm-surface-hover/50 rounded-lg p-3 border border-tm-border">
                               <div className="flex items-center justify-between">
                                 <div className="flex-1">
                                   <div className="flex items-center gap-2 flex-wrap mb-1">
-                                    <p className="font-semibold text-neutral-text">{selection.player_name || 'Unknown Player'}</p>
+                                    <p className="font-semibold text-tm-text-1">{selection.player_name || 'Unknown Player'}</p>
                                     {selection.is_captain && (
-                                      <span className="px-2 py-0.5 bg-yellow-500 text-white text-xs font-bold rounded-full flex items-center gap-1">
+                                      <span className="px-2 py-0.5 bg-warning/100 text-white text-xs font-bold rounded-full flex items-center gap-1">
                                         <Trophy className="w-3 h-3" />
                                         Captain
                                       </span>
                                     )}
                                     {selection.is_assistant_captain && (
-                                      <span className="px-2 py-0.5 bg-gray-500 text-white text-xs font-bold rounded-full flex items-center gap-1">
+                                      <span className="px-2 py-0.5 bg-tm-surface-hover0 text-white text-xs font-bold rounded-full flex items-center gap-1">
                                         <Trophy className="w-3 h-3" />
                                         Asst. Captain
                                       </span>
                                     )}
                                   </div>
-                                  <p className="text-sm text-neutral-medium">{selection.position || 'N/A'}</p>
+                                  <p className="text-sm text-tm-text-3">{selection.position || 'N/A'}</p>
                                 </div>
                                 {selection.jersey_number && (
-                                  <span className="px-3 py-1 bg-primary text-white rounded-full text-sm font-bold">
+                                  <span className="px-3 py-1 bg-primary text-tm-on-secondary rounded-full text-sm font-bold">
                                     #{selection.jersey_number}
                                   </span>
                                 )}
@@ -2489,7 +2489,7 @@ export default function FixturesPage() {
                     {/* Substitutes */}
                     {viewedTeamSelection.filter((s: any) => s.is_substitute).length > 0 && (
                       <div>
-                        <h3 className="text-lg font-bold text-neutral-text mb-4 flex items-center gap-2">
+                        <h3 className="text-lg font-bold text-tm-text-1 mb-4 flex items-center gap-2">
                           <Users className="w-5 h-5 text-primary" />
                           Substitutes ({viewedTeamSelection.filter((s: any) => s.is_substitute).length})
                         </h3>
@@ -2497,28 +2497,28 @@ export default function FixturesPage() {
                           {viewedTeamSelection
                             .filter((s: any) => s.is_substitute)
                             .map((selection: any) => (
-                              <div key={selection.player_id} className="bg-neutral-light/50 rounded-lg p-3 border border-neutral-light">
+                              <div key={selection.player_id} className="bg-tm-surface-hover/50 rounded-lg p-3 border border-tm-border">
                                 <div className="flex items-center justify-between">
                                   <div className="flex-1">
                                     <div className="flex items-center gap-2 flex-wrap mb-1">
-                                      <p className="font-semibold text-neutral-text">{selection.player_name || 'Unknown Player'}</p>
+                                      <p className="font-semibold text-tm-text-1">{selection.player_name || 'Unknown Player'}</p>
                                       {selection.is_captain && (
-                                        <span className="px-2 py-0.5 bg-yellow-500 text-white text-xs font-bold rounded-full flex items-center gap-1">
+                                        <span className="px-2 py-0.5 bg-warning/100 text-white text-xs font-bold rounded-full flex items-center gap-1">
                                           <Trophy className="w-3 h-3" />
                                           Captain
                                         </span>
                                       )}
                                       {selection.is_assistant_captain && (
-                                        <span className="px-2 py-0.5 bg-gray-500 text-white text-xs font-bold rounded-full flex items-center gap-1">
+                                        <span className="px-2 py-0.5 bg-tm-surface-hover0 text-white text-xs font-bold rounded-full flex items-center gap-1">
                                           <Trophy className="w-3 h-3" />
                                           Asst. Captain
                                         </span>
                                       )}
                                     </div>
-                                    <p className="text-sm text-neutral-medium">{selection.position || 'N/A'}</p>
+                                    <p className="text-sm text-tm-text-3">{selection.position || 'N/A'}</p>
                                   </div>
                                   {selection.jersey_number && (
-                                    <span className="px-3 py-1 bg-primary text-white rounded-full text-sm font-bold">
+                                    <span className="px-3 py-1 bg-primary text-tm-on-secondary rounded-full text-sm font-bold">
                                       #{selection.jersey_number}
                                     </span>
                                   )}
@@ -2543,16 +2543,16 @@ export default function FixturesPage() {
     <Layout pageTitle="Fixture Team Selection">
       <div className="space-y-6">
         {/* Header */}
-        <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+        <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-bold text-neutral-text flex items-center gap-2">
+            <h2 className="text-2xl font-bold text-tm-text-1 flex items-center gap-2">
               <Trophy className="w-6 h-6 text-primary" />
               Select Team for Fixture
             </h2>
             <button
               onClick={handleSave}
               disabled={saving || teamSelections.size === 0}
-              className="bg-club-gradient text-white px-6 py-2 rounded-button font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="bg-tm-secondary text-tm-on-secondary px-6 py-2 rounded-[6px] font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               <Save className="w-4 h-4" />
               {saving ? 'Saving...' : 'Save Team Selection'}
@@ -2561,7 +2561,7 @@ export default function FixturesPage() {
 
           {/* Match Selector */}
           <div className="mb-6">
-            <label className="block text-sm font-medium text-neutral-text mb-2">
+            <label className="block text-sm font-medium text-tm-text-1 mb-2">
               Select Match
             </label>
             <select
@@ -2570,7 +2570,7 @@ export default function FixturesPage() {
                 setSelectedMatchId(e.target.value)
                 setTeamSelections(new Map())
               }}
-              className="w-full md:w-auto px-4 py-2 border border-neutral-light rounded-button focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-full md:w-auto px-4 py-2 border border-tm-border rounded-[6px] focus:outline-none focus:ring-2 focus:ring-primary"
             >
               <option value="">-- Select a match --</option>
               {coachUpcomingMatches.map((match) => (
@@ -2583,12 +2583,12 @@ export default function FixturesPage() {
 
           {/* Match Info */}
           {selectedMatch && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-neutral-light rounded-lg">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-tm-surface-hover rounded-lg">
               <div className="flex items-center gap-2">
                 <Calendar className="w-5 h-5 text-primary" />
                 <div>
-                  <p className="text-xs text-neutral-medium">Match Date</p>
-                  <p className="text-sm font-semibold text-neutral-text">
+                  <p className="text-xs text-tm-text-3">Match Date</p>
+                  <p className="text-sm font-semibold text-tm-text-1">
                     {new Date(selectedMatch.match_date).toLocaleDateString('en-US', {
                       weekday: 'long',
                       year: 'numeric',
@@ -2601,16 +2601,16 @@ export default function FixturesPage() {
               <div className="flex items-center gap-2">
                 <Trophy className="w-5 h-5 text-secondary" />
                 <div>
-                  <p className="text-xs text-neutral-medium">Opponent</p>
-                  <p className="text-sm font-semibold text-neutral-text">{selectedMatch.opponent}</p>
+                  <p className="text-xs text-tm-text-3">Opponent</p>
+                  <p className="text-sm font-semibold text-tm-text-1">{selectedMatch.opponent}</p>
                 </div>
               </div>
               {selectedMatch.venue && (
                 <div className="flex items-center gap-2">
                   <MapPin className="w-5 h-5 text-success" />
                   <div>
-                    <p className="text-xs text-neutral-medium">Venue</p>
-                    <p className="text-sm font-semibold text-neutral-text">{selectedMatch.venue}</p>
+                    <p className="text-xs text-tm-text-3">Venue</p>
+                    <p className="text-sm font-semibold text-tm-text-1">{selectedMatch.venue}</p>
                   </div>
                 </div>
               )}
@@ -2621,27 +2621,27 @@ export default function FixturesPage() {
         {selectedMatchId && (
           <>
             {/* Selection Summary */}
-            <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+            <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="text-center p-4 bg-primary/10 rounded-lg">
                   <p className="text-2xl font-bold text-primary">{startingPlayers.length}</p>
-                  <p className="text-sm text-neutral-medium">Starting Players</p>
+                  <p className="text-sm text-tm-text-3">Starting Players</p>
                 </div>
                 <div className="text-center p-4 bg-secondary/10 rounded-lg">
                   <p className="text-2xl font-bold text-secondary">{substitutes.length}</p>
-                  <p className="text-sm text-neutral-medium">Substitutes</p>
+                  <p className="text-sm text-tm-text-3">Substitutes</p>
                 </div>
                 <div className="text-center p-4 bg-success/10 rounded-lg">
                   <p className="text-2xl font-bold text-success">{teamSelections.size}</p>
-                  <p className="text-sm text-neutral-medium">Total Selected</p>
+                  <p className="text-sm text-tm-text-3">Total Selected</p>
                 </div>
               </div>
             </div>
 
             {/* Players List */}
-            <div className="bg-white rounded-card border border-neutral-light shadow-soft overflow-hidden">
-              <div className="p-6 border-b border-neutral-light">
-                <h3 className="text-xl font-bold text-neutral-text flex items-center gap-2">
+            <div className="bg-tm-surface rounded-card border border-tm-border shadow-soft overflow-hidden">
+              <div className="p-6 border-b border-tm-border">
+                <h3 className="text-xl font-bold text-tm-text-1 flex items-center gap-2">
                   <Users className="w-5 h-5" />
                   Available Players
                 </h3>
@@ -2658,17 +2658,17 @@ export default function FixturesPage() {
                         className={`border-2 rounded-lg p-4 transition-all ${
                           isSelected
                             ? 'border-primary bg-primary/5 shadow-medium'
-                            : 'border-neutral-light hover:border-primary/50'
+                            : 'border-tm-border hover:border-primary/50'
                         }`}
                       >
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex-1">
-                            <h4 className="font-semibold text-neutral-text">{player.name}</h4>
-                            <p className="text-xs text-neutral-medium capitalize">
+                            <h4 className="font-semibold text-tm-text-1">{player.name}</h4>
+                            <p className="text-xs text-tm-text-3 capitalize">
                               {player.players.position.replace('_', ' ')} • {player.players.category}
                             </p>
                             {player.players.jersey_number && (
-                              <p className="text-xs text-neutral-medium">
+                              <p className="text-xs text-tm-text-3">
                                 Jersey: #{player.players.jersey_number}
                               </p>
                             )}
@@ -2677,8 +2677,8 @@ export default function FixturesPage() {
                             onClick={() => togglePlayerSelection(player.user_id, player)}
                             className={`p-2 rounded-lg transition-colors ${
                               isSelected
-                                ? 'bg-primary text-white'
-                                : 'bg-neutral-light text-neutral-medium hover:bg-primary/10'
+                                ? 'bg-primary text-tm-on-secondary'
+                                : 'bg-tm-surface-hover text-tm-text-3 hover:bg-primary/10'
                             }`}
                           >
                             {isSelected ? (
@@ -2690,7 +2690,7 @@ export default function FixturesPage() {
                         </div>
 
                         {isSelected && (
-                          <div className="space-y-2 mt-3 pt-3 border-t border-neutral-light">
+                          <div className="space-y-2 mt-3 pt-3 border-t border-tm-border">
                             <div className="flex items-center gap-2">
                               <input
                                 type="checkbox"
@@ -2703,7 +2703,7 @@ export default function FixturesPage() {
                                 }}
                                 className="rounded"
                               />
-                              <label className="text-sm text-neutral-text">Starting Player</label>
+                              <label className="text-sm text-tm-text-1">Starting Player</label>
                             </div>
                             <div className="flex items-center gap-2">
                               <input
@@ -2717,7 +2717,7 @@ export default function FixturesPage() {
                                 }}
                                 className="rounded"
                               />
-                              <label className="text-sm text-neutral-text">Substitute</label>
+                              <label className="text-sm text-tm-text-1">Substitute</label>
                             </div>
                             <input
                               type="number"
@@ -2728,7 +2728,7 @@ export default function FixturesPage() {
                                   jersey_number: e.target.value ? parseInt(e.target.value) : undefined,
                                 })
                               }}
-                              className="w-full px-2 py-1 text-sm border border-neutral-light rounded focus:outline-none focus:ring-1 focus:ring-primary"
+                              className="w-full px-2 py-1 text-sm border border-tm-border rounded focus:outline-none focus:ring-1 focus:ring-primary"
                             />
                             {/* Captain Selection */}
                             <div className="flex items-center gap-2">
@@ -2757,7 +2757,7 @@ export default function FixturesPage() {
                                 }}
                                 className="rounded"
                               />
-                              <label className="text-sm text-neutral-text font-semibold">Captain</label>
+                              <label className="text-sm text-tm-text-1 font-semibold">Captain</label>
                             </div>
                             {/* Assistant Captain Selection */}
                             <div className="flex items-center gap-2">
@@ -2786,7 +2786,7 @@ export default function FixturesPage() {
                                 }}
                                 className="rounded"
                               />
-                              <label className="text-sm text-neutral-text font-semibold">Assistant Captain</label>
+                              <label className="text-sm text-tm-text-1 font-semibold">Assistant Captain</label>
                             </div>
                           </div>
                         )}
@@ -2802,23 +2802,23 @@ export default function FixturesPage() {
         {/* View Team Selection Modal */}
         {showTeamViewModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-            <div className="bg-white rounded-card shadow-large max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-neutral-light">
-              <div className="p-6 border-b border-neutral-light sticky top-0 bg-white z-10">
+            <div className="bg-tm-surface rounded-card shadow-large max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-tm-border">
+              <div className="p-6 border-b border-tm-border sticky top-0 bg-tm-surface z-10">
                 <div className="flex justify-between items-center">
-                  <h2 className="text-2xl font-bold text-neutral-text">Selected Team</h2>
+                  <h2 className="text-2xl font-bold text-tm-text-1">Selected Team</h2>
                   <button
                     onClick={() => {
                       setShowTeamViewModal(false)
                       setViewingTeamForMatch('')
                       setViewedTeamSelection([])
                     }}
-                    className="text-neutral-medium hover:text-neutral-text"
+                    className="text-tm-text-3 hover:text-tm-text-1"
                   >
                     <X className="w-6 h-6" />
                   </button>
                 </div>
                 {viewingTeamForMatch && (
-                  <p className="text-sm text-neutral-medium mt-2">
+                  <p className="text-sm text-tm-text-3 mt-2">
                     {matches.find(m => m.id === viewingTeamForMatch)?.opponent && 
                       `vs ${matches.find(m => m.id === viewingTeamForMatch)?.opponent} - ${new Date(matches.find(m => m.id === viewingTeamForMatch)?.match_date || '').toLocaleDateString()}`
                     }
@@ -2831,8 +2831,8 @@ export default function FixturesPage() {
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                   </div>
                 ) : viewedTeamSelection.length === 0 ? (
-                  <div className="text-center py-12 text-neutral-medium">
-                    <Users className="w-16 h-16 mx-auto mb-4 text-neutral-light" />
+                  <div className="text-center py-12 text-tm-text-3">
+                    <Users className="w-16 h-16 mx-auto mb-4 text-tm-text-3" />
                     <p className="text-lg font-semibold">No team selected yet</p>
                     <p className="text-sm mt-2">The coach has not selected a team for this fixture</p>
                   </div>
@@ -2840,7 +2840,7 @@ export default function FixturesPage() {
                   <div className="space-y-6">
                     {/* Starting Lineup */}
                     <div>
-                      <h3 className="text-lg font-bold text-neutral-text mb-4 flex items-center gap-2">
+                      <h3 className="text-lg font-bold text-tm-text-1 mb-4 flex items-center gap-2">
                         <Check className="w-5 h-5 text-success" />
                         Starting Lineup ({viewedTeamSelection.filter((s: any) => s.is_starting && !s.is_substitute).length})
                       </h3>
@@ -2848,14 +2848,14 @@ export default function FixturesPage() {
                         {viewedTeamSelection
                           .filter((s: any) => s.is_starting && !s.is_substitute)
                           .map((selection: any) => (
-                            <div key={selection.player_id} className="bg-neutral-light/50 rounded-lg p-3 border border-neutral-light">
+                            <div key={selection.player_id} className="bg-tm-surface-hover/50 rounded-lg p-3 border border-tm-border">
                               <div className="flex items-center justify-between">
                                 <div>
-                                  <p className="font-semibold text-neutral-text">{selection.player_name || 'Unknown Player'}</p>
-                                  <p className="text-sm text-neutral-medium">{selection.position || 'N/A'}</p>
+                                  <p className="font-semibold text-tm-text-1">{selection.player_name || 'Unknown Player'}</p>
+                                  <p className="text-sm text-tm-text-3">{selection.position || 'N/A'}</p>
                                 </div>
                                 {selection.jersey_number && (
-                                  <span className="px-3 py-1 bg-primary text-white rounded-full text-sm font-bold">
+                                  <span className="px-3 py-1 bg-primary text-tm-on-secondary rounded-full text-sm font-bold">
                                     #{selection.jersey_number}
                                   </span>
                                 )}
@@ -2868,7 +2868,7 @@ export default function FixturesPage() {
                     {/* Substitutes */}
                     {viewedTeamSelection.filter((s: any) => s.is_substitute).length > 0 && (
                       <div>
-                        <h3 className="text-lg font-bold text-neutral-text mb-4 flex items-center gap-2">
+                        <h3 className="text-lg font-bold text-tm-text-1 mb-4 flex items-center gap-2">
                           <Users className="w-5 h-5 text-primary" />
                           Substitutes ({viewedTeamSelection.filter((s: any) => s.is_substitute).length})
                         </h3>
@@ -2876,14 +2876,14 @@ export default function FixturesPage() {
                           {viewedTeamSelection
                             .filter((s: any) => s.is_substitute)
                             .map((selection: any) => (
-                              <div key={selection.player_id} className="bg-neutral-light/50 rounded-lg p-3 border border-neutral-light">
+                              <div key={selection.player_id} className="bg-tm-surface-hover/50 rounded-lg p-3 border border-tm-border">
                                 <div className="flex items-center justify-between">
                                   <div>
-                                    <p className="font-semibold text-neutral-text">{selection.player_name || 'Unknown Player'}</p>
-                                    <p className="text-sm text-neutral-medium">{selection.position || 'N/A'}</p>
+                                    <p className="font-semibold text-tm-text-1">{selection.player_name || 'Unknown Player'}</p>
+                                    <p className="text-sm text-tm-text-3">{selection.position || 'N/A'}</p>
                                   </div>
                                   {selection.jersey_number && (
-                                    <span className="px-3 py-1 bg-primary text-white rounded-full text-sm font-bold">
+                                    <span className="px-3 py-1 bg-primary text-tm-on-secondary rounded-full text-sm font-bold">
                                       #{selection.jersey_number}
                                     </span>
                                   )}

@@ -36,7 +36,7 @@ export default function RefreshButton({ onRefresh, className = '', size = 'md' }
     <button
       onClick={handleRefresh}
       disabled={isRefreshing}
-      className={`inline-flex items-center gap-2 px-4 py-2 bg-white border border-neutral-light rounded-button font-semibold text-neutral-text hover:bg-neutral-light transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
+      className={`inline-flex items-center gap-2 px-4 py-2 bg-tm-surface border border-tm-border rounded-[6px] font-medium text-tm-text-2 hover:border-tm-secondary hover:text-tm-secondary transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
       title="Refresh data"
     >
       <RefreshCw className={`${sizeClasses[size]} ${isRefreshing ? 'animate-spin' : ''}`} />

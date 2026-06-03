@@ -2,10 +2,10 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import Layout from '@/components/Layout'
-import StatCard from '@/components/StatCard'
-import { Users, Search, Filter, UserPlus, Eye, Edit, AlertCircle, CheckCircle, X, Save, Dumbbell, Award } from 'lucide-react'
+import ConceptStatCard from '@/components/ConceptStatCard'
+import { PageHeader, Button, Card, StatGrid } from '@/components/ui'
+import { Users, Search, Filter, UserPlus, Eye, Edit, AlertCircle, CheckCircle, X, Save, Dumbbell, Award, RefreshCw } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import RefreshButton from '@/components/RefreshButton'
 
 interface Player {
   id: string
@@ -361,7 +361,7 @@ export default function PlayersPage() {
     return (
       <Layout pageTitle="Players">
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-tm-secondary"></div>
         </div>
       </Layout>
     )
@@ -394,42 +394,67 @@ export default function PlayersPage() {
 
   return (
     <Layout pageTitle="Players">
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-4xl font-extrabold text-club-gradient mb-2">Player Management</h1>
-            <p className="text-lg text-neutral-medium font-medium">Manage and view all players</p>
-          </div>
-          <RefreshButton onRefresh={loadData} />
-          {(user?.role === 'coach' || user?.role === 'admin' || user?.role === 'data_admin') && (
-            <button
-              onClick={() => {
-                setPlayerForm({ name: '', email: '', phone: '', position: '', category: 'forwards', jersey_number: '', date_of_birth: '', height_cm: '', weight_kg: '', status: 'active', benchPressPB: '', squatPB: '', deadliftPB: '', pullUpPB: '' })
-                setShowAddModal(true)
-              }}
-              className="bg-club-gradient text-white px-6 py-3 rounded-button font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
-            >
-              <UserPlus className="w-5 h-5 mr-2" />
-              Add Player
-            </button>
-          )}
-        </div>
+      <div className="space-y-5">
+        <PageHeader
+          title="Player management"
+          subtitle="Manage and view all players"
+          actions={
+            <>
+              <Button variant="secondary" icon={RefreshCw} onClick={loadData}>
+                Refresh
+              </Button>
+              {(user?.role === 'coach' || user?.role === 'admin' || user?.role === 'data_admin') && (
+                <Button
+                  icon={UserPlus}
+                  onClick={() => {
+                    setPlayerForm({ name: '', email: '', phone: '', position: '', category: 'forwards', jersey_number: '', date_of_birth: '', height_cm: '', weight_kg: '', status: 'active', benchPressPB: '', squatPB: '', deadliftPB: '', pullUpPB: '' })
+                    setShowAddModal(true)
+                  }}
+                >
+                  Add player
+                </Button>
+              )}
+            </>
+          }
+        />
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <StatCard title="Total Players" value={totalPlayers} icon={Users} iconColor="bg-primary" />
-          <StatCard title="Active Players" value={`${activePlayers} (${Math.round((activePlayers / totalPlayers) * 100) || 0}%)`} icon={CheckCircle} iconColor="bg-success" />
-          <StatCard title="Injured Players" value={injuredPlayers} icon={AlertCircle} iconColor="bg-secondary" />
-        </div>
+        <StatGrid cols={3}>
+          <ConceptStatCard
+            label="Total players"
+            value={totalPlayers}
+            meta="All registered players"
+            icon={Users}
+            iconBgColor="rgba(91, 163, 217, 0.12)"
+            iconTextColor="#5BA3D9"
+          />
+          <ConceptStatCard
+            label="Active players"
+            value={`${activePlayers} (${Math.round((activePlayers / totalPlayers) * 100) || 0}%)`}
+            meta="Currently available"
+            icon={CheckCircle}
+            iconBgColor="rgba(45, 184, 138, 0.12)"
+            iconTextColor="#2DB88A"
+          />
+          <ConceptStatCard
+            label="Injured players"
+            value={injuredPlayers}
+            valueColor="#E05757"
+            meta="Out with injury"
+            icon={AlertCircle}
+            iconBgColor="rgba(224, 87, 87, 0.12)"
+            iconTextColor="#E05757"
+          />
+        </StatGrid>
 
-        <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
-          <div className="flex flex-col md:flex-row gap-4">
+        <Card>
+          <div className="flex flex-col md:flex-row gap-3">
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-medium w-5 h-5" />
-              <input type="text" placeholder="Search by name, position, or email..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-3 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-tm-text-3 w-[18px] h-[18px]" />
+              <input type="text" placeholder="Search by name, position, or email..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="tm-input pl-10" />
             </div>
             <div className="relative">
-              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-medium w-5 h-5" />
-              <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="pl-10 pr-4 py-3 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all appearance-none bg-white">
+              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-tm-text-3 w-[18px] h-[18px] pointer-events-none z-10" />
+              <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="tm-select pl-10 pr-8 appearance-none md:w-48">
                 <option value="all">All Status</option>
                 <option value="active">Active</option>
                 <option value="injured">Injured</option>
@@ -437,54 +462,54 @@ export default function PlayersPage() {
               </select>
             </div>
           </div>
-        </div>
+        </Card>
 
-        <div className="bg-white rounded-card border border-neutral-light shadow-soft overflow-hidden">
-          <div className="md:hidden divide-y divide-neutral-light">
+        <Card padded={false}>
+          <div className="md:hidden divide-y divide-tm-border">
             {filteredPlayers.length === 0 ? (
-              <div className="px-4 py-8 text-center text-neutral-medium">No players found</div>
+              <div className="px-4 py-8 text-center text-tm-text-3">No players found</div>
             ) : (
               filteredPlayers.map((player) => (
                 <div key={player.id} className="p-4 space-y-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-club-gradient flex items-center justify-center text-white font-bold">
+                    <div className="w-10 h-10 rounded-full bg-tm-secondary flex items-center justify-center text-tm-on-secondary font-bold">
                       {player.name.charAt(0).toUpperCase()}
                     </div>
                     <div>
-                      <p className="font-semibold text-neutral-text">{player.name}</p>
-                      <p className="text-sm text-neutral-medium">{player.email}</p>
+                      <p className="font-semibold text-tm-text-1">{player.name}</p>
+                      <p className="text-sm text-tm-text-3">{player.email}</p>
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2 text-xs">
-                    <span className="px-2 py-1 rounded-full bg-neutral-light text-neutral-text capitalize">
+                    <span className="px-2 py-1 rounded-full bg-tm-surface-hover text-tm-text-1 capitalize">
                       {player.position.replace('_', ' ')}
                     </span>
                     <span className={`px-2 py-1 rounded-full font-medium ${
                       player.status === 'active'
                         ? 'bg-success/10 text-success'
                         : player.status === 'injured'
-                        ? 'bg-secondary/10 text-secondary'
+                        ? 'bg-[#E05757]/10 text-[#E05757]'
                         : 'bg-warning/10 text-warning'
                     }`}>
                       {player.status}
                     </span>
                   </div>
-                  <div className="grid grid-cols-3 gap-3 text-sm text-neutral-medium">
+                  <div className="grid grid-cols-3 gap-3 text-sm text-tm-text-3">
                     <div>
-                      <p className="text-xs text-neutral-medium">Games</p>
-                      <p className="font-semibold text-neutral-text">{player.games_played || 0}</p>
+                      <p className="text-xs text-tm-text-3">Games</p>
+                      <p className="font-semibold text-tm-text-1">{player.games_played || 0}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-neutral-medium">Tries</p>
-                      <p className="font-semibold text-neutral-text">{player.tries || 0}</p>
+                      <p className="text-xs text-tm-text-3">Tries</p>
+                      <p className="font-semibold text-tm-text-1">{player.tries || 0}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-neutral-medium">Tackles</p>
-                      <p className="font-semibold text-neutral-text">{player.tackles || 0}</p>
+                      <p className="text-xs text-tm-text-3">Tackles</p>
+                      <p className="font-semibold text-tm-text-1">{player.tackles || 0}</p>
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <button onClick={() => { setSelectedPlayer(player); setShowViewModal(true) }} className="p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors" title="View Details">
+                    <button onClick={() => { setSelectedPlayer(player); setShowViewModal(true) }} className="p-2 text-tm-secondary hover:bg-tm-surface-hover rounded-lg transition-colors" title="View Details">
                       <Eye className="w-4 h-4" />
                     </button>
                     {(user?.role === 'coach' || user?.role === 'admin' || user?.role === 'data_admin') && (
@@ -519,8 +544,8 @@ export default function PlayersPage() {
                         disabled={togglingClubCaptain === (player.user_id || player.id)}
                         className={`p-2 rounded-lg transition-colors ${
                           clubCaptainStatus[player.user_id || player.id]
-                            ? 'text-yellow-600 bg-yellow-100 hover:bg-yellow-200'
-                            : 'text-neutral-medium hover:bg-neutral-light'
+                            ? 'text-warning bg-warning/15 hover:bg-warning/25'
+                            : 'text-tm-text-3 hover:bg-tm-surface-hover'
                         } disabled:opacity-50 disabled:cursor-not-allowed`}
                         title={clubCaptainStatus[player.user_id || player.id] ? 'Remove Club Captain' : 'Make Club Captain'}
                       >
@@ -538,48 +563,48 @@ export default function PlayersPage() {
           </div>
           <div className="hidden md:block overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-neutral-light">
+              <thead className="bg-tm-surface-hover">
                 <tr>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-neutral-text uppercase">Player</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-neutral-text uppercase">Position</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-neutral-text uppercase">Status</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-neutral-text uppercase">Games</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-neutral-text uppercase">Tries</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-neutral-text uppercase">Tackles</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-neutral-text uppercase">Actions</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-tm-text-1 uppercase">Player</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-tm-text-1 uppercase">Position</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-tm-text-1 uppercase">Status</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-tm-text-1 uppercase">Games</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-tm-text-1 uppercase">Tries</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-tm-text-1 uppercase">Tackles</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-tm-text-1 uppercase">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-neutral-light">
+              <tbody className="divide-y divide-tm-border">
                 {filteredPlayers.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center text-neutral-medium">No players found</td>
+                    <td colSpan={7} className="px-6 py-12 text-center text-tm-text-3">No players found</td>
                   </tr>
                 ) : (
                   filteredPlayers.map((player) => (
-                    <tr key={player.id} className="hover:bg-neutral-light transition-colors cursor-pointer">
+                    <tr key={player.id} className="hover:bg-tm-surface-hover transition-colors cursor-pointer">
                       <td className="px-6 py-4">
                         <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 rounded-full bg-club-gradient flex items-center justify-center text-white font-bold">
+                          <div className="w-10 h-10 rounded-full bg-tm-secondary flex items-center justify-center text-tm-on-secondary font-bold">
                             {player.name.charAt(0).toUpperCase()}
                           </div>
                           <div>
-                            <p className="font-medium text-neutral-text">{player.name}</p>
-                            <p className="text-sm text-neutral-medium">{player.email}</p>
+                            <p className="font-medium text-tm-text-1">{player.name}</p>
+                            <p className="text-sm text-tm-text-3">{player.email}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-sm text-neutral-medium capitalize">{player.position.replace('_', ' ')}</td>
+                      <td className="px-6 py-4 text-sm text-tm-text-3 capitalize">{player.position.replace('_', ' ')}</td>
                       <td className="px-6 py-4">
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${player.status === 'active' ? 'bg-success/10 text-success' : player.status === 'injured' ? 'bg-secondary/10 text-secondary' : 'bg-warning/10 text-warning'}`}>
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${player.status === 'active' ? 'bg-success/10 text-success' : player.status === 'injured' ? 'bg-[#E05757]/10 text-[#E05757]' : 'bg-warning/10 text-warning'}`}>
                           {player.status}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-sm text-neutral-medium">{player.games_played || 0}</td>
-                      <td className="px-6 py-4 text-sm text-neutral-medium">{player.tries || 0}</td>
-                      <td className="px-6 py-4 text-sm text-neutral-medium">{player.tackles || 0}</td>
+                      <td className="px-6 py-4 text-sm text-tm-text-3">{player.games_played || 0}</td>
+                      <td className="px-6 py-4 text-sm text-tm-text-3">{player.tries || 0}</td>
+                      <td className="px-6 py-4 text-sm text-tm-text-3">{player.tackles || 0}</td>
                       <td className="px-6 py-4">
                         <div className="flex items-center space-x-2">
-                          <button onClick={() => { setSelectedPlayer(player); setShowViewModal(true) }} className="p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors" title="View Details">
+                          <button onClick={() => { setSelectedPlayer(player); setShowViewModal(true) }} className="p-2 text-tm-secondary hover:bg-tm-surface-hover rounded-lg transition-colors" title="View Details">
                             <Eye className="w-4 h-4" />
                           </button>
                           {(user?.role === 'coach' || user?.role === 'admin' || user?.role === 'data_admin') && (
@@ -614,8 +639,8 @@ export default function PlayersPage() {
                               disabled={togglingClubCaptain === (player.user_id || player.id)}
                               className={`p-2 rounded-lg transition-colors ${
                                 clubCaptainStatus[player.user_id || player.id]
-                                  ? 'text-yellow-600 bg-yellow-100 hover:bg-yellow-200'
-                                  : 'text-neutral-medium hover:bg-neutral-light'
+                                  ? 'text-warning bg-warning/15 hover:bg-warning/25'
+                                  : 'text-tm-text-3 hover:bg-tm-surface-hover'
                               } disabled:opacity-50 disabled:cursor-not-allowed`}
                               title={clubCaptainStatus[player.user_id || player.id] ? 'Remove Club Captain' : 'Make Club Captain'}
                             >
@@ -634,16 +659,16 @@ export default function PlayersPage() {
               </tbody>
             </table>
           </div>
-        </div>
+        </Card>
       </div>
 
       {showAddModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:p-4">
-          <div className="bg-white rounded-card shadow-soft w-full max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-4 sm:p-6 border-b border-neutral-light">
+          <div className="rounded-[10px] border border-tm-border bg-tm-surface shadow-xl w-full max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="p-4 sm:p-6 border-b border-tm-border">
               <div className="flex items-center justify-between">
-                <h3 className="text-2xl font-bold text-neutral-text">Add New Player</h3>
-                <button onClick={() => setShowAddModal(false)} className="text-neutral-medium hover:text-neutral-text transition-colors">
+                <h3 className="text-2xl font-bold text-tm-text-1">Add New Player</h3>
+                <button onClick={() => setShowAddModal(false)} className="text-tm-text-3 hover:text-tm-text-1 transition-colors">
                   <X className="w-6 h-6" />
                 </button>
               </div>
@@ -651,27 +676,27 @@ export default function PlayersPage() {
             <div className="p-4 sm:p-6 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-neutral-text mb-2">Name *</label>
-                  <input type="text" value={playerForm.name} onChange={(e) => setPlayerForm({ ...playerForm, name: e.target.value })} className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" required />
+                  <label className="block text-sm font-semibold text-tm-text-1 mb-2">Name *</label>
+                  <input type="text" value={playerForm.name} onChange={(e) => setPlayerForm({ ...playerForm, name: e.target.value })} className="tm-input" required />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-neutral-text mb-2">Email *</label>
-                  <input type="email" value={playerForm.email} onChange={(e) => setPlayerForm({ ...playerForm, email: e.target.value })} className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" required />
+                  <label className="block text-sm font-semibold text-tm-text-1 mb-2">Email *</label>
+                  <input type="email" value={playerForm.email} onChange={(e) => setPlayerForm({ ...playerForm, email: e.target.value })} className="tm-input" required />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-neutral-text mb-2">Phone</label>
-                  <input type="tel" value={playerForm.phone} onChange={(e) => setPlayerForm({ ...playerForm, phone: e.target.value })} className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" />
+                  <label className="block text-sm font-semibold text-tm-text-1 mb-2">Phone</label>
+                  <input type="tel" value={playerForm.phone} onChange={(e) => setPlayerForm({ ...playerForm, phone: e.target.value })} className="tm-input" />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-neutral-text mb-2">Category *</label>
-                  <select value={playerForm.category} onChange={(e) => { setPlayerForm({ ...playerForm, category: e.target.value as 'forwards' | 'backs', position: '' }) }} className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
+                  <label className="block text-sm font-semibold text-tm-text-1 mb-2">Category *</label>
+                  <select value={playerForm.category} onChange={(e) => { setPlayerForm({ ...playerForm, category: e.target.value as 'forwards' | 'backs', position: '' }) }} className="tm-input">
                     <option value="forwards">Forwards</option>
                     <option value="backs">Backs</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-neutral-text mb-2">Position *</label>
-                  <select value={playerForm.position} onChange={(e) => setPlayerForm({ ...playerForm, position: e.target.value })} className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" required>
+                  <label className="block text-sm font-semibold text-tm-text-1 mb-2">Position *</label>
+                  <select value={playerForm.position} onChange={(e) => setPlayerForm({ ...playerForm, position: e.target.value })} className="tm-input" required>
                     <option value="">Select Position</option>
                     {positions.filter(p => p.category === playerForm.category).map(pos => (
                       <option key={pos.value} value={pos.value}>{pos.label}</option>
@@ -679,8 +704,8 @@ export default function PlayersPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-neutral-text mb-2">Status</label>
-                  <select value={playerForm.status} onChange={(e) => setPlayerForm({ ...playerForm, status: e.target.value })} className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
+                  <label className="block text-sm font-semibold text-tm-text-1 mb-2">Status</label>
+                  <select value={playerForm.status} onChange={(e) => setPlayerForm({ ...playerForm, status: e.target.value })} className="tm-input">
                     <option value="active">Active</option>
                     <option value="injured">Injured</option>
                     <option value="inactive">Inactive</option>
@@ -688,11 +713,11 @@ export default function PlayersPage() {
                 </div>
               </div>
             </div>
-            <div className="p-4 sm:p-6 border-t border-neutral-light flex justify-end space-x-3">
-              <button onClick={() => setShowAddModal(false)} className="px-6 py-2 border border-neutral-light rounded-button font-semibold text-neutral-text hover:bg-neutral-light transition-colors" disabled={saving}>
+            <div className="p-4 sm:p-6 border-t border-tm-border flex justify-end space-x-3">
+              <button onClick={() => setShowAddModal(false)} className="px-6 py-2 border border-tm-border rounded-[6px] font-semibold text-tm-text-1 hover:bg-tm-surface-hover transition-colors" disabled={saving}>
                 Cancel
               </button>
-              <button onClick={handleAddPlayer} className="px-6 py-2 bg-primary text-white rounded-button font-semibold hover:bg-primary-dark transition-colors flex items-center disabled:opacity-50 disabled:cursor-not-allowed" disabled={saving || !playerForm.name || !playerForm.email || !playerForm.position}>
+              <button onClick={handleAddPlayer} className="px-6 py-2 bg-tm-secondary text-tm-on-secondary rounded-[6px] font-semibold hover:opacity-90 transition-colors flex items-center disabled:opacity-50 disabled:cursor-not-allowed" disabled={saving || !playerForm.name || !playerForm.email || !playerForm.position}>
                 <Save className="w-4 h-4 mr-2" />
                 {saving ? 'Adding...' : 'Add Player'}
               </button>
@@ -703,11 +728,11 @@ export default function PlayersPage() {
 
       {showEditModal && selectedPlayer && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:p-4">
-          <div className="bg-white rounded-card shadow-soft w-full max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-4 sm:p-6 border-b border-neutral-light">
+          <div className="rounded-[10px] border border-tm-border bg-tm-surface shadow-xl w-full max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="p-4 sm:p-6 border-b border-tm-border">
               <div className="flex items-center justify-between">
-                <h3 className="text-2xl font-bold text-neutral-text">Edit Player</h3>
-                <button onClick={() => setShowEditModal(false)} className="text-neutral-medium hover:text-neutral-text transition-colors">
+                <h3 className="text-2xl font-bold text-tm-text-1">Edit Player</h3>
+                <button onClick={() => setShowEditModal(false)} className="text-tm-text-3 hover:text-tm-text-1 transition-colors">
                   <X className="w-6 h-6" />
                 </button>
               </div>
@@ -715,20 +740,20 @@ export default function PlayersPage() {
             <div className="p-4 sm:p-6 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-neutral-text mb-2">Name *</label>
-                  <input type="text" value={playerForm.name} onChange={(e) => setPlayerForm({ ...playerForm, name: e.target.value })} className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" required />
+                  <label className="block text-sm font-semibold text-tm-text-1 mb-2">Name *</label>
+                  <input type="text" value={playerForm.name} onChange={(e) => setPlayerForm({ ...playerForm, name: e.target.value })} className="tm-input" required />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-neutral-text mb-2">Email *</label>
-                  <input type="email" value={playerForm.email} onChange={(e) => setPlayerForm({ ...playerForm, email: e.target.value })} className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" required />
+                  <label className="block text-sm font-semibold text-tm-text-1 mb-2">Email *</label>
+                  <input type="email" value={playerForm.email} onChange={(e) => setPlayerForm({ ...playerForm, email: e.target.value })} className="tm-input" required />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-neutral-text mb-2">Phone</label>
-                  <input type="tel" value={playerForm.phone} onChange={(e) => setPlayerForm({ ...playerForm, phone: e.target.value })} className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" />
+                  <label className="block text-sm font-semibold text-tm-text-1 mb-2">Phone</label>
+                  <input type="tel" value={playerForm.phone} onChange={(e) => setPlayerForm({ ...playerForm, phone: e.target.value })} className="tm-input" />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-neutral-text mb-2">Status</label>
-                  <select value={playerForm.status} onChange={(e) => setPlayerForm({ ...playerForm, status: e.target.value })} className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
+                  <label className="block text-sm font-semibold text-tm-text-1 mb-2">Status</label>
+                  <select value={playerForm.status} onChange={(e) => setPlayerForm({ ...playerForm, status: e.target.value })} className="tm-input">
                     <option value="active">Active</option>
                     <option value="injured">Injured</option>
                     <option value="inactive">Inactive</option>
@@ -736,11 +761,11 @@ export default function PlayersPage() {
                 </div>
               </div>
             </div>
-            <div className="p-4 sm:p-6 border-t border-neutral-light flex justify-end space-x-3">
-              <button onClick={() => setShowEditModal(false)} className="px-6 py-2 border border-neutral-light rounded-button font-semibold text-neutral-text hover:bg-neutral-light transition-colors" disabled={saving}>
+            <div className="p-4 sm:p-6 border-t border-tm-border flex justify-end space-x-3">
+              <button onClick={() => setShowEditModal(false)} className="px-6 py-2 border border-tm-border rounded-[6px] font-semibold text-tm-text-1 hover:bg-tm-surface-hover transition-colors" disabled={saving}>
                 Cancel
               </button>
-              <button onClick={handleUpdatePlayer} className="px-6 py-2 bg-primary text-white rounded-button font-semibold hover:bg-primary-dark transition-colors flex items-center disabled:opacity-50 disabled:cursor-not-allowed" disabled={saving || !playerForm.name || !playerForm.email}>
+              <button onClick={handleUpdatePlayer} className="px-6 py-2 bg-tm-secondary text-tm-on-secondary rounded-[6px] font-semibold hover:opacity-90 transition-colors flex items-center disabled:opacity-50 disabled:cursor-not-allowed" disabled={saving || !playerForm.name || !playerForm.email}>
                 <Save className="w-4 h-4 mr-2" />
                 {saving ? 'Saving...' : 'Save Changes'}
               </button>
@@ -751,53 +776,53 @@ export default function PlayersPage() {
 
       {showViewModal && selectedPlayer && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:p-4">
-          <div className="bg-white rounded-card shadow-soft w-full max-w-[95vw] sm:max-w-2xl">
-            <div className="p-4 sm:p-6 border-b border-neutral-light">
+          <div className="rounded-[10px] border border-tm-border bg-tm-surface shadow-xl w-full max-w-[95vw] sm:max-w-2xl">
+            <div className="p-4 sm:p-6 border-b border-tm-border">
               <div className="flex items-center justify-between">
-                <h3 className="text-2xl font-bold text-neutral-text">Player Details</h3>
-                <button onClick={() => setShowViewModal(false)} className="text-neutral-medium hover:text-neutral-text transition-colors">
+                <h3 className="text-2xl font-bold text-tm-text-1">Player Details</h3>
+                <button onClick={() => setShowViewModal(false)} className="text-tm-text-3 hover:text-tm-text-1 transition-colors">
                   <X className="w-6 h-6" />
                 </button>
               </div>
             </div>
             <div className="p-4 sm:p-6 space-y-4">
               <div className="flex items-center space-x-4">
-                <div className="w-20 h-20 rounded-full bg-club-gradient flex items-center justify-center text-white font-bold text-2xl">
+                <div className="w-20 h-20 rounded-full bg-tm-secondary flex items-center justify-center text-tm-on-secondary font-bold text-2xl">
                   {selectedPlayer.name.charAt(0).toUpperCase()}
                 </div>
                 <div>
-                  <h4 className="text-xl font-bold text-neutral-text">{selectedPlayer.name}</h4>
-                  <p className="text-neutral-medium">{selectedPlayer.email}</p>
-                  <p className="text-neutral-medium">{selectedPlayer.phone}</p>
+                  <h4 className="text-xl font-bold text-tm-text-1">{selectedPlayer.name}</h4>
+                  <p className="text-tm-text-3">{selectedPlayer.email}</p>
+                  <p className="text-tm-text-3">{selectedPlayer.phone}</p>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-neutral-light">
+              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-tm-border">
                 <div>
-                  <p className="text-sm text-neutral-medium">Position</p>
-                  <p className="font-semibold text-neutral-text capitalize">{selectedPlayer.position.replace('_', ' ')}</p>
+                  <p className="text-sm text-tm-text-3">Position</p>
+                  <p className="font-semibold text-tm-text-1 capitalize">{selectedPlayer.position.replace('_', ' ')}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-neutral-medium">Status</p>
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${selectedPlayer.status === 'active' ? 'bg-success/10 text-success' : selectedPlayer.status === 'injured' ? 'bg-secondary/10 text-secondary' : 'bg-warning/10 text-warning'}`}>
+                  <p className="text-sm text-tm-text-3">Status</p>
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${selectedPlayer.status === 'active' ? 'bg-success/10 text-success' : selectedPlayer.status === 'injured' ? 'bg-[#E05757]/10 text-[#E05757]' : 'bg-warning/10 text-warning'}`}>
                     {selectedPlayer.status}
                   </span>
                 </div>
                 <div>
-                  <p className="text-sm text-neutral-medium">Games Played</p>
-                  <p className="font-semibold text-neutral-text">{selectedPlayer.games_played || 0}</p>
+                  <p className="text-sm text-tm-text-3">Games Played</p>
+                  <p className="font-semibold text-tm-text-1">{selectedPlayer.games_played || 0}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-neutral-medium">Tries</p>
-                  <p className="font-semibold text-neutral-text">{selectedPlayer.tries || 0}</p>
+                  <p className="text-sm text-tm-text-3">Tries</p>
+                  <p className="font-semibold text-tm-text-1">{selectedPlayer.tries || 0}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-neutral-medium">Tackles</p>
-                  <p className="font-semibold text-neutral-text">{selectedPlayer.tackles || 0}</p>
+                  <p className="text-sm text-tm-text-3">Tackles</p>
+                  <p className="font-semibold text-tm-text-1">{selectedPlayer.tackles || 0}</p>
                 </div>
               </div>
             </div>
-            <div className="p-4 sm:p-6 border-t border-neutral-light flex justify-end">
-              <button onClick={() => setShowViewModal(false)} className="px-6 py-2 bg-primary text-white rounded-button font-semibold hover:bg-primary-dark transition-colors">
+            <div className="p-4 sm:p-6 border-t border-tm-border flex justify-end">
+              <button onClick={() => setShowViewModal(false)} className="px-6 py-2 bg-tm-secondary text-tm-on-secondary rounded-[6px] font-semibold hover:opacity-90 transition-colors">
                 Close
               </button>
             </div>
@@ -807,21 +832,21 @@ export default function PlayersPage() {
 
       {showGymMetricsModal && selectedPlayerForGym && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:p-4">
-          <div className="bg-white rounded-card shadow-soft w-full max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-4 sm:p-6 border-b border-neutral-light">
+          <div className="rounded-[10px] border border-tm-border bg-tm-surface shadow-xl w-full max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="p-4 sm:p-6 border-b border-tm-border">
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
                   <Dumbbell className="w-6 h-6 text-primary mr-2" />
-                  <h3 className="text-2xl font-bold text-neutral-text">Update Gym Metrics - {selectedPlayerForGym.name}</h3>
+                  <h3 className="text-2xl font-bold text-tm-text-1">Update Gym Metrics - {selectedPlayerForGym.name}</h3>
                 </div>
-                <button onClick={() => { setShowGymMetricsModal(false); setSelectedPlayerForGym(null) }} className="text-neutral-medium hover:text-neutral-text transition-colors">
+                <button onClick={() => { setShowGymMetricsModal(false); setSelectedPlayerForGym(null) }} className="text-tm-text-3 hover:text-tm-text-1 transition-colors">
                   <X className="w-6 h-6" />
                 </button>
               </div>
             </div>
             <div className="p-4 sm:p-6 space-y-6">
               <div>
-                <label className="block text-sm font-semibold text-neutral-text mb-2">
+                <label className="block text-sm font-semibold text-tm-text-1 mb-2">
                   Bench Press Personal Best (kg)
                 </label>
                 <input
@@ -830,12 +855,12 @@ export default function PlayersPage() {
                   step="0.5"
                   value={gymMetricsForm.benchPressPB}
                   onChange={(e) => setGymMetricsForm({ ...gymMetricsForm, benchPressPB: e.target.value })}
-                  className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="tm-input"
                   placeholder="Enter weight in kg"
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-neutral-text mb-2">
+                <label className="block text-sm font-semibold text-tm-text-1 mb-2">
                   Squat Personal Best (kg)
                 </label>
                 <input
@@ -844,12 +869,12 @@ export default function PlayersPage() {
                   step="0.5"
                   value={gymMetricsForm.squatPB}
                   onChange={(e) => setGymMetricsForm({ ...gymMetricsForm, squatPB: e.target.value })}
-                  className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="tm-input"
                   placeholder="Enter weight in kg"
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-neutral-text mb-2">
+                <label className="block text-sm font-semibold text-tm-text-1 mb-2">
                   Deadlift Personal Best (kg)
                 </label>
                 <input
@@ -858,12 +883,12 @@ export default function PlayersPage() {
                   step="0.5"
                   value={gymMetricsForm.deadliftPB}
                   onChange={(e) => setGymMetricsForm({ ...gymMetricsForm, deadliftPB: e.target.value })}
-                  className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="tm-input"
                   placeholder="Enter weight in kg"
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-neutral-text mb-2">
+                <label className="block text-sm font-semibold text-tm-text-1 mb-2">
                   Pull-ups Personal Best (reps)
                 </label>
                 <input
@@ -872,15 +897,15 @@ export default function PlayersPage() {
                   step="1"
                   value={gymMetricsForm.pullUpPB}
                   onChange={(e) => setGymMetricsForm({ ...gymMetricsForm, pullUpPB: e.target.value })}
-                  className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="tm-input"
                   placeholder="Enter number of reps"
                 />
               </div>
             </div>
-            <div className="p-6 border-t border-neutral-light flex justify-end space-x-3">
+            <div className="p-6 border-t border-tm-border flex justify-end space-x-3">
               <button
                 onClick={() => { setShowGymMetricsModal(false); setSelectedPlayerForGym(null) }}
-                className="px-6 py-2 border border-neutral-light rounded-button font-semibold text-neutral-text hover:bg-neutral-light transition-colors"
+                className="px-6 py-2 border border-tm-border rounded-[6px] font-semibold text-tm-text-1 hover:bg-tm-surface-hover transition-colors"
                 disabled={savingGymMetrics}
               >
                 Cancel
@@ -918,7 +943,7 @@ export default function PlayersPage() {
                     setSavingGymMetrics(false)
                   }
                 }}
-                className="px-6 py-2 bg-primary text-white rounded-button font-semibold hover:bg-primary-dark transition-colors flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-6 py-2 bg-tm-secondary text-tm-on-secondary rounded-[6px] font-semibold hover:opacity-90 transition-colors flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={savingGymMetrics}
               >
                 <Save className="w-4 h-4 mr-2" />

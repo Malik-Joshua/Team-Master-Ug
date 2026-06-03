@@ -973,9 +973,9 @@ export default function TrainingPage() {
       case 'X':
         return 'bg-black text-white'
       case 'I':
-        return 'bg-secondary text-white'
+        return 'bg-secondary text-tm-on-secondary'
       default:
-        return 'bg-neutral-light text-neutral-medium'
+        return 'bg-tm-surface-hover text-tm-text-3'
     }
   }
 
@@ -1121,9 +1121,9 @@ export default function TrainingPage() {
       <Layout pageTitle="Training">
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
-            <Calendar className="w-16 h-16 text-neutral-medium mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-neutral-text mb-2">Access Restricted</h2>
-            <p className="text-neutral-medium">Finance Admin does not have access to the Training feature.</p>
+            <Calendar className="w-16 h-16 text-tm-text-3 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-tm-text-1 mb-2">Access Restricted</h2>
+            <p className="text-tm-text-3">Finance Admin does not have access to the Training feature.</p>
           </div>
         </div>
       </Layout>
@@ -1143,24 +1143,22 @@ export default function TrainingPage() {
       <Layout pageTitle="Training Schedule">
         <div className="space-y-6">
           {/* Header */}
-          <div className="bg-club-gradient rounded-card p-6 text-white shadow-soft">
-            <div className="flex justify-between items-center mb-4">
-              <div>
-                <h1 className="text-3xl font-bold mb-2">Upcoming Training Sessions</h1>
-                <p className="text-blue-100">
-                  View your upcoming training sessions, drills, and activities scheduled by your coach
-                </p>
-              </div>
-              <RefreshButton onRefresh={loadData} size="sm" className="bg-white/20 hover:bg-white/30 border-white/30 text-white" />
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h1 className="text-[20px] font-medium text-tm-text-1">Upcoming Training Sessions</h1>
+              <p className="mt-[2px] text-[13px] text-tm-text-3">
+                View your upcoming training sessions, drills, and activities scheduled by your coach
+              </p>
             </div>
+            <RefreshButton onRefresh={loadData} size="sm" />
           </div>
 
           {/* Training Sessions List */}
           {upcomingSessions.length === 0 ? (
-            <div className="bg-white rounded-card border border-neutral-light shadow-soft p-12 text-center">
-              <Calendar className="w-16 h-16 text-neutral-medium mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-neutral-text mb-2">No Upcoming Sessions</h3>
-              <p className="text-neutral-medium">
+            <div className="bg-tm-surface rounded-card border border-tm-border shadow-soft p-12 text-center">
+              <Calendar className="w-16 h-16 text-tm-text-3 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-tm-text-1 mb-2">No Upcoming Sessions</h3>
+              <p className="text-tm-text-3">
                 There are no upcoming training sessions scheduled at the moment.
               </p>
             </div>
@@ -1174,20 +1172,20 @@ export default function TrainingPage() {
                 return (
                   <div
                     key={session.id}
-                    className="bg-white rounded-card border border-neutral-light shadow-soft hover:shadow-medium transition-all duration-300 overflow-hidden"
+                    className="bg-tm-surface rounded-card border border-tm-border shadow-soft hover:shadow-medium transition-all duration-300 overflow-hidden"
                   >
                     {/* Date Header */}
-                    <div className={`${isToday ? 'bg-primary' : isTomorrow ? 'bg-info' : 'bg-club-gradient'} p-4 text-white`}>
+                    <div className="bg-tm-surface-hover border-b border-tm-border p-4 text-tm-text-1">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm font-medium opacity-90">
+                          <p className={`text-sm font-medium ${isToday ? 'text-tm-secondary' : isTomorrow ? 'text-info' : 'text-tm-text-3'}`}>
                             {isToday ? 'Today' : isTomorrow ? 'Tomorrow' : sessionDate.toLocaleDateString('en-US', { weekday: 'long' })}
                           </p>
-                          <p className="text-2xl font-bold">
+                          <p className="text-2xl font-bold text-tm-text-1">
                             {sessionDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                           </p>
                         </div>
-                        <Calendar className="w-8 h-8 opacity-80" />
+                        <Calendar className="w-8 h-8 text-tm-text-3" />
                       </div>
                     </div>
 
@@ -1197,13 +1195,13 @@ export default function TrainingPage() {
                       {(session.session_time || session.location) && (
                         <div className="space-y-2">
                           {session.session_time && (
-                            <div className="flex items-center text-neutral-medium">
+                            <div className="flex items-center text-tm-text-3">
                               <Clock className="w-4 h-4 mr-2" />
                               <span className="text-sm font-medium">{session.session_time}</span>
                             </div>
                           )}
                           {session.location && (
-                            <div className="flex items-center text-neutral-medium">
+                            <div className="flex items-center text-tm-text-3">
                               <MapPin className="w-4 h-4 mr-2" />
                               <span className="text-sm font-medium">{session.location}</span>
                             </div>
@@ -1213,20 +1211,20 @@ export default function TrainingPage() {
 
                       {/* Coach Name */}
                       {session.coach_name && (
-                        <div className="pt-2 border-t border-neutral-light">
-                          <p className="text-xs text-neutral-medium mb-1">Coach</p>
-                          <p className="text-sm font-semibold text-neutral-text">{session.coach_name}</p>
+                        <div className="pt-2 border-t border-tm-border">
+                          <p className="text-xs text-tm-text-3 mb-1">Coach</p>
+                          <p className="text-sm font-semibold text-tm-text-1">{session.coach_name}</p>
                         </div>
                       )}
 
                       {/* Drills/Activities */}
                       {session.description && (
-                        <div className="pt-2 border-t border-neutral-light">
-                          <p className="text-xs text-neutral-medium mb-2 font-semibold uppercase tracking-wide">
+                        <div className="pt-2 border-t border-tm-border">
+                          <p className="text-xs text-tm-text-3 mb-2 font-semibold uppercase tracking-wide">
                             Training Drills & Activities
                           </p>
-                          <div className="bg-blue-50 rounded-lg p-3">
-                            <p className="text-sm text-neutral-text leading-relaxed whitespace-pre-line">
+                          <div className="bg-tm-surface-hover rounded-lg p-3">
+                            <p className="text-sm text-tm-text-1 leading-relaxed whitespace-pre-line">
                               {session.description}
                             </p>
                           </div>
@@ -1234,8 +1232,8 @@ export default function TrainingPage() {
                       )}
 
                       {!session.description && (
-                        <div className="pt-2 border-t border-neutral-light">
-                          <p className="text-xs text-neutral-medium italic">
+                        <div className="pt-2 border-t border-tm-border">
+                          <p className="text-xs text-tm-text-3 italic">
                             No specific drills or activities listed for this session.
                           </p>
                         </div>
@@ -1249,15 +1247,15 @@ export default function TrainingPage() {
 
           {/* Summary Card */}
           {upcomingSessions.length > 0 && (
-            <div className="bg-white rounded-card border border-neutral-light shadow-soft p-6">
+            <div className="bg-tm-surface rounded-card border border-tm-border shadow-soft p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-semibold text-neutral-text mb-1">Training Summary</h3>
-                  <p className="text-sm text-neutral-medium">
+                  <h3 className="text-lg font-semibold text-tm-text-1 mb-1">Training Summary</h3>
+                  <p className="text-sm text-tm-text-3">
                     You have <span className="font-bold text-primary">{upcomingSessions.length}</span> upcoming training session{upcomingSessions.length !== 1 ? 's' : ''}
                   </p>
                 </div>
-                <div className="bg-club-gradient rounded-lg p-4 text-white">
+                <div className="bg-tm-secondary text-tm-on-secondary rounded-lg p-4">
                   <Calendar className="w-8 h-8" />
                 </div>
               </div>
@@ -1267,13 +1265,11 @@ export default function TrainingPage() {
           {/* Gym Schedules Section */}
           {gymSchedules.length > 0 && (
             <>
-              <div className="bg-club-gradient rounded-card p-6 text-white shadow-soft">
-                <div>
-                  <h2 className="text-3xl font-bold mb-2">Upcoming Gym Schedules</h2>
-                  <p className="text-blue-100">
-                    View your upcoming gym sessions and workout plans scheduled by your coach
-                  </p>
-                </div>
+              <div>
+                <h2 className="text-[20px] font-medium text-tm-text-1">Upcoming Gym Schedules</h2>
+                <p className="mt-[2px] text-[13px] text-tm-text-3">
+                  View your upcoming gym sessions and workout plans scheduled by your coach
+                </p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -1285,10 +1281,10 @@ export default function TrainingPage() {
                   return (
                     <div
                       key={schedule.id}
-                      className="bg-white rounded-card border border-neutral-light shadow-soft hover:shadow-medium transition-all duration-300 overflow-hidden"
+                      className="bg-tm-surface rounded-card border border-tm-border shadow-soft hover:shadow-medium transition-all duration-300 overflow-hidden"
                     >
                       {/* Date Header */}
-                      <div className={`${isToday ? 'bg-secondary' : isTomorrow ? 'bg-info' : 'bg-purple-600'} p-4 text-white`}>
+                      <div className={`${isToday ? 'bg-tm-secondary text-tm-on-secondary' : isTomorrow ? 'bg-info text-white' : 'bg-purple-600 text-white'} p-4`}>
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="text-sm font-medium opacity-90">
@@ -1306,8 +1302,8 @@ export default function TrainingPage() {
                       <div className="p-6 space-y-4">
                         {/* Description */}
                         <div>
-                          <h4 className="font-semibold text-neutral-text mb-2">{schedule.description}</h4>
-                          <span className="px-2 py-1 bg-secondary/10 text-secondary rounded text-xs font-medium">
+                          <h4 className="font-semibold text-tm-text-1 mb-2">{schedule.description}</h4>
+                          <span className="px-2 py-1 bg-[#E05757]/10 text-[#E05757] rounded text-xs font-medium">
                             Gym Session
                           </span>
                         </div>
@@ -1316,13 +1312,13 @@ export default function TrainingPage() {
                         {(schedule.schedule_time || schedule.location) && (
                           <div className="space-y-2">
                             {schedule.schedule_time && (
-                              <div className="flex items-center text-neutral-medium">
+                              <div className="flex items-center text-tm-text-3">
                                 <Clock className="w-4 h-4 mr-2" />
                                 <span className="text-sm font-medium">{schedule.schedule_time}</span>
                               </div>
                             )}
                             {schedule.location && (
-                              <div className="flex items-center text-neutral-medium">
+                              <div className="flex items-center text-tm-text-3">
                                 <MapPin className="w-4 h-4 mr-2" />
                                 <span className="text-sm font-medium">{schedule.location}</span>
                               </div>
@@ -1332,20 +1328,20 @@ export default function TrainingPage() {
 
                         {/* Coach Name */}
                         {schedule.coach?.name && (
-                          <div className="pt-2 border-t border-neutral-light">
-                            <p className="text-xs text-neutral-medium mb-1">Created by</p>
-                            <p className="text-sm font-semibold text-neutral-text">{schedule.coach.name}</p>
+                          <div className="pt-2 border-t border-tm-border">
+                            <p className="text-xs text-tm-text-3 mb-1">Created by</p>
+                            <p className="text-sm font-semibold text-tm-text-1">{schedule.coach.name}</p>
                           </div>
                         )}
 
                         {/* Exercises */}
                         {schedule.exercises && (
-                          <div className="pt-2 border-t border-neutral-light">
-                            <p className="text-xs text-neutral-medium mb-2 font-semibold uppercase tracking-wide">
+                          <div className="pt-2 border-t border-tm-border">
+                            <p className="text-xs text-tm-text-3 mb-2 font-semibold uppercase tracking-wide">
                               Exercises & Workout Plan
                             </p>
-                            <div className="bg-purple-50 rounded-lg p-3">
-                              <p className="text-sm text-neutral-text leading-relaxed whitespace-pre-line">
+                            <div className="bg-info/10 rounded-lg p-3">
+                              <p className="text-sm text-tm-text-1 leading-relaxed whitespace-pre-line">
                                 {schedule.exercises}
                               </p>
                             </div>
@@ -1358,15 +1354,15 @@ export default function TrainingPage() {
               </div>
 
               {/* Gym Summary Card */}
-              <div className="bg-white rounded-card border border-neutral-light shadow-soft p-6">
+              <div className="bg-tm-surface rounded-card border border-tm-border shadow-soft p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-lg font-semibold text-neutral-text mb-1">Gym Schedule Summary</h3>
-                    <p className="text-sm text-neutral-medium">
+                    <h3 className="text-lg font-semibold text-tm-text-1 mb-1">Gym Schedule Summary</h3>
+                    <p className="text-sm text-tm-text-3">
                       You have <span className="font-bold text-secondary">{gymSchedules.length}</span> upcoming gym session{gymSchedules.length !== 1 ? 's' : ''}
                     </p>
                   </div>
-                  <div className="bg-secondary rounded-lg p-4 text-white">
+                  <div className="bg-tm-secondary text-tm-on-secondary rounded-lg p-4">
                     <Activity className="w-8 h-8" />
                   </div>
                 </div>
@@ -1376,10 +1372,10 @@ export default function TrainingPage() {
 
           {/* No Gym Schedules Message */}
           {gymSchedules.length === 0 && (
-            <div className="bg-white rounded-card border border-neutral-light shadow-soft p-12 text-center">
-              <Activity className="w-16 h-16 text-neutral-medium mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-neutral-text mb-2">No Upcoming Gym Schedules</h3>
-              <p className="text-neutral-medium">
+            <div className="bg-tm-surface rounded-card border border-tm-border shadow-soft p-12 text-center">
+              <Activity className="w-16 h-16 text-tm-text-3 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-tm-text-1 mb-2">No Upcoming Gym Schedules</h3>
+              <p className="text-tm-text-3">
                 There are no upcoming gym schedules at the moment. Check back later for updates.
               </p>
             </div>
@@ -1393,38 +1389,38 @@ export default function TrainingPage() {
     <Layout pageTitle="Training">
       <div className="space-y-6">
         {/* Header */}
-        <div className="bg-club-gradient rounded-card p-6 text-white shadow-soft">
-          <div className="flex items-center justify-between">
+        <div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h1 className="text-3xl font-bold mb-2">Player Attendance at Training Sessions</h1>
-              <p className="text-blue-100">
+              <h1 className="text-[20px] font-medium text-tm-text-1">Player Attendance at Training Sessions</h1>
+              <p className="mt-[2px] text-[13px] text-tm-text-3">
                 {user?.role === 'admin'
                   ? 'View training attendance summary and statistics'
                   : 'Track and record player attendance for all training sessions'}
               </p>
             </div>
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center gap-2 flex-wrap">
               {(user?.role === 'coach' || user?.role === 'data_admin') && (
                 <>
                   {user?.role === 'coach' && (
                     <>
                       <button
                         onClick={() => setShowUploadForm(true)}
-                        className="bg-white text-primary px-6 py-3 rounded-button font-semibold hover:bg-blue-50 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
+                        className="bg-tm-surface text-primary px-6 py-3 rounded-[6px] font-semibold hover:bg-tm-surface-hover transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
                       >
                         <Upload className="w-5 h-5 mr-2" />
                         Import Schedule
                       </button>
                       <button
                         onClick={() => setShowScheduleForm(true)}
-                        className="bg-white text-primary px-6 py-3 rounded-button font-semibold hover:bg-blue-50 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
+                        className="bg-tm-surface text-primary px-6 py-3 rounded-[6px] font-semibold hover:bg-tm-surface-hover transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
                       >
                         <Plus className="w-5 h-5 mr-2" />
                         Create Schedule
                       </button>
                       <button
                         onClick={() => setShowGymScheduleForm(true)}
-                        className="bg-white text-secondary px-6 py-3 rounded-button font-semibold hover:bg-purple-50 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
+                        className="bg-tm-surface text-secondary px-6 py-3 rounded-[6px] font-semibold hover:bg-info/10 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
                       >
                         <Plus className="w-5 h-5 mr-2" />
                         Create Gym Schedule
@@ -1433,7 +1429,7 @@ export default function TrainingPage() {
                   )}
                   <button
                     onClick={handleSave}
-                    className="bg-white text-primary px-6 py-3 rounded-button font-semibold hover:bg-blue-50 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
+                    className="bg-tm-surface text-primary px-6 py-3 rounded-[6px] font-semibold hover:bg-tm-surface-hover transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
                   >
                     <Save className="w-5 h-5 mr-2" />
                     Save Attendance
@@ -1444,7 +1440,7 @@ export default function TrainingPage() {
                 <button
                   onClick={() => setShowExportMenu(!showExportMenu)}
                   disabled={exporting || sessions.length === 0}
-                  className="bg-white/20 text-white px-6 py-3 rounded-button font-semibold hover:bg-white/30 transition-all duration-300 inline-flex items-center border border-white/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="bg-white/20 text-white px-6 py-3 rounded-[6px] font-semibold hover:bg-white/30 transition-all duration-300 inline-flex items-center border border-white/30 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {exporting ? (
                     <>
@@ -1460,27 +1456,27 @@ export default function TrainingPage() {
                   )}
                 </button>
                 {showExportMenu && !exporting && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-neutral-light z-50">
+                  <div className="absolute right-0 mt-2 w-48 bg-tm-surface rounded-lg shadow-lg border border-tm-border z-50">
                     <button
                       onClick={() => handleExportTraining('pdf')}
-                      className="w-full text-left px-4 py-3 hover:bg-neutral-light transition-colors flex items-center space-x-2 rounded-t-lg text-neutral-text"
+                      className="w-full text-left px-4 py-3 hover:bg-tm-surface-hover transition-colors flex items-center space-x-2 rounded-t-lg text-tm-text-1"
                     >
                       <FileText className="w-4 h-4 text-primary" />
-                      <span className="text-neutral-text">Export as PDF</span>
+                      <span className="text-tm-text-1">Export as PDF</span>
                     </button>
                     <button
                       onClick={() => handleExportTraining('excel')}
-                      className="w-full text-left px-4 py-3 hover:bg-neutral-light transition-colors flex items-center space-x-2 text-neutral-text"
+                      className="w-full text-left px-4 py-3 hover:bg-tm-surface-hover transition-colors flex items-center space-x-2 text-tm-text-1"
                     >
                       <FileSpreadsheet className="w-4 h-4 text-success" />
-                      <span className="text-neutral-text">Export as Excel</span>
+                      <span className="text-tm-text-1">Export as Excel</span>
                     </button>
                     <button
                       onClick={() => handleExportTraining('csv')}
-                      className="w-full text-left px-4 py-3 hover:bg-neutral-light transition-colors flex items-center space-x-2 rounded-b-lg text-neutral-text"
+                      className="w-full text-left px-4 py-3 hover:bg-tm-surface-hover transition-colors flex items-center space-x-2 rounded-b-lg text-tm-text-1"
                     >
                       <FileText className="w-4 h-4 text-info" />
-                      <span className="text-neutral-text">Export as CSV</span>
+                      <span className="text-tm-text-1">Export as CSV</span>
               </button>
                   </div>
                 )}
@@ -1492,16 +1488,16 @@ export default function TrainingPage() {
         {/* Upload Training Schedule Modal for Coaches */}
         {showUploadForm && user?.role === 'coach' && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-            <div className="bg-white rounded-card shadow-large max-w-2xl w-full border border-neutral-light">
-              <div className="p-6 border-b border-neutral-light">
+            <div className="bg-tm-surface rounded-card shadow-large max-w-2xl w-full border border-tm-border">
+              <div className="p-6 border-b border-tm-border">
                 <div className="flex justify-between items-center">
-                  <h2 className="text-2xl font-bold text-neutral-text">Import Training Schedule</h2>
+                  <h2 className="text-2xl font-bold text-tm-text-1">Import Training Schedule</h2>
                   <button
                     onClick={() => {
                       setShowUploadForm(false)
                       setUploadFile(null)
                     }}
-                    className="text-neutral-medium hover:text-neutral-text"
+                    className="text-tm-text-3 hover:text-tm-text-1"
                   >
                     <X className="w-6 h-6" />
                   </button>
@@ -1509,7 +1505,7 @@ export default function TrainingPage() {
               </div>
               <div className="p-6 space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-neutral-medium mb-2">
+                  <label className="block text-sm font-medium text-tm-text-3 mb-2">
                     <Upload className="w-4 h-4 inline mr-2" />
                     Upload File (TXT or PDF)
                   </label>
@@ -1517,17 +1513,17 @@ export default function TrainingPage() {
                     type="file"
                     accept=".txt,.pdf,text/plain,application/pdf"
                     onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
-                    className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                    className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                   />
                   {uploadFile && (
-                    <p className="mt-2 text-sm text-neutral-medium">
+                    <p className="mt-2 text-sm text-tm-text-3">
                       Selected: {uploadFile.name} ({(uploadFile.size / 1024).toFixed(2)} KB)
                     </p>
                   )}
                 </div>
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <h3 className="font-semibold text-neutral-text mb-2">File Format Guidelines:</h3>
-                  <ul className="text-sm text-neutral-medium space-y-1 list-disc list-inside">
+                <div className="bg-tm-surface-hover border border-tm-border rounded-lg p-4">
+                  <h3 className="font-semibold text-tm-text-1 mb-2">File Format Guidelines:</h3>
+                  <ul className="text-sm text-tm-text-3 space-y-1 list-disc list-inside">
                     <li>Each line should contain a training session</li>
                     <li>Format: Date, Time, Location, Description (comma-separated)</li>
                     <li>Or: Date | Time | Location | Description (pipe-separated)</li>
@@ -1540,7 +1536,7 @@ export default function TrainingPage() {
                   <button
                     onClick={handleFileUpload}
                     disabled={!uploadFile || uploading}
-                    className="flex-1 px-6 py-3 bg-club-gradient text-white rounded-button hover:opacity-90 transition-all duration-300 font-semibold shadow-soft hover:shadow-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 px-6 py-3 bg-tm-secondary text-tm-on-secondary rounded-[6px] hover:opacity-90 transition-all duration-300 font-semibold shadow-soft hover:shadow-medium disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {uploading ? 'Importing...' : 'Import Schedule'}
                   </button>
@@ -1550,7 +1546,7 @@ export default function TrainingPage() {
                       setUploadFile(null)
                     }}
                     disabled={uploading}
-                    className="px-6 py-3 bg-neutral-light text-neutral-text rounded-button hover:bg-neutral-medium transition-all duration-300 font-semibold disabled:opacity-50"
+                    className="px-6 py-3 bg-tm-surface-hover text-tm-text-1 rounded-[6px] hover:bg-tm-surface-hover transition-all duration-300 font-semibold disabled:opacity-50"
                   >
                     Cancel
                   </button>
@@ -1563,16 +1559,16 @@ export default function TrainingPage() {
         {/* Create Gym Schedule Modal for Coaches */}
         {showGymScheduleForm && user?.role === 'coach' && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-            <div className="bg-white rounded-card shadow-large max-w-2xl w-full border border-neutral-light">
-              <div className="p-6 border-b border-neutral-light">
+            <div className="bg-tm-surface rounded-card shadow-large max-w-2xl w-full border border-tm-border">
+              <div className="p-6 border-b border-tm-border">
                 <div className="flex justify-between items-center">
-                  <h2 className="text-2xl font-bold text-neutral-text">Create Gym Schedule</h2>
+                  <h2 className="text-2xl font-bold text-tm-text-1">Create Gym Schedule</h2>
                   <button
                     onClick={() => {
                       setShowGymScheduleForm(false)
                       setGymScheduleForm({ schedule_date: '', schedule_time: '', location: '', description: '', exercises: '' })
                     }}
-                    className="text-neutral-medium hover:text-neutral-text"
+                    className="text-tm-text-3 hover:text-tm-text-1"
                   >
                     <X className="w-6 h-6" />
                   </button>
@@ -1580,34 +1576,34 @@ export default function TrainingPage() {
               </div>
               <div className="p-6 space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-neutral-medium mb-2">
+                  <label className="block text-sm font-medium text-tm-text-3 mb-2">
                     <Calendar className="w-4 h-4 inline mr-2" />
-                    Gym Schedule Date <span className="text-red-500">*</span>
+                    Gym Schedule Date <span className="text-[#E05757]">*</span>
                   </label>
                   <input
                     type="date"
                     value={gymScheduleForm.schedule_date}
                     onChange={(e) => setGymScheduleForm({ ...gymScheduleForm, schedule_date: e.target.value })}
                     min={new Date().toISOString().split('T')[0]}
-                    className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                    className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-neutral-medium mb-2">
+                  <label className="block text-sm font-medium text-tm-text-3 mb-2">
                     <Clock className="w-4 h-4 inline mr-2" />
-                    Schedule Time <span className="text-xs text-neutral-medium">(e.g., 18:00, 6:00 PM)</span>
+                    Schedule Time <span className="text-xs text-tm-text-3">(e.g., 18:00, 6:00 PM)</span>
                   </label>
                   <input
                     type="text"
                     value={gymScheduleForm.schedule_time}
                     onChange={(e) => setGymScheduleForm({ ...gymScheduleForm, schedule_time: e.target.value })}
                     placeholder="e.g., 18:00 or 6:00 PM"
-                    className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                    className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-neutral-medium mb-2">
+                  <label className="block text-sm font-medium text-tm-text-3 mb-2">
                     <MapPin className="w-4 h-4 inline mr-2" />
                     Location
                   </label>
@@ -1616,25 +1612,25 @@ export default function TrainingPage() {
                     value={gymScheduleForm.location}
                     onChange={(e) => setGymScheduleForm({ ...gymScheduleForm, location: e.target.value })}
                     placeholder="e.g., Main Gym, Fitness Center"
-                    className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                    className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-neutral-medium mb-2">
+                  <label className="block text-sm font-medium text-tm-text-3 mb-2">
                     <FileText className="w-4 h-4 inline mr-2" />
-                    Description <span className="text-red-500">*</span>
+                    Description <span className="text-[#E05757]">*</span>
                   </label>
                   <textarea
                     value={gymScheduleForm.description}
                     onChange={(e) => setGymScheduleForm({ ...gymScheduleForm, description: e.target.value })}
                     rows={3}
                     placeholder="e.g., Strength training session focusing on upper body"
-                    className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                    className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-neutral-medium mb-2">
+                  <label className="block text-sm font-medium text-tm-text-3 mb-2">
                     <FileText className="w-4 h-4 inline mr-2" />
                     Exercises/Program Details
                   </label>
@@ -1643,13 +1639,13 @@ export default function TrainingPage() {
                     onChange={(e) => setGymScheduleForm({ ...gymScheduleForm, exercises: e.target.value })}
                     rows={4}
                     placeholder="e.g., Bench Press 3x8, Squats 3x10, Deadlifts 3x5, Pull-ups 3x8"
-                    className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                    className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                   />
                 </div>
                 <div className="flex gap-3 pt-4">
                   <button
                     onClick={handleCreateGymSchedule}
-                    className="flex-1 px-6 py-3 bg-secondary text-white rounded-button hover:opacity-90 transition-all duration-300 font-semibold shadow-soft hover:shadow-medium"
+                    className="flex-1 px-6 py-3 bg-secondary text-tm-on-secondary rounded-[6px] hover:opacity-90 transition-all duration-300 font-semibold shadow-soft hover:shadow-medium"
                   >
                     Create Gym Schedule
                   </button>
@@ -1658,7 +1654,7 @@ export default function TrainingPage() {
                       setShowGymScheduleForm(false)
                       setGymScheduleForm({ schedule_date: '', schedule_time: '', location: '', description: '', exercises: '' })
                     }}
-                    className="px-6 py-3 bg-neutral-light text-neutral-text rounded-button hover:bg-neutral-medium transition-all duration-300 font-semibold"
+                    className="px-6 py-3 bg-tm-surface-hover text-tm-text-1 rounded-[6px] hover:bg-tm-surface-hover transition-all duration-300 font-semibold"
                   >
                     Cancel
                   </button>
@@ -1671,16 +1667,16 @@ export default function TrainingPage() {
         {/* Create Training Schedule Modal for Coaches */}
         {showScheduleForm && user?.role === 'coach' && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-            <div className="bg-white rounded-card shadow-large max-w-2xl w-full border border-neutral-light">
-              <div className="p-6 border-b border-neutral-light">
+            <div className="bg-tm-surface rounded-card shadow-large max-w-2xl w-full border border-tm-border">
+              <div className="p-6 border-b border-tm-border">
                 <div className="flex justify-between items-center">
-                  <h2 className="text-2xl font-bold text-neutral-text">Create Training Schedule</h2>
+                  <h2 className="text-2xl font-bold text-tm-text-1">Create Training Schedule</h2>
                   <button
                     onClick={() => {
                       setShowScheduleForm(false)
                       setScheduleForm({ session_date: '', session_time: '', location: '', description: '' })
                     }}
-                    className="text-neutral-medium hover:text-neutral-text"
+                    className="text-tm-text-3 hover:text-tm-text-1"
                   >
                     <X className="w-6 h-6" />
                   </button>
@@ -1688,34 +1684,34 @@ export default function TrainingPage() {
               </div>
               <div className="p-6 space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-neutral-medium mb-2">
+                  <label className="block text-sm font-medium text-tm-text-3 mb-2">
                     <Calendar className="w-4 h-4 inline mr-2" />
-                    Training Date <span className="text-red-500">*</span>
+                    Training Date <span className="text-[#E05757]">*</span>
                   </label>
                   <input
                     type="date"
                     value={scheduleForm.session_date}
                     onChange={(e) => setScheduleForm({ ...scheduleForm, session_date: e.target.value })}
                     min={new Date().toISOString().split('T')[0]}
-                    className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                    className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-neutral-medium mb-2">
+                  <label className="block text-sm font-medium text-tm-text-3 mb-2">
                     <Clock className="w-4 h-4 inline mr-2" />
-                    Training Time <span className="text-xs text-neutral-medium">(e.g., 18:00, 6:00 PM, 2:30 PM)</span>
+                    Training Time <span className="text-xs text-tm-text-3">(e.g., 18:00, 6:00 PM, 2:30 PM)</span>
                   </label>
                   <input
                     type="text"
                     value={scheduleForm.session_time}
                     onChange={(e) => setScheduleForm({ ...scheduleForm, session_time: e.target.value })}
                     placeholder="e.g., 18:00 or 6:00 PM"
-                    className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                    className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-neutral-medium mb-2">
+                  <label className="block text-sm font-medium text-tm-text-3 mb-2">
                     <MapPin className="w-4 h-4 inline mr-2" />
                     Location
                   </label>
@@ -1724,11 +1720,11 @@ export default function TrainingPage() {
                     value={scheduleForm.location}
                     onChange={(e) => setScheduleForm({ ...scheduleForm, location: e.target.value })}
                     placeholder="e.g., Training Ground, Main Pitch"
-                    className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                    className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-neutral-medium mb-2">
+                  <label className="block text-sm font-medium text-tm-text-3 mb-2">
                     <FileText className="w-4 h-4 inline mr-2" />
                     Description
                   </label>
@@ -1737,13 +1733,13 @@ export default function TrainingPage() {
                     onChange={(e) => setScheduleForm({ ...scheduleForm, description: e.target.value })}
                     rows={4}
                     placeholder="e.g., Focus on scrummaging and lineout drills"
-                    className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                    className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                   />
                 </div>
                 <div className="flex gap-3 pt-4">
                   <button
                     onClick={handleCreateSchedule}
-                    className="flex-1 px-6 py-3 bg-club-gradient text-white rounded-button hover:opacity-90 transition-all duration-300 font-semibold shadow-soft hover:shadow-medium"
+                    className="flex-1 px-6 py-3 bg-tm-secondary text-tm-on-secondary rounded-[6px] hover:opacity-90 transition-all duration-300 font-semibold shadow-soft hover:shadow-medium"
                   >
                     Create Schedule
                   </button>
@@ -1752,7 +1748,7 @@ export default function TrainingPage() {
                       setShowScheduleForm(false)
                       setScheduleForm({ session_date: '', session_time: '', location: '', description: '' })
                     }}
-                    className="px-6 py-3 bg-neutral-light text-neutral-text rounded-button hover:bg-neutral-medium transition-all duration-300 font-semibold"
+                    className="px-6 py-3 bg-tm-surface-hover text-tm-text-1 rounded-[6px] hover:bg-tm-surface-hover transition-all duration-300 font-semibold"
                   >
                     Cancel
                   </button>
@@ -1765,38 +1761,38 @@ export default function TrainingPage() {
         {/* Admin, Coach, and Data Admin Summary View */}
         {['admin', 'coach', 'data_admin'].includes(user?.role || '') && (
           <div className="space-y-4">
-            <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
-              <h2 className="text-2xl font-bold text-neutral-text mb-4">Training Sessions Summary</h2>
-              <p className="text-neutral-medium mb-6">Overview of all training sessions with attendance and activities</p>
+            <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
+              <h2 className="text-2xl font-bold text-tm-text-1 mb-4">Training Sessions Summary</h2>
+              <p className="text-tm-text-3 mb-6">Overview of all training sessions with attendance and activities</p>
               
               {sessionSummaries.length === 0 ? (
                 <div className="text-center py-12">
-                  <Calendar className="w-16 h-16 text-neutral-medium mx-auto mb-4" />
-                  <h3 className="text-xl font-bold text-neutral-text mb-2">No Training Sessions</h3>
-                  <p className="text-neutral-medium">No training sessions have been recorded yet.</p>
+                  <Calendar className="w-16 h-16 text-tm-text-3 mx-auto mb-4" />
+                  <h3 className="text-xl font-bold text-tm-text-1 mb-2">No Training Sessions</h3>
+                  <p className="text-tm-text-3">No training sessions have been recorded yet.</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {sessionSummaries.map((summary) => (
                   <div
                     key={summary.sessionId}
-                    className="bg-gradient-to-br from-white to-blue-50/30 rounded-lg border border-neutral-light shadow-soft p-5 hover:shadow-medium transition-all"
+                    className="bg-tm-surface rounded-lg border border-tm-border shadow-soft p-5 hover:shadow-medium transition-all"
                   >
                     {/* Session Header */}
-                    <div className="mb-4 pb-4 border-b border-neutral-light">
+                    <div className="mb-4 pb-4 border-b border-tm-border">
                       <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-lg font-bold text-neutral-text">
+                        <h3 className="text-lg font-bold text-tm-text-1">
                           {new Date(summary.sessionDate).toLocaleDateString('en-US', {
                             month: 'short',
                             day: 'numeric',
                             year: 'numeric',
                           })}
                         </h3>
-                        <span className="text-xs font-semibold px-2 py-1 bg-club-gradient text-white rounded-full">
+                        <span className="text-xs font-semibold px-2 py-1 bg-tm-secondary text-tm-on-secondary rounded-full">
                           {summary.attendanceRate}%
                         </span>
                       </div>
-                      <div className="flex flex-wrap gap-2 text-xs text-neutral-medium">
+                      <div className="flex flex-wrap gap-2 text-xs text-tm-text-3">
                         {summary.sessionTime && (
                           <div className="flex items-center">
                             <Clock className="w-3 h-3 mr-1" />
@@ -1815,11 +1811,11 @@ export default function TrainingPage() {
                     {/* Drills/Activities */}
                     {summary.drills && (
                       <div className="mb-4">
-                        <h4 className="text-sm font-semibold text-neutral-text mb-2 flex items-center">
+                        <h4 className="text-sm font-semibold text-tm-text-1 mb-2 flex items-center">
                           <FileText className="w-4 h-4 mr-1" />
                           Drills & Activities
                         </h4>
-                        <p className="text-sm text-neutral-medium bg-blue-50 rounded-lg p-3 border border-blue-200">
+                        <p className="text-sm text-tm-text-3 bg-tm-surface-hover rounded-lg p-3 border border-tm-border">
                           {summary.drills}
                         </p>
                       </div>
@@ -1827,29 +1823,29 @@ export default function TrainingPage() {
 
                     {/* Attendance Summary */}
                     <div>
-                      <h4 className="text-sm font-semibold text-neutral-text mb-3">Attendance Summary</h4>
+                      <h4 className="text-sm font-semibold text-tm-text-1 mb-3">Attendance Summary</h4>
                       <div className="grid grid-cols-2 gap-2">
-                        <div className="bg-green-50 rounded-lg p-2 border border-green-200">
-                          <div className="text-xs text-neutral-medium">Present</div>
+                        <div className="bg-success/10 rounded-lg p-2 border border-success/30">
+                          <div className="text-xs text-tm-text-3">Present</div>
                           <div className="text-lg font-bold text-success">{summary.present}</div>
                         </div>
-                        <div className="bg-red-50 rounded-lg p-2 border border-red-200">
-                          <div className="text-xs text-neutral-medium">Absent</div>
+                        <div className="bg-[#E05757]/10 rounded-lg p-2 border border-[#E05757]/30">
+                          <div className="text-xs text-tm-text-3">Absent</div>
                           <div className="text-lg font-bold text-secondary">{summary.absent}</div>
                         </div>
-                        <div className="bg-blue-50 rounded-lg p-2 border border-blue-200">
-                          <div className="text-xs text-neutral-medium">Justified</div>
+                        <div className="bg-tm-surface-hover rounded-lg p-2 border border-tm-border">
+                          <div className="text-xs text-tm-text-3">Justified</div>
                           <div className="text-lg font-bold text-info">{summary.justified}</div>
                         </div>
-                        <div className="bg-yellow-50 rounded-lg p-2 border border-yellow-200">
-                          <div className="text-xs text-neutral-medium">Injured</div>
+                        <div className="bg-warning/10 rounded-lg p-2 border border-warning/30">
+                          <div className="text-xs text-tm-text-3">Injured</div>
                           <div className="text-lg font-bold text-warning">{summary.injured}</div>
                         </div>
                       </div>
-                      <div className="mt-3 pt-3 border-t border-neutral-light">
+                      <div className="mt-3 pt-3 border-t border-tm-border">
                         <div className="flex justify-between items-center">
-                          <span className="text-sm text-neutral-medium">Total Players</span>
-                          <span className="text-sm font-bold text-neutral-text">{summary.total}</span>
+                          <span className="text-sm text-tm-text-3">Total Players</span>
+                          <span className="text-sm font-bold text-tm-text-1">{summary.total}</span>
                         </div>
                       </div>
                     </div>
@@ -1863,16 +1859,16 @@ export default function TrainingPage() {
 
         {/* Instructions */}
         {user?.role !== 'admin' && user?.role !== 'finance_admin' && (
-          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
-            <h2 className="text-lg font-bold text-neutral-text mb-3">Attendance Codes</h2>
+          <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
+            <h2 className="text-lg font-bold text-tm-text-1 mb-3">Attendance Codes</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="flex items-center space-x-3">
               <div className="w-8 h-8 bg-success rounded-lg flex items-center justify-center text-white font-bold">
                 P
               </div>
               <div>
-                <p className="font-medium text-neutral-text">Present</p>
-                <p className="text-sm text-neutral-medium">Player attended</p>
+                <p className="font-medium text-tm-text-1">Present</p>
+                <p className="text-sm text-tm-text-3">Player attended</p>
               </div>
             </div>
             <div className="flex items-center space-x-3">
@@ -1880,8 +1876,8 @@ export default function TrainingPage() {
                 A
               </div>
               <div>
-                <p className="font-medium text-neutral-text">Justified Absence</p>
-                <p className="text-sm text-neutral-medium">Excused absence</p>
+                <p className="font-medium text-tm-text-1">Justified Absence</p>
+                <p className="text-sm text-tm-text-3">Excused absence</p>
               </div>
             </div>
             <div className="flex items-center space-x-3">
@@ -1889,17 +1885,17 @@ export default function TrainingPage() {
                 X
               </div>
               <div>
-                <p className="font-medium text-neutral-text">Unjustified Absence</p>
-                <p className="text-sm text-neutral-medium">Unexcused absence</p>
+                <p className="font-medium text-tm-text-1">Unjustified Absence</p>
+                <p className="text-sm text-tm-text-3">Unexcused absence</p>
               </div>
             </div>
             <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-secondary rounded-lg flex items-center justify-center text-white font-bold">
+              <div className="w-8 h-8 bg-tm-secondary rounded-lg flex items-center justify-center text-tm-on-secondary font-bold">
                 I
               </div>
               <div>
-                <p className="font-medium text-neutral-text">Injured</p>
-                <p className="text-sm text-neutral-medium">Player injured</p>
+                <p className="font-medium text-tm-text-1">Injured</p>
+                <p className="text-sm text-tm-text-3">Player injured</p>
               </div>
             </div>
           </div>
@@ -1908,11 +1904,11 @@ export default function TrainingPage() {
 
         {/* Session Selection for Attendance - Coach and Data Admin */}
         {(user?.role === 'coach' || user?.role === 'data_admin') && sessions.length > 0 && (
-          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+          <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h2 className="text-xl font-bold text-neutral-text mb-2">Select Training Session for Attendance</h2>
-                <p className="text-sm text-neutral-medium">Choose which training session you want to record attendance for</p>
+                <h2 className="text-xl font-bold text-tm-text-1 mb-2">Select Training Session for Attendance</h2>
+                <p className="text-sm text-tm-text-3">Choose which training session you want to record attendance for</p>
               </div>
             </div>
             <select
@@ -1942,7 +1938,7 @@ export default function TrainingPage() {
                   setAttendance({})
                 }
               }}
-              className="w-full px-4 py-3 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all text-sm font-medium"
+              className="w-full px-4 py-3 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all text-sm font-medium"
             >
               <option value="">Select a training session...</option>
               {sessions.map((session) => (
@@ -1963,10 +1959,10 @@ export default function TrainingPage() {
 
         {/* Attendance Table - Hidden for Admin and Finance Admin */}
         {user?.role !== 'admin' && user?.role !== 'finance_admin' && (
-          <div className="bg-white rounded-card border border-neutral-light shadow-soft overflow-hidden">
+          <div className="bg-tm-surface rounded-card border border-tm-border shadow-soft overflow-hidden">
             {(user?.role === 'coach' || user?.role === 'data_admin') && !selectedSessionId && (
-              <div className="p-6 text-center text-neutral-medium">
-                <Calendar className="w-12 h-12 mx-auto mb-3 text-neutral-light" />
+              <div className="p-6 text-center text-tm-text-3">
+                <Calendar className="w-12 h-12 mx-auto mb-3 text-tm-text-3" />
                 <p className="text-lg font-semibold">Please select a training session above to record attendance</p>
               </div>
             )}
@@ -1986,7 +1982,7 @@ export default function TrainingPage() {
                   <tbody>
                     {players.length === 0 ? (
                       <tr>
-                        <td colSpan={2} className="px-4 py-8 text-center text-neutral-medium">
+                        <td colSpan={2} className="px-4 py-8 text-center text-tm-text-3">
                           No players found. Please ensure players are registered in the system.
                         </td>
                       </tr>
@@ -1997,9 +1993,9 @@ export default function TrainingPage() {
                         return (
                           <tr
                             key={player.id}
-                            className={rowIndex % 2 === 0 ? 'bg-white' : 'bg-blue-50/30'}
+                            className={rowIndex % 2 === 0 ? 'bg-tm-surface' : 'bg-tm-surface-hover'}
                           >
-                            <td className="px-4 py-3 text-sm font-medium text-neutral-text sticky left-0 bg-inherit z-10 border-r border-neutral-light">
+                            <td className="px-4 py-3 text-sm font-medium text-tm-text-1 sticky left-0 bg-inherit z-10 border-r border-tm-border">
                               {player.name}
                             </td>
                             <td className="px-4 py-3 text-center">
@@ -2036,25 +2032,25 @@ export default function TrainingPage() {
 
         {/* Session Dates Reference - Hidden for Admin and Finance Admin */}
         {user?.role !== 'admin' && user?.role !== 'finance_admin' && (
-          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
-            <h2 className="text-lg font-bold text-neutral-text mb-4">Training Session Dates</h2>
+          <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
+            <h2 className="text-lg font-bold text-tm-text-1 mb-4">Training Session Dates</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
             {sessions.map((session, index) => (
               <div
                 key={session.id}
-                className="p-3 bg-neutral-light rounded-lg text-center hover:bg-neutral-medium/20 transition-colors"
+                className="p-3 bg-tm-surface-hover rounded-lg text-center hover:bg-tm-surface-hover transition-colors"
               >
-                <p className="text-xs font-medium text-neutral-medium">Session {index + 1}</p>
-                <p className="text-sm font-semibold text-neutral-text">
+                <p className="text-xs font-medium text-tm-text-3">Session {index + 1}</p>
+                <p className="text-sm font-semibold text-tm-text-1">
                   {new Date(session.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                 </p>
                 {session.session_time && (
-                  <p className="text-xs text-neutral-medium mt-1">
+                  <p className="text-xs text-tm-text-3 mt-1">
                     {session.session_time}
                   </p>
                 )}
                 {session.location && (
-                  <p className="text-xs text-neutral-medium mt-1">
+                  <p className="text-xs text-tm-text-3 mt-1">
                     {session.location}
                   </p>
                 )}

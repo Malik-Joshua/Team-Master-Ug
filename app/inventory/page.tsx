@@ -379,9 +379,9 @@ export default function InventoryPage() {
       case 'low_stock':
         return 'bg-warning/10 text-warning'
       case 'out_of_stock':
-        return 'bg-secondary/10 text-secondary'
+        return 'bg-[#E05757]/10 text-[#E05757]'
       default:
-        return 'bg-neutral-light text-neutral-medium'
+        return 'bg-tm-surface-hover text-tm-text-3'
     }
   }
 
@@ -432,10 +432,10 @@ export default function InventoryPage() {
         {/* Header */}
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-4xl font-extrabold text-club-gradient mb-2">
+            <h1 className="text-[20px] font-medium text-tm-text-1">
               {user.role === 'physio' ? 'Medical Inventory' : 'Inventory Management'}
             </h1>
-            <p className="text-lg text-neutral-medium font-medium">
+            <p className="text-[13px] text-tm-text-3">
               {user.role === 'physio' 
                 ? 'Track and manage medical kit supplies and equipment' 
                 : 'Track and manage club equipment and supplies'}
@@ -446,7 +446,7 @@ export default function InventoryPage() {
           {(user.role === 'admin' || user.role === 'data_admin') && (
           <button
             onClick={() => setShowAddModal(true)}
-            className="bg-primary-gradient text-white px-6 py-3 rounded-button font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
+            className="bg-primary-gradient text-white px-6 py-3 rounded-[6px] font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
           >
             <Plus className="w-5 h-5 mr-2" />
             Add Item
@@ -462,6 +462,7 @@ export default function InventoryPage() {
             value={totalItems}
             icon={Package}
             iconColor="bg-primary"
+            iconTextColor="text-tm-on-secondary"
             description="All inventory items"
           />
           <StatCard
@@ -469,6 +470,7 @@ export default function InventoryPage() {
             value={inStockItems}
             icon={CheckCircle}
             iconColor="bg-success"
+            iconTextColor="text-white"
             description="Items with good stock"
           />
           <StatCard
@@ -476,6 +478,7 @@ export default function InventoryPage() {
             value={lowStockItems}
             icon={AlertCircle}
             iconColor="bg-warning"
+            iconTextColor="text-white"
             description="Items needing restock"
           />
           <StatCard
@@ -483,32 +486,33 @@ export default function InventoryPage() {
             value={outOfStockItems}
             icon={XCircle}
             iconColor="bg-secondary"
+            iconTextColor="text-tm-on-secondary"
             description="Items unavailable"
           />
         </div>
 
         {/* Search and Filters */}
-        <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+        <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Search */}
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-medium w-5 h-5" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-tm-text-3 w-5 h-5" />
               <input
                 type="text"
                 placeholder="Search items..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border-2 border-neutral-light rounded-button focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                className="w-full pl-10 pr-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary focus:border-primary transition-all"
               />
             </div>
 
             {/* Category Filter */}
             <div className="relative">
-              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-medium w-5 h-5" />
+              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-tm-text-3 w-5 h-5" />
               <select
                 value={filterCategory}
                 onChange={(e) => setFilterCategory(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border-2 border-neutral-light rounded-button focus:ring-2 focus:ring-primary focus:border-primary transition-all bg-white text-neutral-text"
+                className="w-full pl-10 pr-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary focus:border-primary transition-all bg-tm-surface text-tm-text-1"
               >
                 <option value="all">All Categories</option>
                 {categories.map(cat => (
@@ -519,11 +523,11 @@ export default function InventoryPage() {
 
             {/* Status Filter */}
             <div className="relative">
-              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-medium w-5 h-5" />
+              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-tm-text-3 w-5 h-5" />
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border-2 border-neutral-light rounded-button focus:ring-2 focus:ring-primary focus:border-primary transition-all bg-white text-neutral-text"
+                className="w-full pl-10 pr-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary focus:border-primary transition-all bg-tm-surface text-tm-text-1"
               >
                 <option value="all">All Status</option>
                 <option value="in_stock">In Stock</option>
@@ -535,51 +539,51 @@ export default function InventoryPage() {
         </div>
 
         {/* Inventory Table */}
-        <div className="bg-white rounded-card shadow-soft border border-neutral-light overflow-hidden">
-          <div className="px-6 py-4 border-b border-neutral-light bg-neutral-light">
-            <h2 className="text-xl font-bold text-neutral-text">
+        <div className="bg-tm-surface rounded-card shadow-soft border border-tm-border overflow-hidden">
+          <div className="px-6 py-4 border-b border-tm-border bg-tm-surface-hover">
+            <h2 className="text-xl font-bold text-tm-text-1">
               Inventory Items ({filteredItems.length})
             </h2>
           </div>
 
           {filteredItems.length === 0 ? (
             <div className="p-12 text-center">
-              <div className="inline-flex items-center justify-center w-20 h-20 bg-neutral-light rounded-full mb-4">
-                <Package className="w-10 h-10 text-neutral-medium" />
+              <div className="inline-flex items-center justify-center w-20 h-20 bg-tm-surface-hover rounded-full mb-4">
+                <Package className="w-10 h-10 text-tm-text-3" />
               </div>
-              <p className="text-xl font-bold text-neutral-text mb-2">No items found</p>
-              <p className="text-neutral-medium">Try adjusting your search or filters</p>
+              <p className="text-xl font-bold text-tm-text-1 mb-2">No items found</p>
+              <p className="text-tm-text-3">Try adjusting your search or filters</p>
             </div>
           ) : (
             <>
-              <div className="md:hidden divide-y divide-neutral-light">
+              <div className="md:hidden divide-y divide-tm-border">
                 {filteredItems.map((item) => (
                   <div key={item.id} className="p-4 space-y-3">
                     <div>
-                      <p className="font-semibold text-neutral-text">{item.name}</p>
+                      <p className="font-semibold text-tm-text-1">{item.name}</p>
                       {item.description && (
-                        <p className="text-sm text-neutral-medium">{item.description}</p>
+                        <p className="text-sm text-tm-text-3">{item.description}</p>
                       )}
                     </div>
                     <div className="flex flex-wrap gap-2 text-xs">
-                      <span className="px-2 py-1 rounded-full bg-neutral-light text-neutral-text">{item.category}</span>
+                      <span className="px-2 py-1 rounded-full bg-tm-surface-hover text-tm-text-1">{item.category}</span>
                       <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(item.status)}`}>
                         {getStatusIcon(item.status)}
                         {item.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
                       </span>
                     </div>
-                    <div className="grid grid-cols-2 gap-3 text-sm text-neutral-medium">
+                    <div className="grid grid-cols-2 gap-3 text-sm text-tm-text-3">
                       <div>
-                        <p className="text-xs text-neutral-medium">Quantity</p>
-                        <p className="font-semibold text-neutral-text">{item.quantity} {item.unit}</p>
+                        <p className="text-xs text-tm-text-3">Quantity</p>
+                        <p className="font-semibold text-tm-text-1">{item.quantity} {item.unit}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-neutral-medium">Location</p>
-                        <p className="font-semibold text-neutral-text">{item.location || 'N/A'}</p>
+                        <p className="text-xs text-tm-text-3">Location</p>
+                        <p className="font-semibold text-tm-text-1">{item.location || 'N/A'}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-neutral-medium">Updated</p>
-                        <p className="font-semibold text-neutral-text">{new Date(item.lastUpdated).toLocaleDateString()}</p>
+                        <p className="text-xs text-tm-text-3">Updated</p>
+                        <p className="font-semibold text-tm-text-1">{new Date(item.lastUpdated).toLocaleDateString()}</p>
                       </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
@@ -602,7 +606,7 @@ export default function InventoryPage() {
                         </>
                       )}
                       {user.role === 'physio' && (
-                        <span className="text-sm text-neutral-medium">View Only</span>
+                        <span className="text-sm text-tm-text-3">View Only</span>
                       )}
                     </div>
                   </div>
@@ -610,41 +614,41 @@ export default function InventoryPage() {
               </div>
               <div className="hidden md:block overflow-x-auto">
                 <table className="w-full">
-                <thead className="bg-neutral-light">
+                <thead className="bg-tm-surface-hover">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-neutral-text uppercase">Item Name</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-neutral-text uppercase">Category</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-neutral-text uppercase">Quantity</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-neutral-text uppercase">Location</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-neutral-text uppercase">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-neutral-text uppercase">Last Updated</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-neutral-text uppercase">Actions</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-tm-text-1 uppercase">Item Name</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-tm-text-1 uppercase">Category</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-tm-text-1 uppercase">Quantity</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-tm-text-1 uppercase">Location</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-tm-text-1 uppercase">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-tm-text-1 uppercase">Last Updated</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-tm-text-1 uppercase">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-neutral-light">
+                <tbody className="divide-y divide-tm-border">
                   {filteredItems.map((item) => (
-                    <tr key={item.id} className="hover:bg-neutral-light transition-colors">
+                    <tr key={item.id} className="hover:bg-tm-surface-hover transition-colors">
                       <td className="px-6 py-4">
                         <div>
-                          <p className="font-semibold text-neutral-text">{item.name}</p>
+                          <p className="font-semibold text-tm-text-1">{item.name}</p>
                           {item.description && (
-                            <p className="text-sm text-neutral-medium">{item.description}</p>
+                            <p className="text-sm text-tm-text-3">{item.description}</p>
                           )}
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-neutral-text">{item.category}</td>
+                      <td className="px-6 py-4 text-tm-text-1">{item.category}</td>
                       <td className="px-6 py-4">
-                        <span className="font-semibold text-neutral-text">{item.quantity}</span>
-                        <span className="text-neutral-medium ml-1">{item.unit}</span>
+                        <span className="font-semibold text-tm-text-1">{item.quantity}</span>
+                        <span className="text-tm-text-3 ml-1">{item.unit}</span>
                       </td>
-                      <td className="px-6 py-4 text-neutral-medium">{item.location}</td>
+                      <td className="px-6 py-4 text-tm-text-3">{item.location}</td>
                       <td className="px-6 py-4">
                         <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(item.status)}`}>
                           {getStatusIcon(item.status)}
                           {item.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-sm text-neutral-medium">
+                      <td className="px-6 py-4 text-sm text-tm-text-3">
                         {new Date(item.lastUpdated).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4">
@@ -667,7 +671,7 @@ export default function InventoryPage() {
                         </div>
                         )}
                         {user.role === 'physio' && (
-                          <span className="text-sm text-neutral-medium">View Only</span>
+                          <span className="text-sm text-tm-text-3">View Only</span>
                         )}
                       </td>
                     </tr>
@@ -682,27 +686,27 @@ export default function InventoryPage() {
         {/* Add Item Modal */}
         {showAddModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-3 sm:p-4 z-50 backdrop-blur-sm">
-            <div className="bg-white rounded-card shadow-large w-full max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto border border-neutral-light">
-              <div className="p-4 sm:p-6 border-b border-neutral-light">
-                <h2 className="text-2xl font-bold text-neutral-text">Add New Item</h2>
+            <div className="bg-tm-surface rounded-card shadow-large w-full max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto border border-tm-border">
+              <div className="p-4 sm:p-6 border-b border-tm-border">
+                <h2 className="text-2xl font-bold text-tm-text-1">Add New Item</h2>
               </div>
               <div className="p-4 sm:p-6 space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-neutral-medium mb-2">Item Name</label>
+                  <label className="block text-sm font-medium text-tm-text-3 mb-2">Item Name</label>
                   <input
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-4 py-3 border-2 border-neutral-light rounded-button focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                    className="w-full px-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                     placeholder="e.g., Rugby Balls"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-neutral-medium mb-2">Category</label>
+                  <label className="block text-sm font-medium text-tm-text-3 mb-2">Category</label>
                   <select
                     value={formData.category}
                     onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    className="w-full px-4 py-3 border-2 border-neutral-light rounded-button focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                    className="w-full px-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                   >
                     <option value="">Select category...</option>
                     <option value="Equipment">Equipment</option>
@@ -714,60 +718,60 @@ export default function InventoryPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-neutral-medium mb-2">Quantity</label>
+                    <label className="block text-sm font-medium text-tm-text-3 mb-2">Quantity</label>
                     <input
                       type="number"
                       value={formData.quantity}
                       onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                      className="w-full px-4 py-3 border-2 border-neutral-light rounded-button focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                      className="w-full px-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                       placeholder="0"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-neutral-medium mb-2">Unit</label>
+                    <label className="block text-sm font-medium text-tm-text-3 mb-2">Unit</label>
                     <input
                       type="text"
                       value={formData.unit}
                       onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                      className="w-full px-4 py-3 border-2 border-neutral-light rounded-button focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                      className="w-full px-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                       placeholder="e.g., pieces, kits"
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-neutral-medium mb-2">Location</label>
+                  <label className="block text-sm font-medium text-tm-text-3 mb-2">Location</label>
                   <input
                     type="text"
                     value={formData.location}
                     onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                    className="w-full px-4 py-3 border-2 border-neutral-light rounded-button focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                    className="w-full px-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                     placeholder="e.g., Storage Room A"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-neutral-medium mb-2">Description</label>
+                  <label className="block text-sm font-medium text-tm-text-3 mb-2">Description</label>
                   <textarea
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     rows={3}
-                    className="w-full px-4 py-3 border-2 border-neutral-light rounded-button focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                    className="w-full px-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                     placeholder="Optional description..."
                   />
                 </div>
               </div>
-              <div className="p-6 border-t border-neutral-light flex justify-end space-x-3">
+              <div className="p-6 border-t border-tm-border flex justify-end space-x-3">
                 <button
                   onClick={() => {
                     setShowAddModal(false)
                     setFormData({ name: '', category: '', quantity: '', unit: '', location: '', description: '' })
                   }}
-                  className="px-6 py-3 bg-neutral-light text-neutral-text rounded-button font-semibold hover:bg-neutral-medium transition-all duration-300"
+                  className="px-6 py-3 bg-tm-surface-hover text-tm-text-1 rounded-[6px] font-semibold hover:bg-tm-surface-hover transition-all duration-300"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleAddItem}
-                  className="px-6 py-3 bg-primary-gradient text-white rounded-button font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium"
+                  className="px-6 py-3 bg-primary-gradient text-white rounded-[6px] font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium"
                 >
                   Add Item
                 </button>
@@ -779,26 +783,26 @@ export default function InventoryPage() {
         {/* Edit Item Modal */}
         {showEditModal && selectedItem && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-3 sm:p-4 z-50 backdrop-blur-sm">
-            <div className="bg-white rounded-card shadow-large w-full max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto border border-neutral-light">
-              <div className="p-4 sm:p-6 border-b border-neutral-light">
-                <h2 className="text-2xl font-bold text-neutral-text">Edit Item</h2>
+            <div className="bg-tm-surface rounded-card shadow-large w-full max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto border border-tm-border">
+              <div className="p-4 sm:p-6 border-b border-tm-border">
+                <h2 className="text-2xl font-bold text-tm-text-1">Edit Item</h2>
               </div>
               <div className="p-4 sm:p-6 space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-neutral-medium mb-2">Item Name</label>
+                  <label className="block text-sm font-medium text-tm-text-3 mb-2">Item Name</label>
                   <input
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-4 py-3 border-2 border-neutral-light rounded-button focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                    className="w-full px-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-neutral-medium mb-2">Category</label>
+                  <label className="block text-sm font-medium text-tm-text-3 mb-2">Category</label>
                   <select
                     value={formData.category}
                     onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    className="w-full px-4 py-3 border-2 border-neutral-light rounded-button focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                    className="w-full px-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                   >
                     <option value="">Select category...</option>
                     <option value="Equipment">Equipment</option>
@@ -810,57 +814,57 @@ export default function InventoryPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-neutral-medium mb-2">Quantity</label>
+                    <label className="block text-sm font-medium text-tm-text-3 mb-2">Quantity</label>
                     <input
                       type="number"
                       value={formData.quantity}
                       onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                      className="w-full px-4 py-3 border-2 border-neutral-light rounded-button focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                      className="w-full px-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-neutral-medium mb-2">Unit</label>
+                    <label className="block text-sm font-medium text-tm-text-3 mb-2">Unit</label>
                     <input
                       type="text"
                       value={formData.unit}
                       onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                      className="w-full px-4 py-3 border-2 border-neutral-light rounded-button focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                      className="w-full px-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-neutral-medium mb-2">Location</label>
+                  <label className="block text-sm font-medium text-tm-text-3 mb-2">Location</label>
                   <input
                     type="text"
                     value={formData.location}
                     onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                    className="w-full px-4 py-3 border-2 border-neutral-light rounded-button focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                    className="w-full px-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-neutral-medium mb-2">Description</label>
+                  <label className="block text-sm font-medium text-tm-text-3 mb-2">Description</label>
                   <textarea
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     rows={3}
-                    className="w-full px-4 py-3 border-2 border-neutral-light rounded-button focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                    className="w-full px-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                   />
                 </div>
               </div>
-              <div className="p-6 border-t border-neutral-light flex justify-end space-x-3">
+              <div className="p-6 border-t border-tm-border flex justify-end space-x-3">
                 <button
                   onClick={() => {
                     setShowEditModal(false)
                     setSelectedItem(null)
                     setFormData({ name: '', category: '', quantity: '', unit: '', location: '', description: '' })
                   }}
-                  className="px-6 py-3 bg-neutral-light text-neutral-text rounded-button font-semibold hover:bg-neutral-medium transition-all duration-300"
+                  className="px-6 py-3 bg-tm-surface-hover text-tm-text-1 rounded-[6px] font-semibold hover:bg-tm-surface-hover transition-all duration-300"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleUpdateItem}
-                  className="px-6 py-3 bg-primary-gradient text-white rounded-button font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium"
+                  className="px-6 py-3 bg-primary-gradient text-white rounded-[6px] font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium"
                 >
                   Update Item
                 </button>

@@ -10,6 +10,58 @@
   --info-purple: #7C3AED;
   --neutral-bg: #F9FAFB;
   --neutral-text: #111827;
+
+  /* ── Default dark theme (navy preset) ──────────────────────────────────────
+     These are the fallbacks before themeEngine.js injects the club's palette,
+     so the app renders dark immediately on first paint (no light flash). */
+  --tm-bg: #0D1828;
+  --tm-bg-elevated: #0D1828;
+  --tm-surface: #112035;
+  --tm-surface-elevated: #112035;
+  --tm-surface-hover: #162844;
+  --tm-border: rgba(255, 255, 255, 0.07);
+  --tm-border-strong: rgba(255, 255, 255, 0.12);
+  --tm-text-1: #EDF2F8;
+  --tm-text-2: #8FA3BB;
+  --tm-text-3: #506478;
+  --tm-text-muted: #506478;
+  --tm-input-bg: #112035;
+  --tm-input-border: rgba(255, 255, 255, 0.07);
+  --tm-divider: rgba(255, 255, 255, 0.07);
+
+  --tm-primary: #5BA3D9;
+  --tm-primary-light: #5BA3D9;
+  --tm-primary-lighter: #5BA3D9;
+  --tm-primary-dark: #5BA3D9;
+  --tm-primary-subtle: rgba(91, 163, 217, 0.10);
+  --tm-primary-border: rgba(255, 255, 255, 0.07);
+  --tm-secondary: #5BA3D9;
+  --tm-secondary-light: #5BA3D9;
+  --tm-secondary-dark: #5BA3D9;
+  --tm-secondary-subtle: rgba(91, 163, 217, 0.10);
+
+  --tm-text-on-primary: #0D1828;
+  --tm-text-on-primary-muted: #0D1828;
+  --tm-text-on-secondary: #0D1828;
+
+  --tm-sidebar-bg: #080F1C;
+  --tm-sidebar-text: #8FA3BB;
+  --tm-sidebar-text-muted: #506478;
+  --tm-sidebar-active-bg: rgba(91, 163, 217, 0.18);
+  --tm-sidebar-active-text: #5BA3D9;
+  --tm-sidebar-hover-bg: #112035;
+  --tm-sidebar-border: rgba(255, 255, 255, 0.07);
+  --tm-sidebar-logo-bg: #080F1C;
+
+  --tm-accent: #5BA3D9;
+  --tm-accent-text: #0D1828;
+  --tm-icon-bg: rgba(91, 163, 217, 0.12);
+  --tm-icon-color: #5BA3D9;
+
+  --tm-badge-bg: rgba(91, 163, 217, 0.12);
+  --tm-badge-text: #5BA3D9;
+  --tm-badge-secondary-bg: rgba(91, 163, 217, 0.12);
+  --tm-badge-secondary-text: #5BA3D9;
 }
 
 * {
@@ -17,7 +69,6 @@
 }
 
 body {
-  @apply bg-neutral-bg text-neutral-text;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
@@ -80,12 +131,122 @@ body {
   }
 }
 
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  33%       { transform: translateY(-18px) rotate(5deg); }
+  66%       { transform: translateY(-8px) rotate(-4deg); }
+}
+
+@keyframes float-mid {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  40%       { transform: translateY(-22px) rotate(-6deg); }
+  70%       { transform: translateY(-10px) rotate(3deg); }
+}
+
+@keyframes float-fast {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50%       { transform: translateY(-14px) rotate(8deg); }
+}
+
 /* Ensure Tailwind custom values are available */
 @layer base {
   :root {
     --radius-card: 12px;
     --radius-button: 8px;
   }
+}
+
+/* ── Shared themed form / text helpers (dark theme tokens) ────────────────── */
+@layer components {
+  .tm-input,
+  .tm-select,
+  .tm-textarea {
+    @apply w-full rounded-[6px] border border-tm-border bg-tm-surface-hover px-3 py-2 text-sm text-tm-text-1 outline-none transition-colors;
+  }
+
+  .tm-input::placeholder,
+  .tm-textarea::placeholder {
+    color: var(--tm-text-3);
+  }
+
+  .tm-input:focus,
+  .tm-select:focus,
+  .tm-textarea:focus {
+    border-color: var(--tm-secondary);
+    box-shadow: 0 0 0 1px var(--tm-secondary);
+  }
+
+  .tm-select option {
+    background: var(--tm-surface);
+    color: var(--tm-text-1);
+  }
+
+  .tm-label {
+    @apply mb-1 block text-[11px] font-semibold uppercase tracking-wide text-tm-text-muted;
+  }
+
+  /* Panel + section helpers for quick page migrations */
+  .tm-card {
+    @apply rounded-[10px] border border-tm-border bg-tm-surface;
+  }
+
+  .tm-section-title {
+    @apply text-sm font-medium text-tm-text-1;
+  }
+}
+
+/* ── Theme-aware defaults for form fields inside the app shell ────────────────
+   Ensures inputs/selects/textareas stay readable on the dark theme even on
+   pages that only set border utilities. Inline styles and .tm-input win via
+   higher specificity. Checkboxes/radios keep their native appearance. */
+.tm-app input:not([type='checkbox']):not([type='radio']):not([type='range']),
+.tm-app select,
+.tm-app textarea {
+  background-color: var(--tm-surface-hover);
+  border-color: var(--tm-border);
+  color: var(--tm-text-1);
+}
+
+.tm-app input::placeholder,
+.tm-app textarea::placeholder {
+  color: var(--tm-text-3);
+}
+
+.tm-app select option {
+  background: var(--tm-surface);
+  color: var(--tm-text-1);
+}
+
+/* ── Subtle, theme-blending scrollbars ───────────────────────────────────────
+   The default OS scrollbar shows as a bright bar that clashes with the dark
+   theme. Use a faint neutral thumb on a transparent track so it blends in. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.22);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 

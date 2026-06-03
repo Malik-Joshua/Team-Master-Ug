@@ -113,16 +113,16 @@ export default function AIAssistant() {
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          'fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 w-12 h-12 sm:w-14 sm:h-14 rounded-full shadow-large flex items-center justify-center transition-all duration-300 hover:scale-110 hover:shadow-xl border-2 border-white',
-          isOpen ? 'bg-secondary' : 'bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500'
+          'fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 w-12 h-12 sm:w-14 sm:h-14 rounded-full shadow-large flex items-center justify-center transition-all duration-300 hover:scale-110 hover:shadow-xl border border-tm-border',
+          isOpen ? 'bg-tm-surface-hover text-tm-text-1' : 'bg-tm-secondary text-tm-on-secondary'
         )}
         aria-label="Open AI Assistant"
       >
         {isOpen ? (
-          <X className="w-6 h-6 text-white" />
+          <X className="w-6 h-6 text-current" />
         ) : (
           <svg
-            className="w-7 h-7 text-white"
+            className="w-7 h-7 text-current"
             fill="none"
             stroke="currentColor"
             strokeWidth="2.5"
@@ -141,21 +141,21 @@ export default function AIAssistant() {
 
       {/* AI Assistant Chat Panel */}
       {isOpen && (
-        <div className="fixed bottom-20 right-0 sm:right-6 z-50 w-[calc(100vw-2rem)] sm:w-96 max-w-[420px] h-[70vh] sm:h-[600px] bg-white rounded-card shadow-large border border-neutral-light flex flex-col mx-4 sm:mx-0">
+        <div className="fixed bottom-20 right-0 sm:right-6 z-50 w-[calc(100vw-2rem)] sm:w-96 max-w-[420px] h-[70vh] sm:h-[600px] bg-tm-surface rounded-card shadow-large border border-tm-border flex flex-col mx-4 sm:mx-0">
           {/* Header */}
-          <div className="bg-club-gradient p-4 rounded-t-card flex items-center justify-between">
+          <div className="bg-tm-secondary p-4 rounded-t-card flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
-                <Bot className="w-6 h-6 text-white" />
+              <div className="w-10 h-10 rounded-full bg-black/10 flex items-center justify-center">
+                <Bot className="w-6 h-6 text-tm-on-secondary" />
               </div>
               <div>
-                <h3 className="text-white font-bold text-lg">AI Assistant</h3>
-                <p className="text-white/80 text-xs">Always here to help</p>
+                <h3 className="text-tm-on-secondary font-bold text-lg">AI Assistant</h3>
+                <p className="text-tm-on-secondary/80 text-xs">Always here to help</p>
               </div>
             </div>
             <button
               onClick={() => setIsOpen(false)}
-              className="p-2 hover:bg-white/20 rounded-lg transition-colors text-white"
+              className="p-2 hover:bg-black/10 rounded-lg transition-colors text-tm-on-secondary"
               aria-label="Close AI Assistant"
             >
               <X className="w-5 h-5" />
@@ -163,7 +163,7 @@ export default function AIAssistant() {
           </div>
 
           {/* Messages Container */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-neutral-bg">
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-tm-bg">
             {messages.map((message) => (
               <div
                 key={message.id}
@@ -176,8 +176,8 @@ export default function AIAssistant() {
                   className={cn(
                     'w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0',
                     message.role === 'user'
-                      ? 'bg-primary text-white'
-                      : 'bg-club-gradient text-white'
+                      ? 'bg-primary text-tm-on-secondary'
+                      : 'bg-tm-secondary text-tm-on-secondary'
                   )}
                 >
                   {message.role === 'user' ? (
@@ -190,8 +190,8 @@ export default function AIAssistant() {
                   className={cn(
                     'flex-1 rounded-lg p-3 max-w-[80%]',
                     message.role === 'user'
-                      ? 'bg-primary text-white'
-                      : 'bg-white border border-neutral-light text-neutral-text'
+                      ? 'bg-primary text-tm-on-secondary'
+                      : 'bg-tm-surface border border-tm-border text-tm-text-1'
                   )}
                 >
                   <p className="text-sm whitespace-pre-wrap">{message.content}</p>
@@ -208,10 +208,10 @@ export default function AIAssistant() {
             {/* Loading Indicator */}
             {isLoading && (
               <div className="flex items-start space-x-3">
-                <div className="w-8 h-8 rounded-full bg-club-gradient text-white flex items-center justify-center flex-shrink-0">
+                <div className="w-8 h-8 rounded-full bg-tm-secondary text-tm-on-secondary flex items-center justify-center flex-shrink-0">
                   <Bot className="w-4 h-4" />
                 </div>
-                <div className="bg-white border border-neutral-light rounded-lg p-3">
+                <div className="bg-tm-surface border border-tm-border rounded-lg p-3">
                   <Loader2 className="w-5 h-5 text-primary animate-spin" />
                 </div>
               </div>
@@ -221,7 +221,7 @@ export default function AIAssistant() {
           </div>
 
           {/* Input Area */}
-          <div className="p-4 border-t border-neutral-light bg-white rounded-b-card">
+          <div className="p-4 border-t border-tm-border bg-tm-surface rounded-b-card">
             <div className="flex items-center space-x-2">
               <input
                 ref={inputRef}
@@ -230,17 +230,17 @@ export default function AIAssistant() {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={handleKeyPress}
                 placeholder="Ask me anything..."
-                className="flex-1 px-4 py-3 border-2 border-neutral-light rounded-button focus:ring-2 focus:ring-primary focus:border-primary transition-all text-neutral-text"
+                className="flex-1 px-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary focus:border-primary transition-all text-tm-text-1"
                 disabled={isLoading}
               />
               <button
                 onClick={handleSend}
                 disabled={!input.trim() || isLoading}
                 className={cn(
-                  'p-3 rounded-button transition-all duration-300',
+                  'p-3 rounded-[6px] transition-all duration-300',
                   input.trim() && !isLoading
-                    ? 'bg-club-gradient text-white hover:opacity-90 shadow-soft hover:shadow-medium'
-                    : 'bg-neutral-light text-neutral-medium cursor-not-allowed'
+                    ? 'bg-tm-secondary text-tm-on-secondary hover:opacity-90 shadow-soft hover:shadow-medium'
+                    : 'bg-tm-surface-hover text-tm-text-3 cursor-not-allowed'
                 )}
                 aria-label="Send message"
               >
@@ -251,7 +251,7 @@ export default function AIAssistant() {
                 )}
               </button>
             </div>
-            <p className="text-xs text-neutral-medium mt-2 text-center">
+            <p className="text-xs text-tm-text-3 mt-2 text-center">
               Press Enter to send • AI responses are simulated
             </p>
           </div>

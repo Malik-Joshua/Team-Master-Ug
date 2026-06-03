@@ -1,15 +1,42 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Layout from '@/components/Layout'
-import { User, Mail, Phone, Shield, Camera, Save } from 'lucide-react'
+import { User, Mail, Phone, Shield, Camera, Save, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import RefreshButton from '@/components/RefreshButton'
 
 export default function ProfilePage() {
   const [user, setUser] = useState<any>(null)
+  const [club, setClub] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(false)
+  const [uploadingLogo, setUploadingLogo] = useState(false)
+  const logoInputRef = useRef<HTMLInputElement>(null)
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingLogo(true)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('persist', 'true')
+      const res = await fetch('/api/club/upload-badge', { method: 'POST', body: fd })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || 'Upload failed')
+      }
+      const { url } = await res.json()
+      setClub((prev: any) => ({ ...(prev || {}), badge_url: url }))
+      alert('Club logo updated! It will appear across the app.')
+    } catch (err: any) {
+      alert(`Error: ${err.message}`)
+    } finally {
+      setUploadingLogo(false)
+      if (logoInputRef.current) logoInputRef.current.value = ''
+    }
+  }
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -40,6 +67,16 @@ export default function ProfilePage() {
             birth_date: profile.birth_date ? new Date(profile.birth_date).toISOString().split('T')[0] : '',
           })
         }
+
+        // Load club branding (latest-updated row = source of truth)
+        const { data: clubData } = await supabase
+          .from('club_settings')
+          .select('club_nickname, badge_url, league')
+          .order('updated_at', { ascending: false, nullsFirst: false })
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+        if (clubData) setClub(clubData)
       }
       setLoading(false)
     }
@@ -112,6 +149,15 @@ export default function ProfilePage() {
           birth_date: profile.birth_date ? new Date(profile.birth_date).toISOString().split('T')[0] : '',
         })
       }
+
+      const { data: clubData } = await supabase
+        .from('club_settings')
+        .select('club_nickname, badge_url, league')
+        .order('updated_at', { ascending: false, nullsFirst: false })
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (clubData) setClub(clubData)
     }
     setLoading(false)
   }
@@ -119,15 +165,85 @@ export default function ProfilePage() {
   return (
     <Layout pageTitle="My Profile">
       <div className="max-w-4xl mx-auto space-y-6">
-        <div className="bg-white rounded-card shadow-soft border border-neutral-light p-6 hover:shadow-medium transition-shadow">
+        {/* Club membership card — shows the full club crest so members feel part of the club */}
+        <div className="overflow-hidden rounded-card border border-tm-border bg-tm-surface shadow-soft">
+          <div className="h-1.5 w-full bg-tm-secondary" />
+          <div className="flex items-center gap-4 p-5 sm:gap-5 sm:p-6">
+            <div className="group relative flex h-20 w-20 flex-shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-tm-border bg-tm-surface-hover sm:h-24 sm:w-24">
+              {club?.badge_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={club.badge_url}
+                  alt={club?.club_nickname || 'Club logo'}
+                  className="h-full w-full object-contain p-2"
+                />
+              ) : (
+                <span className="font-serif text-2xl font-semibold text-tm-secondary">
+                  {(club?.club_nickname || 'Team Master')
+                    .split(' ')
+                    .map((w: string) => w[0])
+                    .join('')
+                    .toUpperCase()
+                    .slice(0, 2)}
+                </span>
+              )}
+              {user.role === 'admin' && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => logoInputRef.current?.click()}
+                    disabled={uploadingLogo}
+                    title="Upload club logo"
+                    className="absolute inset-0 flex items-center justify-center bg-black/55 text-white opacity-0 transition-opacity group-hover:opacity-100 disabled:opacity-100"
+                  >
+                    {uploadingLogo ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <span className="flex flex-col items-center gap-0.5">
+                        <Camera className="h-5 w-5" />
+                        <span className="text-[9px] font-medium">{club?.badge_url ? 'Change' : 'Upload'}</span>
+                      </span>
+                    )}
+                  </button>
+                  <input
+                    ref={logoInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleLogoUpload}
+                  />
+                </>
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-tm-text-3">
+                Club membership
+              </p>
+              <h2 className="truncate text-xl font-semibold text-tm-text-1 sm:text-2xl">
+                {club?.club_nickname || 'Team Master'}
+              </h2>
+              <p className="truncate text-sm text-tm-text-3">
+                {club?.league || 'Rugby · Premiership'}
+              </p>
+            </div>
+            <div className="hidden flex-shrink-0 flex-col items-end gap-1.5 sm:flex">
+              <span className="rounded-full bg-tm-badge px-3 py-1 text-xs font-medium capitalize text-tm-badge-text">
+                {user.role.replace('_', ' ')}
+              </span>
+              <span className="text-[11px] text-tm-text-3">Active member</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-tm-surface rounded-card shadow-soft border border-tm-border p-6 hover:shadow-medium transition-shadow">
           <div className="flex items-center justify-between mb-6">
-            <h1 className="text-4xl font-extrabold text-club-gradient">My Profile</h1>
+            <h1 className="text-[20px] font-medium text-tm-text-1">My Profile</h1>
             <div className="flex gap-3">
               <RefreshButton onRefresh={loadProfile} />
               {!editing && (
                 <button
                   onClick={() => setEditing(true)}
-                  className="px-6 py-3 bg-club-gradient text-white rounded-button font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium"
+                  className="px-6 py-3 bg-tm-secondary text-tm-on-secondary rounded-[6px] font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium"
                 >
                   Edit Profile
                 </button>
@@ -137,7 +253,7 @@ export default function ProfilePage() {
 
           <div className="flex flex-col md:flex-row gap-6">
             <div className="flex-shrink-0">
-              <div className="relative w-32 h-32 rounded-full overflow-hidden bg-neutral-light">
+              <div className="relative w-32 h-32 rounded-full overflow-hidden bg-tm-surface-hover">
                 {user.profile_picture_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -146,8 +262,8 @@ export default function ProfilePage() {
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-club-gradient">
-                    <User className="w-16 h-16 text-white" />
+                  <div className="w-full h-full flex items-center justify-center bg-tm-secondary">
+                    <User className="w-16 h-16 text-tm-on-secondary" />
                   </div>
                 )}
                 {editing && (
@@ -165,17 +281,17 @@ export default function ProfilePage() {
 
             <div className="flex-1 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-neutral-medium mb-1">
+                <label className="block text-sm font-medium text-tm-text-3 mb-1">
                   Unique ID
                 </label>
-                <div className="flex items-center text-neutral-text">
+                <div className="flex items-center text-tm-text-1">
                   <Shield className="w-4 h-4 mr-2" />
                   {user.unique_id}
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-neutral-medium mb-1">
+                <label className="block text-sm font-medium text-tm-text-3 mb-1">
                   Name
                 </label>
                 {editing ? (
@@ -183,28 +299,28 @@ export default function ProfilePage() {
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-4 py-3 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                    className="w-full px-4 py-3 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                   />
                 ) : (
-                  <div className="flex items-center text-neutral-text">
-                    <User className="w-4 h-4 mr-2 text-neutral-medium" />
+                  <div className="flex items-center text-tm-text-1">
+                    <User className="w-4 h-4 mr-2 text-tm-text-3" />
                     {user.name}
                   </div>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-neutral-medium mb-1">
+                <label className="block text-sm font-medium text-tm-text-3 mb-1">
                   Email
                 </label>
-                <div className="flex items-center text-neutral-text">
-                  <Mail className="w-4 h-4 mr-2 text-neutral-medium" />
+                <div className="flex items-center text-tm-text-1">
+                  <Mail className="w-4 h-4 mr-2 text-tm-text-3" />
                   {user.email}
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-neutral-medium mb-1">
+                <label className="block text-sm font-medium text-tm-text-3 mb-1">
                   Phone
                 </label>
                 {editing ? (
@@ -212,40 +328,40 @@ export default function ProfilePage() {
                     type="tel"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full px-4 py-3 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                    className="w-full px-4 py-3 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                   />
                 ) : (
-                  <div className="flex items-center text-neutral-text">
-                    <Phone className="w-4 h-4 mr-2 text-neutral-medium" />
+                  <div className="flex items-center text-tm-text-1">
+                    <Phone className="w-4 h-4 mr-2 text-tm-text-3" />
                     {user.phone || 'Not provided'}
                   </div>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-neutral-medium mb-1">
+                <label className="block text-sm font-medium text-tm-text-3 mb-1">
                   Role
                 </label>
-                <div className="text-neutral-text capitalize">
+                <div className="text-tm-text-1 capitalize">
                   {user.role.replace('_', ' ')}
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-neutral-medium mb-1">
+                <label className="block text-sm font-medium text-tm-text-3 mb-1">
                   Status
                 </label>
-                <div className="text-neutral-text capitalize">
+                <div className="text-tm-text-1 capitalize">
                   {user.status}
                 </div>
               </div>
 
               {user.birth_date && (
                 <div>
-                  <label className="block text-sm font-medium text-neutral-medium mb-1">
+                  <label className="block text-sm font-medium text-tm-text-3 mb-1">
                     Birth Date
                   </label>
-                  <div className="text-neutral-text">
+                  <div className="text-tm-text-1">
                     {new Date(user.birth_date).toLocaleDateString('en-US', {
                       year: 'numeric',
                       month: 'long',
@@ -258,41 +374,41 @@ export default function ProfilePage() {
               {editing && (
                 <>
                   <div>
-                    <label className="block text-sm font-medium text-neutral-medium mb-1">
+                    <label className="block text-sm font-medium text-tm-text-3 mb-1">
                       Emergency Contact
                     </label>
                     <input
                       type="text"
                       value={formData.emergency_contact}
                       onChange={(e) => setFormData({ ...formData, emergency_contact: e.target.value })}
-                      className="w-full px-4 py-3 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                      className="w-full px-4 py-3 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-neutral-medium mb-1">
+                    <label className="block text-sm font-medium text-tm-text-3 mb-1">
                       Emergency Phone
                     </label>
                     <input
                       type="tel"
                       value={formData.emergency_phone}
                       onChange={(e) => setFormData({ ...formData, emergency_phone: e.target.value })}
-                      className="w-full px-4 py-3 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                      className="w-full px-4 py-3 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-neutral-medium mb-1">
+                    <label className="block text-sm font-medium text-tm-text-3 mb-1">
                       Birth Date
                     </label>
                     <input
                       type="date"
                       value={formData.birth_date}
                       onChange={(e) => setFormData({ ...formData, birth_date: e.target.value })}
-                      className="w-full px-4 py-3 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                      className="w-full px-4 py-3 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                       max={new Date().toISOString().split('T')[0]}
                     />
-                    <p className="text-xs text-neutral-medium mt-1">
+                    <p className="text-xs text-tm-text-3 mt-1">
                       Your birthday will be used to show birthday alerts and wish you a happy birthday!
                     </p>
                   </div>
@@ -300,7 +416,7 @@ export default function ProfilePage() {
                   <div className="flex gap-3 pt-4">
                     <button
                       onClick={handleSave}
-                      className="px-6 py-3 bg-club-gradient text-white rounded-button font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
+                      className="px-6 py-3 bg-tm-secondary text-tm-on-secondary rounded-[6px] font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
                     >
                       <Save className="w-4 h-4 mr-2" />
                       Save Changes
@@ -316,7 +432,7 @@ export default function ProfilePage() {
                           birth_date: user.birth_date ? new Date(user.birth_date).toISOString().split('T')[0] : '',
                         })
                       }}
-                      className="px-6 py-3 bg-neutral-light text-neutral-text rounded-button font-semibold hover:bg-neutral-medium transition-all duration-300"
+                      className="px-6 py-3 bg-tm-surface-hover text-tm-text-1 rounded-[6px] font-semibold hover:bg-tm-surface-hover transition-all duration-300"
                     >
                       Cancel
                     </button>

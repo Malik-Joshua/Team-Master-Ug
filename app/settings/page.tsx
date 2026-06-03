@@ -6,7 +6,10 @@ import { User, Mail, Phone, Lock, Bell, Shield, Save, Camera, AlertCircle } from
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
+type Tab = 'account'
+
 export default function SettingsPage() {
+  const [activeTab] = useState<Tab>('account')
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -216,55 +219,58 @@ export default function SettingsPage() {
     <Layout pageTitle="Settings">
       <div className="space-y-6">
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-4xl font-extrabold text-club-gradient mb-2">Settings</h1>
-          <p className="text-lg text-neutral-medium font-medium">Manage your account settings and preferences</p>
+        <div className="mb-2">
+          <h1 className="text-[20px] font-medium text-tm-text-1">Settings</h1>
+          <p className="text-[13px] text-tm-text-3">Manage your account settings and preferences</p>
         </div>
 
         {/* Error/Success Messages */}
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center gap-2">
+          <div className="bg-[#E05757]/10 border border-[#E05757]/30 text-[#E05757] px-4 py-3 rounded-lg flex items-center gap-2">
             <AlertCircle className="w-5 h-5" />
             <span>{error}</span>
           </div>
         )}
 
         {success && (
-          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg flex items-center gap-2">
+          <div className="bg-success/10 border border-success/30 text-success px-4 py-3 rounded-lg flex items-center gap-2">
             <Save className="w-5 h-5" />
             <span>{success}</span>
           </div>
         )}
 
+        {/* ── Account Tab ── */}
+        {activeTab === 'account' && <>
+
         {/* Profile Settings */}
-        <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+        <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
           <div className="flex items-center gap-3 mb-6">
             <div className="p-2 bg-primary/10 rounded-lg">
               <User className="w-6 h-6 text-primary" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-neutral-text">Profile Information</h2>
-              <p className="text-sm text-neutral-medium">Update your personal information</p>
+              <h2 className="text-2xl font-bold text-tm-text-1">Profile Information</h2>
+              <p className="text-sm text-tm-text-3">Update your personal information</p>
             </div>
           </div>
 
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-semibold text-neutral-text mb-2">
+              <label className="block text-sm font-semibold text-tm-text-1 mb-2">
                 Full Name *
               </label>
               <input
                 type="text"
                 value={profileData.name}
                 onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
-                className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                 placeholder="Enter your full name"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-neutral-text mb-2">
+              <label className="block text-sm font-semibold text-tm-text-1 mb-2">
                 <Phone className="w-4 h-4 inline mr-1" />
                 Phone Number
               </label>
@@ -272,50 +278,50 @@ export default function SettingsPage() {
                 type="tel"
                 value={profileData.phone}
                 onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
-                className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                 placeholder="Enter your phone number"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-neutral-text mb-2">
+              <label className="block text-sm font-semibold text-tm-text-1 mb-2">
                 Emergency Contact Name
               </label>
               <input
                 type="text"
                 value={profileData.emergency_contact}
                 onChange={(e) => setProfileData({ ...profileData, emergency_contact: e.target.value })}
-                className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                 placeholder="Enter emergency contact name"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-neutral-text mb-2">
+              <label className="block text-sm font-semibold text-tm-text-1 mb-2">
                 Emergency Contact Phone
               </label>
               <input
                 type="tel"
                 value={profileData.emergency_phone}
                 onChange={(e) => setProfileData({ ...profileData, emergency_phone: e.target.value })}
-                className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                 placeholder="Enter emergency contact phone"
               />
             </div>
 
             {user && (
               <div>
-                <label className="block text-sm font-semibold text-neutral-text mb-2">
+                <label className="block text-sm font-semibold text-tm-text-1 mb-2">
                   <Mail className="w-4 h-4 inline mr-1" />
                   Email Address
                 </label>
                 <input
                   type="email"
                   value={user.email || ''}
-                  className="w-full px-4 py-2 border border-neutral-light rounded-lg bg-neutral-light/50 cursor-not-allowed"
+                  className="w-full px-4 py-2 border border-tm-border rounded-lg bg-tm-surface-hover/50 cursor-not-allowed"
                   disabled
                 />
-                <p className="text-xs text-neutral-medium mt-1">Email cannot be changed from settings</p>
+                <p className="text-xs text-tm-text-3 mt-1">Email cannot be changed from settings</p>
               </div>
             )}
 
@@ -323,7 +329,7 @@ export default function SettingsPage() {
               <button
                 onClick={handleSaveProfile}
                 disabled={saving || !profileData.name}
-                className="px-6 py-2 bg-primary text-white rounded-lg font-semibold hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-6 py-2 bg-primary text-tm-on-secondary rounded-lg font-semibold hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 <Save className="w-4 h-4" />
                 {saving ? 'Saving...' : 'Save Profile'}
@@ -333,53 +339,53 @@ export default function SettingsPage() {
         </div>
 
         {/* Password Settings */}
-        <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+        <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
           <div className="flex items-center gap-3 mb-6">
             <div className="p-2 bg-warning/10 rounded-lg">
               <Lock className="w-6 h-6 text-warning" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-neutral-text">Change Password</h2>
-              <p className="text-sm text-neutral-medium">Update your account password</p>
+              <h2 className="text-2xl font-bold text-tm-text-1">Change Password</h2>
+              <p className="text-sm text-tm-text-3">Update your account password</p>
             </div>
           </div>
 
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-semibold text-neutral-text mb-2">
+              <label className="block text-sm font-semibold text-tm-text-1 mb-2">
                 Current Password
               </label>
               <input
                 type="password"
                 value={passwordData.currentPassword}
                 onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
-                className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                 placeholder="Enter current password"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-neutral-text mb-2">
+              <label className="block text-sm font-semibold text-tm-text-1 mb-2">
                 New Password
               </label>
               <input
                 type="password"
                 value={passwordData.newPassword}
                 onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
-                className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                 placeholder="Enter new password (min. 6 characters)"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-neutral-text mb-2">
+              <label className="block text-sm font-semibold text-tm-text-1 mb-2">
                 Confirm New Password
               </label>
               <input
                 type="password"
                 value={passwordData.confirmPassword}
                 onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
-                className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                 placeholder="Confirm new password"
               />
             </div>
@@ -398,22 +404,22 @@ export default function SettingsPage() {
         </div>
 
         {/* Notification Settings */}
-        <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+        <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
           <div className="flex items-center gap-3 mb-6">
             <div className="p-2 bg-info/10 rounded-lg">
               <Bell className="w-6 h-6 text-info" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-neutral-text">Notification Preferences</h2>
-              <p className="text-sm text-neutral-medium">Manage how you receive notifications</p>
+              <h2 className="text-2xl font-bold text-tm-text-1">Notification Preferences</h2>
+              <p className="text-sm text-tm-text-3">Manage how you receive notifications</p>
             </div>
           </div>
 
           <div className="space-y-4">
-            <div className="flex items-center justify-between p-4 border border-neutral-light rounded-lg">
+            <div className="flex items-center justify-between p-4 border border-tm-border rounded-lg">
               <div>
-                <label className="text-sm font-semibold text-neutral-text">Email Notifications</label>
-                <p className="text-xs text-neutral-medium">Receive notifications via email</p>
+                <label className="text-sm font-semibold text-tm-text-1">Email Notifications</label>
+                <p className="text-xs text-tm-text-3">Receive notifications via email</p>
               </div>
               <input
                 type="checkbox"
@@ -423,10 +429,10 @@ export default function SettingsPage() {
               />
             </div>
 
-            <div className="flex items-center justify-between p-4 border border-neutral-light rounded-lg">
+            <div className="flex items-center justify-between p-4 border border-tm-border rounded-lg">
               <div>
-                <label className="text-sm font-semibold text-neutral-text">Message Notifications</label>
-                <p className="text-xs text-neutral-medium">Get notified about new messages</p>
+                <label className="text-sm font-semibold text-tm-text-1">Message Notifications</label>
+                <p className="text-xs text-tm-text-3">Get notified about new messages</p>
               </div>
               <input
                 type="checkbox"
@@ -436,10 +442,10 @@ export default function SettingsPage() {
               />
             </div>
 
-            <div className="flex items-center justify-between p-4 border border-neutral-light rounded-lg">
+            <div className="flex items-center justify-between p-4 border border-tm-border rounded-lg">
               <div>
-                <label className="text-sm font-semibold text-neutral-text">Task Notifications</label>
-                <p className="text-xs text-neutral-medium">Get notified about new tasks and assignments</p>
+                <label className="text-sm font-semibold text-tm-text-1">Task Notifications</label>
+                <p className="text-xs text-tm-text-3">Get notified about new tasks and assignments</p>
               </div>
               <input
                 type="checkbox"
@@ -464,33 +470,35 @@ export default function SettingsPage() {
 
         {/* Account Information */}
         {user && (
-          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+          <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
             <div className="flex items-center gap-3 mb-6">
               <div className="p-2 bg-success/10 rounded-lg">
                 <Shield className="w-6 h-6 text-success" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-neutral-text">Account Information</h2>
-                <p className="text-sm text-neutral-medium">Your account details</p>
+                <h2 className="text-2xl font-bold text-tm-text-1">Account Information</h2>
+                <p className="text-sm text-tm-text-3">Your account details</p>
               </div>
             </div>
 
             <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 bg-neutral-light/50 rounded-lg">
-                <span className="text-sm font-medium text-neutral-medium">Role</span>
-                <span className="text-sm font-semibold text-neutral-text capitalize">{user.role?.replace('_', ' ') || 'N/A'}</span>
+              <div className="flex items-center justify-between p-3 bg-tm-surface-hover/50 rounded-lg">
+                <span className="text-sm font-medium text-tm-text-3">Role</span>
+                <span className="text-sm font-semibold text-tm-text-1 capitalize">{user.role?.replace('_', ' ') || 'N/A'}</span>
               </div>
-              <div className="flex items-center justify-between p-3 bg-neutral-light/50 rounded-lg">
-                <span className="text-sm font-medium text-neutral-medium">Status</span>
-                <span className="text-sm font-semibold text-neutral-text capitalize">{user.status || 'N/A'}</span>
+              <div className="flex items-center justify-between p-3 bg-tm-surface-hover/50 rounded-lg">
+                <span className="text-sm font-medium text-tm-text-3">Status</span>
+                <span className="text-sm font-semibold text-tm-text-1 capitalize">{user.status || 'N/A'}</span>
               </div>
-              <div className="flex items-center justify-between p-3 bg-neutral-light/50 rounded-lg">
-                <span className="text-sm font-medium text-neutral-medium">User ID</span>
-                <span className="text-sm font-mono text-neutral-text text-xs">{user.user_id || 'N/A'}</span>
+              <div className="flex items-center justify-between p-3 bg-tm-surface-hover/50 rounded-lg">
+                <span className="text-sm font-medium text-tm-text-3">User ID</span>
+                <span className="text-sm font-mono text-tm-text-1 text-xs">{user.user_id || 'N/A'}</span>
               </div>
             </div>
           </div>
         )}
+
+        </> /* end account tab */}
       </div>
     </Layout>
   )

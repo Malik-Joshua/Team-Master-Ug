@@ -1938,8 +1938,8 @@ export default function MessagesPage() {
       <div className="max-w-6xl mx-auto space-y-6">
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h1 className="text-4xl font-extrabold text-club-gradient mb-2">Messages</h1>
-            <p className="text-lg text-neutral-medium font-medium">
+            <h1 className="text-[20px] font-medium text-tm-text-1">Messages</h1>
+            <p className="text-[13px] text-tm-text-3">
               {user?.role === 'admin'
                 ? 'Send messages to all team members and staff'
                 : user?.role === 'coach' 
@@ -1966,7 +1966,7 @@ export default function MessagesPage() {
         <div className="mb-6">
           <button
             onClick={() => setShowCompose(!showCompose)}
-            className="bg-club-gradient text-white px-6 py-3 rounded-button font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
+            className="bg-tm-secondary text-tm-on-secondary px-6 py-3 rounded-[6px] font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
           >
             <Send className="w-5 h-5 mr-2" />
             New Message
@@ -1975,19 +1975,19 @@ export default function MessagesPage() {
 
         {/* Compose Message */}
         {showCompose && (
-          <div className="bg-white rounded-card shadow-soft border border-neutral-light p-6">
-            <h2 className="text-xl font-semibold text-neutral-text mb-4">Compose Message</h2>
+          <div className="bg-tm-surface rounded-card shadow-soft border border-tm-border p-6">
+            <h2 className="text-xl font-semibold text-tm-text-1 mb-4">Compose Message</h2>
             <div className="space-y-4">
               {user?.role === 'admin' ? (
                 <>
                   <div>
-                    <label className="block text-sm font-medium text-neutral-medium mb-2">
+                    <label className="block text-sm font-medium text-tm-text-3 mb-2">
                       Send To
                     </label>
                     <select
                       value={composeData.recipientType}
                       onChange={(e) => setComposeData({ ...composeData, recipientType: e.target.value, recipient: '', recipientId: '', selectedRoles: [] })}
-                      className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                      className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                     >
                       <option value="role">By Role (General/Broadcast)</option>
                       <option value="individual">Individual User</option>
@@ -1995,7 +1995,7 @@ export default function MessagesPage() {
                   </div>
                   {composeData.recipientType === 'role' ? (
                     <div>
-                      <label className="block text-sm font-medium text-neutral-medium mb-2">
+                      <label className="block text-sm font-medium text-tm-text-3 mb-2">
                         Select Recipient Role(s) - You can select multiple
                       </label>
                       <div className="space-y-2">
@@ -2028,22 +2028,22 @@ export default function MessagesPage() {
                                   })
                                 }
                               }}
-                              className="w-4 h-4 text-primary border-neutral-light rounded focus:ring-primary"
+                              className="w-4 h-4 text-primary border-tm-border rounded focus:ring-primary"
                             />
-                            <span className="text-sm text-neutral-text">{role.label}</span>
+                            <span className="text-sm text-tm-text-1">{role.label}</span>
                           </label>
                         ))}
                       </div>
                     </div>
                   ) : (
                     <div>
-                      <label className="block text-sm font-medium text-neutral-medium mb-2">
+                      <label className="block text-sm font-medium text-tm-text-3 mb-2">
                         Select Individual Recipient
                       </label>
                       <select
                         value={composeData.recipientId}
                         onChange={(e) => setComposeData({ ...composeData, recipientId: e.target.value, recipient: '' })}
-                        className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                        className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                       >
                         <option value="">Select recipient...</option>
                         {players.length > 0 && (
@@ -2116,13 +2116,13 @@ export default function MessagesPage() {
               ) : user?.role === 'coach' ? (
                 <>
                   <div>
-                    <label className="block text-sm font-medium text-neutral-medium mb-2">
+                    <label className="block text-sm font-medium text-tm-text-3 mb-2">
                       Send To
                     </label>
                     <select
                       value={composeData.recipientType}
                       onChange={(e) => setComposeData({ ...composeData, recipientType: e.target.value, recipient: '', recipientId: '' })}
-                      className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                      className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                     >
                       <option value="role">Send to Role Group</option>
                       <option value="individual">Send to Individual</option>
@@ -2130,13 +2130,13 @@ export default function MessagesPage() {
                   </div>
                   {composeData.recipientType === 'role' ? (
                     <div>
-                      <label className="block text-sm font-medium text-neutral-medium mb-2">
+                      <label className="block text-sm font-medium text-tm-text-3 mb-2">
                         Select Recipient Group
                       </label>
                       <select
                         value={composeData.recipient}
                         onChange={(e) => setComposeData({ ...composeData, recipient: e.target.value })}
-                        className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                        className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                       >
                         <option value="">Select recipient group...</option>
                         <option value="all_players">All Players</option>
@@ -2147,13 +2147,13 @@ export default function MessagesPage() {
                     </div>
                   ) : (
                     <div>
-                      <label className="block text-sm font-medium text-neutral-medium mb-2">
+                      <label className="block text-sm font-medium text-tm-text-3 mb-2">
                         Select Individual Recipient
                       </label>
                       <select
                         value={composeData.recipientId}
                         onChange={(e) => setComposeData({ ...composeData, recipientId: e.target.value, recipient: '' })}
-                        className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                        className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                       >
                         <option value="">Select recipient...</option>
                         {players.length > 0 && (
@@ -2226,16 +2226,16 @@ export default function MessagesPage() {
               ) : user?.role === 'physio' ? (
                 <>
                   <div>
-                    <label className="block text-sm font-medium text-neutral-medium mb-2">
+                    <label className="block text-sm font-medium text-tm-text-3 mb-2">
                       Select Recipient
                     </label>
-                    <p className="text-xs text-neutral-medium mb-2">
+                    <p className="text-xs text-tm-text-3 mb-2">
                       You can only message players with recorded injuries, administrators, and coaches
                     </p>
                     <select
                       value={composeData.recipientId}
                       onChange={(e) => setComposeData({ ...composeData, recipientId: e.target.value, recipientType: 'individual', recipient: '' })}
-                      className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                      className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                     >
                       <option value="">Select recipient...</option>
                       {players.length > 0 && (
@@ -2270,7 +2270,7 @@ export default function MessagesPage() {
                       )}
                     </select>
                     {players.length > 0 && (
-                      <p className="text-xs text-neutral-medium mt-1">
+                      <p className="text-xs text-tm-text-3 mt-1">
                         Only players with recorded injuries are shown
                       </p>
                     )}
@@ -2279,13 +2279,13 @@ export default function MessagesPage() {
               ) : user?.role === 'club_captain' ? (
                 <>
                   <div>
-                    <label className="block text-sm font-medium text-neutral-medium mb-2">
+                    <label className="block text-sm font-medium text-tm-text-3 mb-2">
                       Send To
                     </label>
                     <select
                       value={composeData.recipientType}
                       onChange={(e) => setComposeData({ ...composeData, recipientType: e.target.value, recipient: '', recipientId: '' })}
-                      className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                      className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                     >
                       <option value="role">Send to Role Group</option>
                       <option value="individual">Send to Individual</option>
@@ -2293,16 +2293,16 @@ export default function MessagesPage() {
                   </div>
                   {composeData.recipientType === 'role' ? (
                     <div>
-                      <label className="block text-sm font-medium text-neutral-medium mb-2">
+                      <label className="block text-sm font-medium text-tm-text-3 mb-2">
                         Select Recipient Group
                       </label>
-                      <p className="text-xs text-neutral-medium mb-2">
+                      <p className="text-xs text-tm-text-3 mb-2">
                         Note: You cannot send messages to finance administrators
                       </p>
                       <select
                         value={composeData.recipient}
                         onChange={(e) => setComposeData({ ...composeData, recipient: e.target.value })}
-                        className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                        className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                       >
                         <option value="">Select recipient group...</option>
                         <option value="all_players">All Players</option>
@@ -2313,16 +2313,16 @@ export default function MessagesPage() {
                     </div>
                   ) : (
                     <div>
-                      <label className="block text-sm font-medium text-neutral-medium mb-2">
+                      <label className="block text-sm font-medium text-tm-text-3 mb-2">
                         Select Individual Recipient
                       </label>
-                      <p className="text-xs text-neutral-medium mb-2">
+                      <p className="text-xs text-tm-text-3 mb-2">
                         You can send to players, administrators (not finance), coaches, and team managers
                       </p>
                       <select
                         value={composeData.recipientId}
                         onChange={(e) => setComposeData({ ...composeData, recipientId: e.target.value, recipient: '' })}
-                        className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                        className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                       >
                         <option value="">Select recipient...</option>
                         {players.length > 0 && (
@@ -2377,10 +2377,10 @@ export default function MessagesPage() {
               ) : user?.role === 'player' ? (
                 <>
                   <div>
-                    <label className="block text-sm font-medium text-neutral-medium mb-2">
+                    <label className="block text-sm font-medium text-tm-text-3 mb-2">
                       Select Recipient
                     </label>
-                    <p className="text-xs text-neutral-medium mb-2">
+                    <p className="text-xs text-tm-text-3 mb-2">
                       {admins && admins.length > 0 
                         ? 'You can send to administrators, club captain, team manager, coach, and physio'
                         : 'You can send to club captain, team manager, coach, and physio'}
@@ -2388,7 +2388,7 @@ export default function MessagesPage() {
                     <select
                       value={composeData.recipientId}
                       onChange={(e) => setComposeData({ ...composeData, recipientId: e.target.value, recipientType: 'individual', recipient: '' })}
-                      className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                      className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                     >
                       <option value="">Select recipient...</option>
                       {admins && admins.filter(a => a.role !== 'finance_admin').length > 0 && (
@@ -2442,13 +2442,13 @@ export default function MessagesPage() {
               ) : user?.role === 'data_admin' ? (
                 <>
                   <div>
-                    <label className="block text-sm font-medium text-neutral-medium mb-2">
+                    <label className="block text-sm font-medium text-tm-text-3 mb-2">
                       Send To
                     </label>
                     <select
                       value={composeData.recipientType}
                       onChange={(e) => setComposeData({ ...composeData, recipientType: e.target.value, recipient: '', recipientId: '' })}
-                      className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                      className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                     >
                       <option value="role">Send to Role Group</option>
                       <option value="individual">Send to Individual</option>
@@ -2456,13 +2456,13 @@ export default function MessagesPage() {
                   </div>
                   {composeData.recipientType === 'role' ? (
                     <div>
-                      <label className="block text-sm font-medium text-neutral-medium mb-2">
+                      <label className="block text-sm font-medium text-tm-text-3 mb-2">
                         Select Recipient Group
                       </label>
                       <select
                         value={composeData.recipient}
                         onChange={(e) => setComposeData({ ...composeData, recipient: e.target.value })}
-                        className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                        className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                       >
                         <option value="">Select recipient group...</option>
                         <option value="all_players">All Players</option>
@@ -2473,13 +2473,13 @@ export default function MessagesPage() {
                     </div>
                   ) : (
                     <div>
-                      <label className="block text-sm font-medium text-neutral-medium mb-2">
+                      <label className="block text-sm font-medium text-tm-text-3 mb-2">
                         Select Individual Recipient
                       </label>
                       <select
                         value={composeData.recipientId}
                         onChange={(e) => setComposeData({ ...composeData, recipientId: e.target.value, recipient: '' })}
-                        className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                        className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                       >
                         <option value="">Select recipient...</option>
                         {players.length > 0 && (
@@ -2524,16 +2524,16 @@ export default function MessagesPage() {
                 </>
               ) : user?.role === 'finance_admin' ? (
                 <div>
-                  <label className="block text-sm font-medium text-neutral-medium mb-2">
+                  <label className="block text-sm font-medium text-tm-text-3 mb-2">
                     Select Recipient
                   </label>
-                  <p className="text-xs text-neutral-medium mb-2">
+                  <p className="text-xs text-tm-text-3 mb-2">
                     You can send to general administrators and team managers
                   </p>
                   <select
                     value={composeData.recipientId}
                     onChange={(e) => setComposeData({ ...composeData, recipientId: e.target.value, recipient: '' })}
-                    className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                    className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                   >
                     <option value="">Select recipient...</option>
                     {admins.length > 0 && (
@@ -2558,13 +2558,13 @@ export default function MessagesPage() {
                 </div>
               ) : user?.role === 'player' ? (
                 <div>
-                  <label className="block text-sm font-medium text-neutral-medium mb-2">
+                  <label className="block text-sm font-medium text-tm-text-3 mb-2">
                     To (Team Manager Only)
                   </label>
                   <select
                     value={composeData.recipientId}
                     onChange={(e) => setComposeData({ ...composeData, recipientId: e.target.value, recipient: '', recipientType: 'individual' })}
-                    className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                    className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                   >
                     <option value="">Select team manager...</option>
                     {teamManagers.length > 0 ? (
@@ -2577,17 +2577,17 @@ export default function MessagesPage() {
                       <option value="" disabled>No team managers available</option>
                     )}
                   </select>
-                  <p className="text-xs text-neutral-medium mt-1">Players can only send messages to team managers</p>
+                  <p className="text-xs text-tm-text-3 mt-1">Players can only send messages to team managers</p>
                 </div>
               ) : (
                 <div>
-                  <label className="block text-sm font-medium text-neutral-medium mb-2">
+                  <label className="block text-sm font-medium text-tm-text-3 mb-2">
                     Select Recipient
                   </label>
                   <select
                     value={composeData.recipientId}
                     onChange={(e) => setComposeData({ ...composeData, recipientId: e.target.value, recipient: '' })}
-                    className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                    className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                   >
                     <option value="">Select recipient...</option>
                     {teamManagers.length > 0 && (
@@ -2603,29 +2603,29 @@ export default function MessagesPage() {
                 </div>
               )}
               <div>
-                <label className="block text-sm font-medium text-neutral-medium mb-2">Subject</label>
+                <label className="block text-sm font-medium text-tm-text-3 mb-2">Subject</label>
                 <input
                   type="text"
                   value={composeData.subject}
                   onChange={(e) => setComposeData({ ...composeData, subject: e.target.value })}
                   placeholder="e.g., Availability Update, Injury Report"
-                  className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                  className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-neutral-medium mb-2">Message</label>
+                <label className="block text-sm font-medium text-tm-text-3 mb-2">Message</label>
                 <textarea
                   value={composeData.message}
                   onChange={(e) => setComposeData({ ...composeData, message: e.target.value })}
                   rows={6}
                   placeholder="Type your message here..."
-                  className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                  className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                 />
               </div>
               <div className="flex gap-3">
                 <button
                   onClick={handleSendMessage}
-                  className="px-6 py-3 bg-club-gradient text-white rounded-button hover:opacity-90 transition-all duration-300 font-semibold shadow-soft hover:shadow-medium"
+                  className="px-6 py-3 bg-tm-secondary text-tm-on-secondary rounded-[6px] hover:opacity-90 transition-all duration-300 font-semibold shadow-soft hover:shadow-medium"
                 >
                   Send Message
                 </button>
@@ -2634,7 +2634,7 @@ export default function MessagesPage() {
                     setShowCompose(false)
                     setComposeData({ recipientType: 'role', recipient: '', recipientId: '', selectedRoles: [], subject: '', message: '' })
                   }}
-                  className="px-6 py-3 bg-neutral-light text-neutral-text rounded-button hover:bg-neutral-medium transition-all duration-300 font-semibold"
+                  className="px-6 py-3 bg-tm-surface-hover text-tm-text-1 rounded-[6px] hover:bg-tm-surface-hover transition-all duration-300 font-semibold"
                 >
                   Cancel
                 </button>
@@ -2644,12 +2644,12 @@ export default function MessagesPage() {
         )}
 
         {/* Messages List */}
-        <div className="bg-white rounded-card shadow-soft border border-neutral-light">
-          <div className="p-6 border-b border-neutral-light">
+        <div className="bg-tm-surface rounded-card shadow-soft border border-tm-border">
+          <div className="p-6 border-b border-tm-border">
             <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-neutral-text">Inbox</h2>
+              <h2 className="text-2xl font-bold text-tm-text-1">Inbox</h2>
               {unreadCount > 0 && (
-                <span className="bg-club-gradient text-white px-4 py-1.5 rounded-full text-sm font-semibold shadow-soft">
+                <span className="bg-tm-secondary text-tm-on-secondary px-4 py-1.5 rounded-full text-sm font-semibold shadow-soft">
                   {unreadCount} unread
                 </span>
               )}
@@ -2658,19 +2658,19 @@ export default function MessagesPage() {
 
           {messages.length === 0 ? (
             <div className="p-12 text-center">
-              <div className="inline-flex items-center justify-center w-20 h-20 bg-neutral-light rounded-full mb-4">
-                <MessageSquare className="w-10 h-10 text-neutral-medium" />
+              <div className="inline-flex items-center justify-center w-20 h-20 bg-tm-surface-hover rounded-full mb-4">
+                <MessageSquare className="w-10 h-10 text-tm-text-3" />
               </div>
-              <h3 className="text-xl font-bold text-neutral-text mb-2">No Messages</h3>
-              <p className="text-neutral-medium">You don&apos;t have any messages yet</p>
+              <h3 className="text-xl font-bold text-tm-text-1 mb-2">No Messages</h3>
+              <p className="text-tm-text-3">You don&apos;t have any messages yet</p>
             </div>
           ) : (
-            <div className="divide-y divide-neutral-light">
+            <div className="divide-y divide-tm-border">
               {messages.map((message) => (
                 <div
                   key={message.id}
-                  className={`p-6 cursor-pointer hover:bg-neutral-light transition-all duration-200 relative ${
-                    !message.is_sent && !message.read ? 'bg-blue-50/50 border-l-4 border-primary' : message.is_sent ? 'bg-green-50/30' : ''
+                  className={`p-6 cursor-pointer hover:bg-tm-surface-hover transition-all duration-200 relative ${
+                    !message.is_sent && !message.read ? 'bg-tm-surface-hover border-l-4 border-primary' : message.is_sent ? 'bg-success/5' : ''
                   }`}
                 >
                   <button
@@ -2678,7 +2678,7 @@ export default function MessagesPage() {
                       e.stopPropagation()
                       deleteMessage(message.id, e)
                     }}
-                    className="absolute top-4 right-4 p-2 text-neutral-medium hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors z-10"
+                    className="absolute top-4 right-4 p-2 text-tm-text-3 hover:text-[#E05757] hover:bg-[#E05757]/10 rounded-lg transition-colors z-10"
                     title="Delete message"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -2713,35 +2713,35 @@ export default function MessagesPage() {
                       <div className="flex items-center gap-2 mb-2">
                         {message.is_sent ? (
                           <>
-                            <span className="text-xs font-medium text-neutral-medium">To:</span>
-                            <h3 className="font-bold text-neutral-text">{message.recipient_name || 'Unknown'}</h3>
-                            <span className="text-xs font-medium text-neutral-medium bg-neutral-light px-2 py-0.5 rounded-full capitalize">
+                            <span className="text-xs font-medium text-tm-text-3">To:</span>
+                            <h3 className="font-bold text-tm-text-1">{message.recipient_name || 'Unknown'}</h3>
+                            <span className="text-xs font-medium text-tm-text-3 bg-tm-surface-hover px-2 py-0.5 rounded-full capitalize">
                               {message.recipient_role?.startsWith('group:') 
                                 ? 'Group Message' 
                                 : message.recipient_role?.replace('_', ' ') || 'unknown'}
                             </span>
-                            <span className="text-xs font-medium text-neutral-medium bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                            <span className="text-xs font-medium text-tm-text-3 bg-info/15 text-primary px-2 py-0.5 rounded-full">
                               Sent
                             </span>
                           </>
                         ) : (
                           <>
-                            <span className="text-xs font-medium text-neutral-medium">From:</span>
-                        <h3 className="font-bold text-neutral-text">{message.sender_name}</h3>
-                        <span className="text-xs font-medium text-neutral-medium bg-neutral-light px-2 py-0.5 rounded-full capitalize">
+                            <span className="text-xs font-medium text-tm-text-3">From:</span>
+                        <h3 className="font-bold text-tm-text-1">{message.sender_name}</h3>
+                        <span className="text-xs font-medium text-tm-text-3 bg-tm-surface-hover px-2 py-0.5 rounded-full capitalize">
                           {message.sender_role.replace('_', ' ')}
                         </span>
                         {!message.read && (
-                          <span className="bg-club-gradient text-white text-xs px-2.5 py-1 rounded-full font-semibold shadow-soft">
+                          <span className="bg-tm-secondary text-tm-on-secondary text-xs px-2.5 py-1 rounded-full font-semibold shadow-soft">
                             New
                           </span>
                             )}
                           </>
                         )}
                       </div>
-                      <p className="font-semibold text-neutral-text mb-1">{message.subject}</p>
-                      <p className="text-sm text-neutral-medium line-clamp-2">{message.message}</p>
-                      <div className="flex items-center gap-4 mt-2 text-xs text-neutral-medium">
+                      <p className="font-semibold text-tm-text-1 mb-1">{message.subject}</p>
+                      <p className="text-sm text-tm-text-3 line-clamp-2">{message.message}</p>
+                      <div className="flex items-center gap-4 mt-2 text-xs text-tm-text-3">
                         <div className="flex items-center">
                           <Clock className="w-3 h-3 mr-1" />
                           {new Date(message.created_at).toLocaleDateString()}
@@ -2758,19 +2758,19 @@ export default function MessagesPage() {
         {/* Message Detail Modal */}
         {selectedMessage && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-            <div className="bg-white rounded-card shadow-large max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-neutral-light">
-              <div className="p-6 border-b border-neutral-light">
+            <div className="bg-tm-surface rounded-card shadow-large max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-tm-border">
+              <div className="p-6 border-b border-tm-border">
                 <div className="flex justify-between items-start">
                   <div>
                     <div className="flex items-center gap-2 mb-2">
-                      <h2 className="text-2xl font-bold text-neutral-text">{selectedMessage.subject}</h2>
+                      <h2 className="text-2xl font-bold text-tm-text-1">{selectedMessage.subject}</h2>
                       {!selectedMessage.read && (
-                        <span className="bg-club-gradient text-white text-xs px-2.5 py-1 rounded-full font-semibold shadow-soft">
+                        <span className="bg-tm-secondary text-tm-on-secondary text-xs px-2.5 py-1 rounded-full font-semibold shadow-soft">
                           New
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-4 text-sm text-neutral-medium">
+                    <div className="flex items-center gap-4 text-sm text-tm-text-3">
                       {selectedMessage.is_sent ? (
                         <>
                           <div className="flex items-center">
@@ -2802,7 +2802,7 @@ export default function MessagesPage() {
                   </div>
                   <button
                     onClick={() => setSelectedMessage(null)}
-                    className="text-neutral-medium hover:text-neutral-text"
+                    className="text-tm-text-3 hover:text-tm-text-1"
                   >
                     <X className="w-6 h-6" />
                   </button>
@@ -2810,24 +2810,24 @@ export default function MessagesPage() {
               </div>
               <div className="p-6">
                 <div className="prose max-w-none">
-                  <p className="text-neutral-text whitespace-pre-wrap">{selectedMessage.message}</p>
+                  <p className="text-tm-text-1 whitespace-pre-wrap">{selectedMessage.message}</p>
                 </div>
               </div>
-              <div className="p-6 border-t border-neutral-light flex justify-between items-center">
+              <div className="p-6 border-t border-tm-border flex justify-between items-center">
                 <button
                   onClick={() => {
                     if (selectedMessage && confirm('Are you sure you want to delete this message?')) {
                       deleteMessage(selectedMessage.id, new MouseEvent('click') as any)
                     }
                   }}
-                  className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-button transition-all duration-300 font-semibold flex items-center gap-2"
+                  className="px-4 py-2 text-[#E05757] hover:bg-[#E05757]/10 rounded-[6px] transition-all duration-300 font-semibold flex items-center gap-2"
                 >
                   <Trash2 className="w-4 h-4" />
                   Delete
                 </button>
                 <button
                   onClick={() => setSelectedMessage(null)}
-                  className="px-6 py-3 bg-neutral-light text-neutral-text rounded-button hover:bg-neutral-medium transition-all duration-300 font-semibold"
+                  className="px-6 py-3 bg-tm-surface-hover text-tm-text-1 rounded-[6px] hover:bg-tm-surface-hover transition-all duration-300 font-semibold"
                 >
                   Close
                 </button>

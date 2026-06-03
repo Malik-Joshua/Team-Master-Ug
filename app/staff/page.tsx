@@ -102,46 +102,46 @@ export default function StaffPage() {
       <div className="space-y-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center">
           <div>
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-club-gradient mb-1 sm:mb-2">
+            <h1 className="text-[20px] font-medium text-tm-text-1 mb-1 sm:mb-2">
               Staff Directory
             </h1>
-            <p className="text-sm sm:text-lg text-neutral-medium font-medium">
+            <p className="text-sm sm:text-[13px] text-tm-text-3">
               View active staff members and their roles
             </p>
           </div>
           <RefreshButton onRefresh={loadData} />
         </div>
 
-        <div className="bg-white rounded-card p-4 sm:p-6 border border-neutral-light shadow-soft">
+        <div className="bg-tm-surface rounded-card p-4 sm:p-6 border border-tm-border shadow-soft">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-medium w-5 h-5" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-tm-text-3 w-5 h-5" />
             <input
               type="text"
               placeholder="Search by name, email, or role..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+              className="w-full pl-10 pr-4 py-3 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
             />
           </div>
         </div>
 
-        <div className="bg-white rounded-card border border-neutral-light shadow-soft overflow-hidden">
+        <div className="bg-tm-surface rounded-card border border-tm-border shadow-soft overflow-hidden">
           {/* Mobile card layout */}
-          <div className="md:hidden divide-y divide-neutral-light">
+          <div className="md:hidden divide-y divide-tm-border">
             {filteredStaff.length === 0 ? (
-              <div className="px-4 py-8 text-center text-neutral-medium">
+              <div className="px-4 py-8 text-center text-tm-text-3">
                 No staff members found
               </div>
             ) : (
               filteredStaff.map((member) => (
                 <div key={member.user_id} className="p-4 space-y-2">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-club-gradient flex items-center justify-center text-white font-bold flex-shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-tm-secondary flex items-center justify-center text-tm-on-secondary font-bold flex-shrink-0">
                       {member.name?.charAt(0)?.toUpperCase() || '?'}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-neutral-text truncate">{member.name}</p>
-                      <p className="text-sm text-neutral-medium truncate">{member.email}</p>
+                      <p className="font-semibold text-tm-text-1 truncate">{member.name}</p>
+                      <p className="text-sm text-tm-text-3 truncate">{member.email}</p>
                     </div>
                   </div>
                   <span className="inline-block px-2 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary">
@@ -155,35 +155,35 @@ export default function StaffPage() {
           {/* Desktop table */}
           <div className="hidden md:block overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-neutral-light">
+              <thead className="bg-tm-surface-hover">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-neutral-text uppercase">
+                  <th className="px-6 py-3 text-left text-xs font-bold text-tm-text-1 uppercase">
                     Name
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-neutral-text uppercase">
+                  <th className="px-6 py-3 text-left text-xs font-bold text-tm-text-1 uppercase">
                     Role
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-neutral-text uppercase">
+                  <th className="px-6 py-3 text-left text-xs font-bold text-tm-text-1 uppercase">
                     Email
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-neutral-light">
+              <tbody className="divide-y divide-tm-border">
                 {filteredStaff.length === 0 ? (
                   <tr>
-                    <td colSpan={3} className="px-6 py-8 text-center text-neutral-medium">
+                    <td colSpan={3} className="px-6 py-8 text-center text-tm-text-3">
                       No staff members found
                     </td>
                   </tr>
                 ) : (
                   filteredStaff.map((member) => (
-                    <tr key={member.user_id} className="hover:bg-neutral-light/50 transition-colors">
+                    <tr key={member.user_id} className="hover:bg-tm-surface-hover/50 transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-club-gradient flex items-center justify-center text-white font-bold flex-shrink-0">
+                          <div className="w-10 h-10 rounded-full bg-tm-secondary flex items-center justify-center text-tm-on-secondary font-bold flex-shrink-0">
                             {member.name?.charAt(0)?.toUpperCase() || '?'}
                           </div>
-                          <span className="font-medium text-neutral-text">{member.name}</span>
+                          <span className="font-medium text-tm-text-1">{member.name}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -191,7 +191,7 @@ export default function StaffPage() {
                           {ROLE_LABELS[member.role] || member.role.replace('_', ' ')}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-sm text-neutral-medium">{member.email}</td>
+                      <td className="px-6 py-4 text-sm text-tm-text-3">{member.email}</td>
                     </tr>
                   ))
                 )}
@@ -201,7 +201,7 @@ export default function StaffPage() {
         </div>
 
         {filteredStaff.length > 0 && (
-          <p className="text-sm text-neutral-medium">
+          <p className="text-sm text-tm-text-3">
             {filteredStaff.length} staff member{filteredStaff.length !== 1 ? 's' : ''} found
           </p>
         )}

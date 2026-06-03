@@ -283,10 +283,10 @@ export default function FinanceAdminDashboard() {
     <Layout pageTitle="Financial Overview">
       <div className="space-y-6">
         <BirthdayAlert />
-        <div className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-center mb-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-club-gradient">Finance Admin Dashboard</h1>
-            <p className="text-sm sm:text-lg text-neutral-medium font-medium mt-1 sm:mt-2">Manage finances and attendance</p>
+            <h1 className="text-[20px] font-medium text-tm-text-1">Finance Admin Dashboard</h1>
+            <p className="mt-[2px] text-[13px] text-tm-text-3">Manage finances and attendance</p>
           </div>
           <RefreshButton onRefresh={loadData} />
         </div>
@@ -297,33 +297,36 @@ export default function FinanceAdminDashboard() {
             value={formatCurrency(totalRevenue)}
             icon={TrendingUp}
             iconColor="bg-success"
+            iconTextColor="text-white"
           />
           <StatCard
             title="Total Expense"
             value={formatCurrency(totalExpenses)}
             icon={TrendingDown}
             iconColor="bg-secondary"
+            iconTextColor="text-tm-on-secondary"
           />
           <StatCard
             title="Net Balance"
             value={formatCurrency(netBalance)}
             icon={DollarSign}
             iconColor="bg-primary"
+            iconTextColor="text-tm-on-secondary"
           />
         </div>
 
         {/* Monthly Financial Trend Chart */}
-        <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
-          <h3 className="text-xl font-bold text-neutral-text mb-4">Monthly Financial Trend</h3>
+        <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
+          <h3 className="text-xl font-bold text-tm-text-1 mb-4">Monthly Financial Trend</h3>
           <div className="h-64">
             <Bar data={chartData} options={chartOptions} />
           </div>
         </div>
 
         {/* Attendance Summary Section */}
-        <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+        <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-neutral-text flex items-center">
+            <h2 className="text-2xl font-bold text-tm-text-1 flex items-center">
               <Calendar className="w-6 h-6 mr-2 text-primary" />
               Attendance Summary
             </h2>
@@ -332,7 +335,7 @@ export default function FinanceAdminDashboard() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Training Session Attendance */}
             <div>
-              <h3 className="text-lg font-semibold text-neutral-text mb-4">Training Session Attendance</h3>
+              <h3 className="text-lg font-semibold text-tm-text-1 mb-4">Training Session Attendance</h3>
               <select
                 value={selectedSessionId}
                 onChange={(e) => {
@@ -345,7 +348,7 @@ export default function FinanceAdminDashboard() {
                     setSessionAttendance(null)
                   }
                 }}
-                className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all mb-4"
+                className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all mb-4"
               >
                 <option value="">Select a training session...</option>
                 {trainingSessions.map((session) => (
@@ -362,29 +365,29 @@ export default function FinanceAdminDashboard() {
               )}
 
               {sessionAttendance && !loadingAttendance && (
-                <div className="bg-neutral-light/50 rounded-lg p-4 space-y-2">
+                <div className="bg-tm-surface-hover/50 rounded-lg p-4 space-y-2">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <p className="text-sm text-neutral-medium">Present</p>
+                      <p className="text-sm text-tm-text-3">Present</p>
                       <p className="text-2xl font-bold text-success">{sessionAttendance.present}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-neutral-medium">Absent</p>
+                      <p className="text-sm text-tm-text-3">Absent</p>
                       <p className="text-2xl font-bold text-secondary">{sessionAttendance.absent}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-neutral-medium">Justified Absence</p>
+                      <p className="text-sm text-tm-text-3">Justified Absence</p>
                       <p className="text-2xl font-bold text-warning">{sessionAttendance.justified}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-neutral-medium">Injured</p>
+                      <p className="text-sm text-tm-text-3">Injured</p>
                       <p className="text-2xl font-bold text-info">{sessionAttendance.injured}</p>
                     </div>
                   </div>
-                  <div className="pt-2 border-t border-neutral-light">
-                    <p className="text-sm text-neutral-medium">Total Players</p>
-                    <p className="text-xl font-bold text-neutral-text">{sessionAttendance.total}</p>
-                    <p className="text-sm text-neutral-medium mt-1">Attendance Rate: {sessionAttendance.attendanceRate}%</p>
+                  <div className="pt-2 border-t border-tm-border">
+                    <p className="text-sm text-tm-text-3">Total Players</p>
+                    <p className="text-xl font-bold text-tm-text-1">{sessionAttendance.total}</p>
+                    <p className="text-sm text-tm-text-3 mt-1">Attendance Rate: {sessionAttendance.attendanceRate}%</p>
                   </div>
                 </div>
               )}
@@ -392,7 +395,7 @@ export default function FinanceAdminDashboard() {
 
             {/* Game Day/Match Attendance */}
             <div>
-              <h3 className="text-lg font-semibold text-neutral-text mb-4">Game Day Attendance</h3>
+              <h3 className="text-lg font-semibold text-tm-text-1 mb-4">Game Day Attendance</h3>
               <select
                 value={selectedMatchId}
                 onChange={(e) => {
@@ -405,7 +408,7 @@ export default function FinanceAdminDashboard() {
                     setMatchAttendance(null)
                   }
                 }}
-                className="w-full px-4 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all mb-4"
+                className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all mb-4"
               >
                 <option value="">Select a match...</option>
                 {matches.map((match) => (
@@ -422,20 +425,20 @@ export default function FinanceAdminDashboard() {
               )}
 
               {matchAttendance && !loadingAttendance && (
-                <div className="bg-neutral-light/50 rounded-lg p-4 space-y-2">
+                <div className="bg-tm-surface-hover/50 rounded-lg p-4 space-y-2">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <p className="text-sm text-neutral-medium">Starting Lineup</p>
+                      <p className="text-sm text-tm-text-3">Starting Lineup</p>
                       <p className="text-2xl font-bold text-success">{matchAttendance.starting}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-neutral-medium">Substitutes</p>
+                      <p className="text-sm text-tm-text-3">Substitutes</p>
                       <p className="text-2xl font-bold text-primary">{matchAttendance.substitutes}</p>
                     </div>
                   </div>
-                  <div className="pt-2 border-t border-neutral-light">
-                    <p className="text-sm text-neutral-medium">Total Selected</p>
-                    <p className="text-xl font-bold text-neutral-text">{matchAttendance.total}</p>
+                  <div className="pt-2 border-t border-tm-border">
+                    <p className="text-sm text-tm-text-3">Total Selected</p>
+                    <p className="text-xl font-bold text-tm-text-1">{matchAttendance.total}</p>
                   </div>
                 </div>
               )}
@@ -446,15 +449,15 @@ export default function FinanceAdminDashboard() {
         {/* Dual Entry Forms */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Log Revenue Form */}
-          <div className="bg-white rounded-card p-6 border-2 border-success/20 shadow-soft">
-            <h3 className="text-xl font-bold text-neutral-text mb-6">Log Revenue</h3>
+          <div className="bg-tm-surface rounded-card p-6 border-2 border-success/20 shadow-soft">
+            <h3 className="text-xl font-bold text-tm-text-1 mb-6">Log Revenue</h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-neutral-text mb-2">Type</label>
+                <label className="block text-sm font-medium text-tm-text-1 mb-2">Type</label>
                 <select
                   value={revenueForm.type}
                   onChange={(e) => setRevenueForm({ ...revenueForm, type: e.target.value })}
-                  className="w-full px-4 py-3 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-success focus:border-success transition-all"
+                  className="w-full px-4 py-3 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-success focus:border-success transition-all"
                 >
                   <option value="">Select type...</option>
                   <option value="sponsorship">Sponsorship</option>
@@ -463,48 +466,48 @@ export default function FinanceAdminDashboard() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-neutral-text mb-2">Amount (UGX)</label>
+                <label className="block text-sm font-medium text-tm-text-1 mb-2">Amount (UGX)</label>
                 <input
                   type="number"
                   value={revenueForm.amount}
                   onChange={(e) => setRevenueForm({ ...revenueForm, amount: e.target.value })}
-                  className="w-full px-4 py-3 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-success focus:border-success transition-all"
+                  className="w-full px-4 py-3 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-success focus:border-success transition-all"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-neutral-text mb-2">Date</label>
+                <label className="block text-sm font-medium text-tm-text-1 mb-2">Date</label>
                 <input
                   type="date"
                   value={revenueForm.date}
                   onChange={(e) => setRevenueForm({ ...revenueForm, date: e.target.value })}
-                  className="w-full px-4 py-3 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-success focus:border-success transition-all"
+                  className="w-full px-4 py-3 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-success focus:border-success transition-all"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-neutral-text mb-2">Notes</label>
+                <label className="block text-sm font-medium text-tm-text-1 mb-2">Notes</label>
                 <textarea
                   value={revenueForm.notes}
                   onChange={(e) => setRevenueForm({ ...revenueForm, notes: e.target.value })}
                   rows={3}
-                  className="w-full px-4 py-3 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-success focus:border-success transition-all"
+                  className="w-full px-4 py-3 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-success focus:border-success transition-all"
                 />
               </div>
-              <button className="w-full px-6 py-3 bg-success text-white rounded-button font-semibold hover:bg-success-dark transition-colors">
+              <button className="w-full px-6 py-3 bg-success text-white rounded-[6px] font-semibold hover:opacity-90 transition-colors">
                 Add Revenue
               </button>
             </div>
           </div>
 
           {/* Log Expense Form */}
-          <div className="bg-white rounded-card p-6 border-2 border-secondary/20 shadow-soft">
-            <h3 className="text-xl font-bold text-neutral-text mb-6">Log Expense</h3>
+          <div className="bg-tm-surface rounded-card p-6 border-2 border-secondary/20 shadow-soft">
+            <h3 className="text-xl font-bold text-tm-text-1 mb-6">Log Expense</h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-neutral-text mb-2">Type</label>
+                <label className="block text-sm font-medium text-tm-text-1 mb-2">Type</label>
                 <select
                   value={expenseForm.type}
                   onChange={(e) => setExpenseForm({ ...expenseForm, type: e.target.value })}
-                  className="w-full px-4 py-3 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-secondary focus:border-secondary transition-all"
+                  className="w-full px-4 py-3 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-secondary focus:border-secondary transition-all"
                 >
                   <option value="">Select type...</option>
                   <option value="equipment">Equipment</option>
@@ -513,33 +516,33 @@ export default function FinanceAdminDashboard() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-neutral-text mb-2">Amount (UGX)</label>
+                <label className="block text-sm font-medium text-tm-text-1 mb-2">Amount (UGX)</label>
                 <input
                   type="number"
                   value={expenseForm.amount}
                   onChange={(e) => setExpenseForm({ ...expenseForm, amount: e.target.value })}
-                  className="w-full px-4 py-3 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-secondary focus:border-secondary transition-all"
+                  className="w-full px-4 py-3 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-secondary focus:border-secondary transition-all"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-neutral-text mb-2">Date</label>
+                <label className="block text-sm font-medium text-tm-text-1 mb-2">Date</label>
                 <input
                   type="date"
                   value={expenseForm.date}
                   onChange={(e) => setExpenseForm({ ...expenseForm, date: e.target.value })}
-                  className="w-full px-4 py-3 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-secondary focus:border-secondary transition-all"
+                  className="w-full px-4 py-3 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-secondary focus:border-secondary transition-all"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-neutral-text mb-2">Notes</label>
+                <label className="block text-sm font-medium text-tm-text-1 mb-2">Notes</label>
                 <textarea
                   value={expenseForm.notes}
                   onChange={(e) => setExpenseForm({ ...expenseForm, notes: e.target.value })}
                   rows={3}
-                  className="w-full px-4 py-3 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-secondary focus:border-secondary transition-all"
+                  className="w-full px-4 py-3 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-secondary focus:border-secondary transition-all"
                 />
               </div>
-              <button className="w-full px-6 py-3 bg-secondary text-white rounded-button font-semibold hover:bg-secondary-dark transition-colors">
+              <button className="w-full px-6 py-3 bg-secondary text-tm-on-secondary rounded-[6px] font-semibold hover:opacity-90 transition-colors">
                 Add Expense
               </button>
             </div>

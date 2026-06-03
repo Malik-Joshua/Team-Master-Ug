@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { applyClubTheme } from '@/themeEngine'
 import { SidebarProvider, useSidebar } from '@/contexts/SidebarContext'
 import Sidebar from './Sidebar'
 import TopBar from './TopBar'
@@ -17,6 +18,7 @@ function LayoutContent({ children, pageTitle }: LayoutProps) {
   const { collapsed } = useSidebar()
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
+  const [clubSettings, setClubSettings] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -31,19 +33,79 @@ function LayoutContent({ children, pageTitle }: LayoutProps) {
         const { data: { user: authUser } } = await supabase.auth.getUser()
 
         if (authUser) {
+          console.log('[Layout] Authenticated user ID:', authUser.id);
           // User is authenticated - get their profile
-          const { data: profile } = await supabase
+          const { data: profile, error: profileError } = await supabase
             .from('user_profiles')
             .select('*')
             .eq('user_id', authUser.id)
             .single()
 
+          if (profileError) {
+            console.error('[Layout] Error fetching user profile:', profileError);
+          }
+
           if (profile) {
             setUser(profile)
+            console.log('[ThemeEngine] Loaded user profile:', profile)
+
+            // Load and apply club theme
+            // Single-club app: the most recently updated club_settings row is
+            // the source of truth (so the admin's latest colour choice wins).
+            const { data: settings, error: settingsError } = await supabase
+              .from('club_settings')
+              .select('primary_color, secondary_color, club_nickname, badge_url, league')
+              .order('updated_at', { ascending: false, nullsFirst: false })
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .maybeSingle()
+
+            if (settingsError) {
+              console.error('[ThemeEngine] Error loading club settings:', settingsError)
+            }
+
+            if (settings) {
+              console.log('[ThemeEngine] Fetched club settings from database:', settings)
+              setClubSettings(settings)
+              if (settings.primary_color) {
+                console.log('[ThemeEngine] Applying club theme colors:', {
+                  primary: settings.primary_color,
+                  secondary: settings.secondary_color,
+                  clubName: settings.club_nickname
+                })
+                applyClubTheme({
+                  primary: settings.primary_color,
+                  secondary: settings.secondary_color,
+                  clubName: settings.club_nickname || undefined,
+                })
+              } else {
+                console.warn('[ThemeEngine] Primary color is missing in settings, applying default theme')
+                applyClubTheme({
+                  primary: '#1A5276', // Default Navy
+                  secondary: '#5BA3D9', // Default Sky Blue
+                  clubName: 'Team Master',
+                })
+              }
+            } else {
+              console.warn('[ThemeEngine] No club settings found in database, applying default theme!')
+              const defaultSettings = {
+                primary_color: '#1A5276',
+                secondary_color: '#5BA3D9',
+                club_nickname: 'Team Master',
+              }
+              setClubSettings(defaultSettings)
+              applyClubTheme({
+                primary: defaultSettings.primary_color,
+                secondary: defaultSettings.secondary_color,
+                clubName: defaultSettings.club_nickname,
+              })
+            }
+
             setLoading(false)
             return
           } else {
             // User authenticated but no profile - sign out and redirect
+            console.warn('[Layout] User authenticated, but no profile was returned. Signing out to login...');
             await supabase.auth.signOut()
             router.push('/login')
             return
@@ -79,10 +141,10 @@ function LayoutContent({ children, pageTitle }: LayoutProps) {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-neutral-bg">
+      <div className="tm-app min-h-screen flex items-center justify-center bg-tm-bg">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-neutral-medium">Loading...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-tm-secondary mx-auto mb-4"></div>
+          <p className="text-tm-text-3">Loading...</p>
         </div>
       </div>
     )
@@ -93,8 +155,13 @@ function LayoutContent({ children, pageTitle }: LayoutProps) {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-bg flex">
-      <Sidebar userRole={user.role} onLogout={handleLogout} />
+    <div
+      className="tm-app min-h-screen flex"
+      style={{
+        backgroundColor: 'var(--tm-bg, #F5F7FA)'
+      }}
+    >
+      <Sidebar userRole={user.role} onLogout={handleLogout} clubSettings={clubSettings} userName={user.name} userAvatar={user.profile_picture_url} />
       <div
         className={`flex-1 transition-all duration-300 ${
           collapsed ? 'ml-0 lg:ml-16' : 'ml-0 lg:ml-64'

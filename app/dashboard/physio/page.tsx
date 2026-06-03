@@ -555,8 +555,8 @@ export default function PhysioDashboard() {
         <BirthdayAlert />
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-neutral-text">Injury Management</h1>
-            <p className="text-sm sm:text-lg text-neutral-medium font-medium mt-1 sm:mt-2">Manage injuries and player health</p>
+            <h1 className="text-[20px] font-medium text-tm-text-1">Injury management</h1>
+            <p className="mt-[2px] text-[13px] text-tm-text-3">Manage injuries and player health</p>
           </div>
           <div className="flex flex-wrap gap-2 sm:gap-3">
             <RefreshButton onRefresh={loadData} />
@@ -577,7 +577,7 @@ export default function PhysioDashboard() {
                 })
                 setShowInjuryForm(true)
               }}
-              className="flex items-center space-x-2 px-4 py-2 bg-primary text-white rounded-button font-semibold hover:bg-primary-dark transition-colors"
+              className="flex items-center space-x-2 px-4 py-2 bg-primary text-tm-on-secondary rounded-[6px] font-semibold hover:opacity-90 transition-colors"
             >
               <Plus className="w-5 h-5" />
               <span>Record New Injury</span>
@@ -587,10 +587,10 @@ export default function PhysioDashboard() {
 
         {/* Upcoming Fixture Team Selection */}
         {teamSelection && teamSelection.match && (
-          <div className="bg-white rounded-card border border-neutral-light shadow-soft">
-            <div className="p-6 border-b border-neutral-light">
+          <div className="bg-tm-surface rounded-card border border-tm-border shadow-soft">
+            <div className="p-6 border-b border-tm-border">
               <div className="flex items-center justify-between">
-                <h3 className="text-xl font-bold text-neutral-text flex items-center gap-2">
+                <h3 className="text-xl font-bold text-tm-text-1 flex items-center gap-2">
                   <Trophy className="w-5 h-5 text-primary" />
                   Upcoming Fixture Team Selection
                 </h3>
@@ -604,7 +604,7 @@ export default function PhysioDashboard() {
             </div>
             <div className="p-6">
               <div className="mb-4">
-                <h4 className="font-semibold text-neutral-text mb-2">
+                <h4 className="font-semibold text-tm-text-1 mb-2">
                   {new Date(teamSelection.match.match_date).toLocaleDateString('en-US', {
                     weekday: 'long',
                     year: 'numeric',
@@ -613,24 +613,24 @@ export default function PhysioDashboard() {
                   })} vs {teamSelection.match.opponent}
                 </h4>
                 {teamSelection.match.venue && (
-                  <p className="text-sm text-neutral-medium">Venue: {teamSelection.match.venue}</p>
+                  <p className="text-sm text-tm-text-3">Venue: {teamSelection.match.venue}</p>
                 )}
               </div>
               
               {teamSelection.starting && teamSelection.starting.length > 0 && (
                 <div className="mb-4">
-                  <h5 className="font-semibold text-neutral-text mb-2">Starting Lineup ({teamSelection.starting.length})</h5>
+                  <h5 className="font-semibold text-tm-text-1 mb-2">Starting Lineup ({teamSelection.starting.length})</h5>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                     {teamSelection.starting.map((selection: any) => (
                       <div key={selection.id} className="bg-success/5 border border-success/20 rounded-lg p-3">
                         <div className="flex items-center justify-between">
-                          <span className="font-medium text-neutral-text">{selection.player?.name || 'Unknown'}</span>
+                          <span className="font-medium text-tm-text-1">{selection.player?.name || 'Unknown'}</span>
                           {selection.jersey_number && (
                             <span className="bg-success/20 text-success px-2 py-1 rounded text-xs font-bold">#{selection.jersey_number}</span>
                           )}
                         </div>
                         {selection.position && (
-                          <p className="text-xs text-neutral-medium mt-1 capitalize">{selection.position.replace(/_/g, ' ')}</p>
+                          <p className="text-xs text-tm-text-3 mt-1 capitalize">{selection.position.replace(/_/g, ' ')}</p>
                         )}
                       </div>
                     ))}
@@ -640,18 +640,18 @@ export default function PhysioDashboard() {
 
               {teamSelection.substitutes && teamSelection.substitutes.length > 0 && (
                 <div>
-                  <h5 className="font-semibold text-neutral-text mb-2">Substitutes ({teamSelection.substitutes.length})</h5>
+                  <h5 className="font-semibold text-tm-text-1 mb-2">Substitutes ({teamSelection.substitutes.length})</h5>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                     {teamSelection.substitutes.map((selection: any) => (
                       <div key={selection.id} className="bg-warning/5 border border-warning/20 rounded-lg p-3">
                         <div className="flex items-center justify-between">
-                          <span className="font-medium text-neutral-text">{selection.player?.name || 'Unknown'}</span>
+                          <span className="font-medium text-tm-text-1">{selection.player?.name || 'Unknown'}</span>
                           {selection.jersey_number && (
                             <span className="bg-warning/20 text-warning px-2 py-1 rounded text-xs font-bold">#{selection.jersey_number}</span>
                           )}
                         </div>
                         {selection.position && (
-                          <p className="text-xs text-neutral-medium mt-1 capitalize">{selection.position.replace(/_/g, ' ')}</p>
+                          <p className="text-xs text-tm-text-3 mt-1 capitalize">{selection.position.replace(/_/g, ' ')}</p>
                         )}
                       </div>
                     ))}
@@ -661,7 +661,7 @@ export default function PhysioDashboard() {
 
               {(!teamSelection.starting || teamSelection.starting.length === 0) && 
                (!teamSelection.substitutes || teamSelection.substitutes.length === 0) && (
-                <p className="text-neutral-medium text-center py-4">No team selection made yet for this fixture.</p>
+                <p className="text-tm-text-3 text-center py-4">No team selection made yet for this fixture.</p>
               )}
             </div>
           </div>
@@ -669,7 +669,7 @@ export default function PhysioDashboard() {
 
         {/* Show loading state */}
         {loadingTeamSelection && (
-          <div className="bg-white rounded-card border border-neutral-light shadow-soft p-6">
+          <div className="bg-tm-surface rounded-card border border-tm-border shadow-soft p-6">
             <div className="flex items-center justify-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
             </div>
@@ -678,10 +678,10 @@ export default function PhysioDashboard() {
 
         {/* Show message when no team selection exists */}
         {!loadingTeamSelection && !teamSelection && (
-          <div className="bg-white rounded-card border border-neutral-light shadow-soft p-6">
+          <div className="bg-tm-surface rounded-card border border-tm-border shadow-soft p-6">
             <div className="text-center py-8">
-              <Trophy className="w-12 h-12 mx-auto mb-4 text-neutral-light" />
-              <p className="text-neutral-medium">No upcoming fixture team selection available</p>
+              <Trophy className="w-12 h-12 mx-auto mb-4 text-tm-text-3" />
+              <p className="text-tm-text-3">No upcoming fixture team selection available</p>
             </div>
           </div>
         )}
@@ -692,6 +692,7 @@ export default function PhysioDashboard() {
             value={trainingSessionsAttended} 
             icon={CalendarDays} 
             iconColor="bg-primary" 
+            iconTextColor="text-tm-on-secondary"
             description="Total training sessions"
           />
           <StatCard 
@@ -699,32 +700,35 @@ export default function PhysioDashboard() {
             value={gamesAttended} 
             icon={Trophy} 
             iconColor="bg-secondary" 
+            iconTextColor="text-tm-on-secondary"
             description="Total matches attended"
           />
           <StatCard 
             title="Active Injuries" 
             value={activeInjuries.length} 
             icon={AlertCircle} 
-            iconColor="bg-warning" 
+            iconColor="bg-warning"
+            iconTextColor="text-white"
           />
           <StatCard 
             title="Cleared Injuries" 
             value={clearedInjuries.length} 
             icon={CheckCircle} 
-            iconColor="bg-success" 
+            iconColor="bg-success"
+            iconTextColor="text-white"
           />
         </div>
 
-        <div className="bg-white rounded-card border border-neutral-light shadow-soft p-6">
+        <div className="bg-tm-surface rounded-card border border-tm-border shadow-soft p-6">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-neutral-text">Injury Records</h2>
+            <h2 className="text-2xl font-bold text-tm-text-1">Injury Records</h2>
             <div className="flex items-center space-x-2">
               <button
                 onClick={() => setFilterStatus('all')}
                 className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
                   filterStatus === 'all' 
-                    ? 'bg-primary text-white' 
-                    : 'bg-neutral-light text-neutral-medium hover:bg-neutral-light/80'
+                    ? 'bg-primary text-tm-on-secondary' 
+                    : 'bg-tm-surface-hover text-tm-text-3 hover:bg-tm-surface-hover/80'
                 }`}
               >
                 All
@@ -733,8 +737,8 @@ export default function PhysioDashboard() {
                 onClick={() => setFilterStatus('active')}
                 className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
                   filterStatus === 'active' 
-                    ? 'bg-secondary text-white' 
-                    : 'bg-neutral-light text-neutral-medium hover:bg-neutral-light/80'
+                    ? 'bg-secondary text-tm-on-secondary' 
+                    : 'bg-tm-surface-hover text-tm-text-3 hover:bg-tm-surface-hover/80'
                 }`}
               >
                 Active
@@ -744,7 +748,7 @@ export default function PhysioDashboard() {
                 className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
                   filterStatus === 'cleared' 
                     ? 'bg-success text-white' 
-                    : 'bg-neutral-light text-neutral-medium hover:bg-neutral-light/80'
+                    : 'bg-tm-surface-hover text-tm-text-3 hover:bg-tm-surface-hover/80'
                 }`}
               >
                 Cleared
@@ -754,8 +758,8 @@ export default function PhysioDashboard() {
 
           <div className="space-y-4">
             {filteredInjuries.length === 0 ? (
-              <div className="text-center py-12 text-neutral-medium">
-                <AlertCircle className="w-12 h-12 mx-auto mb-4 text-neutral-light" />
+              <div className="text-center py-12 text-tm-text-3">
+                <AlertCircle className="w-12 h-12 mx-auto mb-4 text-tm-text-3" />
                 <p>No injuries found</p>
               </div>
             ) : (
@@ -764,28 +768,28 @@ export default function PhysioDashboard() {
                   key={injury.id}
                   className={`p-4 rounded-lg border-2 transition-all ${
                     injury.status === 'active'
-                      ? 'border-secondary bg-red-50'
+                      ? 'border-secondary bg-[#E05757]/10'
                       : injury.status === 'cleared'
-                      ? 'border-success bg-green-50'
-                      : 'border-neutral-light bg-white'
+                      ? 'border-success bg-success/10'
+                      : 'border-tm-border bg-tm-surface'
                   }`}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center space-x-3 mb-2">
-                        <User className="w-5 h-5 text-neutral-medium" />
-                        <h3 className="text-lg font-bold text-neutral-text">{injury.player_name}</h3>
+                        <User className="w-5 h-5 text-tm-text-3" />
+                        <h3 className="text-lg font-bold text-tm-text-1">{injury.player_name}</h3>
                         <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                           injury.status === 'active'
-                            ? 'bg-secondary text-white'
+                            ? 'bg-secondary text-tm-on-secondary'
                             : injury.status === 'cleared'
                             ? 'bg-success text-white'
-                            : 'bg-neutral-light text-neutral-medium'
+                            : 'bg-tm-surface-hover text-tm-text-3'
                         }`}>
                           {injury.status.toUpperCase()}
                         </span>
                         {injury.healing_duration && (
-                          <span className="text-sm text-neutral-medium">
+                          <span className="text-sm text-tm-text-3">
                             <Clock className="w-4 h-4 inline mr-1" />
                             {injury.healing_duration} days
                           </span>
@@ -794,61 +798,61 @@ export default function PhysioDashboard() {
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                         <div>
-                          <label className="text-xs font-semibold text-neutral-medium uppercase">Date</label>
-                          <p className="text-neutral-text">{new Date(injury.injury_date).toLocaleDateString()}</p>
+                          <label className="text-xs font-semibold text-tm-text-3 uppercase">Date</label>
+                          <p className="text-tm-text-1">{new Date(injury.injury_date).toLocaleDateString()}</p>
                         </div>
                         <div>
-                          <label className="text-xs font-semibold text-neutral-medium uppercase">Cause</label>
-                          <p className="text-neutral-text">{injury.cause}</p>
+                          <label className="text-xs font-semibold text-tm-text-3 uppercase">Cause</label>
+                          <p className="text-tm-text-1">{injury.cause}</p>
                         </div>
                         <div>
-                          <label className="text-xs font-semibold text-neutral-medium uppercase">Diagnosis</label>
-                          <p className="text-neutral-text">{injury.diagnosis}</p>
+                          <label className="text-xs font-semibold text-tm-text-3 uppercase">Diagnosis</label>
+                          <p className="text-tm-text-1">{injury.diagnosis}</p>
                         </div>
                         <div>
-                          <label className="text-xs font-semibold text-neutral-medium uppercase">Action Taken</label>
-                          <p className="text-neutral-text">{injury.action_taken}</p>
+                          <label className="text-xs font-semibold text-tm-text-3 uppercase">Action Taken</label>
+                          <p className="text-tm-text-1">{injury.action_taken}</p>
                         </div>
                         {injury.further_treatment && (
                           <div>
-                            <label className="text-xs font-semibold text-neutral-medium uppercase">Further Treatment</label>
-                            <p className="text-neutral-text">{injury.further_treatment}</p>
+                            <label className="text-xs font-semibold text-tm-text-3 uppercase">Further Treatment</label>
+                            <p className="text-tm-text-1">{injury.further_treatment}</p>
                           </div>
                         )}
                         {injury.medication && (
                           <div>
-                            <label className="text-xs font-semibold text-neutral-medium uppercase flex items-center">
+                            <label className="text-xs font-semibold text-tm-text-3 uppercase flex items-center">
                               <Pill className="w-3 h-3 mr-1" />
                               Medication
                             </label>
-                            <p className="text-neutral-text">{injury.medication}</p>
+                            <p className="text-tm-text-1">{injury.medication}</p>
                           </div>
                         )}
                         {injury.return_to_training_date && (
                           <div>
-                            <label className="text-xs font-semibold text-neutral-medium uppercase flex items-center">
+                            <label className="text-xs font-semibold text-tm-text-3 uppercase flex items-center">
                               <Calendar className="w-3 h-3 mr-1" />
                               Return to Training
                             </label>
-                            <p className="text-neutral-text">{new Date(injury.return_to_training_date).toLocaleDateString()}</p>
+                            <p className="text-tm-text-1">{new Date(injury.return_to_training_date).toLocaleDateString()}</p>
                           </div>
                         )}
                         {injury.return_to_play_date && (
                           <div>
-                            <label className="text-xs font-semibold text-neutral-medium uppercase flex items-center">
+                            <label className="text-xs font-semibold text-tm-text-3 uppercase flex items-center">
                               <Calendar className="w-3 h-3 mr-1" />
                               Return to Play
                             </label>
-                            <p className="text-neutral-text">{new Date(injury.return_to_play_date).toLocaleDateString()}</p>
+                            <p className="text-tm-text-1">{new Date(injury.return_to_play_date).toLocaleDateString()}</p>
                           </div>
                         )}
                         {injury.notes && (
                           <div className="md:col-span-2">
-                            <label className="text-xs font-semibold text-neutral-medium uppercase flex items-center">
+                            <label className="text-xs font-semibold text-tm-text-3 uppercase flex items-center">
                               <FileText className="w-3 h-3 mr-1" />
                               Notes
                             </label>
-                            <p className="text-neutral-text">{injury.notes}</p>
+                            <p className="text-tm-text-1">{injury.notes}</p>
                           </div>
                         )}
                       </div>
@@ -883,10 +887,10 @@ export default function PhysioDashboard() {
 
       {showInjuryForm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-card shadow-soft max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-neutral-light">
+          <div className="bg-tm-surface rounded-card shadow-soft max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-tm-border">
               <div className="flex items-center justify-between">
-                <h3 className="text-2xl font-bold text-neutral-text">
+                <h3 className="text-2xl font-bold text-tm-text-1">
                   {editingInjury ? 'Edit Injury' : 'Record New Injury'}
                 </h3>
                 <button
@@ -894,7 +898,7 @@ export default function PhysioDashboard() {
                     setShowInjuryForm(false)
                     setEditingInjury(null)
                   }}
-                  className="text-neutral-medium hover:text-neutral-text transition-colors"
+                  className="text-tm-text-3 hover:text-tm-text-1 transition-colors"
                 >
                   <X className="w-6 h-6" />
                 </button>
@@ -903,13 +907,13 @@ export default function PhysioDashboard() {
             <div className="p-6 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-neutral-medium mb-1">
+                  <label className="block text-sm font-semibold text-tm-text-3 mb-1">
                     Player <span className="text-secondary">*</span>
                   </label>
                   <select
                     value={injuryForm.player_id}
                     onChange={(e) => setInjuryForm({ ...injuryForm, player_id: e.target.value })}
-                    className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                     required
                   >
                     <option value="">Select a player</option>
@@ -921,19 +925,19 @@ export default function PhysioDashboard() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-neutral-medium mb-1">
+                  <label className="block text-sm font-semibold text-tm-text-3 mb-1">
                     Injury Date <span className="text-secondary">*</span>
                   </label>
                   <input
                     type="date"
                     value={injuryForm.injury_date}
                     onChange={(e) => setInjuryForm({ ...injuryForm, injury_date: e.target.value })}
-                    className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                     required
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-semibold text-neutral-medium mb-1">
+                  <label className="block text-sm font-semibold text-tm-text-3 mb-1">
                     Cause <span className="text-secondary">*</span>
                   </label>
                   <input
@@ -941,12 +945,12 @@ export default function PhysioDashboard() {
                     value={injuryForm.cause}
                     onChange={(e) => setInjuryForm({ ...injuryForm, cause: e.target.value })}
                     placeholder="e.g., Training collision, Match injury, etc."
-                    className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                     required
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-semibold text-neutral-medium mb-1">
+                  <label className="block text-sm font-semibold text-tm-text-3 mb-1">
                     Diagnosis <span className="text-secondary">*</span>
                   </label>
                   <input
@@ -954,12 +958,12 @@ export default function PhysioDashboard() {
                     value={injuryForm.diagnosis}
                     onChange={(e) => setInjuryForm({ ...injuryForm, diagnosis: e.target.value })}
                     placeholder="e.g., Sprained ankle, Shoulder dislocation, etc."
-                    className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                     required
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-semibold text-neutral-medium mb-1">
+                  <label className="block text-sm font-semibold text-tm-text-3 mb-1">
                     Action Taken <span className="text-secondary">*</span>
                   </label>
                   <textarea
@@ -967,12 +971,12 @@ export default function PhysioDashboard() {
                     onChange={(e) => setInjuryForm({ ...injuryForm, action_taken: e.target.value })}
                     placeholder="Describe the immediate action taken"
                     rows={3}
-                    className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                     required
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-semibold text-neutral-medium mb-1">
+                  <label className="block text-sm font-semibold text-tm-text-3 mb-1">
                     Further Treatment
                   </label>
                   <textarea
@@ -980,11 +984,11 @@ export default function PhysioDashboard() {
                     onChange={(e) => setInjuryForm({ ...injuryForm, further_treatment: e.target.value })}
                     placeholder="Describe ongoing treatment plan"
                     rows={2}
-                    className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-semibold text-neutral-medium mb-1 flex items-center">
+                  <label className="block text-sm font-semibold text-tm-text-3 mb-1 flex items-center">
                     <Pill className="w-4 h-4 mr-1" />
                     Medication
                   </label>
@@ -993,11 +997,11 @@ export default function PhysioDashboard() {
                     value={injuryForm.medication}
                     onChange={(e) => setInjuryForm({ ...injuryForm, medication: e.target.value })}
                     placeholder="e.g., Ibuprofen 400mg twice daily"
-                    className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-neutral-medium mb-1 flex items-center">
+                  <label className="block text-sm font-semibold text-tm-text-3 mb-1 flex items-center">
                     <Calendar className="w-4 h-4 mr-1" />
                     Return to Training Date
                   </label>
@@ -1005,11 +1009,11 @@ export default function PhysioDashboard() {
                     type="date"
                     value={injuryForm.return_to_training_date}
                     onChange={(e) => setInjuryForm({ ...injuryForm, return_to_training_date: e.target.value })}
-                    className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-neutral-medium mb-1 flex items-center">
+                  <label className="block text-sm font-semibold text-tm-text-3 mb-1 flex items-center">
                     <Calendar className="w-4 h-4 mr-1" />
                     Return to Play Date
                   </label>
@@ -1017,11 +1021,11 @@ export default function PhysioDashboard() {
                     type="date"
                     value={injuryForm.return_to_play_date}
                     onChange={(e) => setInjuryForm({ ...injuryForm, return_to_play_date: e.target.value })}
-                    className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-semibold text-neutral-medium mb-1 flex items-center">
+                  <label className="block text-sm font-semibold text-tm-text-3 mb-1 flex items-center">
                     <FileText className="w-4 h-4 mr-1" />
                     Notes
                   </label>
@@ -1030,43 +1034,43 @@ export default function PhysioDashboard() {
                     onChange={(e) => setInjuryForm({ ...injuryForm, notes: e.target.value })}
                     placeholder="Additional notes or observations"
                     rows={3}
-                    className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                 </div>
-                <div className="md:col-span-2 mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="md:col-span-2 mt-4 p-4 bg-tm-surface-hover border border-tm-border rounded-lg">
                   <label className="flex items-center space-x-2 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={sendInjuryMessage}
                       onChange={(e) => setSendInjuryMessage(e.target.checked)}
                       disabled={!injuryForm.player_id}
-                      className="w-4 h-4 text-primary border-neutral-light rounded focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-4 h-4 text-primary border-tm-border rounded focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
                     />
-                    <span className="text-sm text-neutral-text">
+                    <span className="text-sm text-tm-text-1">
                       <strong>Send complete injury information to player via message</strong>
                       {!injuryForm.player_id && (
-                        <span className="block text-xs text-neutral-medium mt-1">(Select a player first)</span>
+                        <span className="block text-xs text-tm-text-3 mt-1">(Select a player first)</span>
                       )}
                     </span>
                   </label>
                 </div>
               </div>
             </div>
-            <div className="p-6 border-t border-neutral-light flex justify-end space-x-3">
+            <div className="p-6 border-t border-tm-border flex justify-end space-x-3">
               <button
                 onClick={() => {
                   setShowInjuryForm(false)
                   setEditingInjury(null)
                   setSendInjuryMessage(false)
                 }}
-                className="px-6 py-2 border border-neutral-light rounded-button font-semibold text-neutral-text hover:bg-neutral-light transition-colors"
+                className="px-6 py-2 border border-tm-border rounded-[6px] font-semibold text-tm-text-1 hover:bg-tm-surface-hover transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSaveInjury}
                 disabled={saving}
-                className="px-6 py-2 bg-primary text-white rounded-button font-semibold hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                className="px-6 py-2 bg-primary text-tm-on-secondary rounded-[6px] font-semibold hover:opacity-90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
               >
                 {saving ? (
                   <>

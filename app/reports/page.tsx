@@ -1663,14 +1663,14 @@ export default function ReportsPage() {
         {/* Header */}
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-4xl font-extrabold text-club-gradient mb-2">Reports</h1>
-            <p className="text-lg text-neutral-medium font-medium">Generate and manage data reports</p>
+            <h1 className="text-[20px] font-medium text-tm-text-1">Reports</h1>
+            <p className="text-[13px] text-tm-text-3">Generate and manage data reports</p>
           </div>
           <div className="flex items-center space-x-3">
             <RefreshButton onRefresh={loadData} />
             <button
               onClick={() => setShowFilter(!showFilter)}
-              className="bg-white text-neutral-text px-6 py-3 rounded-button font-semibold hover:bg-neutral-light transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center border border-neutral-light"
+              className="bg-tm-surface text-tm-text-1 px-6 py-3 rounded-[6px] font-semibold hover:bg-tm-surface-hover transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center border border-tm-border"
             >
               <Filter className="w-5 h-5 mr-2" />
               Filter
@@ -1680,15 +1680,15 @@ export default function ReportsPage() {
 
         {/* Filter Panel */}
         {showFilter && (
-          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
-            <h2 className="text-xl font-bold text-neutral-text mb-4">Filter Reports</h2>
+          <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
+            <h2 className="text-xl font-bold text-tm-text-1 mb-4">Filter Reports</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-neutral-medium mb-2">Report Type</label>
+                <label className="block text-sm font-medium text-tm-text-3 mb-2">Report Type</label>
                 <select
                   value={filterData.reportType}
                   onChange={(e) => setFilterData({ ...filterData, reportType: e.target.value })}
-                  className="w-full px-4 py-3 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                  className="w-full px-4 py-3 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                 >
                   <option value="all">All Types</option>
                   <option value="player">Player Reports</option>
@@ -1699,21 +1699,21 @@ export default function ReportsPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-neutral-medium mb-2">Date From</label>
+                <label className="block text-sm font-medium text-tm-text-3 mb-2">Date From</label>
                 <input
                   type="date"
                   value={filterData.dateFrom}
                   onChange={(e) => setFilterData({ ...filterData, dateFrom: e.target.value })}
-                  className="w-full px-4 py-3 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                  className="w-full px-4 py-3 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-neutral-medium mb-2">Date To</label>
+                <label className="block text-sm font-medium text-tm-text-3 mb-2">Date To</label>
                 <input
                   type="date"
                   value={filterData.dateTo}
                   onChange={(e) => setFilterData({ ...filterData, dateTo: e.target.value })}
-                  className="w-full px-4 py-3 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                  className="w-full px-4 py-3 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                 />
               </div>
             </div>
@@ -1722,22 +1722,22 @@ export default function ReportsPage() {
 
         {/* Quick Generate Reports */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft hover-lift">
+          <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft hover-lift">
             <div className="flex items-center space-x-4 mb-4">
               <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center">
-                <Users className="w-6 h-6 text-white" />
+                <Users className="w-6 h-6 text-tm-on-secondary" />
               </div>
               <div className="flex-1">
-                <h3 className="font-bold text-neutral-text">Player Report</h3>
-                <p className="text-sm text-neutral-medium">Performance & stats</p>
+                <h3 className="font-bold text-tm-text-1">Player Report</h3>
+                <p className="text-sm text-tm-text-3">Performance & stats</p>
               </div>
             </div>
             <div className="mb-3">
-              <label className="block text-xs font-medium text-neutral-medium mb-1">Select Player</label>
+              <label className="block text-xs font-medium text-tm-text-3 mb-1">Select Player</label>
               <select
                 value={reportFilters.selectedPlayer}
                 onChange={(e) => setReportFilters({ ...reportFilters, selectedPlayer: e.target.value })}
-                className="w-full px-3 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all text-sm"
+                className="w-full px-3 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all text-sm"
               >
                 <option value="">Choose a player...</option>
                 {players.map((player) => (
@@ -1750,28 +1750,28 @@ export default function ReportsPage() {
             <button
               onClick={() => handleGenerateReport('player')}
               disabled={!reportFilters.selectedPlayer}
-              className="w-full px-4 py-2 bg-primary text-white rounded-button font-medium hover:bg-primary-dark transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full px-4 py-2 bg-primary text-tm-on-secondary rounded-[6px] font-medium hover:opacity-90 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Generate
             </button>
           </div>
 
-          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft hover-lift">
+          <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft hover-lift">
             <div className="flex items-center space-x-4 mb-4">
               <div className="w-12 h-12 bg-secondary rounded-xl flex items-center justify-center">
-                <Trophy className="w-6 h-6 text-white" />
+                <Trophy className="w-6 h-6 text-tm-on-secondary" />
               </div>
               <div className="flex-1">
-                <h3 className="font-bold text-neutral-text">Match Report</h3>
-                <p className="text-sm text-neutral-medium">Match statistics</p>
+                <h3 className="font-bold text-tm-text-1">Match Report</h3>
+                <p className="text-sm text-tm-text-3">Match statistics</p>
               </div>
             </div>
             <div className="mb-3">
-              <label className="block text-xs font-medium text-neutral-medium mb-1">Select Match</label>
+              <label className="block text-xs font-medium text-tm-text-3 mb-1">Select Match</label>
               <select
                 value={reportFilters.selectedMatch}
                 onChange={(e) => setReportFilters({ ...reportFilters, selectedMatch: e.target.value })}
-                className="w-full px-3 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-secondary focus:border-secondary transition-all text-sm"
+                className="w-full px-3 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-secondary focus:border-secondary transition-all text-sm"
               >
                 <option value="">Choose a match...</option>
                 {matches.map((match) => (
@@ -1784,28 +1784,28 @@ export default function ReportsPage() {
             <button
               onClick={() => handleGenerateReport('match')}
               disabled={!reportFilters.selectedMatch}
-              className="w-full px-4 py-2 bg-secondary text-white rounded-button font-medium hover:bg-secondary-dark transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full px-4 py-2 bg-secondary text-tm-on-secondary rounded-[6px] font-medium hover:opacity-90 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Generate
             </button>
           </div>
 
-          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft hover-lift">
+          <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft hover-lift">
             <div className="flex items-center space-x-4 mb-4">
               <div className="w-12 h-12 bg-info rounded-xl flex items-center justify-center">
                 <Calendar className="w-6 h-6 text-white" />
               </div>
               <div className="flex-1">
-                <h3 className="font-bold text-neutral-text">Training Report</h3>
-                <p className="text-sm text-neutral-medium">Attendance & sessions</p>
+                <h3 className="font-bold text-tm-text-1">Training Report</h3>
+                <p className="text-sm text-tm-text-3">Attendance & sessions</p>
               </div>
             </div>
             <div className="mb-3">
-              <label className="block text-xs font-medium text-neutral-medium mb-1">Select Training Session</label>
+              <label className="block text-xs font-medium text-tm-text-3 mb-1">Select Training Session</label>
               <select
                 value={reportFilters.selectedTrainingSession}
                 onChange={(e) => setReportFilters({ ...reportFilters, selectedTrainingSession: e.target.value })}
-                className="w-full px-3 py-2 border-2 border-neutral-light rounded-lg focus:ring-2 focus:ring-info focus:border-info transition-all text-sm"
+                className="w-full px-3 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-info focus:border-info transition-all text-sm"
               >
                 <option value="">Choose a session...</option>
                 {trainingSessions.map((session) => (
@@ -1818,43 +1818,43 @@ export default function ReportsPage() {
             <button
               onClick={() => handleGenerateReport('training')}
               disabled={!reportFilters.selectedTrainingSession}
-              className="w-full px-4 py-2 bg-info text-white rounded-button font-medium hover:bg-info-dark transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full px-4 py-2 bg-info text-white rounded-[6px] font-medium hover:bg-info-dark transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Generate
             </button>
           </div>
 
-          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft hover-lift">
+          <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft hover-lift">
             <div className="flex items-center space-x-4 mb-4">
               <div className="w-12 h-12 bg-success rounded-xl flex items-center justify-center">
                 <BarChart3 className="w-6 h-6 text-white" />
               </div>
               <div className="flex-1">
-                <h3 className="font-bold text-neutral-text">Financial Report</h3>
-                <p className="text-sm text-neutral-medium">Transactions & budgets</p>
+                <h3 className="font-bold text-tm-text-1">Financial Report</h3>
+                <p className="text-sm text-tm-text-3">Transactions & budgets</p>
               </div>
             </div>
             <button
               onClick={() => handleGenerateReport('financial')}
-              className="w-full px-4 py-2 bg-success text-white rounded-button font-medium hover:bg-success-dark transition-colors text-sm"
+              className="w-full px-4 py-2 bg-success text-white rounded-[6px] font-medium hover:opacity-90 transition-colors text-sm"
             >
               Generate
             </button>
           </div>
 
-          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft hover-lift cursor-pointer">
+          <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft hover-lift cursor-pointer">
             <div className="flex items-center space-x-4 mb-4">
               <div className="w-12 h-12 bg-warning rounded-xl flex items-center justify-center">
                 <FileText className="w-6 h-6 text-white" />
               </div>
               <div className="flex-1">
-                <h3 className="font-bold text-neutral-text">Summary Report</h3>
-                <p className="text-sm text-neutral-medium">Overall summary</p>
+                <h3 className="font-bold text-tm-text-1">Summary Report</h3>
+                <p className="text-sm text-tm-text-3">Overall summary</p>
               </div>
             </div>
             <button
               onClick={() => handleGenerateReport('summary')}
-              className="w-full px-4 py-2 bg-warning text-white rounded-button font-medium hover:bg-warning-dark transition-colors text-sm"
+              className="w-full px-4 py-2 bg-warning text-white rounded-[6px] font-medium hover:bg-warning-dark transition-colors text-sm"
             >
               Generate
             </button>
@@ -1862,13 +1862,13 @@ export default function ReportsPage() {
         </div>
 
         {/* Reports List */}
-        <div className="bg-white rounded-card border border-neutral-light shadow-soft overflow-hidden">
-          <div className="p-6 border-b border-neutral-light flex justify-between items-center">
-            <h2 className="text-2xl font-bold text-neutral-text">Generated Reports</h2>
+        <div className="bg-tm-surface rounded-card border border-tm-border shadow-soft overflow-hidden">
+          <div className="p-6 border-b border-tm-border flex justify-between items-center">
+            <h2 className="text-2xl font-bold text-tm-text-1">Generated Reports</h2>
             {filteredReports.length > 0 && (
               <button
                 onClick={handleClearAllReports}
-                className="px-4 py-2 bg-secondary text-white rounded-button font-medium hover:bg-secondary-dark transition-colors text-sm inline-flex items-center"
+                className="px-4 py-2 bg-secondary text-tm-on-secondary rounded-[6px] font-medium hover:opacity-90 transition-colors text-sm inline-flex items-center"
               >
                 <Trash2 className="w-4 h-4 mr-2" />
                 Clear All
@@ -1877,21 +1877,21 @@ export default function ReportsPage() {
           </div>
           {filteredReports.length === 0 ? (
             <div className="p-12 text-center">
-              <div className="inline-flex items-center justify-center w-20 h-20 bg-neutral-light rounded-full mb-4">
-                <FileText className="w-10 h-10 text-neutral-medium" />
+              <div className="inline-flex items-center justify-center w-20 h-20 bg-tm-surface-hover rounded-full mb-4">
+                <FileText className="w-10 h-10 text-tm-text-3" />
               </div>
-              <h3 className="text-xl font-bold text-neutral-text mb-2">No Reports Found</h3>
-              <p className="text-neutral-medium">Generate your first report using the options above</p>
+              <h3 className="text-xl font-bold text-tm-text-1 mb-2">No Reports Found</h3>
+              <p className="text-tm-text-3">Generate your first report using the options above</p>
             </div>
           ) : (
-            <div className="divide-y divide-neutral-light">
+            <div className="divide-y divide-tm-border">
               {filteredReports.map((report) => {
                 const Icon = getReportTypeIcon(report.type)
                 const typeColor = getReportTypeColor(report.type)
                 return (
                   <div
                     key={report.id}
-                    className="p-6 hover:bg-neutral-light transition-colors"
+                    className="p-6 hover:bg-tm-surface-hover transition-colors"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-4 flex-1">
@@ -1899,8 +1899,8 @@ export default function ReportsPage() {
                           <Icon className="w-6 h-6 text-white" />
                         </div>
                         <div className="flex-1">
-                          <h3 className="font-bold text-neutral-text mb-1">{report.title}</h3>
-                          <div className="flex items-center space-x-4 text-sm text-neutral-medium">
+                          <h3 className="font-bold text-tm-text-1 mb-1">{report.title}</h3>
+                          <div className="flex items-center space-x-4 text-sm text-tm-text-3">
                             <span className="capitalize">{report.type} Report</span>
                             <span>•</span>
                             <span>{report.dateRange}</span>
@@ -1912,7 +1912,7 @@ export default function ReportsPage() {
                       <div className="flex items-center space-x-3">
                         <button
                           onClick={() => handleDeleteReport(report.id)}
-                          className="px-3 py-2 text-secondary hover:bg-red-50 rounded-button transition-colors"
+                          className="px-3 py-2 text-secondary hover:bg-[#E05757]/10 rounded-[6px] transition-colors"
                           title="Delete report"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -1922,7 +1922,7 @@ export default function ReportsPage() {
                           <button
                               onClick={() => setShowDownloadMenu(showDownloadMenu === report.id ? null : report.id)}
                               disabled={downloadingReport === report.id}
-                              className="px-4 py-2 bg-club-gradient text-white rounded-button font-medium hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center disabled:opacity-50"
+                              className="px-4 py-2 bg-tm-secondary text-tm-on-secondary rounded-[6px] font-medium hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center disabled:opacity-50"
                           >
                               {downloadingReport === report.id ? (
                                 <>
@@ -1938,27 +1938,27 @@ export default function ReportsPage() {
                               )}
                             </button>
                             {showDownloadMenu === report.id && (
-                              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-neutral-light z-50 overflow-hidden">
+                              <div className="absolute right-0 mt-2 w-48 bg-tm-surface rounded-lg shadow-xl border border-tm-border z-50 overflow-hidden">
                                 <button
                                   onClick={() => handleDownload(report, 'pdf')}
-                                  className="w-full text-left px-4 py-3 hover:bg-neutral-light transition-colors flex items-center space-x-2 text-neutral-text"
+                                  className="w-full text-left px-4 py-3 hover:bg-tm-surface-hover transition-colors flex items-center space-x-2 text-tm-text-1"
                                 >
                                   <FileText className="w-4 h-4 text-primary" />
-                                  <span className="text-neutral-text">Download as PDF</span>
+                                  <span className="text-tm-text-1">Download as PDF</span>
                                 </button>
                                 <button
                                   onClick={() => handleDownload(report, 'excel')}
-                                  className="w-full text-left px-4 py-3 hover:bg-neutral-light transition-colors flex items-center space-x-2 text-neutral-text border-t border-neutral-light"
+                                  className="w-full text-left px-4 py-3 hover:bg-tm-surface-hover transition-colors flex items-center space-x-2 text-tm-text-1 border-t border-tm-border"
                                 >
                                   <FileSpreadsheet className="w-4 h-4 text-success" />
-                                  <span className="text-neutral-text">Download as Excel</span>
+                                  <span className="text-tm-text-1">Download as Excel</span>
                                 </button>
                                 <button
                                   onClick={() => handleDownload(report, 'csv')}
-                                  className="w-full text-left px-4 py-3 hover:bg-neutral-light transition-colors flex items-center space-x-2 text-neutral-text border-t border-neutral-light"
+                                  className="w-full text-left px-4 py-3 hover:bg-tm-surface-hover transition-colors flex items-center space-x-2 text-tm-text-1 border-t border-tm-border"
                                 >
                                   <FileText className="w-4 h-4 text-info" />
-                                  <span className="text-neutral-text">Download as CSV</span>
+                                  <span className="text-tm-text-1">Download as CSV</span>
                           </button>
                               </div>
                             )}
@@ -1989,6 +1989,7 @@ export default function ReportsPage() {
             value={reports.length}
             icon={FileText}
             iconColor="bg-primary"
+            iconTextColor="text-tm-on-secondary"
             description="All generated reports"
           />
           <StatCard
@@ -1996,6 +1997,7 @@ export default function ReportsPage() {
             value={reports.filter((r) => r.status === 'ready').length}
             icon={TrendingUp}
             iconColor="bg-success"
+            iconTextColor="text-white"
             description="Available for download"
           />
           <StatCard
@@ -2007,6 +2009,7 @@ export default function ReportsPage() {
             }).length}
             icon={BarChart3}
             iconColor="bg-info"
+            iconTextColor="text-white"
             description="Reports generated this month"
           />
         </div>

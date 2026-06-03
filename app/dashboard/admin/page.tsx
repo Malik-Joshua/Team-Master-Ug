@@ -3,8 +3,13 @@
 import { useEffect, useState, useCallback } from 'react'
 import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
+import ConceptStatCard from '@/components/ConceptStatCard'
+import QuickActions from '@/components/QuickActions'
+import AttendanceSummary from '@/components/AttendanceSummary'
+import FixtureCard from '@/components/FixtureCard'
+import InjuryList from '@/components/InjuryList'
 import BirthdayAlert from '@/components/BirthdayAlert'
-import { Users, Activity, DollarSign, Package, Calendar, CheckCircle, XCircle, AlertCircle, FileText, X, Trophy, BarChart3 } from 'lucide-react'
+import { Users, Activity, DollarSign, Package, Calendar, CheckCircle, XCircle, AlertCircle, FileText, X, Trophy, BarChart3, ClipboardCheck, CalendarPlus, HeartPulse, UserPlus, RefreshCw, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import RefreshButton from '@/components/RefreshButton'
@@ -368,137 +373,229 @@ export default function AdminDashboard() {
   }
 
   return (
-    <Layout pageTitle="Admin Control Panel">
-      <div className="space-y-6">
+    <Layout pageTitle="Admin Dashboard">
+      <div className="space-y-5">
         <BirthdayAlert />
-        <div className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-center mb-4">
+        
+        {/* Page header */}
+        <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-club-gradient">Admin Dashboard</h1>
-            <p className="text-sm sm:text-lg text-neutral-medium font-medium mt-1 sm:mt-2">Overview of club operations and statistics</p>
+            <h2 className="text-[20px] font-medium mb-[2px]" style={{ color: 'var(--tm-text-1)' }}>Admin dashboard</h2>
+            <p className="text-[13px]" style={{ color: 'var(--tm-text-3)' }}>Overview of club operations and statistics</p>
           </div>
-          <RefreshButton onRefresh={loadData} />
-        </div>
-        <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-3 lg:grid-cols-6">
-          <StatCard title="Total Users" value={stats.totalUsers} icon={Users} iconColor="bg-primary" />
-          <StatCard title="Total Staff" value={stats.totalStaff} icon={Users} iconColor="bg-info" />
-          <StatCard title="Total Players" value={stats.totalPlayers} icon={Users} iconColor="bg-primary" />
-          <StatCard title="Active Players" value={stats.activePlayers} icon={Activity} iconColor="bg-success" />
-          <StatCard title="Total Revenue" value={formatCurrency(stats.totalRevenue)} icon={DollarSign} iconColor="bg-success" />
-          <StatCard title="Inventory Items" value={stats.inventoryItems} icon={Package} iconColor="bg-info" />
+          <div className="flex gap-2 items-center">
+            <button
+              onClick={loadData}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-[6px] text-[13px] font-medium transition-all duration-200 hover:border-[var(--tm-primary)] hover:text-[var(--tm-primary)] hover:scale-[1.03] hover:shadow-md cursor-pointer group"
+              style={{ border: '1px solid var(--tm-border)', color: 'var(--tm-text-2)', background: 'var(--tm-surface)' }}
+            >
+              <RefreshCw className="w-[15px] h-[15px] transition-transform duration-500 group-hover:rotate-180" /> Refresh
+            </button>
+          </div>
         </div>
 
-        {/* Upcoming Fixtures */}
-        {upcomingMatches.length > 0 && (
-          <div className="bg-white rounded-card border border-neutral-light shadow-soft">
-            <div className="p-6 border-b border-neutral-light">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xl font-bold text-neutral-text flex items-center gap-2">
-                  <Trophy className="w-5 h-5 text-primary" />
-                  Upcoming Fixtures
-                </h3>
-                <Link
-                  href="/fixtures"
-                  className="text-primary hover:underline text-sm font-medium"
-                >
-                  View All →
-                </Link>
-              </div>
-            </div>
-            <div className="p-6">
-              <div className="space-y-4">
-                {upcomingMatches.map((match) => (
-                  <div key={match.id} className="p-4 bg-primary/5 rounded-lg border border-primary/20 hover:bg-primary/10 transition-colors">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h4 className="font-bold text-neutral-text text-lg mb-1">
-                          vs {match.opponent}
-                        </h4>
-                        <p className="text-sm text-neutral-medium mb-2">
-                          {new Date(match.match_date).toLocaleDateString('en-US', {
-                            weekday: 'long',
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric',
-                          })}
-                        </p>
-                        {match.venue && (
-                          <p className="text-sm text-neutral-medium">📍 {match.venue}</p>
-                        )}
-                        <p className="text-xs text-neutral-medium mt-2">
-                          {match.tournament_type.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
-                        </p>
-                      </div>
-                      <Calendar className="w-5 h-5 text-primary" />
-                    </div>
+        {/* Quick actions */}
+        <QuickActions
+          actions={[
+            {
+              icon: ClipboardCheck,
+              label: 'Mark attendance',
+              iconBgColor: 'rgba(91, 163, 217, 0.12)',
+              iconTextColor: '#5BA3D9',
+              onClick: () => {},
+            },
+            {
+              icon: CalendarPlus,
+              label: 'Create session',
+              iconBgColor: 'rgba(45, 184, 138, 0.12)',
+              iconTextColor: '#2DB88A',
+              onClick: () => {},
+            },
+            {
+              icon: HeartPulse,
+              label: 'Log injury',
+              iconBgColor: 'rgba(224, 87, 87, 0.12)',
+              iconTextColor: '#E05757',
+              onClick: () => {},
+            },
+            {
+              icon: UserPlus,
+              label: 'Add player',
+              iconBgColor: 'rgba(224, 159, 66, 0.12)',
+              iconTextColor: '#E09F42',
+              onClick: () => {},
+            },
+          ]}
+        />
+
+        {/* Stat cards */}
+        <div className="grid grid-cols-4 gap-3">
+          <ConceptStatCard
+            label="Total players"
+            value={stats.totalPlayers}
+            change={'+3 this month'}
+            changeType="positive"
+            meta="17 registered · 7 staff"
+            icon={Users}
+            iconBgColor="rgba(91, 163, 217, 0.12)"
+            iconTextColor="#5BA3D9"
+          />
+          <ConceptStatCard
+            label="Attendance rate"
+            value={attendanceSummary ? `${Math.round(attendanceSummary.attendanceRate)}%` : '0%'}
+            change={'+5% vs last month'}
+            changeType="positive"
+            meta="Based on last 5 sessions"
+            icon={Activity}
+            iconBgColor="rgba(45, 184, 138, 0.12)"
+            iconTextColor="#2DB88A"
+          />
+          <ConceptStatCard
+            label="Active injuries"
+            value={activeInjuries.length}
+            change={activeInjuries.length > 0 ? activeInjuries.slice(0, 2).map((i: any) => i.player?.name || 'Unknown').join(' · ') : 'None'}
+            changeType={activeInjuries.length > 0 ? 'negative' : 'neutral'}
+            meta={`${activeInjuries.filter((i: any) => i.status === 'active').length} active · ${activeInjuries.filter((i: any) => i.status === 'recovery').length} recovery`}
+            icon={HeartPulse}
+            iconBgColor="rgba(224, 87, 87, 0.12)"
+            iconTextColor="#E05757"
+          />
+          <ConceptStatCard
+            label="Next fixture"
+            value={upcomingMatches.length > 0 ? `vs ${upcomingMatches[0].opponent}` : 'No upcoming'}
+            change={upcomingMatches.length > 0 ? `${new Date(upcomingMatches[0].match_date).toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' })} · ${new Date(upcomingMatches[0].match_date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}` : ''}
+            changeType="neutral"
+            meta={upcomingMatches.length > 0 ? upcomingMatches[0].venue || 'TBD' : ''}
+            icon={Trophy}
+            iconBgColor="rgba(224, 159, 66, 0.12)"
+            iconTextColor="#E09F42"
+          />
+        </div>
+
+        {/* Middle row - attendance + fixture + injuries */}
+        <div className="grid grid-cols-[1.4fr_1fr] gap-4">
+          {/* Attendance summary */}
+          {attendanceSummary && (
+            <AttendanceSummary
+              chips={[
+                { label: 'Present', value: attendanceSummary.presentCount, bgColor: 'rgba(45, 184, 138, 0.12)', textColor: '#2DB88A' },
+                { label: 'Absent', value: attendanceSummary.absentCount, bgColor: 'rgba(224, 87, 87, 0.12)', textColor: '#E05757' },
+                { label: 'Justified', value: attendanceSummary.justifiedAbsenceCount, bgColor: 'rgba(255, 255, 255, 0.04)', textColor: 'var(--tm-text-2)' },
+                { label: 'Injured', value: attendanceSummary.injuredCount, bgColor: 'rgba(224, 159, 66, 0.12)', textColor: '#E09F42' },
+              ]}
+              presentData={attendanceSummary.recentSessions.map(s => s.present)}
+              absentData={attendanceSummary.recentSessions.map(s => s.absent)}
+              labels={attendanceSummary.recentSessions.map(s => new Date(s.sessionDate).toLocaleDateString('en-US', { weekday: 'short' }))}
+            />
+          )}
+
+          {/* Right column - fixture + injuries */}
+          <div className="flex flex-col gap-3.5">
+            {/* Next fixture card */}
+            {upcomingMatches.length > 0 && (
+              <FixtureCard
+                label={`Next fixture · ${upcomingMatches[0].tournament_type?.replace('_', ' ') || 'Match'}`}
+                homeTeam="Team Master"
+                awayTeam={upcomingMatches[0].opponent}
+                date={new Date(upcomingMatches[0].match_date).toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+                time={new Date(upcomingMatches[0].match_date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                venue={upcomingMatches[0].venue || 'TBD'}
+                onViewSquad={() => {}}
+                onMatchDay={() => {}}
+              />
+            )}
+
+            {/* Active injuries */}
+            {activeInjuries.length > 0 && (
+              <div className="rounded-[10px] overflow-hidden flex-1" style={{ background: 'var(--tm-surface)', border: '1px solid var(--tm-border)' }}>
+                <div className="flex items-center justify-between p-3.5 px-4.5 border-b" style={{ borderColor: 'var(--tm-border)' }}>
+                  <div className="flex items-center gap-1.5">
+                    <HeartPulse className="w-[17px] h-[17px]" style={{ color: 'var(--tm-secondary)' }} />
+                    <span className="text-[14px] font-medium" style={{ color: 'var(--tm-text-1)' }}>Active injuries</span>
                   </div>
-                ))}
+                  <Link href="/dashboard/physio" className="text-[12px] font-medium flex items-center gap-1 cursor-pointer" style={{ color: 'var(--tm-secondary)' }}>
+                    All <ArrowRight className="w-[13px] h-[13px]" />
+                  </Link>
+                </div>
+                <div className="p-3 px-4.5">
+                  <InjuryList
+                    injuries={activeInjuries.map((injury: any) => ({
+                      name: injury.player?.name || 'Unknown',
+                      injury: injury.diagnosis || injury.cause || 'Unknown injury',
+                      date: new Date(injury.injury_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                      status: injury.status === 'active' ? 'active' : 'recovery',
+                      returnDate: injury.return_to_play_date ? new Date(injury.return_to_play_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'TBD',
+                    }))}
+                  />
+                </div>
               </div>
-            </div>
+            )}
           </div>
-        )}
+        </div>
 
         {/* Recent Budget Approvals */}
         {recentApprovals.length > 0 && (
-          <div className="bg-white rounded-card border border-neutral-light shadow-soft">
-            <div className="p-6 border-b border-neutral-light">
+          <div className="rounded-[10px] overflow-hidden" style={{ background: 'var(--tm-surface)', border: '1px solid var(--tm-border)' }}>
+            <div className="p-4.5 border-b" style={{ borderColor: 'var(--tm-border)' }}>
               <div className="flex items-center justify-between">
-                <h3 className="text-xl font-bold text-neutral-text flex items-center gap-2">
-                  <CheckCircle className="w-5 h-5 text-success" />
+                <h3 className="text-[14px] font-medium flex items-center gap-1.5" style={{ color: 'var(--tm-text-1)' }}>
+                  <CheckCircle className="w-[17px] h-[17px] text-[#2DB88A]" />
                   Recent Budget Approvals
                 </h3>
                 <Link
                   href="/finance"
-                  className="text-primary hover:underline text-sm font-medium"
+                  className="text-[12px] font-medium flex items-center gap-1 hover:opacity-80"
+                  style={{ color: 'var(--tm-secondary)' }}
                 >
                   View All →
                 </Link>
               </div>
             </div>
-            <div className="p-6">
-              <div className="space-y-4">
+            <div className="p-4.5">
+              <div className="space-y-3.5">
                 {recentApprovals.map((budget) => (
-                  <div key={budget.id} className="p-4 bg-success/5 rounded-lg border border-success/20">
+                  <div key={budget.id} className="p-3.5 bg-success/5 rounded-[8px] border border-success/20">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h4 className="font-bold text-neutral-text">{budget.event_name}</h4>
-                          <span className="px-2 py-1 rounded-full text-xs font-medium bg-success/20 text-success">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <h4 className="text-[13px] font-semibold" style={{ color: 'var(--tm-text-1)' }}>{budget.event_name}</h4>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-success/10 text-success border border-success/20">
                             Approved
                           </span>
                         </div>
-                        <p className="text-sm text-neutral-medium mb-1">
+                        <p className="text-[11px] mb-1" style={{ color: 'var(--tm-text-3)' }}>
                           {budget.event_type.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())} • {new Date(budget.event_date).toLocaleDateString()}
                         </p>
                         {budget.budget_items && budget.budget_items.length > 0 && (
                           <div className="mb-2">
-                            <p className="text-xs font-semibold text-neutral-medium uppercase mb-1">Items</p>
+                            <p className="text-[10px] font-semibold uppercase mb-1" style={{ color: 'var(--tm-text-muted)' }}>Items</p>
                             <div className="space-y-1">
                               {budget.budget_items.slice(0, 3).map((item: any, index: number) => (
-                                <div key={index} className="flex items-center justify-between text-sm text-neutral-text">
+                                <div key={index} className="flex items-center justify-between text-[11px]" style={{ color: 'var(--tm-text-2)' }}>
                                   <span className="truncate">{item.item_name}</span>
-                                  <span className="text-xs text-neutral-medium">
+                                  <span className="text-[11px]" style={{ color: 'var(--tm-text-3)' }}>
                                     {formatCurrency(parseFloat(item.total_amount.toString()))}
                                   </span>
                                 </div>
                               ))}
                               {budget.budget_items.length > 3 && (
-                                <p className="text-xs text-neutral-medium">
+                                <p className="text-[10px]" style={{ color: 'var(--tm-text-muted)' }}>
                                   +{budget.budget_items.length - 3} more items
                                 </p>
                               )}
                             </div>
                           </div>
                         )}
-                        <p className="text-lg font-bold text-success mt-2">
+                        <p className="text-[14px] font-bold text-success mt-1.5">
                           {formatCurrency(parseFloat(budget.total_amount.toString()))}
                         </p>
                         {budget.approved_at && (
-                          <p className="text-xs text-neutral-medium mt-1">
+                          <p className="text-[10px] mt-1" style={{ color: 'var(--tm-text-muted)' }}>
                             Approved on {new Date(budget.approved_at).toLocaleDateString()} by {budget.approved_by_profile?.name || 'Admin'}
                           </p>
                         )}
                       </div>
-                      <CheckCircle className="w-5 h-5 text-success" />
+                      <CheckCircle className="w-[15px] h-[15px] text-success" />
                     </div>
                   </div>
                 ))}
@@ -507,115 +604,59 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* Active Injuries View (Read-Only) */}
-        {activeInjuries.length > 0 && (
-          <div className="bg-white rounded-card border border-neutral-light shadow-soft">
-            <div className="p-6 border-b border-neutral-light">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xl font-bold text-neutral-text flex items-center gap-2">
-                  <AlertCircle className="w-5 h-5 text-secondary" />
-                  Active Player Injuries
-                </h3>
-                <span className="text-sm text-neutral-medium">{activeInjuries.length} active injury{activeInjuries.length !== 1 ? 'ies' : ''}</span>
-              </div>
-            </div>
-            <div className="p-6">
-              <div className="space-y-4">
-                {activeInjuries.map((injury: any) => {
-                  const playerName = injury.player?.name || 'Unknown Player'
-                  const returnDate = injury.return_to_play_date || injury.return_to_training_date
-                  return (
-                    <div key={injury.id} className="border border-secondary/20 bg-secondary/5 rounded-lg p-4">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-neutral-text text-lg mb-1">{playerName}</h4>
-                          <p className="text-sm text-neutral-medium">Injured on {new Date(injury.injury_date).toLocaleDateString()}</p>
-                        </div>
-                        <span className="px-3 py-1 bg-secondary text-white rounded-full text-xs font-medium">
-                          ACTIVE
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                          <p className="text-xs font-semibold text-neutral-medium uppercase mb-1">Cause</p>
-                          <p className="text-sm text-neutral-text">{injury.cause}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold text-neutral-medium uppercase mb-1">Diagnosis</p>
-                          <p className="text-sm text-neutral-text font-medium">{injury.diagnosis}</p>
-                        </div>
-                        {returnDate && (
-                          <div>
-                            <p className="text-xs font-semibold text-neutral-medium uppercase mb-1">Expected Return</p>
-                            <p className="text-sm text-neutral-text font-medium">
-                              {new Date(returnDate).toLocaleDateString('en-US', {
-                                month: 'short',
-                                day: 'numeric',
-                                year: 'numeric',
-                              })}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          </div>
-        )}
 
         {pendingBudgets.length > 0 && (
-          <div className="bg-white rounded-card border border-neutral-light shadow-soft p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-neutral-text flex items-center">
-                <FileText className="w-6 h-6 mr-2 text-warning" />
+          <div className="rounded-[10px] overflow-hidden p-4.5" style={{ background: 'var(--tm-surface)', border: '1px solid var(--tm-border)' }}>
+            <div className="flex items-center justify-between mb-4 pb-3 border-b" style={{ borderColor: 'var(--tm-border)' }}>
+              <h2 className="text-[14px] font-medium flex items-center" style={{ color: 'var(--tm-text-1)' }}>
+                <FileText className="w-[17px] h-[17px] mr-1.5" style={{ color: 'var(--tm-secondary)' }} />
                 Pending Budget Approvals ({pendingBudgets.length})
               </h2>
               <Link
                 href="/finance"
-                className="text-primary hover:text-primary-dark font-semibold text-sm"
+                className="text-[12px] font-medium hover:opacity-80"
+                style={{ color: 'var(--tm-secondary)' }}
               >
                 View All Budgets →
               </Link>
             </div>
-            <div className="space-y-4">
+            <div className="space-y-3.5">
               {pendingBudgets.slice(0, 3).map((budget) => (
-                <div key={budget.id} className="p-4 bg-warning/10 rounded-lg border border-warning/20 hover:bg-warning/20 transition-colors">
+                <div key={budget.id} className="p-3.5 bg-warning/10 rounded-[8px] border border-warning/20 hover:bg-warning/20 transition-colors">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <div className="flex items-center space-x-3 mb-2">
-                        <h3 className="font-bold text-neutral-text">{budget.event_name}</h3>
-                        <span className="px-3 py-1 rounded-full text-xs font-medium bg-warning/20 text-warning">
+                      <div className="flex items-center space-x-2.5 mb-1.5">
+                        <h3 className="text-[13px] font-semibold" style={{ color: 'var(--tm-text-1)' }}>{budget.event_name}</h3>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-warning/10 text-warning border border-warning/20">
                           Pending
                         </span>
                       </div>
-                      <p className="text-sm text-neutral-medium mb-1">
+                      <p className="text-[11px] mb-1" style={{ color: 'var(--tm-text-3)' }}>
                         {budget.event_type.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())} • {new Date(budget.event_date).toLocaleDateString()}
                       </p>
-                      <p className="text-sm text-neutral-medium mb-2">{budget.description}</p>
+                      <p className="text-[11px] mb-2" style={{ color: 'var(--tm-text-2)' }}>{budget.description}</p>
                       {budget.budget_items && budget.budget_items.length > 0 && (
                         <div className="mb-2">
-                          <p className="text-xs font-semibold text-neutral-medium uppercase mb-1">Items</p>
+                          <p className="text-[10px] font-semibold uppercase mb-1" style={{ color: 'var(--tm-text-muted)' }}>Items</p>
                           <div className="space-y-1">
                             {budget.budget_items.slice(0, 3).map((item: any, index: number) => (
-                              <div key={index} className="flex items-center justify-between text-sm text-neutral-text">
+                              <div key={index} className="flex items-center justify-between text-[11px]" style={{ color: 'var(--tm-text-2)' }}>
                                 <span className="truncate">{item.item_name}</span>
-                                <span className="text-xs text-neutral-medium">
+                                <span className="text-[11px]" style={{ color: 'var(--tm-text-3)' }}>
                                   {formatCurrency(parseFloat(item.total_amount.toString()))}
                                 </span>
                               </div>
                             ))}
                             {budget.budget_items.length > 3 && (
-                              <p className="text-xs text-neutral-medium">
+                              <p className="text-[10px]" style={{ color: 'var(--tm-text-muted)' }}>
                                 +{budget.budget_items.length - 3} more items
                               </p>
                             )}
                           </div>
                         </div>
                       )}
-                      <p className="text-lg font-bold text-primary">{formatCurrency(parseFloat(budget.total_amount.toString()))}</p>
-                      <p className="text-xs text-neutral-medium mt-1">
+                      <p className="text-[14px] font-bold" style={{ color: 'var(--tm-secondary)' }}>{formatCurrency(parseFloat(budget.total_amount.toString()))}</p>
+                      <p className="text-[10px] mt-1" style={{ color: 'var(--tm-text-muted)' }}>
                         Created by: {budget.created_by_profile?.name || 'Finance Admin'}
                       </p>
                     </div>
@@ -625,7 +666,7 @@ export default function AdminDashboard() {
                           setSelectedBudget(budget)
                           setShowBudgetModal(true)
                         }}
-                        className="px-4 py-2 bg-primary text-white rounded-button font-semibold hover:bg-primary-dark transition-colors text-sm"
+                        className="px-3 py-1.5 bg-[var(--tm-secondary)] text-[var(--tm-text-on-secondary)] rounded-[6px] font-semibold hover:opacity-90 transition-opacity text-[11px] cursor-pointer border-none"
                       >
                         Review
                       </button>
@@ -635,10 +676,11 @@ export default function AdminDashboard() {
               ))}
             </div>
             {pendingBudgets.length > 3 && (
-              <div className="mt-4 text-center">
+              <div className="mt-3.5 text-center">
                 <Link
                   href="/finance"
-                  className="text-primary hover:text-primary-dark font-semibold text-sm"
+                  className="text-[11px] font-medium hover:opacity-80"
+                  style={{ color: 'var(--tm-secondary)' }}
                 >
                   View {pendingBudgets.length - 3} more pending budgets →
                 </Link>
@@ -647,128 +689,28 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {attendanceSummary && (
-          <div className="bg-white rounded-card border border-neutral-light shadow-soft p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-neutral-text flex items-center">
-                <Calendar className="w-6 h-6 mr-2 text-primary" />
-                Training Attendance Summary
-              </h2>
-              <Link
-                href="/training"
-                className="text-primary hover:text-primary-dark font-semibold text-sm"
-              >
-                View Details →
-              </Link>
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-              <div className="bg-green-50 rounded-lg p-4 border border-green-200">
-                <div className="flex items-center justify-between mb-2">
-                  <CheckCircle className="w-5 h-5 text-success" />
-                  <span className="text-2xl font-bold text-success">{attendanceSummary.presentCount}</span>
-                </div>
-                <p className="text-sm text-neutral-medium">Present</p>
-              </div>
-              <div className="bg-red-50 rounded-lg p-4 border border-red-200">
-                <div className="flex items-center justify-between mb-2">
-                  <XCircle className="w-5 h-5 text-secondary" />
-                  <span className="text-2xl font-bold text-secondary">{attendanceSummary.absentCount}</span>
-                </div>
-                <p className="text-sm text-neutral-medium">Absent</p>
-              </div>
-              <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                <div className="flex items-center justify-between mb-2">
-                  <AlertCircle className="w-5 h-5 text-info" />
-                  <span className="text-2xl font-bold text-info">{attendanceSummary.justifiedAbsenceCount}</span>
-                </div>
-                <p className="text-sm text-neutral-medium">Justified</p>
-              </div>
-              <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
-                <div className="flex items-center justify-between mb-2">
-                  <AlertCircle className="w-5 h-5 text-warning" />
-                  <span className="text-2xl font-bold text-warning">{attendanceSummary.injuredCount}</span>
-                </div>
-                <p className="text-sm text-neutral-medium">Injured</p>
-              </div>
-              <div className="bg-club-gradient rounded-lg p-4 text-white">
-                <div className="flex items-center justify-between mb-2">
-                  <Activity className="w-5 h-5" />
-                  <span className="text-2xl font-bold">{attendanceSummary.attendanceRate}%</span>
-                </div>
-                <p className="text-sm text-white/90">Rate</p>
-              </div>
-            </div>
-
-            {attendanceChartData && (
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold text-neutral-text mb-4">Recent Sessions Attendance</h3>
-                <div className="h-64">
-                  <Bar
-                    data={attendanceChartData}
-                    options={{
-                      responsive: true,
-                      maintainAspectRatio: false,
-                      plugins: {
-                        legend: {
-                          position: 'top' as const,
-                        },
-                        tooltip: {
-                          mode: 'index' as const,
-                          intersect: false,
-                        },
-                      },
-                      scales: {
-                        y: {
-                          beginAtZero: true,
-                          ticks: {
-                            stepSize: 1,
-                          },
-                        },
-                      },
-                    }}
-                  />
-                </div>
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-neutral-light">
-              <div>
-                <p className="text-sm text-neutral-medium">Total Sessions</p>
-                <p className="text-xl font-bold text-neutral-text">{attendanceSummary.totalSessions}</p>
-              </div>
-              <div>
-                <p className="text-sm text-neutral-medium">Total Players</p>
-                <p className="text-xl font-bold text-neutral-text">{attendanceSummary.totalPlayers}</p>
-              </div>
-              <div>
-                <p className="text-sm text-neutral-medium">Overall Attendance Rate</p>
-                <p className="text-xl font-bold text-primary">{attendanceSummary.attendanceRate}%</p>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Upcoming Fixture Team Selection */}
         {teamSelection && teamSelection.match && (
-          <div className="bg-white rounded-card border border-neutral-light shadow-soft">
-            <div className="p-6 border-b border-neutral-light">
+          <div className="rounded-[10px] overflow-hidden" style={{ background: 'var(--tm-surface)', border: '1px solid var(--tm-border)' }}>
+            <div className="p-4.5 border-b" style={{ borderColor: 'var(--tm-border)' }}>
               <div className="flex items-center justify-between">
-                <h3 className="text-xl font-bold text-neutral-text flex items-center gap-2">
-                  <Trophy className="w-5 h-5 text-primary" />
+                <h3 className="text-[14px] font-medium flex items-center gap-1.5" style={{ color: 'var(--tm-text-1)' }}>
+                  <Trophy className="w-[17px] h-[17px]" style={{ color: 'var(--tm-secondary)' }} />
                   Upcoming Fixture Team Selection
                 </h3>
                 <Link
                   href="/fixtures"
-                  className="text-primary hover:underline text-sm font-medium"
+                  className="text-[12px] font-medium flex items-center gap-1 hover:opacity-80"
+                  style={{ color: 'var(--tm-secondary)' }}
                 >
                   View All Fixtures →
                 </Link>
               </div>
             </div>
-            <div className="p-6">
+            <div className="p-4.5">
               <div className="mb-4">
-                <h4 className="font-semibold text-neutral-text mb-2">
+                <h4 className="text-[13px] font-semibold mb-1" style={{ color: 'var(--tm-text-1)' }}>
                   {new Date(teamSelection.match.match_date).toLocaleDateString('en-US', {
                     weekday: 'long',
                     year: 'numeric',
@@ -777,24 +719,24 @@ export default function AdminDashboard() {
                   })} vs {teamSelection.match.opponent}
                 </h4>
                 {teamSelection.match.venue && (
-                  <p className="text-sm text-neutral-medium">Venue: {teamSelection.match.venue}</p>
+                  <p className="text-[11px]" style={{ color: 'var(--tm-text-3)' }}>Venue: {teamSelection.match.venue}</p>
                 )}
               </div>
               
               {teamSelection.starting && teamSelection.starting.length > 0 && (
                 <div className="mb-4">
-                  <h5 className="font-semibold text-neutral-text mb-2">Starting Lineup ({teamSelection.starting.length})</h5>
+                  <h5 className="text-[12px] font-semibold mb-2" style={{ color: 'var(--tm-text-2)' }}>Starting Lineup ({teamSelection.starting.length})</h5>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                     {teamSelection.starting.map((selection: any) => (
-                      <div key={selection.id} className="bg-success/5 border border-success/20 rounded-lg p-3">
+                      <div key={selection.id} className="bg-success/5 border border-success/15 rounded-[8px] p-3">
                         <div className="flex items-center justify-between">
-                          <span className="font-medium text-neutral-text">{selection.player?.name || 'Unknown'}</span>
+                          <span className="text-[12px] font-medium" style={{ color: 'var(--tm-text-1)' }}>{selection.player?.name || 'Unknown'}</span>
                           {selection.jersey_number && (
-                            <span className="bg-success/20 text-success px-2 py-1 rounded text-xs font-bold">#{selection.jersey_number}</span>
+                            <span className="bg-success/15 text-success px-2 py-0.5 rounded text-[10px] font-bold">#{selection.jersey_number}</span>
                           )}
                         </div>
                         {selection.position && (
-                          <p className="text-xs text-neutral-medium mt-1 capitalize">{selection.position.replace(/_/g, ' ')}</p>
+                          <p className="text-[10px] mt-0.5 capitalize" style={{ color: 'var(--tm-text-3)' }}>{selection.position.replace(/_/g, ' ')}</p>
                         )}
                       </div>
                     ))}
@@ -804,18 +746,18 @@ export default function AdminDashboard() {
 
               {teamSelection.substitutes && teamSelection.substitutes.length > 0 && (
                 <div>
-                  <h5 className="font-semibold text-neutral-text mb-2">Substitutes ({teamSelection.substitutes.length})</h5>
+                  <h5 className="text-[12px] font-semibold mb-2" style={{ color: 'var(--tm-text-2)' }}>Substitutes ({teamSelection.substitutes.length})</h5>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                     {teamSelection.substitutes.map((selection: any) => (
-                      <div key={selection.id} className="bg-warning/5 border border-warning/20 rounded-lg p-3">
+                      <div key={selection.id} className="bg-warning/5 border border-warning/15 rounded-[8px] p-3">
                         <div className="flex items-center justify-between">
-                          <span className="font-medium text-neutral-text">{selection.player?.name || 'Unknown'}</span>
+                          <span className="text-[12px] font-medium" style={{ color: 'var(--tm-text-1)' }}>{selection.player?.name || 'Unknown'}</span>
                           {selection.jersey_number && (
-                            <span className="bg-warning/20 text-warning px-2 py-1 rounded text-xs font-bold">#{selection.jersey_number}</span>
+                            <span className="bg-warning/15 text-warning px-2 py-0.5 rounded text-[10px] font-bold">#{selection.jersey_number}</span>
                           )}
                         </div>
                         {selection.position && (
-                          <p className="text-xs text-neutral-medium mt-1 capitalize">{selection.position.replace(/_/g, ' ')}</p>
+                          <p className="text-[10px] mt-0.5 capitalize" style={{ color: 'var(--tm-text-3)' }}>{selection.position.replace(/_/g, ' ')}</p>
                         )}
                       </div>
                     ))}
@@ -825,42 +767,43 @@ export default function AdminDashboard() {
 
               {(!teamSelection.starting || teamSelection.starting.length === 0) && 
                (!teamSelection.substitutes || teamSelection.substitutes.length === 0) && (
-                <p className="text-neutral-medium text-center py-4">No team selection made yet for this fixture.</p>
+                <p className="text-center py-4 text-[12px]" style={{ color: 'var(--tm-text-3)' }}>No team selection made yet for this fixture.</p>
               )}
             </div>
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5">
           {managementCards.map((card) => {
             const Icon = card.icon
             return (
               <Link
                 key={card.name}
                 href={card.href}
-                className="bg-white rounded-card p-6 border border-neutral-light shadow-soft hover-lift card-hover"
+                className="rounded-[10px] p-4 flex flex-col gap-3 cursor-pointer transition-all duration-300 hover-lift hover:border-[var(--tm-primary)] hover:bg-[var(--tm-primary-subtle)]"
+                style={{ background: 'var(--tm-surface)', border: '1px solid var(--tm-border)' }}
               >
-                <div className={`${card.color} w-12 h-12 rounded-xl flex items-center justify-center mb-4`}>
-                  <Icon className="w-6 h-6 text-white" />
+                <div className={`${card.color} w-9 h-9 rounded-[8px] flex items-center justify-center`}>
+                  <Icon className="w-[18px] h-[18px] text-white" />
                 </div>
-                <h3 className="text-lg font-bold text-neutral-text">{card.name}</h3>
+                <h3 className="text-[13px] font-medium" style={{ color: 'var(--tm-text-1)' }}>{card.name}</h3>
               </Link>
             )
           })}
         </div>
 
-        <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
-          <h3 className="text-xl font-bold text-neutral-text mb-6">Recent Activity Feed</h3>
+        <div className="rounded-[10px] p-4.5" style={{ background: 'var(--tm-surface)', border: '1px solid var(--tm-border)' }}>
+          <h3 className="text-[14px] font-medium mb-4" style={{ color: 'var(--tm-text-1)' }}>Recent Activity Feed</h3>
           {activities.length === 0 ? (
-            <p className="text-sm text-neutral-medium">No recent activity yet.</p>
+            <p className="text-[12px]" style={{ color: 'var(--tm-text-3)' }}>No recent activity yet.</p>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3.5">
               {activities.map((activity, index) => (
-                <div key={index} className="flex items-start space-x-3 p-3 hover:bg-neutral-light rounded-lg transition-colors">
+                <div key={index} className="flex items-start space-x-3 p-2.5 hover:bg-[var(--tm-surface-hover)] rounded-[6px] transition-colors">
                   <div className={`w-2 h-2 rounded-full ${activity.color} mt-2 flex-shrink-0`} />
                   <div className="flex-1">
-                    <p className="text-sm text-neutral-text">{activity.message}</p>
-                    <p className="text-xs text-neutral-medium mt-1">{activity.time}</p>
+                    <p className="text-[13px]" style={{ color: 'var(--tm-text-1)' }}>{activity.message}</p>
+                    <p className="text-[11px] mt-1" style={{ color: 'var(--tm-text-3)' }}>{activity.time}</p>
                   </div>
                 </div>
               ))}
@@ -870,94 +813,96 @@ export default function AdminDashboard() {
       </div>
 
       {showBudgetModal && selectedBudget && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-card shadow-soft max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-neutral-light">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="rounded-[10px] shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" style={{ background: 'var(--tm-surface)', border: '1px solid var(--tm-border)' }}>
+            <div className="p-4.5 border-b" style={{ borderColor: 'var(--tm-border)' }}>
               <div className="flex items-center justify-between">
-                <h3 className="text-2xl font-bold text-neutral-text">Review Budget Request</h3>
-                <button onClick={() => { setShowBudgetModal(false); setSelectedBudget(null); setRejectionReason('') }} className="text-neutral-medium hover:text-neutral-text transition-colors">
-                  <X className="w-6 h-6" />
+                <h3 className="text-[15px] font-semibold" style={{ color: 'var(--tm-text-1)' }}>Review Budget Request</h3>
+                <button onClick={() => { setShowBudgetModal(false); setSelectedBudget(null); setRejectionReason('') }} className="cursor-pointer border-none bg-none hover:opacity-80 transition-opacity" style={{ color: 'var(--tm-text-3)' }}>
+                  <X className="w-5 h-5" />
                 </button>
               </div>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="p-4.5 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-neutral-medium mb-1">Event Name</label>
-                  <p className="text-neutral-text font-medium">{selectedBudget.event_name}</p>
+                  <label className="block text-[11px] font-semibold uppercase mb-1" style={{ color: 'var(--tm-text-muted)' }}>Event Name</label>
+                  <p className="font-medium text-[13px]" style={{ color: 'var(--tm-text-1)' }}>{selectedBudget.event_name}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-neutral-medium mb-1">Event Type</label>
-                  <p className="text-neutral-text">{selectedBudget.event_type.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}</p>
+                  <label className="block text-[11px] font-semibold uppercase mb-1" style={{ color: 'var(--tm-text-muted)' }}>Event Type</label>
+                  <p className="text-[13px]" style={{ color: 'var(--tm-text-1)' }}>{selectedBudget.event_type.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-neutral-medium mb-1">Event Date</label>
-                  <p className="text-neutral-text">{new Date(selectedBudget.event_date).toLocaleDateString()}</p>
+                  <label className="block text-[11px] font-semibold uppercase mb-1" style={{ color: 'var(--tm-text-muted)' }}>Event Date</label>
+                  <p className="text-[13px]" style={{ color: 'var(--tm-text-1)' }}>{new Date(selectedBudget.event_date).toLocaleDateString()}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-neutral-medium mb-1">Total Amount</label>
-                  <p className="text-lg font-bold text-primary">{formatCurrency(parseFloat(selectedBudget.total_amount.toString()))}</p>
+                  <label className="block text-[11px] font-semibold uppercase mb-1" style={{ color: 'var(--tm-text-muted)' }}>Total Amount</label>
+                  <p className="text-[15px] font-bold" style={{ color: 'var(--tm-secondary)' }}>{formatCurrency(parseFloat(selectedBudget.total_amount.toString()))}</p>
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-sm font-semibold text-neutral-medium mb-1">Description</label>
-                  <p className="text-neutral-text">{selectedBudget.description || 'No description provided'}</p>
+                  <label className="block text-[11px] font-semibold uppercase mb-1" style={{ color: 'var(--tm-text-muted)' }}>Description</label>
+                  <p className="text-[13px]" style={{ color: 'var(--tm-text-2)' }}>{selectedBudget.description || 'No description provided'}</p>
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-sm font-semibold text-neutral-medium mb-1">Created By</label>
-                  <p className="text-neutral-text">{selectedBudget.created_by_profile?.name || 'Finance Admin'} ({selectedBudget.created_by_profile?.email || 'N/A'})</p>
+                  <label className="block text-[11px] font-semibold uppercase mb-1" style={{ color: 'var(--tm-text-muted)' }}>Created By</label>
+                  <p className="text-[13px]" style={{ color: 'var(--tm-text-2)' }}>{selectedBudget.created_by_profile?.name || 'Finance Admin'} ({selectedBudget.created_by_profile?.email || 'N/A'})</p>
                 </div>
               </div>
 
               {selectedBudget.budget_items && selectedBudget.budget_items.length > 0 && (
-                <div className="border-t border-neutral-light pt-4">
-                  <h4 className="text-lg font-bold text-neutral-text mb-4">Budget Items</h4>
+                <div className="border-t pt-3.5" style={{ borderColor: 'var(--tm-border)' }}>
+                  <h4 className="text-[13px] font-semibold mb-3" style={{ color: 'var(--tm-text-1)' }}>Budget Items</h4>
                   <div className="space-y-2">
                     {selectedBudget.budget_items.map((item: any, index: number) => (
-                      <div key={index} className="p-3 bg-neutral-light/50 rounded-lg">
+                      <div key={index} className="p-3 rounded-[6px]" style={{ background: 'var(--tm-surface-hover)', border: '1px solid var(--tm-border)' }}>
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="font-medium text-neutral-text">{item.item_name}</p>
-                            {item.category && <p className="text-sm text-neutral-medium">{item.category}</p>}
+                            <p className="font-semibold text-[12px]" style={{ color: 'var(--tm-text-1)' }}>{item.item_name}</p>
+                            {item.category && <p className="text-[11px]" style={{ color: 'var(--tm-text-3)' }}>{item.category}</p>}
                           </div>
                           <div className="text-right">
-                            <p className="font-bold text-neutral-text">{formatCurrency(parseFloat(item.total_amount.toString()))}</p>
-                            <p className="text-xs text-neutral-medium">{item.quantity} × {formatCurrency(parseFloat(item.unit_price.toString()))}</p>
+                            <p className="font-bold text-[12px]" style={{ color: 'var(--tm-text-1)' }}>{formatCurrency(parseFloat(item.total_amount.toString()))}</p>
+                            <p className="text-[10px]" style={{ color: 'var(--tm-text-3)' }}>{item.quantity} × {formatCurrency(parseFloat(item.unit_price.toString()))}</p>
                           </div>
                         </div>
-                        {item.notes && <p className="text-xs text-neutral-medium mt-1">{item.notes}</p>}
+                        {item.notes && <p className="text-[10px] mt-1" style={{ color: 'var(--tm-text-3)' }}>{item.notes}</p>}
                       </div>
                     ))}
                   </div>
                 </div>
               )}
 
-              <div className="border-t border-neutral-light pt-4">
-                <label className="block text-sm font-semibold text-neutral-medium mb-2">Rejection Reason (if rejecting)</label>
+              <div className="border-t pt-3.5" style={{ borderColor: 'var(--tm-border)' }}>
+                <label className="block text-[11px] font-semibold uppercase mb-1.5" style={{ color: 'var(--tm-text-muted)' }}>Rejection Reason (if rejecting)</label>
                 <textarea
                   value={rejectionReason}
                   onChange={(e) => setRejectionReason(e.target.value)}
                   rows={3}
-                  className="w-full px-4 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary"
+                  className="w-full px-3 py-2 border rounded-[6px] focus:outline-none focus:ring-1 focus:ring-[var(--tm-secondary)] text-[12px]"
+                  style={{ background: 'var(--tm-surface-hover)', borderColor: 'var(--tm-border)', color: 'var(--tm-text-1)' }}
                   placeholder="Provide a reason for rejection (optional)"
                 />
               </div>
             </div>
-            <div className="p-6 border-t border-neutral-light flex justify-end space-x-3">
+            <div className="p-4.5 border-t flex justify-end space-x-2.5" style={{ borderColor: 'var(--tm-border)' }}>
               <button
                 onClick={() => { setShowBudgetModal(false); setSelectedBudget(null); setRejectionReason('') }}
-                className="px-6 py-2 border border-neutral-light rounded-button font-semibold text-neutral-text hover:bg-neutral-light transition-colors"
+                className="px-4 py-1.5 border rounded-[6px] text-[12px] font-medium cursor-pointer transition-opacity hover:opacity-80"
+                style={{ background: 'none', borderColor: 'var(--tm-border)', color: 'var(--tm-text-2)' }}
               >
                 Cancel
               </button>
               <button
                 onClick={() => handleRejectBudget(selectedBudget.id)}
-                className="px-6 py-2 bg-secondary text-white rounded-button font-semibold hover:bg-secondary-dark transition-colors"
+                className="px-4 py-1.5 rounded-[6px] text-[12px] font-medium text-white bg-[#E05757] hover:opacity-90 transition-opacity border-none cursor-pointer"
               >
                 Reject
               </button>
               <button
                 onClick={() => handleApproveBudget(selectedBudget.id)}
-                className="px-6 py-2 bg-success text-white rounded-button font-semibold hover:bg-success-dark transition-colors"
+                className="px-4 py-1.5 rounded-[6px] text-[12px] font-medium text-white bg-[#2DB88A] hover:opacity-90 transition-opacity border-none cursor-pointer"
               >
                 Approve
               </button>

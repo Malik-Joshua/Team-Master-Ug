@@ -502,13 +502,15 @@ export default function DashboardPage() {
               }
             }
           } else {
+            console.warn('[DashboardPage] Authenticated, but no user profile found in user_profiles.');
             router.push('/login')
           }
         } else {
+          console.warn('[DashboardPage] No authenticated authUser found.');
           router.push('/login')
         }
       } catch (error) {
-        console.error('Error loading dashboard:', error)
+        console.error('[DashboardPage] Error loading dashboard:', error)
         router.push('/login')
       }
   }, [router])
@@ -588,10 +590,10 @@ export default function DashboardPage() {
 
   if (!user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-neutral-bg">
+      <div className="min-h-screen flex items-center justify-center bg-tm-bg">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-neutral-medium">Loading...</p>
+          <p className="text-tm-text-3">Loading...</p>
         </div>
       </div>
     )
@@ -605,23 +607,23 @@ export default function DashboardPage() {
           <BirthdayAlert />
           {/* Fixture Selection Notification for Player */}
           {loadingPlayerFixture ? (
-            <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+            <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
               <div className="flex items-center justify-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
               </div>
             </div>
           ) : playerFixtureSelection && playerFixtureSelection.match ? (
             playerFixtureSelection.isSelected ? (
-            <div className="bg-white rounded-card p-6 border-2 border-primary shadow-soft">
+            <div className="bg-tm-surface rounded-card p-6 border-2 border-primary shadow-soft">
               <div className="flex items-start gap-4">
                 <div className="flex-shrink-0">
-                  <div className="w-16 h-16 rounded-full bg-club-gradient flex items-center justify-center">
-                    <Trophy className="w-8 h-8 text-white" />
+                  <div className="w-16 h-16 rounded-full bg-tm-secondary flex items-center justify-center">
+                    <Trophy className="w-8 h-8 text-tm-on-secondary" />
                   </div>
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-3 flex-wrap">
-                    <h3 className="text-xl font-bold text-neutral-text">You&apos;re Selected for the Next Fixture!</h3>
+                    <h3 className="text-xl font-bold text-tm-text-1">You&apos;re Selected for the Next Fixture!</h3>
                     {playerFixtureSelection.selection.is_starting && !playerFixtureSelection.selection.is_substitute ? (
                       <span className="px-3 py-1 bg-success/10 text-success rounded-full text-sm font-medium">
                         Starting Lineup
@@ -632,23 +634,23 @@ export default function DashboardPage() {
                       </span>
                     ) : null}
                     {playerFixtureSelection.selection.is_captain && (
-                      <span className="px-3 py-1 bg-yellow-500 text-white rounded-full text-sm font-bold flex items-center gap-1">
+                      <span className="px-3 py-1 bg-warning/100 text-white rounded-full text-sm font-bold flex items-center gap-1">
                         <Trophy className="w-4 h-4" />
                         Captain
                       </span>
                     )}
                     {playerFixtureSelection.selection.is_assistant_captain && (
-                      <span className="px-3 py-1 bg-gray-500 text-white rounded-full text-sm font-bold flex items-center gap-1">
+                      <span className="px-3 py-1 bg-tm-surface-hover0 text-white rounded-full text-sm font-bold flex items-center gap-1">
                         <Trophy className="w-4 h-4" />
                         Assistant Captain
                       </span>
                     )}
                   </div>
-                  <div className="bg-neutral-light rounded-lg p-4 mb-3">
+                  <div className="bg-tm-surface-hover rounded-lg p-4 mb-3">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
-                        <p className="text-xs font-semibold text-neutral-medium uppercase mb-1">Match Date</p>
-                        <p className="text-sm font-semibold text-neutral-text">
+                        <p className="text-xs font-semibold text-tm-text-3 uppercase mb-1">Match Date</p>
+                        <p className="text-sm font-semibold text-tm-text-1">
                           {new Date(playerFixtureSelection.match.match_date).toLocaleDateString('en-US', {
                             weekday: 'long',
                             year: 'numeric',
@@ -658,13 +660,13 @@ export default function DashboardPage() {
                         </p>
                       </div>
                       <div>
-                        <p className="text-xs font-semibold text-neutral-medium uppercase mb-1">Opponent</p>
-                        <p className="text-sm font-semibold text-neutral-text">{playerFixtureSelection.match.opponent}</p>
+                        <p className="text-xs font-semibold text-tm-text-3 uppercase mb-1">Opponent</p>
+                        <p className="text-sm font-semibold text-tm-text-1">{playerFixtureSelection.match.opponent}</p>
                       </div>
                       {playerFixtureSelection.match.venue && (
                         <div>
-                          <p className="text-xs font-semibold text-neutral-medium uppercase mb-1">Venue</p>
-                          <p className="text-sm font-semibold text-neutral-text">{playerFixtureSelection.match.venue}</p>
+                          <p className="text-xs font-semibold text-tm-text-3 uppercase mb-1">Venue</p>
+                          <p className="text-sm font-semibold text-tm-text-1">{playerFixtureSelection.match.venue}</p>
                         </div>
                       )}
                     </div>
@@ -672,13 +674,13 @@ export default function DashboardPage() {
                   <div className="flex items-center gap-4 flex-wrap">
                     {playerFixtureSelection.selection.jersey_number && (
                       <div className="flex items-center gap-2">
-                        <span className="text-sm text-neutral-medium">Jersey #</span>
+                        <span className="text-sm text-tm-text-3">Jersey #</span>
                         <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm font-bold">{playerFixtureSelection.selection.jersey_number}</span>
                       </div>
                     )}
                     {playerFixtureSelection.selection.position && (
                       <div className="flex items-center gap-2">
-                        <span className="text-sm text-neutral-medium">Position:</span>
+                        <span className="text-sm text-tm-text-3">Position:</span>
                         <span className="px-3 py-1 bg-info/10 text-info rounded-full text-sm font-medium capitalize">{playerFixtureSelection.selection.position.replace('_', ' ')}</span>
                       </div>
                     )}
@@ -686,27 +688,27 @@ export default function DashboardPage() {
                   
                   {/* Show Captain and Assistant Captain */}
                   {(playerFixtureSelection.captain || playerFixtureSelection.assistantCaptain) && (
-                    <div className="mt-4 pt-4 border-t border-neutral-light">
-                      <h4 className="text-sm font-semibold text-neutral-text mb-3">Team Leadership</h4>
+                    <div className="mt-4 pt-4 border-t border-tm-border">
+                      <h4 className="text-sm font-semibold text-tm-text-1 mb-3">Team Leadership</h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         {playerFixtureSelection.captain && (
-                          <div className="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-3">
+                          <div className="bg-warning/10 border-2 border-warning/40 rounded-lg p-3">
                             <div className="flex items-center gap-2">
-                              <Trophy className="w-5 h-5 text-yellow-600" />
+                              <Trophy className="w-5 h-5 text-warning" />
                               <div>
-                                <p className="text-xs font-semibold text-yellow-800 uppercase">Team Captain</p>
-                                <p className="text-sm font-bold text-yellow-900">{playerFixtureSelection.captain.name}</p>
+                                <p className="text-xs font-semibold text-warning uppercase">Team Captain</p>
+                                <p className="text-sm font-bold text-warning">{playerFixtureSelection.captain.name}</p>
                               </div>
                             </div>
                           </div>
                         )}
                         {playerFixtureSelection.assistantCaptain && (
-                          <div className="bg-gray-50 border-2 border-gray-300 rounded-lg p-3">
+                          <div className="bg-tm-surface-hover border-2 border-tm-border rounded-lg p-3">
                             <div className="flex items-center gap-2">
-                              <Trophy className="w-5 h-5 text-gray-600" />
+                              <Trophy className="w-5 h-5 text-tm-text-2" />
                               <div>
-                                <p className="text-xs font-semibold text-gray-800 uppercase">Assistant Captain</p>
-                                <p className="text-sm font-bold text-gray-900">{playerFixtureSelection.assistantCaptain.name}</p>
+                                <p className="text-xs font-semibold text-tm-text-1 uppercase">Assistant Captain</p>
+                                <p className="text-sm font-bold text-tm-text-1">{playerFixtureSelection.assistantCaptain.name}</p>
                               </div>
                             </div>
                           </div>
@@ -717,22 +719,22 @@ export default function DashboardPage() {
                   
                   {/* Show Teammates */}
                   {playerFixtureSelection.teammates && playerFixtureSelection.teammates.length > 0 && (
-                    <div className="mt-4 pt-4 border-t border-neutral-light">
-                      <h4 className="text-sm font-semibold text-neutral-text mb-3">Your Teammates ({playerFixtureSelection.teammates.length})</h4>
+                    <div className="mt-4 pt-4 border-t border-tm-border">
+                      <h4 className="text-sm font-semibold text-tm-text-1 mb-3">Your Teammates ({playerFixtureSelection.teammates.length})</h4>
                       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
                         {playerFixtureSelection.teammates.map((teammate: any) => (
-                          <div key={teammate.player_id} className="bg-neutral-light rounded-lg p-2 text-sm">
+                          <div key={teammate.player_id} className="bg-tm-surface-hover rounded-lg p-2 text-sm">
                             <div className="flex items-center justify-between gap-1">
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-1 flex-wrap">
-                                  <span className="font-medium text-neutral-text text-xs truncate">{teammate.name}</span>
+                                  <span className="font-medium text-tm-text-1 text-xs truncate">{teammate.name}</span>
                                   {teammate.is_captain && (
-                                    <span className="px-1.5 py-0.5 bg-yellow-500 text-white text-xs font-bold rounded flex-shrink-0">
+                                    <span className="px-1.5 py-0.5 bg-warning/100 text-white text-xs font-bold rounded flex-shrink-0">
                                       <Trophy className="w-3 h-3 inline" />
                                     </span>
                                   )}
                                   {teammate.is_assistant_captain && (
-                                    <span className="px-1.5 py-0.5 bg-gray-500 text-white text-xs font-bold rounded flex-shrink-0">
+                                    <span className="px-1.5 py-0.5 bg-tm-surface-hover0 text-white text-xs font-bold rounded flex-shrink-0">
                                       <Trophy className="w-3 h-3 inline" />
                                     </span>
                                   )}
@@ -743,7 +745,7 @@ export default function DashboardPage() {
                               )}
                             </div>
                             {teammate.position && (
-                              <p className="text-xs text-neutral-medium mt-1 capitalize">{teammate.position.replace(/_/g, ' ')}</p>
+                              <p className="text-xs text-tm-text-3 mt-1 capitalize">{teammate.position.replace(/_/g, ' ')}</p>
                             )}
                             <div className="flex gap-1 mt-1 flex-wrap">
                               {teammate.is_starting && !teammate.is_substitute && (
@@ -762,20 +764,20 @@ export default function DashboardPage() {
               </div>
             </div>
             ) : (
-              <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+              <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
                 <div className="flex items-start gap-4">
                   <div className="flex-shrink-0">
-                    <div className="w-16 h-16 rounded-full bg-neutral-light flex items-center justify-center">
-                      <Trophy className="w-8 h-8 text-neutral-medium" />
+                    <div className="w-16 h-16 rounded-full bg-tm-surface-hover flex items-center justify-center">
+                      <Trophy className="w-8 h-8 text-tm-text-3" />
                     </div>
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-xl font-bold text-neutral-text mb-3">Upcoming Fixture</h3>
-                    <div className="bg-neutral-light rounded-lg p-4 mb-4">
+                    <h3 className="text-xl font-bold text-tm-text-1 mb-3">Upcoming Fixture</h3>
+                    <div className="bg-tm-surface-hover rounded-lg p-4 mb-4">
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
-                          <p className="text-xs font-semibold text-neutral-medium uppercase mb-1">Match Date</p>
-                          <p className="text-sm font-semibold text-neutral-text">
+                          <p className="text-xs font-semibold text-tm-text-3 uppercase mb-1">Match Date</p>
+                          <p className="text-sm font-semibold text-tm-text-1">
                             {new Date(playerFixtureSelection.match.match_date).toLocaleDateString('en-US', {
                               weekday: 'long',
                               year: 'numeric',
@@ -785,13 +787,13 @@ export default function DashboardPage() {
                           </p>
                         </div>
                         <div>
-                          <p className="text-xs font-semibold text-neutral-medium uppercase mb-1">Opponent</p>
-                          <p className="text-sm font-semibold text-neutral-text">{playerFixtureSelection.match.opponent}</p>
+                          <p className="text-xs font-semibold text-tm-text-3 uppercase mb-1">Opponent</p>
+                          <p className="text-sm font-semibold text-tm-text-1">{playerFixtureSelection.match.opponent}</p>
                         </div>
                         {playerFixtureSelection.match.venue && (
                           <div>
-                            <p className="text-xs font-semibold text-neutral-medium uppercase mb-1">Venue</p>
-                            <p className="text-sm font-semibold text-neutral-text">{playerFixtureSelection.match.venue}</p>
+                            <p className="text-xs font-semibold text-tm-text-3 uppercase mb-1">Venue</p>
+                            <p className="text-sm font-semibold text-tm-text-1">{playerFixtureSelection.match.venue}</p>
                           </div>
                         )}
                       </div>
@@ -800,26 +802,26 @@ export default function DashboardPage() {
                     {/* Show Captain and Assistant Captain */}
                     {(playerFixtureSelection.captain || playerFixtureSelection.assistantCaptain) && (
                       <div className="mb-4">
-                        <h4 className="text-sm font-semibold text-neutral-text mb-3">Team Leadership</h4>
+                        <h4 className="text-sm font-semibold text-tm-text-1 mb-3">Team Leadership</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                           {playerFixtureSelection.captain && (
-                            <div className="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-3">
+                            <div className="bg-warning/10 border-2 border-warning/40 rounded-lg p-3">
                               <div className="flex items-center gap-2">
-                                <Trophy className="w-5 h-5 text-yellow-600" />
+                                <Trophy className="w-5 h-5 text-warning" />
                                 <div>
-                                  <p className="text-xs font-semibold text-yellow-800 uppercase">Team Captain</p>
-                                  <p className="text-sm font-bold text-yellow-900">{playerFixtureSelection.captain.name}</p>
+                                  <p className="text-xs font-semibold text-warning uppercase">Team Captain</p>
+                                  <p className="text-sm font-bold text-warning">{playerFixtureSelection.captain.name}</p>
                                 </div>
                               </div>
                             </div>
                           )}
                           {playerFixtureSelection.assistantCaptain && (
-                            <div className="bg-gray-50 border-2 border-gray-300 rounded-lg p-3">
+                            <div className="bg-tm-surface-hover border-2 border-tm-border rounded-lg p-3">
                               <div className="flex items-center gap-2">
-                                <Trophy className="w-5 h-5 text-gray-600" />
+                                <Trophy className="w-5 h-5 text-tm-text-2" />
                                 <div>
-                                  <p className="text-xs font-semibold text-gray-800 uppercase">Assistant Captain</p>
-                                  <p className="text-sm font-bold text-gray-900">{playerFixtureSelection.assistantCaptain.name}</p>
+                                  <p className="text-xs font-semibold text-tm-text-1 uppercase">Assistant Captain</p>
+                                  <p className="text-sm font-bold text-tm-text-1">{playerFixtureSelection.assistantCaptain.name}</p>
                                 </div>
                               </div>
                             </div>
@@ -832,8 +834,8 @@ export default function DashboardPage() {
                       <div className="flex items-center gap-3">
                         <Trophy className="w-5 h-5 text-warning" />
                         <div>
-                          <h4 className="text-sm font-semibold text-neutral-text mb-1">You have not been selected</h4>
-                          <p className="text-xs text-neutral-medium">Check back later for updates on team selection.</p>
+                          <h4 className="text-sm font-semibold text-tm-text-1 mb-1">You have not been selected</h4>
+                          <p className="text-xs text-tm-text-3">Check back later for updates on team selection.</p>
                         </div>
                       </div>
                     </div>
@@ -842,28 +844,26 @@ export default function DashboardPage() {
               </div>
             )
           ) : (
-            <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+            <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
               <div className="flex items-center gap-4">
                 <div className="flex-shrink-0">
-                  <div className="w-16 h-16 rounded-full bg-neutral-light flex items-center justify-center">
-                    <Trophy className="w-8 h-8 text-neutral-medium" />
+                  <div className="w-16 h-16 rounded-full bg-tm-surface-hover flex items-center justify-center">
+                    <Trophy className="w-8 h-8 text-tm-text-3" />
                   </div>
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-neutral-text mb-1">No Upcoming Fixtures</h3>
-                  <p className="text-sm text-neutral-medium">There are no upcoming fixtures scheduled at this time.</p>
+                  <h3 className="text-lg font-semibold text-tm-text-1 mb-1">No Upcoming Fixtures</h3>
+                  <p className="text-sm text-tm-text-3">There are no upcoming fixtures scheduled at this time.</p>
                 </div>
               </div>
             </div>
           )}
 
           {/* Hero Section */}
-          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+          <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-3xl font-bold text-neutral-text mb-2">
-                  Welcome back, {user.name}!
-                </h2>
+                <h2 className="text-[20px] font-medium text-tm-text-1 mb-2">Welcome back, {user.name}!</h2>
                 <div className="flex items-center space-x-2">
                   <span className="px-3 py-1 bg-success/10 text-success rounded-full text-sm font-medium">
                     {user.status || 'Active'}
@@ -875,7 +875,7 @@ export default function DashboardPage() {
                   )}
                 </div>
               </div>
-              <div className="w-20 h-20 rounded-full bg-club-gradient flex items-center justify-center text-white text-2xl font-bold">
+              <div className="w-20 h-20 rounded-full bg-tm-secondary flex items-center justify-center text-tm-on-secondary text-2xl font-bold">
                 {user.name.charAt(0).toUpperCase()}
               </div>
             </div>
@@ -888,87 +888,91 @@ export default function DashboardPage() {
               value={stats.trainingSessionsAttended}
               icon={Calendar}
               iconColor="bg-primary"
+              iconTextColor="text-tm-on-secondary"
             />
             <StatCard
               title="Games Played"
               value={stats.totalMatches}
               icon={Trophy}
               iconColor="bg-secondary"
+              iconTextColor="text-tm-on-secondary"
             />
             <StatCard
               title="Tries Scored"
               value={stats.totalTries}
               icon={Target}
               iconColor="bg-success"
+              iconTextColor="text-white"
             />
             <StatCard
               title="Tackles Made"
               value={stats.totalTackles}
               icon={Activity}
               iconColor="bg-info"
+              iconTextColor="text-white"
             />
           </div>
 
           {/* Gym Metrics Section */}
-          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+          <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
             <div className="flex items-center mb-6">
               <Dumbbell className="w-6 h-6 text-primary mr-2" />
-              <h3 className="text-xl font-bold text-neutral-text">Gym Metrics - Personal Bests</h3>
+              <h3 className="text-xl font-bold text-tm-text-1">Gym Metrics - Personal Bests</h3>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <div className="bg-gradient-to-br from-primary/10 to-primary/5 rounded-lg p-6 border border-primary/20">
                 <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-sm font-semibold text-neutral-medium uppercase tracking-wide">Bench Press</h4>
+                  <h4 className="text-sm font-semibold text-tm-text-3 uppercase tracking-wide">Bench Press</h4>
                   <Dumbbell className="w-5 h-5 text-primary" />
                 </div>
-                <p className="text-3xl font-bold text-neutral-text">
+                <p className="text-3xl font-bold text-tm-text-1">
                   {gymStats.benchPressPB !== null ? `${gymStats.benchPressPB} kg` : 'N/A'}
                 </p>
-                <p className="text-xs text-neutral-medium mt-1">Personal Best</p>
+                <p className="text-xs text-tm-text-3 mt-1">Personal Best</p>
               </div>
               <div className="bg-gradient-to-br from-secondary/10 to-secondary/5 rounded-lg p-6 border border-secondary/20">
                 <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-sm font-semibold text-neutral-medium uppercase tracking-wide">Squat</h4>
+                  <h4 className="text-sm font-semibold text-tm-text-3 uppercase tracking-wide">Squat</h4>
                   <Dumbbell className="w-5 h-5 text-secondary" />
                 </div>
-                <p className="text-3xl font-bold text-neutral-text">
+                <p className="text-3xl font-bold text-tm-text-1">
                   {gymStats.squatPB !== null ? `${gymStats.squatPB} kg` : 'N/A'}
                 </p>
-                <p className="text-xs text-neutral-medium mt-1">Personal Best</p>
+                <p className="text-xs text-tm-text-3 mt-1">Personal Best</p>
               </div>
               <div className="bg-gradient-to-br from-success/10 to-success/5 rounded-lg p-6 border border-success/20">
                 <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-sm font-semibold text-neutral-medium uppercase tracking-wide">Deadlift</h4>
+                  <h4 className="text-sm font-semibold text-tm-text-3 uppercase tracking-wide">Deadlift</h4>
                   <Dumbbell className="w-5 h-5 text-success" />
                 </div>
-                <p className="text-3xl font-bold text-neutral-text">
+                <p className="text-3xl font-bold text-tm-text-1">
                   {gymStats.deadliftPB !== null ? `${gymStats.deadliftPB} kg` : 'N/A'}
                 </p>
-                <p className="text-xs text-neutral-medium mt-1">Personal Best</p>
+                <p className="text-xs text-tm-text-3 mt-1">Personal Best</p>
               </div>
               <div className="bg-gradient-to-br from-info/10 to-info/5 rounded-lg p-6 border border-info/20">
                 <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-sm font-semibold text-neutral-medium uppercase tracking-wide">Pull-ups</h4>
+                  <h4 className="text-sm font-semibold text-tm-text-3 uppercase tracking-wide">Pull-ups</h4>
                   <Dumbbell className="w-5 h-5 text-info" />
                 </div>
-                <p className="text-3xl font-bold text-neutral-text">
+                <p className="text-3xl font-bold text-tm-text-1">
                   {gymStats.pullUpPB !== null ? `${gymStats.pullUpPB} reps` : 'N/A'}
                 </p>
-                <p className="text-xs text-neutral-medium mt-1">Personal Best</p>
+                <p className="text-xs text-tm-text-3 mt-1">Personal Best</p>
               </div>
             </div>
             {gymStats.benchPressPB === null && gymStats.squatPB === null && gymStats.deadliftPB === null && gymStats.pullUpPB === null && (
-              <div className="mt-4 text-center text-neutral-medium text-sm">
+              <div className="mt-4 text-center text-tm-text-3 text-sm">
                 No gym metrics recorded yet. Contact your coach or team manager to update your metrics.
               </div>
             )}
           </div>
 
           {/* Injury Information Section */}
-          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+          <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
             <div className="flex items-center mb-6">
               <HeartPulse className="w-6 h-6 text-secondary mr-2" />
-              <h3 className="text-xl font-bold text-neutral-text">My Injury Information</h3>
+              <h3 className="text-xl font-bold text-tm-text-1">My Injury Information</h3>
             </div>
             
             {loadingInjuries ? (
@@ -978,7 +982,7 @@ export default function DashboardPage() {
             ) : injuries.length === 0 ? (
               <div className="text-center py-8">
                 <CheckCircle className="w-12 h-12 mx-auto mb-4 text-success" />
-                <p className="text-neutral-medium">No active injuries recorded. You&apos;re good to go!</p>
+                <p className="text-tm-text-3">No active injuries recorded. You&apos;re good to go!</p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -987,10 +991,10 @@ export default function DashboardPage() {
                     key={injury.id}
                     className={`p-6 rounded-lg border-2 transition-all ${
                       injury.status === 'active'
-                        ? 'border-secondary bg-red-50'
+                        ? 'border-secondary bg-[#E05757]/10'
                         : injury.status === 'cleared' || injury.status === 'healed'
-                        ? 'border-success bg-green-50'
-                        : 'border-neutral-light bg-white'
+                        ? 'border-success bg-success/10'
+                        : 'border-tm-border bg-tm-surface'
                     }`}
                   >
                     <div className="flex items-start justify-between mb-4">
@@ -999,18 +1003,18 @@ export default function DashboardPage() {
                           injury.status === 'active' ? 'text-secondary' : 'text-success'
                         }`} />
                         <div>
-                          <h4 className="text-lg font-bold text-neutral-text">Injury Information</h4>
-                          <p className="text-sm text-neutral-medium">
+                          <h4 className="text-lg font-bold text-tm-text-1">Injury Information</h4>
+                          <p className="text-sm text-tm-text-3">
                             Injured on {new Date(injury.injury_date).toLocaleDateString()}
                           </p>
                         </div>
                       </div>
                       <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                         injury.status === 'active'
-                          ? 'bg-secondary text-white'
+                          ? 'bg-secondary text-tm-on-secondary'
                           : injury.status === 'cleared' || injury.status === 'healed'
                           ? 'bg-success text-white'
-                          : 'bg-neutral-light text-neutral-medium'
+                          : 'bg-tm-surface-hover text-tm-text-3'
                       }`}>
                         {injury.status === 'active' ? 'ACTIVE' : injury.status === 'cleared' ? 'CLEARED' : 'HEALED'}
                       </span>
@@ -1018,16 +1022,16 @@ export default function DashboardPage() {
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
-                        <label className="text-xs font-semibold text-neutral-medium uppercase">Cause</label>
-                        <p className="text-neutral-text mt-1">{injury.cause}</p>
+                        <label className="text-xs font-semibold text-tm-text-3 uppercase">Cause</label>
+                        <p className="text-tm-text-1 mt-1">{injury.cause}</p>
                       </div>
                       {injury.return_to_training_date && (
                         <div>
-                          <label className="text-xs font-semibold text-neutral-medium uppercase flex items-center">
+                          <label className="text-xs font-semibold text-tm-text-3 uppercase flex items-center">
                             <Calendar className="w-4 h-4 mr-1" />
                             Return to Training
                           </label>
-                          <p className="text-neutral-text mt-1">
+                          <p className="text-tm-text-1 mt-1">
                             {new Date(injury.return_to_training_date).toLocaleDateString('en-US', {
                               month: 'short',
                               day: 'numeric',
@@ -1038,11 +1042,11 @@ export default function DashboardPage() {
                       )}
                       {injury.return_to_play_date && (
                         <div>
-                          <label className="text-xs font-semibold text-neutral-medium uppercase flex items-center">
+                          <label className="text-xs font-semibold text-tm-text-3 uppercase flex items-center">
                             <Calendar className="w-4 h-4 mr-1" />
                             Return to Game
                           </label>
-                          <p className="text-neutral-text mt-1">
+                          <p className="text-tm-text-1 mt-1">
                             {new Date(injury.return_to_play_date).toLocaleDateString('en-US', {
                               month: 'short',
                               day: 'numeric',
@@ -1055,8 +1059,8 @@ export default function DashboardPage() {
 
                     {injury.status === 'active' && injury.return_to_play_date && (
                       <div className="mt-4 flex items-center space-x-2 text-sm">
-                        <Clock className="w-4 h-4 text-neutral-medium" />
-                        <span className="text-neutral-medium">
+                        <Clock className="w-4 h-4 text-tm-text-3" />
+                        <span className="text-tm-text-3">
                           Estimated return to play: {new Date(injury.return_to_play_date).toLocaleDateString()}
                         </span>
                       </div>
@@ -1069,14 +1073,14 @@ export default function DashboardPage() {
 
           {/* Best Gym Metrics of the Week */}
           {user.role !== 'finance_admin' && user.role !== 'physio' && (
-            <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
+            <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center">
                   <Trophy className="w-6 h-6 text-warning mr-2" />
-                  <h3 className="text-xl font-bold text-neutral-text">Best Gym Metrics of the Week</h3>
+                  <h3 className="text-xl font-bold text-tm-text-1">Best Gym Metrics of the Week</h3>
                 </div>
                 {bestGymMetrics && bestGymMetrics.weekStart && bestGymMetrics.weekEnd && (
-                  <div className="text-sm text-neutral-medium">
+                  <div className="text-sm text-tm-text-3">
                     {new Date(bestGymMetrics.weekStart).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(bestGymMetrics.weekEnd).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                   </div>
                 )}
@@ -1088,10 +1092,10 @@ export default function DashboardPage() {
                 </div>
               ) : !bestGymMetrics || (!bestGymMetrics.benchPress && !bestGymMetrics.squat && !bestGymMetrics.deadlift && !bestGymMetrics.pullUp) ? (
                 <div className="text-center py-8">
-                  <Dumbbell className="w-12 h-12 mx-auto mb-4 text-neutral-light" />
-                  <p className="text-neutral-medium">No gym metrics recorded for this week yet.</p>
+                  <Dumbbell className="w-12 h-12 mx-auto mb-4 text-tm-text-3" />
+                  <p className="text-tm-text-3">No gym metrics recorded for this week yet.</p>
                   {bestGymMetrics && bestGymMetrics.weekStart && bestGymMetrics.weekEnd && (
-                    <p className="text-xs text-neutral-light mt-2">
+                    <p className="text-xs text-tm-text-3 mt-2">
                       Week: {new Date(bestGymMetrics.weekStart).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(bestGymMetrics.weekEnd).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     </p>
                   )}
@@ -1100,40 +1104,40 @@ export default function DashboardPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div className="bg-gradient-to-br from-primary/10 to-primary/5 rounded-lg p-6 border border-primary/20">
                     <div className="flex items-center justify-between mb-2">
-                      <h4 className="text-sm font-semibold text-neutral-medium uppercase tracking-wide">Bench Press</h4>
+                      <h4 className="text-sm font-semibold text-tm-text-3 uppercase tracking-wide">Bench Press</h4>
                       <Dumbbell className="w-5 h-5 text-primary" />
                     </div>
-                    <p className="text-3xl font-bold text-neutral-text">
+                    <p className="text-3xl font-bold text-tm-text-1">
                       {bestGymMetrics.benchPress?.value || 0} kg
                     </p>
                     <p className="text-sm text-primary font-medium mt-1">{bestGymMetrics.benchPress?.playerName || 'N/A'}</p>
                   </div>
                   <div className="bg-gradient-to-br from-secondary/10 to-secondary/5 rounded-lg p-6 border border-secondary/20">
                     <div className="flex items-center justify-between mb-2">
-                      <h4 className="text-sm font-semibold text-neutral-medium uppercase tracking-wide">Squat</h4>
+                      <h4 className="text-sm font-semibold text-tm-text-3 uppercase tracking-wide">Squat</h4>
                       <Dumbbell className="w-5 h-5 text-secondary" />
                     </div>
-                    <p className="text-3xl font-bold text-neutral-text">
+                    <p className="text-3xl font-bold text-tm-text-1">
                       {bestGymMetrics.squat?.value || 0} kg
                     </p>
                     <p className="text-sm text-secondary font-medium mt-1">{bestGymMetrics.squat?.playerName || 'N/A'}</p>
                   </div>
                   <div className="bg-gradient-to-br from-success/10 to-success/5 rounded-lg p-6 border border-success/20">
                     <div className="flex items-center justify-between mb-2">
-                      <h4 className="text-sm font-semibold text-neutral-medium uppercase tracking-wide">Deadlift</h4>
+                      <h4 className="text-sm font-semibold text-tm-text-3 uppercase tracking-wide">Deadlift</h4>
                       <Dumbbell className="w-5 h-5 text-success" />
                     </div>
-                    <p className="text-3xl font-bold text-neutral-text">
+                    <p className="text-3xl font-bold text-tm-text-1">
                       {bestGymMetrics.deadlift?.value || 0} kg
                     </p>
                     <p className="text-sm text-success font-medium mt-1">{bestGymMetrics.deadlift?.playerName || 'N/A'}</p>
                   </div>
                   <div className="bg-gradient-to-br from-info/10 to-info/5 rounded-lg p-6 border border-info/20">
                     <div className="flex items-center justify-between mb-2">
-                      <h4 className="text-sm font-semibold text-neutral-medium uppercase tracking-wide">Pull-ups</h4>
+                      <h4 className="text-sm font-semibold text-tm-text-3 uppercase tracking-wide">Pull-ups</h4>
                       <Dumbbell className="w-5 h-5 text-info" />
                     </div>
-                    <p className="text-3xl font-bold text-neutral-text">
+                    <p className="text-3xl font-bold text-tm-text-1">
                       {bestGymMetrics.pullUp?.value || 0} reps
                     </p>
                     <p className="text-sm text-info font-medium mt-1">{bestGymMetrics.pullUp?.playerName || 'N/A'}</p>
@@ -1144,8 +1148,8 @@ export default function DashboardPage() {
           )}
 
           {/* Performance Chart */}
-          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
-            <h3 className="text-xl font-bold text-neutral-text mb-4">Performance Over Time</h3>
+          <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
+            <h3 className="text-xl font-bold text-tm-text-1 mb-4">Performance Over Time</h3>
             <div className="h-64">
               <Line
                 data={{
@@ -1201,10 +1205,10 @@ export default function DashboardPage() {
 
           {/* Recent Gym Schedules */}
           {recentGymSchedules.length > 0 && (
-            <div className="bg-white rounded-card border border-neutral-light shadow-soft">
-              <div className="p-6 border-b border-neutral-light">
+            <div className="bg-tm-surface rounded-card border border-tm-border shadow-soft">
+              <div className="p-6 border-b border-tm-border">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xl font-bold text-neutral-text flex items-center gap-2">
+                  <h3 className="text-xl font-bold text-tm-text-1 flex items-center gap-2">
                     <Activity className="w-5 h-5 text-secondary" />
                     Recent Gym Schedules
                   </h3>
@@ -1219,18 +1223,18 @@ export default function DashboardPage() {
               <div className="p-6">
                 <div className="space-y-3">
                   {recentGymSchedules.map((schedule: any) => (
-                    <div key={schedule.id} className="border border-neutral-light rounded-lg p-4 hover:bg-neutral-light/50 transition-colors">
+                    <div key={schedule.id} className="border border-tm-border rounded-lg p-4 hover:bg-tm-surface-hover/50 transition-colors">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2">
-                            <h4 className="font-semibold text-neutral-text">
+                            <h4 className="font-semibold text-tm-text-1">
                               {schedule.description}
                             </h4>
-                            <span className="px-2 py-1 bg-secondary/10 text-secondary rounded text-xs font-medium">
+                            <span className="px-2 py-1 bg-[#E05757]/10 text-[#E05757] rounded text-xs font-medium">
                               Gym Session
                             </span>
                           </div>
-                          <div className="space-y-1 text-sm text-neutral-medium">
+                          <div className="space-y-1 text-sm text-tm-text-3">
                             <div className="flex items-center gap-2">
                               <Calendar className="w-4 h-4" />
                               <span>{new Date(schedule.schedule_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
@@ -1248,9 +1252,9 @@ export default function DashboardPage() {
                               </div>
                             )}
                             {schedule.exercises && (
-                              <div className="mt-2 pt-2 border-t border-neutral-light">
-                                <p className="text-xs font-semibold text-neutral-medium mb-1">Exercises:</p>
-                                <p className="text-sm text-neutral-text whitespace-pre-line">{schedule.exercises}</p>
+                              <div className="mt-2 pt-2 border-t border-tm-border">
+                                <p className="text-xs font-semibold text-tm-text-3 mb-1">Exercises:</p>
+                                <p className="text-sm text-tm-text-1 whitespace-pre-line">{schedule.exercises}</p>
                               </div>
                             )}
                           </div>
@@ -1264,21 +1268,21 @@ export default function DashboardPage() {
           )}
 
           {/* Recent Notifications */}
-          <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
-            <h3 className="text-xl font-bold text-neutral-text mb-4">Recent Notifications</h3>
+          <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
+            <h3 className="text-xl font-bold text-tm-text-1 mb-4">Recent Notifications</h3>
             <div className="space-y-3">
-              <div className="flex items-start space-x-3 p-3 hover:bg-neutral-light rounded-lg transition-colors">
+              <div className="flex items-start space-x-3 p-3 hover:bg-tm-surface-hover rounded-lg transition-colors">
                 <AlertCircle className="w-5 h-5 text-primary mt-0.5" />
                 <div>
-                  <p className="text-sm text-neutral-text">New training session scheduled</p>
-                  <p className="text-xs text-neutral-medium mt-1">2 hours ago</p>
+                  <p className="text-sm text-tm-text-1">New training session scheduled</p>
+                  <p className="text-xs text-tm-text-3 mt-1">2 hours ago</p>
                 </div>
               </div>
-              <div className="flex items-start space-x-3 p-3 hover:bg-neutral-light rounded-lg transition-colors">
+              <div className="flex items-start space-x-3 p-3 hover:bg-tm-surface-hover rounded-lg transition-colors">
                 <AlertCircle className="w-5 h-5 text-success mt-0.5" />
                 <div>
-                  <p className="text-sm text-neutral-text">Match stats updated</p>
-                  <p className="text-xs text-neutral-medium mt-1">5 hours ago</p>
+                  <p className="text-sm text-tm-text-1">Match stats updated</p>
+                  <p className="text-xs text-tm-text-3 mt-1">5 hours ago</p>
                 </div>
               </div>
             </div>
@@ -1301,38 +1305,44 @@ export default function DashboardPage() {
               value={stats.totalPlayers}
               icon={Activity}
               iconColor="bg-primary"
+              iconTextColor="text-tm-on-secondary"
             />
             <StatCard
               title="Active Players"
               value={`${stats.activePlayers} (${stats.totalPlayers > 0 ? Math.round((stats.activePlayers / stats.totalPlayers) * 100) : 0}%)`}
               icon={Activity}
               iconColor="bg-success"
+              iconTextColor="text-white"
             />
             <StatCard
               title="Injured Players"
               value={stats.totalPlayers - stats.activePlayers}
               icon={AlertCircle}
-              iconColor="bg-secondary"
+              iconColor="bg-[#E05757]"
+              iconTextColor="text-white"
+              valueColor="#E05757"
             />
             <StatCard
               title="Training Sessions"
               value={stats.trainingSessionsAttended}
               icon={Calendar}
               iconColor="bg-info"
+              iconTextColor="text-white"
             />
             <StatCard
               title="Matches Attended"
               value={stats.matchesAttended}
               icon={Trophy}
               iconColor="bg-warning"
+              iconTextColor="text-white"
             />
           </div>
 
           {/* Training Sessions Track */}
-          <div className="bg-white rounded-card border border-neutral-light shadow-soft p-4 sm:p-6">
+          <div className="bg-tm-surface rounded-card border border-tm-border shadow-soft p-4 sm:p-6">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6">
-              <h3 className="text-lg sm:text-xl font-bold text-neutral-text">Training Sessions Track</h3>
-              <span className="text-sm text-neutral-medium">Total: {stats.trainingSessionsAttended} sessions</span>
+              <h3 className="text-lg sm:text-xl font-bold text-tm-text-1">Training Sessions Track</h3>
+              <span className="text-sm text-tm-text-3">Total: {stats.trainingSessionsAttended} sessions</span>
             </div>
             <div className="h-48 sm:h-64 min-w-0">
               <Line
@@ -1412,7 +1422,7 @@ export default function DashboardPage() {
               />
             </div>
             {trainingSessionsData.length === 0 && (
-              <div className="mt-4 text-center text-neutral-medium text-sm">
+              <div className="mt-4 text-center text-tm-text-3 text-sm">
                 No training sessions recorded yet. Start by creating a training session!
               </div>
             )}
@@ -1420,10 +1430,10 @@ export default function DashboardPage() {
 
           {/* Recent Training Schedules */}
           {recentTrainingSchedules.length > 0 && (
-            <div className="bg-white rounded-card border border-neutral-light shadow-soft">
-              <div className="p-4 sm:p-6 border-b border-neutral-light">
+            <div className="bg-tm-surface rounded-card border border-tm-border shadow-soft">
+              <div className="p-4 sm:p-6 border-b border-tm-border">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <h3 className="text-lg sm:text-xl font-bold text-neutral-text flex items-center gap-2">
+                  <h3 className="text-lg sm:text-xl font-bold text-tm-text-1 flex items-center gap-2">
                     <Calendar className="w-5 h-5 text-primary flex-shrink-0" />
                     Recent Training Schedules
                   </h3>
@@ -1438,18 +1448,18 @@ export default function DashboardPage() {
               <div className="p-4 sm:p-6">
                 <div className="space-y-3">
                   {recentTrainingSchedules.map((session: any) => (
-                    <div key={session.id} className="border border-neutral-light rounded-lg p-3 sm:p-4 hover:bg-neutral-light/50 transition-colors">
+                    <div key={session.id} className="border border-tm-border rounded-lg p-3 sm:p-4 hover:bg-tm-surface-hover/50 transition-colors">
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
                           <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2">
-                            <h4 className="font-semibold text-neutral-text text-sm sm:text-base truncate">
+                            <h4 className="font-semibold text-tm-text-1 text-sm sm:text-base truncate">
                               {session.description || `Training Session ${session.session_number}`}
                             </h4>
                             <span className="px-2 py-1 bg-primary/10 text-primary rounded text-xs font-medium flex-shrink-0">
                               Session #{session.session_number}
                             </span>
                           </div>
-                          <div className="flex flex-wrap gap-2 sm:gap-4 text-xs sm:text-sm text-neutral-medium">
+                          <div className="flex flex-wrap gap-2 sm:gap-4 text-xs sm:text-sm text-tm-text-3">
                             <div className="flex items-center gap-1">
                               <Calendar className="w-4 h-4" />
                               {new Date(session.session_date).toLocaleDateString('en-US', {
@@ -1483,10 +1493,10 @@ export default function DashboardPage() {
 
           {/* Recent Team Selections */}
           {recentTeamSelections.length > 0 && (
-            <div className="bg-white rounded-card border border-neutral-light shadow-soft">
-              <div className="p-4 sm:p-6 border-b border-neutral-light">
+            <div className="bg-tm-surface rounded-card border border-tm-border shadow-soft">
+              <div className="p-4 sm:p-6 border-b border-tm-border">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <h3 className="text-lg sm:text-xl font-bold text-neutral-text flex items-center gap-2">
+                  <h3 className="text-lg sm:text-xl font-bold text-tm-text-1 flex items-center gap-2">
                     <Trophy className="w-5 h-5 text-primary flex-shrink-0" />
                     Recent Team Selections
                   </h3>
@@ -1507,20 +1517,20 @@ export default function DashboardPage() {
                     const totalSelected = selectionGroup.selections.length
                     
                     return (
-                      <div key={match?.id || index} className="border border-neutral-light rounded-lg p-3 sm:p-4 hover:bg-neutral-light/50 transition-colors">
+                      <div key={match?.id || index} className="border border-tm-border rounded-lg p-3 sm:p-4 hover:bg-tm-surface-hover/50 transition-colors">
                         <div className="flex items-start justify-between gap-2 mb-3">
                           <div className="flex-1 min-w-0">
                             <div className="flex flex-wrap items-center gap-2 mb-2">
-                              <h4 className="font-semibold text-neutral-text text-sm sm:text-base truncate">
+                              <h4 className="font-semibold text-tm-text-1 text-sm sm:text-base truncate">
                                 {match?.opponent ? `vs ${match.opponent}` : 'Match Team Selection'}
                               </h4>
                               {match?.tournament_type && (
-                                <span className="px-2 py-1 bg-secondary/10 text-secondary rounded text-xs font-medium capitalize flex-shrink-0">
+                                <span className="px-2 py-1 bg-[#E05757]/10 text-[#E05757] rounded text-xs font-medium capitalize flex-shrink-0">
                                   {match.tournament_type.replace('_', ' ')}
                                 </span>
                               )}
                             </div>
-                            <div className="flex flex-wrap gap-2 sm:gap-4 text-xs sm:text-sm text-neutral-medium">
+                            <div className="flex flex-wrap gap-2 sm:gap-4 text-xs sm:text-sm text-tm-text-3">
                               {match?.match_date && (
                                 <div className="flex items-center gap-1">
                                   <Calendar className="w-4 h-4" />
@@ -1551,18 +1561,18 @@ export default function DashboardPage() {
                             </div>
                           </div>
                         </div>
-                        <div className="grid grid-cols-3 gap-2 sm:gap-3 mt-3 pt-3 border-t border-neutral-light">
+                        <div className="grid grid-cols-3 gap-2 sm:gap-3 mt-3 pt-3 border-t border-tm-border">
                           <div className="text-center">
                             <p className="text-xl sm:text-2xl font-bold text-success">{startingCount}</p>
-                            <p className="text-xs text-neutral-medium">Starting</p>
+                            <p className="text-xs text-tm-text-3">Starting</p>
                           </div>
                           <div className="text-center">
                             <p className="text-xl sm:text-2xl font-bold text-warning">{substituteCount}</p>
-                            <p className="text-xs text-neutral-medium">Substitutes</p>
+                            <p className="text-xs text-tm-text-3">Substitutes</p>
                           </div>
                           <div className="text-center">
                             <p className="text-xl sm:text-2xl font-bold text-primary">{totalSelected}</p>
-                            <p className="text-xs text-neutral-medium">Total Selected</p>
+                            <p className="text-xs text-tm-text-3">Total Selected</p>
                           </div>
                         </div>
                       </div>
@@ -1575,10 +1585,10 @@ export default function DashboardPage() {
 
           {/* Upcoming Fixture Team Selection */}
           {playerFixtureSelection && playerFixtureSelection.match && (
-            <div className="bg-white rounded-card border border-neutral-light shadow-soft">
-              <div className="p-4 sm:p-6 border-b border-neutral-light">
+            <div className="bg-tm-surface rounded-card border border-tm-border shadow-soft">
+              <div className="p-4 sm:p-6 border-b border-tm-border">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <h3 className="text-lg sm:text-xl font-bold text-neutral-text flex items-center gap-2">
+                  <h3 className="text-lg sm:text-xl font-bold text-tm-text-1 flex items-center gap-2">
                     <Trophy className="w-5 h-5 text-primary flex-shrink-0" />
                     Upcoming Fixture Team Selection
                   </h3>
@@ -1592,7 +1602,7 @@ export default function DashboardPage() {
               </div>
               <div className="p-4 sm:p-6">
                 <div className="mb-4">
-                  <h4 className="font-semibold text-neutral-text mb-2">
+                  <h4 className="font-semibold text-tm-text-1 mb-2">
                     {new Date(playerFixtureSelection.match.match_date).toLocaleDateString('en-US', {
                       weekday: 'long',
                       year: 'numeric',
@@ -1601,24 +1611,24 @@ export default function DashboardPage() {
                     })} vs {playerFixtureSelection.match.opponent}
                   </h4>
                   {playerFixtureSelection.match.venue && (
-                    <p className="text-sm text-neutral-medium">Venue: {playerFixtureSelection.match.venue}</p>
+                    <p className="text-sm text-tm-text-3">Venue: {playerFixtureSelection.match.venue}</p>
                   )}
                 </div>
                 
                 {playerFixtureSelection.starting && playerFixtureSelection.starting.length > 0 && (
                   <div className="mb-4">
-                    <h5 className="font-semibold text-neutral-text mb-2 text-sm sm:text-base">Starting Lineup ({playerFixtureSelection.starting.length})</h5>
+                    <h5 className="font-semibold text-tm-text-1 mb-2 text-sm sm:text-base">Starting Lineup ({playerFixtureSelection.starting.length})</h5>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
                       {playerFixtureSelection.starting.map((selection: any) => (
                         <div key={selection.id} className="bg-success/5 border border-success/20 rounded-lg p-3">
                           <div className="flex items-center justify-between">
-                            <span className="font-medium text-neutral-text">{selection.player?.name || 'Unknown'}</span>
+                            <span className="font-medium text-tm-text-1">{selection.player?.name || 'Unknown'}</span>
                             {selection.jersey_number && (
                               <span className="bg-success/20 text-success px-2 py-1 rounded text-xs font-bold">#{selection.jersey_number}</span>
                             )}
                           </div>
                           {selection.position && (
-                            <p className="text-xs text-neutral-medium mt-1 capitalize">{selection.position.replace(/_/g, ' ')}</p>
+                            <p className="text-xs text-tm-text-3 mt-1 capitalize">{selection.position.replace(/_/g, ' ')}</p>
                           )}
                         </div>
                       ))}
@@ -1628,18 +1638,18 @@ export default function DashboardPage() {
 
                 {playerFixtureSelection.substitutes && playerFixtureSelection.substitutes.length > 0 && (
                   <div>
-                    <h5 className="font-semibold text-neutral-text mb-2 text-sm sm:text-base">Substitutes ({playerFixtureSelection.substitutes.length})</h5>
+                    <h5 className="font-semibold text-tm-text-1 mb-2 text-sm sm:text-base">Substitutes ({playerFixtureSelection.substitutes.length})</h5>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
                       {playerFixtureSelection.substitutes.map((selection: any) => (
                         <div key={selection.id} className="bg-warning/5 border border-warning/20 rounded-lg p-3">
                           <div className="flex items-center justify-between">
-                            <span className="font-medium text-neutral-text">{selection.player?.name || 'Unknown'}</span>
+                            <span className="font-medium text-tm-text-1">{selection.player?.name || 'Unknown'}</span>
                             {selection.jersey_number && (
                               <span className="bg-warning/20 text-warning px-2 py-1 rounded text-xs font-bold">#{selection.jersey_number}</span>
                             )}
                           </div>
                           {selection.position && (
-                            <p className="text-xs text-neutral-medium mt-1 capitalize">{selection.position.replace(/_/g, ' ')}</p>
+                            <p className="text-xs text-tm-text-3 mt-1 capitalize">{selection.position.replace(/_/g, ' ')}</p>
                           )}
                         </div>
                       ))}
@@ -1649,7 +1659,7 @@ export default function DashboardPage() {
 
                 {(!playerFixtureSelection.starting || playerFixtureSelection.starting.length === 0) && 
                  (!playerFixtureSelection.substitutes || playerFixtureSelection.substitutes.length === 0) && (
-                  <p className="text-neutral-medium text-center py-4">No team selection made yet for this fixture.</p>
+                  <p className="text-tm-text-3 text-center py-4">No team selection made yet for this fixture.</p>
                 )}
               </div>
             </div>
@@ -1657,14 +1667,14 @@ export default function DashboardPage() {
 
           {/* Active Injuries View (Read-Only) */}
           {activeInjuriesView.length > 0 && (
-            <div className="bg-white rounded-card border border-neutral-light shadow-soft">
-              <div className="p-4 sm:p-6 border-b border-neutral-light">
+            <div className="bg-tm-surface rounded-card border border-tm-border shadow-soft">
+              <div className="p-4 sm:p-6 border-b border-tm-border">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <h3 className="text-lg sm:text-xl font-bold text-neutral-text flex items-center gap-2">
+                  <h3 className="text-lg sm:text-xl font-bold text-tm-text-1 flex items-center gap-2">
                     <AlertCircle className="w-5 h-5 text-secondary flex-shrink-0" />
                     Active Player Injuries
                   </h3>
-                  <span className="text-sm text-neutral-medium">{activeInjuriesView.length} active injury{activeInjuriesView.length !== 1 ? 'ies' : ''}</span>
+                  <span className="text-sm text-tm-text-3">{activeInjuriesView.length} active injury{activeInjuriesView.length !== 1 ? 'ies' : ''}</span>
                 </div>
               </div>
               <div className="p-4 sm:p-6">
@@ -1676,26 +1686,26 @@ export default function DashboardPage() {
                       <div key={injury.id} className="border border-secondary/20 bg-secondary/5 rounded-lg p-3 sm:p-4">
                         <div className="flex items-start justify-between gap-2 mb-3">
                           <div className="flex-1 min-w-0">
-                            <h4 className="font-semibold text-neutral-text text-base sm:text-lg mb-1 truncate">{playerName}</h4>
-                            <p className="text-sm text-neutral-medium">Injured on {new Date(injury.injury_date).toLocaleDateString()}</p>
+                            <h4 className="font-semibold text-tm-text-1 text-base sm:text-lg mb-1 truncate">{playerName}</h4>
+                            <p className="text-sm text-tm-text-3">Injured on {new Date(injury.injury_date).toLocaleDateString()}</p>
                           </div>
-                          <span className="px-3 py-1 bg-secondary text-white rounded-full text-xs font-medium">
+                          <span className="px-3 py-1 bg-secondary text-tm-on-secondary rounded-full text-xs font-medium">
                             ACTIVE
                           </span>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           <div>
-                            <p className="text-xs font-semibold text-neutral-medium uppercase mb-1">Cause</p>
-                            <p className="text-sm text-neutral-text">{injury.cause}</p>
+                            <p className="text-xs font-semibold text-tm-text-3 uppercase mb-1">Cause</p>
+                            <p className="text-sm text-tm-text-1">{injury.cause}</p>
                           </div>
                           <div>
-                            <p className="text-xs font-semibold text-neutral-medium uppercase mb-1">Diagnosis</p>
-                            <p className="text-sm text-neutral-text font-medium">{injury.diagnosis}</p>
+                            <p className="text-xs font-semibold text-tm-text-3 uppercase mb-1">Diagnosis</p>
+                            <p className="text-sm text-tm-text-1 font-medium">{injury.diagnosis}</p>
                           </div>
                           {returnDate && (
                             <div>
-                              <p className="text-xs font-semibold text-neutral-medium uppercase mb-1">Expected Return</p>
-                              <p className="text-sm text-neutral-text font-medium">
+                              <p className="text-xs font-semibold text-tm-text-3 uppercase mb-1">Expected Return</p>
+                              <p className="text-sm text-tm-text-1 font-medium">
                                 {new Date(returnDate).toLocaleDateString('en-US', {
                                   month: 'short',
                                   day: 'numeric',
@@ -1714,9 +1724,9 @@ export default function DashboardPage() {
           )}
 
           {/* Top Performers */}
-          <div className="bg-white rounded-card border border-neutral-light shadow-soft overflow-hidden">
-            <div className="p-4 sm:p-6 border-b border-neutral-light">
-              <h3 className="text-lg sm:text-xl font-bold text-neutral-text">Top Performers</h3>
+          <div className="bg-tm-surface rounded-card border border-tm-border shadow-soft overflow-hidden">
+            <div className="p-4 sm:p-6 border-b border-tm-border">
+              <h3 className="text-lg sm:text-xl font-bold text-tm-text-1">Top Performers</h3>
             </div>
             {/* Mobile card layout */}
             <div className="md:hidden p-4 space-y-3">
@@ -1724,62 +1734,62 @@ export default function DashboardPage() {
                 topPerformers.map((player: any) => (
                   <div
                     key={player.playerId || player.user_id || player.id}
-                    className="border border-neutral-light rounded-lg p-4 hover:bg-neutral-light/50 transition-colors"
+                    className="border border-tm-border rounded-lg p-4 hover:bg-tm-surface-hover/50 transition-colors"
                   >
                     <div className="flex items-center justify-between mb-2">
-                      <span className="font-semibold text-neutral-text">{player.name || 'Unknown'}</span>
-                      <span className="text-xs text-neutral-medium capitalize px-2 py-1 bg-neutral-light rounded">
+                      <span className="font-semibold text-tm-text-1">{player.name || 'Unknown'}</span>
+                      <span className="text-xs text-tm-text-3 capitalize px-2 py-1 bg-tm-surface-hover rounded">
                         {player.position?.replace(/_/g, ' ') || 'N/A'}
                       </span>
                     </div>
-                    <div className="grid grid-cols-3 gap-2 text-sm text-neutral-medium">
+                    <div className="grid grid-cols-3 gap-2 text-sm text-tm-text-3">
                       <div>
-                        <p className="text-xs text-neutral-medium">Games</p>
-                        <p className="font-medium text-neutral-text">{player.totalMatches || 0}</p>
+                        <p className="text-xs text-tm-text-3">Games</p>
+                        <p className="font-medium text-tm-text-1">{player.totalMatches || 0}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-neutral-medium">Tries</p>
-                        <p className="font-medium text-neutral-text">{player.totalTries || 0}</p>
+                        <p className="text-xs text-tm-text-3">Tries</p>
+                        <p className="font-medium text-tm-text-1">{player.totalTries || 0}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-neutral-medium">Tackles</p>
-                        <p className="font-medium text-neutral-text">{player.totalTackles || 0}</p>
+                        <p className="text-xs text-tm-text-3">Tackles</p>
+                        <p className="font-medium text-tm-text-1">{player.totalTackles || 0}</p>
                       </div>
                     </div>
                   </div>
                 ))
               ) : (
-                <p className="py-8 text-center text-neutral-medium text-sm">No performance data available yet</p>
+                <p className="py-8 text-center text-tm-text-3 text-sm">No performance data available yet</p>
               )}
             </div>
             {/* Desktop table */}
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-neutral-light">
+                <thead className="bg-tm-surface-hover">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-neutral-text uppercase">Player</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-neutral-text uppercase">Position</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-neutral-text uppercase">Games</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-neutral-text uppercase">Tries</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-neutral-text uppercase">Tackles</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-tm-text-1 uppercase">Player</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-tm-text-1 uppercase">Position</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-tm-text-1 uppercase">Games</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-tm-text-1 uppercase">Tries</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-tm-text-1 uppercase">Tackles</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-neutral-light">
+                <tbody className="divide-y divide-tm-border">
                   {topPerformers.length > 0 ? (
                     topPerformers.map((player: any) => (
-                      <tr key={player.playerId || player.user_id || player.id} className="hover:bg-neutral-light transition-colors cursor-pointer">
-                        <td className="px-6 py-4 text-sm font-medium text-neutral-text">{player.name || 'Unknown'}</td>
-                        <td className="px-6 py-4 text-sm text-neutral-medium capitalize">
+                      <tr key={player.playerId || player.user_id || player.id} className="hover:bg-tm-surface-hover transition-colors cursor-pointer">
+                        <td className="px-6 py-4 text-sm font-medium text-tm-text-1">{player.name || 'Unknown'}</td>
+                        <td className="px-6 py-4 text-sm text-tm-text-3 capitalize">
                           {player.position?.replace(/_/g, ' ') || 'N/A'}
                         </td>
-                        <td className="px-6 py-4 text-sm text-neutral-medium">{player.totalMatches || 0}</td>
-                        <td className="px-6 py-4 text-sm text-neutral-medium">{player.totalTries || 0}</td>
-                        <td className="px-6 py-4 text-sm text-neutral-medium">{player.totalTackles || 0}</td>
+                        <td className="px-6 py-4 text-sm text-tm-text-3">{player.totalMatches || 0}</td>
+                        <td className="px-6 py-4 text-sm text-tm-text-3">{player.totalTries || 0}</td>
+                        <td className="px-6 py-4 text-sm text-tm-text-3">{player.totalTackles || 0}</td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={5} className="px-6 py-8 text-center text-neutral-medium">
+                      <td colSpan={5} className="px-6 py-8 text-center text-tm-text-3">
                         No performance data available yet
                       </td>
                     </tr>
@@ -1787,10 +1797,10 @@ export default function DashboardPage() {
                 </tbody>
               </table>
             </div>
-            <div className="p-4 sm:p-6 border-t border-neutral-light">
+            <div className="p-4 sm:p-6 border-t border-tm-border">
               <button
                 onClick={() => router.push('/players')}
-                className="w-full sm:w-auto px-6 py-2 bg-club-gradient text-white rounded-button font-semibold hover:opacity-90 transition-opacity"
+                className="w-full sm:w-auto px-6 py-2 bg-tm-secondary text-tm-on-secondary rounded-[6px] font-semibold hover:opacity-90 transition-opacity"
               >
                 View All Players
               </button>
@@ -1805,11 +1815,11 @@ export default function DashboardPage() {
   return (
     <Layout pageTitle="Dashboard">
       <div className="space-y-6">
-        <div className="bg-white rounded-card p-6 border border-neutral-light shadow-soft">
-          <h2 className="text-2xl font-bold text-neutral-text mb-2">
+        <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
+          <h2 className="text-2xl font-bold text-tm-text-1 mb-2">
             Welcome, {user.name}!
           </h2>
-          <p className="text-neutral-medium">
+          <p className="text-tm-text-3">
             Your {user.role.replace('_', ' ')} dashboard
           </p>
         </div>

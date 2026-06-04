@@ -4,11 +4,12 @@ import { createClient as createServiceClient } from '@supabase/supabase-js'
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
-  // Only allow in development
-  if (process.env.NODE_ENV !== 'development' && process.env.NEXT_PUBLIC_APP_URL?.includes('localhost') === false) {
+  // Strictly development-only. NODE_ENV is always 'production' on Vercel, so this
+  // backdoor can never be used on the live site, regardless of other env vars.
+  if (process.env.NODE_ENV !== 'development') {
     return NextResponse.json(
-      { error: 'Bypass login is only available in development mode' },
-      { status: 403 }
+      { error: 'Not found' },
+      { status: 404 }
     )
   }
 
@@ -89,6 +90,10 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  // Strictly development-only — never expose account roles/emails on production.
+  if (process.env.NODE_ENV !== 'development') {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  }
   // Get all available roles that have profiles in development
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL

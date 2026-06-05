@@ -163,7 +163,7 @@ function LayoutContent({ children, pageTitle }: LayoutProps) {
     >
       <Sidebar userRole={user.role} onLogout={handleLogout} clubSettings={clubSettings} userName={user.name} userAvatar={user.profile_picture_url} />
       <div
-        className={`flex-1 transition-all duration-300 ${
+        className={`flex-1 min-w-0 transition-all duration-300 ${
           collapsed ? 'ml-0 lg:ml-16' : 'ml-0 lg:ml-64'
         }`}
       >

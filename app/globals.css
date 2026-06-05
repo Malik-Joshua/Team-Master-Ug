@@ -68,6 +68,13 @@
   @apply transition-colors duration-200;
 }
 
+html,
+body {
+  /* Dark theme base so horizontal scroll / zoom / overscroll never reveals a
+     white page background behind the app (was showing rgb(249,250,251)). */
+  background-color: var(--tm-bg, #0D1828);
+}
+
 body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }

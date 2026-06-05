@@ -10,7 +10,7 @@ import AttendanceSummary from '@/components/AttendanceSummary'
 import FixtureCard from '@/components/FixtureCard'
 import InjuryList from '@/components/InjuryList'
 import BirthdayAlert from '@/components/BirthdayAlert'
-import { Users, Activity, DollarSign, Package, Calendar, CheckCircle, XCircle, AlertCircle, FileText, X, Trophy, BarChart3, ClipboardCheck, CalendarPlus, HeartPulse, UserPlus, RefreshCw, ArrowRight } from 'lucide-react'
+import { Users, Activity, DollarSign, Package, Calendar, CheckCircle, XCircle, AlertCircle, FileText, X, Trophy, BarChart3, ClipboardCheck, CalendarPlus, HeartPulse, UserPlus, RefreshCw, ArrowRight, Clock, MapPin } from 'lucide-react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import RefreshButton from '@/components/RefreshButton'
@@ -33,6 +33,20 @@ ChartJS.register(
   Tooltip,
   Legend
 )
+
+const formatDateSafe = (dateString: string | null | undefined, options: Intl.DateTimeFormatOptions = { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) => {
+  if (!dateString) return 'TBD'
+  const date = new Date(dateString)
+  if (isNaN(date.getTime())) return 'TBD'
+  return date.toLocaleDateString('en-US', options)
+}
+
+const formatTimeSafe = (dateString: string | null | undefined) => {
+  if (!dateString) return 'TBD'
+  const date = new Date(dateString)
+  if (isNaN(date.getTime())) return 'TBD'
+  return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+}
 
 interface AttendanceSummary {
   totalSessions: number
@@ -59,6 +73,9 @@ export default function AdminDashboard() {
   const [pendingBudgets, setPendingBudgets] = useState<any[]>([])
   const [selectedBudget, setSelectedBudget] = useState<any>(null)
   const [showBudgetModal, setShowBudgetModal] = useState(false)
+  const [showSquadModal, setShowSquadModal] = useState(false)
+  const [showMatchDayModal, setShowMatchDayModal] = useState(false)
+  const [isMounted, setIsMounted] = useState(false)
   const [rejectionReason, setRejectionReason] = useState('')
   const [loading, setLoading] = useState(true)
   const [activeInjuries, setActiveInjuries] = useState<any[]>([])
@@ -271,6 +288,7 @@ export default function AdminDashboard() {
   }, [])
 
   useEffect(() => {
+    setIsMounted(true)
     loadData()
   }, [loadData])
 
@@ -499,11 +517,17 @@ export default function AdminDashboard() {
                 label={`Next fixture · ${upcomingMatches[0].tournament_type?.replace('_', ' ') || 'Match'}`}
                 homeTeam="Team Master"
                 awayTeam={upcomingMatches[0].opponent}
-                date={new Date(upcomingMatches[0].match_date).toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
-                time={new Date(upcomingMatches[0].match_date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                date={formatDateSafe(upcomingMatches[0].match_date, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+                time={formatTimeSafe(upcomingMatches[0].match_date)}
                 venue={upcomingMatches[0].venue || 'TBD'}
-                onViewSquad={() => {}}
-                onMatchDay={() => {}}
+                onViewSquad={() => {
+                  console.log("View squad clicked in FixtureCard parent!");
+                  setShowSquadModal(true);
+                }}
+                onMatchDay={() => {
+                  console.log("Match day clicked in FixtureCard parent!");
+                  setShowMatchDayModal(true);
+                }}
               />
             )}
 
@@ -690,91 +714,6 @@ export default function AdminDashboard() {
             )}
           </div>
         )}
-
-
-        {/* Upcoming Fixture Team Selection */}
-        {teamSelection && teamSelection.match && (
-          <div className="rounded-[10px] overflow-hidden" style={{ background: 'var(--tm-surface)', border: '1px solid var(--tm-border)' }}>
-            <div className="p-4.5 border-b" style={{ borderColor: 'var(--tm-border)' }}>
-              <div className="flex items-center justify-between">
-                <h3 className="text-[14px] font-medium flex items-center gap-1.5" style={{ color: 'var(--tm-text-1)' }}>
-                  <Trophy className="w-[17px] h-[17px]" style={{ color: 'var(--tm-secondary)' }} />
-                  Upcoming Fixture Team Selection
-                </h3>
-                <Link
-                  href="/fixtures"
-                  className="text-[12px] font-medium flex items-center gap-1 hover:opacity-80"
-                  style={{ color: 'var(--tm-secondary)' }}
-                >
-                  View All Fixtures →
-                </Link>
-              </div>
-            </div>
-            <div className="p-4.5">
-              <div className="mb-4">
-                <h4 className="text-[13px] font-semibold mb-1" style={{ color: 'var(--tm-text-1)' }}>
-                  {new Date(teamSelection.match.match_date).toLocaleDateString('en-US', {
-                    weekday: 'long',
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                  })} vs {teamSelection.match.opponent}
-                </h4>
-                {teamSelection.match.venue && (
-                  <p className="text-[11px]" style={{ color: 'var(--tm-text-3)' }}>Venue: {teamSelection.match.venue}</p>
-                )}
-              </div>
-              
-              {teamSelection.starting && teamSelection.starting.length > 0 && (
-                <div className="mb-4">
-                  <h5 className="text-[12px] font-semibold mb-2" style={{ color: 'var(--tm-text-2)' }}>Starting Lineup ({teamSelection.starting.length})</h5>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {teamSelection.starting.map((selection: any) => (
-                      <div key={selection.id} className="bg-success/5 border border-success/15 rounded-[8px] p-3">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[12px] font-medium" style={{ color: 'var(--tm-text-1)' }}>{selection.player?.name || 'Unknown'}</span>
-                          {selection.jersey_number && (
-                            <span className="bg-success/15 text-success px-2 py-0.5 rounded text-[10px] font-bold">#{selection.jersey_number}</span>
-                          )}
-                        </div>
-                        {selection.position && (
-                          <p className="text-[10px] mt-0.5 capitalize" style={{ color: 'var(--tm-text-3)' }}>{selection.position.replace(/_/g, ' ')}</p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {teamSelection.substitutes && teamSelection.substitutes.length > 0 && (
-                <div>
-                  <h5 className="text-[12px] font-semibold mb-2" style={{ color: 'var(--tm-text-2)' }}>Substitutes ({teamSelection.substitutes.length})</h5>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {teamSelection.substitutes.map((selection: any) => (
-                      <div key={selection.id} className="bg-warning/5 border border-warning/15 rounded-[8px] p-3">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[12px] font-medium" style={{ color: 'var(--tm-text-1)' }}>{selection.player?.name || 'Unknown'}</span>
-                          {selection.jersey_number && (
-                            <span className="bg-warning/15 text-warning px-2 py-0.5 rounded text-[10px] font-bold">#{selection.jersey_number}</span>
-                          )}
-                        </div>
-                        {selection.position && (
-                          <p className="text-[10px] mt-0.5 capitalize" style={{ color: 'var(--tm-text-3)' }}>{selection.position.replace(/_/g, ' ')}</p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {(!teamSelection.starting || teamSelection.starting.length === 0) && 
-               (!teamSelection.substitutes || teamSelection.substitutes.length === 0) && (
-                <p className="text-center py-4 text-[12px]" style={{ color: 'var(--tm-text-3)' }}>No team selection made yet for this fixture.</p>
-              )}
-            </div>
-          </div>
-        )}
-
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5">
           {managementCards.map((card) => {
             const Icon = card.icon
@@ -908,6 +847,213 @@ export default function AdminDashboard() {
               >
                 Approve
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Squad Lineup Popup Modal */}
+      {showSquadModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="rounded-[10px] shadow-xl max-w-2xl w-full max-h-[85vh] overflow-y-auto flex flex-col" style={{ background: 'var(--tm-surface)', border: '1px solid var(--tm-border)' }}>
+            {/* Header */}
+            <div className="p-4.5 border-b flex items-center justify-between" style={{ borderColor: 'var(--tm-border)' }}>
+              <div className="flex items-center gap-2">
+                <Trophy className="w-[17px] h-[17px]" style={{ color: 'var(--tm-secondary)' }} />
+                <h3 className="text-[14px] font-semibold" style={{ color: 'var(--tm-text-1)' }}>Upcoming Squad Selection</h3>
+              </div>
+              <button onClick={() => setShowSquadModal(false)} className="cursor-pointer border-none bg-none hover:opacity-80 transition-opacity" style={{ color: 'var(--tm-text-3)' }}>
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-4.5 space-y-4 overflow-y-auto">
+              {teamSelection && teamSelection.match ? (
+                <>
+                  <div className="mb-2">
+                    <h4 className="text-[13px] font-semibold mb-1" style={{ color: 'var(--tm-text-1)' }}>
+                      {formatDateSafe(teamSelection.match.match_date, {
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                      })} vs {teamSelection.match.opponent}
+                    </h4>
+                    {teamSelection.match.venue && (
+                      <p className="text-[11px]" style={{ color: 'var(--tm-text-3)' }}>Venue: {teamSelection.match.venue}</p>
+                    )}
+                  </div>
+
+                  {/* Starting Lineup */}
+                  {teamSelection.starting && teamSelection.starting.length > 0 ? (
+                    <div>
+                      <h5 className="text-[11px] font-semibold uppercase tracking-wider mb-2.5" style={{ color: 'var(--tm-text-muted)' }}>Starting Lineup ({teamSelection.starting.length})</h5>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        {teamSelection.starting.map((selection: any) => (
+                          <div key={selection.id} className="bg-success/5 border border-success/15 rounded-[8px] p-2.5 flex items-center justify-between">
+                            <div>
+                              <span className="text-[12px] font-medium block" style={{ color: 'var(--tm-text-1)' }}>{selection.player?.name || 'Unknown'}</span>
+                              {selection.position && (
+                                <p className="text-[10px] capitalize mt-0.5" style={{ color: 'var(--tm-text-3)' }}>{selection.position.replace(/_/g, ' ')}</p>
+                              )}
+                            </div>
+                            {selection.jersey_number && (
+                              <span className="bg-success/15 text-success px-2 py-0.5 rounded text-[10px] font-bold">#{selection.jersey_number}</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-[12px] py-2 text-center" style={{ color: 'var(--tm-text-3)' }}>No starting lineup chosen yet.</p>
+                  )}
+
+                  {/* Substitutes */}
+                  {teamSelection.substitutes && teamSelection.substitutes.length > 0 && (
+                    <div className="border-t pt-4" style={{ borderColor: 'var(--tm-border)' }}>
+                      <h5 className="text-[11px] font-semibold uppercase tracking-wider mb-2.5" style={{ color: 'var(--tm-text-muted)' }}>Substitutes ({teamSelection.substitutes.length})</h5>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        {teamSelection.substitutes.map((selection: any) => (
+                          <div key={selection.id} className="bg-warning/5 border border-warning/15 rounded-[8px] p-2.5 flex items-center justify-between">
+                            <div>
+                              <span className="text-[12px] font-medium block" style={{ color: 'var(--tm-text-1)' }}>{selection.player?.name || 'Unknown'}</span>
+                              {selection.position && (
+                                <p className="text-[10px] capitalize mt-0.5" style={{ color: 'var(--tm-text-3)' }}>{selection.position.replace(/_/g, ' ')}</p>
+                              )}
+                            </div>
+                            {selection.jersey_number && (
+                              <span className="bg-warning/15 text-warning px-2 py-0.5 rounded text-[10px] font-bold">#{selection.jersey_number}</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="text-center py-8">
+                  <Trophy className="w-12 h-12 mx-auto opacity-20 mb-3" style={{ color: 'var(--tm-text-muted)' }} />
+                  <p className="text-[13px] font-semibold" style={{ color: 'var(--tm-text-1)' }}>No lineup submitted yet</p>
+                  <p className="text-[11px] max-w-sm mx-auto mt-1" style={{ color: 'var(--tm-text-3)' }}>
+                    Coaches have not yet saved a squad lineup selection for this match in the database.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t flex justify-between items-center" style={{ borderColor: 'var(--tm-border)' }}>
+              <Link
+                href="/fixtures"
+                className="text-[11px] font-semibold hover:opacity-80 transition-opacity"
+                style={{ color: 'var(--tm-secondary)' }}
+              >
+                Manage Team Selection →
+              </Link>
+              <button
+                onClick={() => setShowSquadModal(false)}
+                className="px-4 py-1.5 rounded-[6px] text-[12px] font-medium text-white bg-[var(--tm-secondary)] hover:opacity-90 transition-opacity border-none cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Match Day Info Popup Modal */}
+      {showMatchDayModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="rounded-[10px] shadow-xl max-w-md w-full" style={{ background: 'var(--tm-surface)', border: '1px solid var(--tm-border)' }}>
+            {/* Header */}
+            <div className="p-4.5 border-b flex items-center justify-between" style={{ borderColor: 'var(--tm-border)' }}>
+              <div className="flex items-center gap-2">
+                <Trophy className="w-[17px] h-[17px]" style={{ color: 'var(--tm-secondary)' }} />
+                <h3 className="text-[14px] font-semibold" style={{ color: 'var(--tm-text-1)' }}>Match Day Details</h3>
+              </div>
+              <button onClick={() => setShowMatchDayModal(false)} className="cursor-pointer border-none bg-none hover:opacity-80 transition-opacity" style={{ color: 'var(--tm-text-3)' }}>
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-5 space-y-4">
+              {upcomingMatches.length > 0 ? (
+                <>
+                  <div className="text-center pb-2 border-b" style={{ borderColor: 'var(--tm-border)' }}>
+                    <span className="text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full bg-[var(--tm-primary-subtle)]" style={{ color: 'var(--tm-secondary)' }}>
+                      {upcomingMatches[0].tournament_type?.replace('_', ' ') || 'Match'}
+                    </span>
+                    <h4 className="text-[16px] font-bold mt-2.5" style={{ color: 'var(--tm-text-1)' }}>
+                      Team Master <span className="text-[11px] font-semibold px-2 py-0.5 mx-1 rounded-full bg-[var(--tm-border)]" style={{ color: 'var(--tm-text-3)' }}>vs</span> {upcomingMatches[0].opponent}
+                    </h4>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-3">
+                      <Calendar className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: 'var(--tm-secondary)' }} />
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase text-gray-500">Date</p>
+                        <p className="text-[13px] font-medium" style={{ color: 'var(--tm-text-1)' }}>
+                          {formatDateSafe(upcomingMatches[0].match_date, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-3">
+                      <Clock className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: 'var(--tm-secondary)' }} />
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase text-gray-500">Kickoff Time</p>
+                        <p className="text-[13px] font-medium" style={{ color: 'var(--tm-text-1)' }}>
+                          {formatTimeSafe(upcomingMatches[0].match_date)}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-3">
+                      <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: 'var(--tm-secondary)' }} />
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase text-gray-500">Venue</p>
+                        <p className="text-[13px] font-medium" style={{ color: 'var(--tm-text-1)' }}>
+                          {upcomingMatches[0].venue || 'TBD'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {upcomingMatches[0].notes && (
+                      <div className="pt-3 border-t" style={{ borderColor: 'var(--tm-border)' }}>
+                        <p className="text-[11px] font-semibold uppercase text-gray-500 mb-1">Match Day Notes</p>
+                        <p className="text-[12px] leading-relaxed" style={{ color: 'var(--tm-text-2)' }}>
+                          {upcomingMatches[0].notes}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-8">
+                  <Calendar className="w-12 h-12 mx-auto opacity-20 mb-3" style={{ color: 'var(--tm-text-muted)' }} />
+                  <p className="text-[13px] font-semibold" style={{ color: 'var(--tm-text-1)' }}>No upcoming fixtures scheduled</p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-4.5 border-t flex justify-end space-x-2.5" style={{ borderColor: 'var(--tm-border)' }}>
+              <button
+                onClick={() => setShowMatchDayModal(false)}
+                className="px-4 py-1.5 border rounded-[6px] text-[12px] font-medium cursor-pointer transition-opacity hover:opacity-80"
+                style={{ background: 'none', borderColor: 'var(--tm-border)', color: 'var(--tm-text-2)' }}
+              >
+                Cancel
+              </button>
+              <Link
+                href="/fixtures"
+                className="px-4 py-1.5 rounded-[6px] text-[12px] font-medium text-white text-center hover:opacity-90 transition-opacity border-none cursor-pointer bg-[var(--tm-secondary)]"
+              >
+                Manage Fixtures
+              </Link>
             </div>
           </div>
         </div>

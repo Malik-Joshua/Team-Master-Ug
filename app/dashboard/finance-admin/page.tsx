@@ -1,6 +1,7 @@
 'use client'
 
 import Layout from '@/components/Layout'
+import { useRouter } from 'next/navigation'
 import StatCard from '@/components/StatCard'
 import BirthdayAlert from '@/components/BirthdayAlert'
 import { DollarSign, TrendingUp, TrendingDown, Calendar, X } from 'lucide-react'
@@ -28,6 +29,7 @@ ChartJS.register(
 )
 
 export default function FinanceAdminDashboard() {
+  const router = useRouter()
   const [revenueForm, setRevenueForm] = useState({
     type: '',
     amount: '',
@@ -492,7 +494,10 @@ export default function FinanceAdminDashboard() {
                   className="w-full px-4 py-3 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-success focus:border-success transition-all"
                 />
               </div>
-              <button className="w-full px-6 py-3 bg-success text-white rounded-[6px] font-semibold hover:opacity-90 transition-colors">
+              <button
+                onClick={() => router.push('/finance')}
+                className="w-full px-6 py-3 bg-success text-white rounded-[6px] font-semibold hover:opacity-90 transition-colors"
+              >
                 Add Revenue
               </button>
             </div>
@@ -542,7 +547,10 @@ export default function FinanceAdminDashboard() {
                   className="w-full px-4 py-3 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-secondary focus:border-secondary transition-all"
                 />
               </div>
-              <button className="w-full px-6 py-3 bg-secondary text-tm-on-secondary rounded-[6px] font-semibold hover:opacity-90 transition-colors">
+              <button
+                onClick={() => router.push('/finance')}
+                className="w-full px-6 py-3 bg-secondary text-tm-on-secondary rounded-[6px] font-semibold hover:opacity-90 transition-colors"
+              >
                 Add Expense
               </button>
             </div>

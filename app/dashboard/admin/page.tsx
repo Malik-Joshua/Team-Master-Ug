@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
 import ConceptStatCard from '@/components/ConceptStatCard'
@@ -52,6 +53,7 @@ interface AttendanceSummary {
 }
 
 export default function AdminDashboard() {
+  const router = useRouter()
   const [user, setUser] = useState<any>(null)
   const [attendanceSummary, setAttendanceSummary] = useState<AttendanceSummary | null>(null)
   const [pendingBudgets, setPendingBudgets] = useState<any[]>([])
@@ -402,28 +404,28 @@ export default function AdminDashboard() {
               label: 'Mark attendance',
               iconBgColor: 'rgba(91, 163, 217, 0.12)',
               iconTextColor: '#5BA3D9',
-              onClick: () => {},
+              onClick: () => router.push('/training'),
             },
             {
               icon: CalendarPlus,
               label: 'Create session',
               iconBgColor: 'rgba(45, 184, 138, 0.12)',
               iconTextColor: '#2DB88A',
-              onClick: () => {},
+              onClick: () => router.push('/training'),
             },
             {
               icon: HeartPulse,
               label: 'Log injury',
               iconBgColor: 'rgba(224, 87, 87, 0.12)',
               iconTextColor: '#E05757',
-              onClick: () => {},
+              onClick: () => router.push('/dashboard/physio'),
             },
             {
               icon: UserPlus,
               label: 'Add player',
               iconBgColor: 'rgba(224, 159, 66, 0.12)',
               iconTextColor: '#E09F42',
-              onClick: () => {},
+              onClick: () => router.push('/players'),
             },
           ]}
         />

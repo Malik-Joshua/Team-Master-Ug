@@ -529,30 +529,37 @@ export const db = {
     reference_id?: string // ID of the related item (e.g., message ID, task ID)
     reference_type?: string // Type of the related item (e.g., 'message', 'task', 'fixture')
   }) {
-    // Use API route to create notification (server-side can access service role key)
+    // Insert directly using the service role. (The previous implementation
+    // posted to `/api/notifications/create` with a RELATIVE URL, which Node
+    // cannot parse server-side → silent failure → no in-app alerts.)
     try {
-      const response = await fetch('/api/notifications/create', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          singleNotification: notificationData,
-        }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        console.error('Error creating notification via API:', errorData)
-        throw new Error(errorData.error || 'Failed to create notification')
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+      const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+      if (!supabaseUrl || !serviceKey) {
+        console.error('createNotification: missing Supabase env vars')
+        return null
       }
-
-      const result = await response.json()
-      console.log('Successfully created notification via API:', result.notifications?.[0])
-      return result.notifications?.[0] || null
+      const { createClient: createServiceClient } = await import('@supabase/supabase-js')
+      const admin = createServiceClient(supabaseUrl, serviceKey, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      })
+      const { data, error } = await admin
+        .from('notifications')
+        .insert([{
+          user_id: notificationData.user_id,
+          title: notificationData.title,
+          message: notificationData.message,
+          type: notificationData.type || 'info',
+          action_url: notificationData.action_url || null,
+          reference_id: notificationData.reference_id || null,
+          reference_type: notificationData.reference_type || null,
+        }])
+        .select()
+      if (error) { console.error('createNotification insert error:', error); return null }
+      return data?.[0] || null
     } catch (error) {
       console.error('Error in createNotification:', error)
-      throw error
+      return null
     }
   },
 
@@ -564,31 +571,35 @@ export const db = {
     reference_id?: string // ID of the related item (e.g., message ID, task ID)
     reference_type?: string // Type of the related item (e.g., 'message', 'task', 'fixture')
   }) {
-    // Use API route to create notifications (server-side can access service role key)
+    // Insert directly using the service role. See note in createNotification.
+    if (!userIds || userIds.length === 0) return []
     try {
-      const response = await fetch('/api/notifications/create', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userIds,
-          notificationData,
-        }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        console.error('Error creating notifications via API:', errorData)
-        throw new Error(errorData.error || 'Failed to create notifications')
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+      const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+      if (!supabaseUrl || !serviceKey) {
+        console.error('createNotificationForUsers: missing Supabase env vars')
+        return []
       }
-
-      const result = await response.json()
-      console.log(`Successfully created ${result.count || 0} notifications via API`)
-      return result.notifications || []
+      const { createClient: createServiceClient } = await import('@supabase/supabase-js')
+      const admin = createServiceClient(supabaseUrl, serviceKey, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      })
+      const rows = userIds.map((userId) => ({
+        user_id: userId,
+        title: notificationData.title,
+        message: notificationData.message,
+        type: notificationData.type || 'info',
+        action_url: notificationData.action_url || null,
+        reference_id: notificationData.reference_id || null,
+        reference_type: notificationData.reference_type || null,
+      }))
+      const { data, error } = await admin.from('notifications').insert(rows).select()
+      if (error) { console.error('createNotificationForUsers insert error:', error); return [] }
+      console.log(`Created ${data?.length || 0} notification(s) for ${userIds.length} user(s)`)
+      return data || []
     } catch (error) {
       console.error('Error in createNotificationForUsers:', error)
-      throw error
+      return []
     }
   },
 

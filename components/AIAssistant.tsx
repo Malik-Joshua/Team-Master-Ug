@@ -149,8 +149,8 @@ export default function AIAssistant() {
                 <Bot className="w-6 h-6 text-tm-on-secondary" />
               </div>
               <div>
-                <h3 className="text-tm-on-secondary font-bold text-lg">AI Assistant</h3>
-                <p className="text-tm-on-secondary/80 text-xs">Always here to help</p>
+                <h3 className="text-tm-on-secondary font-bold text-lg">AI Assistant <span className="text-[10px] font-medium uppercase tracking-wider bg-tm-on-secondary/15 px-1.5 py-0.5 rounded ml-1 align-middle">Preview</span></h3>
+                <p className="text-tm-on-secondary/80 text-xs">Demo replies — full AI coming soon</p>
               </div>
             </div>
             <button

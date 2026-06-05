@@ -170,6 +170,29 @@ export default function FinancePage() {
     return `UGX ${amount.toLocaleString()}`
   }
 
+  const handleExportTransactions = () => {
+    if (filteredTransactions.length === 0) {
+      alert('No transactions to export with the current filters.')
+      return
+    }
+    const escape = (v: any) => {
+      const s = v === null || v === undefined ? '' : String(v)
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+    }
+    const headers = ['Date', 'Type', 'Category', 'Description', 'Amount (UGX)', 'Created By']
+    const rows = filteredTransactions.map(t => [t.date, t.type, t.category, t.description, t.amount, t.createdBy])
+    const csv = [headers, ...rows].map(r => r.map(escape).join(',')).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `transactions-${new Date().toISOString().slice(0, 10)}.csv`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
   const handleAddRevenue = async () => {
     try {
       const supabase = createClient()
@@ -864,7 +887,10 @@ export default function FinancePage() {
           <div className="px-6 py-4 border-b border-tm-border bg-tm-surface-hover">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-bold text-tm-text-1">Transactions ({filteredTransactions.length})</h2>
-              <button className="px-4 py-2 bg-primary text-tm-on-secondary rounded-[6px] font-medium hover:opacity-90 transition-colors inline-flex items-center text-sm">
+              <button
+                onClick={handleExportTransactions}
+                className="px-4 py-2 bg-primary text-tm-on-secondary rounded-[6px] font-medium hover:opacity-90 transition-colors inline-flex items-center text-sm"
+              >
                 <Download className="w-4 h-4 mr-2" />
                 Export
               </button>

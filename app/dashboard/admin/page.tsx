@@ -449,7 +449,7 @@ export default function AdminDashboard() {
         />
 
         {/* Stat cards */}
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <ConceptStatCard
             label="Total players"
             value={stats.totalPlayers}
@@ -479,16 +479,6 @@ export default function AdminDashboard() {
             icon={HeartPulse}
             iconBgColor="rgba(224, 87, 87, 0.12)"
             iconTextColor="#E05757"
-          />
-          <ConceptStatCard
-            label="Next fixture"
-            value={upcomingMatches.length > 0 ? `vs ${upcomingMatches[0].opponent}` : 'No upcoming'}
-            change={upcomingMatches.length > 0 ? `${new Date(upcomingMatches[0].match_date).toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' })} · ${new Date(upcomingMatches[0].match_date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}` : ''}
-            changeType="neutral"
-            meta={upcomingMatches.length > 0 ? upcomingMatches[0].venue || 'TBD' : ''}
-            icon={Trophy}
-            iconBgColor="rgba(224, 159, 66, 0.12)"
-            iconTextColor="#E09F42"
           />
         </div>
 
@@ -520,14 +510,8 @@ export default function AdminDashboard() {
                 date={formatDateSafe(upcomingMatches[0].match_date, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
                 time={formatTimeSafe(upcomingMatches[0].match_date)}
                 venue={upcomingMatches[0].venue || 'TBD'}
-                onViewSquad={() => {
-                  console.log("View squad clicked in FixtureCard parent!");
-                  setShowSquadModal(true);
-                }}
-                onMatchDay={() => {
-                  console.log("Match day clicked in FixtureCard parent!");
-                  setShowMatchDayModal(true);
-                }}
+                onViewSquad={() => setShowSquadModal(true)}
+                onMatchDay={() => setShowMatchDayModal(true)}
               />
             )}
 
@@ -854,76 +838,95 @@ export default function AdminDashboard() {
 
       {/* Squad Lineup Popup Modal */}
       {showSquadModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 animate-fade-in">
-          <div className="rounded-[10px] shadow-xl max-w-2xl w-full max-h-[85vh] overflow-y-auto flex flex-col" style={{ background: 'var(--tm-surface)', border: '1px solid var(--tm-border)' }}>
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 sm:p-6 animate-fade-in backdrop-blur-sm">
+          <div className="rounded-2xl shadow-2xl max-w-3xl w-full max-h-[88vh] overflow-hidden flex flex-col" style={{ background: 'var(--tm-surface)', border: '1px solid var(--tm-border)' }}>
             {/* Header */}
-            <div className="p-4.5 border-b flex items-center justify-between" style={{ borderColor: 'var(--tm-border)' }}>
-              <div className="flex items-center gap-2">
-                <Trophy className="w-[17px] h-[17px]" style={{ color: 'var(--tm-secondary)' }} />
-                <h3 className="text-[14px] font-semibold" style={{ color: 'var(--tm-text-1)' }}>Upcoming Squad Selection</h3>
+            <div className="px-7 py-5 border-b flex items-center justify-between" style={{ borderColor: 'var(--tm-border)', background: 'var(--tm-surface-hover)' }}>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'var(--tm-primary-subtle)' }}>
+                  <Trophy className="w-5 h-5" style={{ color: 'var(--tm-secondary)' }} />
+                </div>
+                <div>
+                  <h3 className="text-[17px] font-semibold leading-tight" style={{ color: 'var(--tm-text-1)' }}>Upcoming Squad Selection</h3>
+                  <p className="text-[12px] mt-0.5" style={{ color: 'var(--tm-text-3)' }}>Players selected for the next fixture</p>
+                </div>
               </div>
-              <button onClick={() => setShowSquadModal(false)} className="cursor-pointer border-none bg-none hover:opacity-80 transition-opacity" style={{ color: 'var(--tm-text-3)' }}>
+              <button onClick={() => setShowSquadModal(false)} className="cursor-pointer w-9 h-9 rounded-lg flex items-center justify-center transition-colors hover:bg-[var(--tm-border)]" style={{ color: 'var(--tm-text-3)' }} aria-label="Close">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* Content */}
-            <div className="p-4.5 space-y-4 overflow-y-auto">
+            <div className="px-7 py-6 space-y-6 overflow-y-auto">
               {teamSelection && teamSelection.match ? (
                 <>
-                  <div className="mb-2">
-                    <h4 className="text-[13px] font-semibold mb-1" style={{ color: 'var(--tm-text-1)' }}>
+                  <div className="rounded-xl px-5 py-4" style={{ background: 'var(--tm-surface-hover)', border: '1px solid var(--tm-border)' }}>
+                    <h4 className="text-[15px] font-semibold mb-1.5" style={{ color: 'var(--tm-text-1)' }}>
                       {formatDateSafe(teamSelection.match.match_date, {
                         weekday: 'long',
                         year: 'numeric',
                         month: 'long',
                         day: 'numeric',
-                      })} vs {teamSelection.match.opponent}
+                      })} <span style={{ color: 'var(--tm-text-3)' }}>vs</span> {teamSelection.match.opponent}
                     </h4>
                     {teamSelection.match.venue && (
-                      <p className="text-[11px]" style={{ color: 'var(--tm-text-3)' }}>Venue: {teamSelection.match.venue}</p>
+                      <p className="text-[12px] flex items-center gap-1.5" style={{ color: 'var(--tm-text-3)' }}>
+                        <MapPin className="w-3.5 h-3.5" /> {teamSelection.match.venue}
+                      </p>
                     )}
                   </div>
 
                   {/* Starting Lineup */}
                   {teamSelection.starting && teamSelection.starting.length > 0 ? (
                     <div>
-                      <h5 className="text-[11px] font-semibold uppercase tracking-wider mb-2.5" style={{ color: 'var(--tm-text-muted)' }}>Starting Lineup ({teamSelection.starting.length})</h5>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      <h5 className="text-[11px] font-semibold uppercase tracking-[0.08em] mb-3 flex items-center gap-2" style={{ color: 'var(--tm-text-muted)' }}>
+                        <span className="w-1.5 h-1.5 rounded-full bg-success" />
+                        Starting Lineup ({teamSelection.starting.length})
+                      </h5>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         {teamSelection.starting.map((selection: any) => (
-                          <div key={selection.id} className="bg-success/5 border border-success/15 rounded-[8px] p-2.5 flex items-center justify-between">
-                            <div>
-                              <span className="text-[12px] font-medium block" style={{ color: 'var(--tm-text-1)' }}>{selection.player?.name || 'Unknown'}</span>
+                          <div
+                            key={selection.id}
+                            className="bg-success/5 border border-success/20 rounded-xl px-4 py-3.5 flex items-center justify-between transition-all duration-200 hover:bg-success/10 hover:border-success/40 hover:-translate-y-0.5 hover:shadow-lg"
+                          >
+                            <div className="min-w-0 pr-2">
+                              <span className="text-[13px] font-semibold block truncate" style={{ color: 'var(--tm-text-1)' }}>{selection.player?.name || 'Unknown'}</span>
                               {selection.position && (
-                                <p className="text-[10px] capitalize mt-0.5" style={{ color: 'var(--tm-text-3)' }}>{selection.position.replace(/_/g, ' ')}</p>
+                                <p className="text-[11px] capitalize mt-0.5 truncate" style={{ color: 'var(--tm-text-3)' }}>{selection.position.replace(/_/g, ' ')}</p>
                               )}
                             </div>
                             {selection.jersey_number && (
-                              <span className="bg-success/15 text-success px-2 py-0.5 rounded text-[10px] font-bold">#{selection.jersey_number}</span>
+                              <span className="bg-success/15 text-success px-2.5 py-1 rounded-md text-[11px] font-bold flex-shrink-0">#{selection.jersey_number}</span>
                             )}
                           </div>
                         ))}
                       </div>
                     </div>
                   ) : (
-                    <p className="text-[12px] py-2 text-center" style={{ color: 'var(--tm-text-3)' }}>No starting lineup chosen yet.</p>
+                    <p className="text-[12px] py-3 text-center" style={{ color: 'var(--tm-text-3)' }}>No starting lineup chosen yet.</p>
                   )}
 
                   {/* Substitutes */}
                   {teamSelection.substitutes && teamSelection.substitutes.length > 0 && (
-                    <div className="border-t pt-4" style={{ borderColor: 'var(--tm-border)' }}>
-                      <h5 className="text-[11px] font-semibold uppercase tracking-wider mb-2.5" style={{ color: 'var(--tm-text-muted)' }}>Substitutes ({teamSelection.substitutes.length})</h5>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div className="border-t pt-5" style={{ borderColor: 'var(--tm-border)' }}>
+                      <h5 className="text-[11px] font-semibold uppercase tracking-[0.08em] mb-3 flex items-center gap-2" style={{ color: 'var(--tm-text-muted)' }}>
+                        <span className="w-1.5 h-1.5 rounded-full bg-warning" />
+                        Substitutes ({teamSelection.substitutes.length})
+                      </h5>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         {teamSelection.substitutes.map((selection: any) => (
-                          <div key={selection.id} className="bg-warning/5 border border-warning/15 rounded-[8px] p-2.5 flex items-center justify-between">
-                            <div>
-                              <span className="text-[12px] font-medium block" style={{ color: 'var(--tm-text-1)' }}>{selection.player?.name || 'Unknown'}</span>
+                          <div
+                            key={selection.id}
+                            className="bg-warning/5 border border-warning/20 rounded-xl px-4 py-3.5 flex items-center justify-between transition-all duration-200 hover:bg-warning/10 hover:border-warning/40 hover:-translate-y-0.5 hover:shadow-lg"
+                          >
+                            <div className="min-w-0 pr-2">
+                              <span className="text-[13px] font-semibold block truncate" style={{ color: 'var(--tm-text-1)' }}>{selection.player?.name || 'Unknown'}</span>
                               {selection.position && (
-                                <p className="text-[10px] capitalize mt-0.5" style={{ color: 'var(--tm-text-3)' }}>{selection.position.replace(/_/g, ' ')}</p>
+                                <p className="text-[11px] capitalize mt-0.5 truncate" style={{ color: 'var(--tm-text-3)' }}>{selection.position.replace(/_/g, ' ')}</p>
                               )}
                             </div>
                             {selection.jersey_number && (
-                              <span className="bg-warning/15 text-warning px-2 py-0.5 rounded text-[10px] font-bold">#{selection.jersey_number}</span>
+                              <span className="bg-warning/15 text-warning px-2.5 py-1 rounded-md text-[11px] font-bold flex-shrink-0">#{selection.jersey_number}</span>
                             )}
                           </div>
                         ))}
@@ -932,28 +935,29 @@ export default function AdminDashboard() {
                   )}
                 </>
               ) : (
-                <div className="text-center py-8">
-                  <Trophy className="w-12 h-12 mx-auto opacity-20 mb-3" style={{ color: 'var(--tm-text-muted)' }} />
-                  <p className="text-[13px] font-semibold" style={{ color: 'var(--tm-text-1)' }}>No lineup submitted yet</p>
-                  <p className="text-[11px] max-w-sm mx-auto mt-1" style={{ color: 'var(--tm-text-3)' }}>
-                    Coaches have not yet saved a squad lineup selection for this match in the database.
+                <div className="text-center py-12">
+                  <Trophy className="w-14 h-14 mx-auto opacity-20 mb-3" style={{ color: 'var(--tm-text-muted)' }} />
+                  <p className="text-[14px] font-semibold mb-1" style={{ color: 'var(--tm-text-1)' }}>No lineup submitted yet</p>
+                  <p className="text-[12px] max-w-sm mx-auto leading-relaxed" style={{ color: 'var(--tm-text-3)' }}>
+                    Coaches have not yet saved a squad lineup selection for this match.
                   </p>
                 </div>
               )}
             </div>
 
             {/* Footer */}
-            <div className="p-4 border-t flex justify-between items-center" style={{ borderColor: 'var(--tm-border)' }}>
+            <div className="px-7 py-4 border-t flex justify-between items-center" style={{ borderColor: 'var(--tm-border)', background: 'var(--tm-surface-hover)' }}>
               <Link
                 href="/fixtures"
-                className="text-[11px] font-semibold hover:opacity-80 transition-opacity"
+                className="text-[13px] font-semibold inline-flex items-center gap-1 transition-all hover:gap-2"
                 style={{ color: 'var(--tm-secondary)' }}
               >
                 Manage Team Selection →
               </Link>
               <button
                 onClick={() => setShowSquadModal(false)}
-                className="px-4 py-1.5 rounded-[6px] text-[12px] font-medium text-white bg-[var(--tm-secondary)] hover:opacity-90 transition-opacity border-none cursor-pointer"
+                className="px-5 py-2 rounded-lg text-[13px] font-semibold bg-[var(--tm-secondary)] hover:opacity-90 transition-opacity border-none cursor-pointer"
+                style={{ color: 'var(--tm-on-secondary)' }}
               >
                 Close
               </button>
@@ -964,93 +968,105 @@ export default function AdminDashboard() {
 
       {/* Match Day Info Popup Modal */}
       {showMatchDayModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 animate-fade-in">
-          <div className="rounded-[10px] shadow-xl max-w-md w-full" style={{ background: 'var(--tm-surface)', border: '1px solid var(--tm-border)' }}>
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 sm:p-6 animate-fade-in backdrop-blur-sm">
+          <div className="rounded-2xl shadow-2xl max-w-lg w-full max-h-[88vh] overflow-hidden flex flex-col" style={{ background: 'var(--tm-surface)', border: '1px solid var(--tm-border)' }}>
             {/* Header */}
-            <div className="p-4.5 border-b flex items-center justify-between" style={{ borderColor: 'var(--tm-border)' }}>
-              <div className="flex items-center gap-2">
-                <Trophy className="w-[17px] h-[17px]" style={{ color: 'var(--tm-secondary)' }} />
-                <h3 className="text-[14px] font-semibold" style={{ color: 'var(--tm-text-1)' }}>Match Day Details</h3>
+            <div className="px-7 py-5 border-b flex items-center justify-between" style={{ borderColor: 'var(--tm-border)', background: 'var(--tm-surface-hover)' }}>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'var(--tm-primary-subtle)' }}>
+                  <Trophy className="w-5 h-5" style={{ color: 'var(--tm-secondary)' }} />
+                </div>
+                <div>
+                  <h3 className="text-[17px] font-semibold leading-tight" style={{ color: 'var(--tm-text-1)' }}>Match Day Details</h3>
+                  <p className="text-[12px] mt-0.5" style={{ color: 'var(--tm-text-3)' }}>Everything about the next fixture</p>
+                </div>
               </div>
-              <button onClick={() => setShowMatchDayModal(false)} className="cursor-pointer border-none bg-none hover:opacity-80 transition-opacity" style={{ color: 'var(--tm-text-3)' }}>
+              <button onClick={() => setShowMatchDayModal(false)} className="cursor-pointer w-9 h-9 rounded-lg flex items-center justify-center transition-colors hover:bg-[var(--tm-border)]" style={{ color: 'var(--tm-text-3)' }} aria-label="Close">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* Content */}
-            <div className="p-5 space-y-4">
+            <div className="px-7 py-6 space-y-5 overflow-y-auto">
               {upcomingMatches.length > 0 ? (
                 <>
-                  <div className="text-center pb-2 border-b" style={{ borderColor: 'var(--tm-border)' }}>
-                    <span className="text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full bg-[var(--tm-primary-subtle)]" style={{ color: 'var(--tm-secondary)' }}>
+                  <div className="text-center">
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.1em] px-3 py-1 rounded-full" style={{ background: 'var(--tm-primary-subtle)', color: 'var(--tm-secondary)' }}>
                       {upcomingMatches[0].tournament_type?.replace('_', ' ') || 'Match'}
                     </span>
-                    <h4 className="text-[16px] font-bold mt-2.5" style={{ color: 'var(--tm-text-1)' }}>
-                      Team Master <span className="text-[11px] font-semibold px-2 py-0.5 mx-1 rounded-full bg-[var(--tm-border)]" style={{ color: 'var(--tm-text-3)' }}>vs</span> {upcomingMatches[0].opponent}
+                    <h4 className="text-[20px] font-bold mt-3 leading-tight" style={{ color: 'var(--tm-text-1)' }}>
+                      Team Master <span className="text-[12px] font-semibold px-2.5 py-1 mx-2 rounded-full align-middle" style={{ background: 'var(--tm-border)', color: 'var(--tm-text-3)' }}>vs</span> {upcomingMatches[0].opponent}
                     </h4>
                   </div>
 
-                  <div className="space-y-3">
-                    <div className="flex items-start gap-3">
-                      <Calendar className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: 'var(--tm-secondary)' }} />
-                      <div>
-                        <p className="text-[11px] font-semibold uppercase text-gray-500">Date</p>
-                        <p className="text-[13px] font-medium" style={{ color: 'var(--tm-text-1)' }}>
+                  <div className="grid gap-3">
+                    <div className="flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all duration-200 hover:bg-[var(--tm-surface-hover)] hover:-translate-y-0.5 hover:shadow-md" style={{ background: 'var(--tm-surface-hover)', border: '1px solid var(--tm-border)' }}>
+                      <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'var(--tm-primary-subtle)' }}>
+                        <Calendar className="w-5 h-5" style={{ color: 'var(--tm-secondary)' }} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--tm-text-3)' }}>Date</p>
+                        <p className="text-[14px] font-semibold mt-0.5" style={{ color: 'var(--tm-text-1)' }}>
                           {formatDateSafe(upcomingMatches[0].match_date, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                         </p>
                       </div>
                     </div>
 
-                    <div className="flex items-start gap-3">
-                      <Clock className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: 'var(--tm-secondary)' }} />
-                      <div>
-                        <p className="text-[11px] font-semibold uppercase text-gray-500">Kickoff Time</p>
-                        <p className="text-[13px] font-medium" style={{ color: 'var(--tm-text-1)' }}>
+                    <div className="flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md" style={{ background: 'var(--tm-surface-hover)', border: '1px solid var(--tm-border)' }}>
+                      <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'var(--tm-primary-subtle)' }}>
+                        <Clock className="w-5 h-5" style={{ color: 'var(--tm-secondary)' }} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--tm-text-3)' }}>Kickoff Time</p>
+                        <p className="text-[14px] font-semibold mt-0.5" style={{ color: 'var(--tm-text-1)' }}>
                           {formatTimeSafe(upcomingMatches[0].match_date)}
                         </p>
                       </div>
                     </div>
 
-                    <div className="flex items-start gap-3">
-                      <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: 'var(--tm-secondary)' }} />
-                      <div>
-                        <p className="text-[11px] font-semibold uppercase text-gray-500">Venue</p>
-                        <p className="text-[13px] font-medium" style={{ color: 'var(--tm-text-1)' }}>
+                    <div className="flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md" style={{ background: 'var(--tm-surface-hover)', border: '1px solid var(--tm-border)' }}>
+                      <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'var(--tm-primary-subtle)' }}>
+                        <MapPin className="w-5 h-5" style={{ color: 'var(--tm-secondary)' }} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--tm-text-3)' }}>Venue</p>
+                        <p className="text-[14px] font-semibold mt-0.5 break-words" style={{ color: 'var(--tm-text-1)' }}>
                           {upcomingMatches[0].venue || 'TBD'}
                         </p>
                       </div>
                     </div>
-
-                    {upcomingMatches[0].notes && (
-                      <div className="pt-3 border-t" style={{ borderColor: 'var(--tm-border)' }}>
-                        <p className="text-[11px] font-semibold uppercase text-gray-500 mb-1">Match Day Notes</p>
-                        <p className="text-[12px] leading-relaxed" style={{ color: 'var(--tm-text-2)' }}>
-                          {upcomingMatches[0].notes}
-                        </p>
-                      </div>
-                    )}
                   </div>
+
+                  {upcomingMatches[0].notes && (
+                    <div className="pt-4 border-t" style={{ borderColor: 'var(--tm-border)' }}>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--tm-text-3)' }}>Match Day Notes</p>
+                      <p className="text-[13px] leading-relaxed px-4 py-3 rounded-xl" style={{ color: 'var(--tm-text-2)', background: 'var(--tm-surface-hover)', border: '1px solid var(--tm-border)' }}>
+                        {upcomingMatches[0].notes}
+                      </p>
+                    </div>
+                  )}
                 </>
               ) : (
-                <div className="text-center py-8">
-                  <Calendar className="w-12 h-12 mx-auto opacity-20 mb-3" style={{ color: 'var(--tm-text-muted)' }} />
-                  <p className="text-[13px] font-semibold" style={{ color: 'var(--tm-text-1)' }}>No upcoming fixtures scheduled</p>
+                <div className="text-center py-12">
+                  <Calendar className="w-14 h-14 mx-auto opacity-20 mb-3" style={{ color: 'var(--tm-text-muted)' }} />
+                  <p className="text-[14px] font-semibold" style={{ color: 'var(--tm-text-1)' }}>No upcoming fixtures scheduled</p>
                 </div>
               )}
             </div>
 
             {/* Footer */}
-            <div className="p-4.5 border-t flex justify-end space-x-2.5" style={{ borderColor: 'var(--tm-border)' }}>
+            <div className="px-7 py-4 border-t flex justify-end gap-3" style={{ borderColor: 'var(--tm-border)', background: 'var(--tm-surface-hover)' }}>
               <button
                 onClick={() => setShowMatchDayModal(false)}
-                className="px-4 py-1.5 border rounded-[6px] text-[12px] font-medium cursor-pointer transition-opacity hover:opacity-80"
-                style={{ background: 'none', borderColor: 'var(--tm-border)', color: 'var(--tm-text-2)' }}
+                className="px-5 py-2 border rounded-lg text-[13px] font-semibold cursor-pointer transition-colors hover:bg-[var(--tm-border)]"
+                style={{ background: 'transparent', borderColor: 'var(--tm-border)', color: 'var(--tm-text-2)' }}
               >
                 Cancel
               </button>
               <Link
                 href="/fixtures"
-                className="px-4 py-1.5 rounded-[6px] text-[12px] font-medium text-white text-center hover:opacity-90 transition-opacity border-none cursor-pointer bg-[var(--tm-secondary)]"
+                className="px-5 py-2 rounded-lg text-[13px] font-semibold text-center hover:opacity-90 transition-opacity border-none cursor-pointer bg-[var(--tm-secondary)]"
+                style={{ color: 'var(--tm-on-secondary)' }}
               >
                 Manage Fixtures
               </Link>

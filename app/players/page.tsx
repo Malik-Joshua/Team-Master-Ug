@@ -254,7 +254,9 @@ export default function PlayersPage() {
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.message || 'Failed to add player')
+        // The API returns { error: "<reason>" } — surface that reason so the
+        // user knows why (e.g. email already in use, role limit reached).
+        throw new Error(error.error || error.message || 'Failed to add player')
       }
 
       const supabase = createClient()

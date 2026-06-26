@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import Layout from '@/components/Layout'
-import { Calendar, Users, Save, Download, Plus, Clock, MapPin, FileText, X, Upload, Activity, ChevronDown, FileSpreadsheet } from 'lucide-react'
+import { Calendar, Users, Save, Download, Plus, Clock, MapPin, FileText, X, Upload, Activity, ChevronDown, FileSpreadsheet, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import RefreshButton from '@/components/RefreshButton'
 import { generatePDFReport, generateExcelReport, generateCSVReport, downloadBlob, type ReportData } from '@/lib/report-export'
@@ -80,6 +80,8 @@ export default function TrainingPage() {
   const [gymSchedules, setGymSchedules] = useState<any[]>([])
   const [showExportMenu, setShowExportMenu] = useState(false)
   const [exporting, setExporting] = useState(false)
+  const [savingSchedule, setSavingSchedule] = useState(false)
+  const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null)
 
   const loadData = useCallback(async () => {
       const supabase = createClient()
@@ -654,10 +656,12 @@ export default function TrainingPage() {
   }
 
   const handleCreateSchedule = async () => {
+    if (savingSchedule) return
     try {
+      setSavingSchedule(true)
       const supabase = createClient()
       const { data: { user: authUser } } = await supabase.auth.getUser()
-      
+
       if (!authUser) {
         alert('Please log in to create training schedule')
         return
@@ -764,6 +768,38 @@ export default function TrainingPage() {
     } catch (error: any) {
       console.error('Error creating schedule:', error)
       alert(`Error creating schedule: ${error.message}`)
+    } finally {
+      setSavingSchedule(false)
+    }
+  }
+
+  const handleDeleteSession = async (sessionId: string) => {
+    if (!confirm('Are you sure you want to delete this training session? This will also remove all attendance records for this session.')) {
+      return
+    }
+
+    setDeletingSessionId(sessionId)
+    try {
+      const response = await fetch(`/api/training/sessions?session_id=${sessionId}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to delete training session')
+      }
+
+      setSessions(prev => prev.filter(s => s.id !== sessionId))
+      setSessionSummaries(prev => prev.filter(s => s.sessionId !== sessionId))
+      if (selectedSessionId === sessionId) {
+        setSelectedSessionId('')
+        setAttendance({})
+      }
+    } catch (error: any) {
+      console.error('Error deleting session:', error)
+      alert(`Error deleting session: ${error.message}`)
+    } finally {
+      setDeletingSessionId(null)
     }
   }
 
@@ -1739,9 +1775,10 @@ export default function TrainingPage() {
                 <div className="flex gap-3 pt-4">
                   <button
                     onClick={handleCreateSchedule}
-                    className="flex-1 px-6 py-3 bg-tm-secondary text-tm-on-secondary rounded-[6px] hover:opacity-90 transition-all duration-300 font-semibold shadow-soft hover:shadow-medium"
+                    disabled={savingSchedule}
+                    className="flex-1 px-6 py-3 bg-tm-secondary text-tm-on-secondary rounded-[6px] hover:opacity-90 transition-all duration-300 font-semibold shadow-soft hover:shadow-medium disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Create Schedule
+                    {savingSchedule ? 'Creating...' : 'Create Schedule'}
                   </button>
                   <button
                     onClick={() => {
@@ -1788,9 +1825,25 @@ export default function TrainingPage() {
                             year: 'numeric',
                           })}
                         </h3>
-                        <span className="text-xs font-semibold px-2 py-1 bg-tm-secondary text-tm-on-secondary rounded-full">
-                          {summary.attendanceRate}%
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-semibold px-2 py-1 bg-tm-secondary text-tm-on-secondary rounded-full">
+                            {summary.attendanceRate}%
+                          </span>
+                          {(user?.role === 'coach' || user?.role === 'admin') && (
+                            <button
+                              onClick={() => handleDeleteSession(summary.sessionId)}
+                              disabled={deletingSessionId === summary.sessionId}
+                              className="p-1.5 rounded-lg text-tm-text-3 hover:text-[#E05757] hover:bg-[#E05757]/10 transition-all disabled:opacity-50"
+                              title="Delete session"
+                            >
+                              {deletingSessionId === summary.sessionId ? (
+                                <div className="w-4 h-4 animate-spin rounded-full border-2 border-[#E05757] border-t-transparent" />
+                              ) : (
+                                <Trash2 className="w-4 h-4" />
+                              )}
+                            </button>
+                          )}
+                        </div>
                       </div>
                       <div className="flex flex-wrap gap-2 text-xs text-tm-text-3">
                         {summary.sessionTime && (

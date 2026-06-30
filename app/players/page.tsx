@@ -6,6 +6,7 @@ import ConceptStatCard from '@/components/ConceptStatCard'
 import { PageHeader, Button, Card, StatGrid } from '@/components/ui'
 import { Users, Search, Filter, UserPlus, Eye, Edit, AlertCircle, CheckCircle, X, Save, Dumbbell, Award, RefreshCw } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import PositionIcon from '@/components/PositionIcon'
 
 interface Player {
   id: string
@@ -670,8 +671,8 @@ export default function PlayersPage() {
             <div className="p-4 sm:p-6 border-b border-tm-border">
               <div className="flex items-center justify-between">
                 <h3 className="text-2xl font-bold text-tm-text-1">Add New Player</h3>
-                <button onClick={() => setShowAddModal(false)} className="text-tm-text-3 hover:text-tm-text-1 transition-colors">
-                  <X className="w-6 h-6" />
+                <button onClick={() => setShowAddModal(false)} className="modal-close-btn">
+                  <X className="h-4 w-4" />
                 </button>
               </div>
             </div>
@@ -734,8 +735,8 @@ export default function PlayersPage() {
             <div className="p-4 sm:p-6 border-b border-tm-border">
               <div className="flex items-center justify-between">
                 <h3 className="text-2xl font-bold text-tm-text-1">Edit Player</h3>
-                <button onClick={() => setShowEditModal(false)} className="text-tm-text-3 hover:text-tm-text-1 transition-colors">
-                  <X className="w-6 h-6" />
+                <button onClick={() => setShowEditModal(false)} className="modal-close-btn">
+                  <X className="h-4 w-4" />
                 </button>
               </div>
             </div>
@@ -782,33 +783,58 @@ export default function PlayersPage() {
             <div className="p-4 sm:p-6 border-b border-tm-border">
               <div className="flex items-center justify-between">
                 <h3 className="text-2xl font-bold text-tm-text-1">Player Details</h3>
-                <button onClick={() => setShowViewModal(false)} className="text-tm-text-3 hover:text-tm-text-1 transition-colors">
-                  <X className="w-6 h-6" />
+                <button onClick={() => setShowViewModal(false)} className="modal-close-btn">
+                  <X className="h-4 w-4" />
                 </button>
               </div>
             </div>
-            <div className="p-4 sm:p-6 space-y-4">
-              <div className="flex items-center space-x-4">
-                <div className="w-20 h-20 rounded-full bg-tm-secondary flex items-center justify-center text-tm-on-secondary font-bold text-2xl">
+            <div className="p-4 sm:p-6 space-y-5">
+              {/* Player header */}
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-full flex items-center justify-center font-bold text-xl flex-shrink-0"
+                     style={{ background: 'var(--acc, #5BA3D9)', color: 'var(--btn-txt, #080F1C)' }}>
                   {selectedPlayer.name.charAt(0).toUpperCase()}
                 </div>
                 <div>
                   <h4 className="text-xl font-bold text-tm-text-1">{selectedPlayer.name}</h4>
-                  <p className="text-tm-text-3">{selectedPlayer.email}</p>
-                  <p className="text-tm-text-3">{selectedPlayer.phone}</p>
+                  <p className="text-sm text-tm-text-3">{selectedPlayer.email}</p>
+                  {selectedPlayer.phone && <p className="text-sm text-tm-text-3">{selectedPlayer.phone}</p>}
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-tm-border">
+
+              {/* Position feature block */}
+              <div className="flex items-center gap-5 rounded-xl p-4 border"
+                   style={{ background: 'var(--p7, #112035)', borderColor: 'var(--b1, rgba(255,255,255,0.07))' }}>
+                <PositionIcon
+                  position={selectedPlayer.position}
+                  size={90}
+                  className="flex-shrink-0 drop-shadow-lg"
+                />
                 <div>
-                  <p className="text-sm text-tm-text-3">Position</p>
-                  <p className="font-semibold text-tm-text-1 capitalize">{selectedPlayer.position.replace('_', ' ')}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-tm-text-3">Status</p>
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${selectedPlayer.status === 'active' ? 'bg-success/10 text-success' : selectedPlayer.status === 'injured' ? 'bg-[#E05757]/10 text-[#E05757]' : 'bg-warning/10 text-warning'}`}>
+                  <p className="text-[10px] font-semibold uppercase tracking-widest mb-1"
+                     style={{ color: 'var(--t3, #506478)' }}>Position</p>
+                  <p className="text-lg font-bold capitalize mb-1"
+                     style={{ color: 'var(--t1, #EDF2F8)' }}>
+                    {selectedPlayer.position.replace(/_/g, ' ')}
+                  </p>
+                  {selectedPlayer.position === 'fly_half' && (
+                    <p className="text-xs" style={{ color: 'var(--acc, #5BA3D9)' }}>
+                      Playmaker · #10 · Decision-maker
+                    </p>
+                  )}
+                  <span className={`mt-2 inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    selectedPlayer.status === 'active'
+                      ? 'bg-success/10 text-success'
+                      : selectedPlayer.status === 'injured'
+                      ? 'bg-[#E05757]/10 text-[#E05757]'
+                      : 'bg-warning/10 text-warning'
+                  }`}>
                     {selectedPlayer.status}
                   </span>
                 </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4 pt-1 border-t border-tm-border">
                 <div>
                   <p className="text-sm text-tm-text-3">Games Played</p>
                   <p className="font-semibold text-tm-text-1">{selectedPlayer.games_played || 0}</p>
@@ -841,8 +867,8 @@ export default function PlayersPage() {
                   <Dumbbell className="w-6 h-6 text-primary mr-2" />
                   <h3 className="text-2xl font-bold text-tm-text-1">Update Gym Metrics - {selectedPlayerForGym.name}</h3>
                 </div>
-                <button onClick={() => { setShowGymMetricsModal(false); setSelectedPlayerForGym(null) }} className="text-tm-text-3 hover:text-tm-text-1 transition-colors">
-                  <X className="w-6 h-6" />
+                <button onClick={() => { setShowGymMetricsModal(false); setSelectedPlayerForGym(null) }} className="modal-close-btn">
+                  <X className="h-4 w-4" />
                 </button>
               </div>
             </div>

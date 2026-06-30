@@ -95,7 +95,7 @@ export default function Sidebar({ userRole, onLogout, clubSettings, userName, us
       </div>
 
       {/* Club pill */}
-      <div className="mx-3 mt-3 p-2 rounded-md border flex items-center gap-2" style={{ background: 'var(--tm-sidebar-logo-bg)', borderColor: 'var(--tm-sidebar-border)' }}>
+      <Link href="/profile" className="block mx-3 mt-3 p-2 rounded-md border flex items-center gap-2 cursor-pointer hover:opacity-90 transition-opacity" style={{ background: 'var(--tm-sidebar-logo-bg)', borderColor: 'var(--tm-sidebar-border)' }}>
         {badgeUrl ? (
           <img src={badgeUrl} alt="Club badge" className="w-[30px] h-[30px] flex-shrink-0 rounded-full object-cover bg-white" />
         ) : (
@@ -112,7 +112,7 @@ export default function Sidebar({ userRole, onLogout, clubSettings, userName, us
         {(!collapsed || isMobile) && (
           <ChevronDown className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--tm-sidebar-text-muted)' }} />
         )}
-      </div>
+      </Link>
 
       {/* Navigation */}
       <nav className="flex-1 py-2.5 overflow-y-auto">

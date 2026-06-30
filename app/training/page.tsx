@@ -1533,9 +1533,9 @@ export default function TrainingPage() {
                       setShowUploadForm(false)
                       setUploadFile(null)
                     }}
-                    className="text-tm-text-3 hover:text-tm-text-1"
+                    className="modal-close-btn"
                   >
-                    <X className="w-6 h-6" />
+                    <X className="h-4 w-4" />
                   </button>
                 </div>
               </div>
@@ -1604,9 +1604,9 @@ export default function TrainingPage() {
                       setShowGymScheduleForm(false)
                       setGymScheduleForm({ schedule_date: '', schedule_time: '', location: '', description: '', exercises: '' })
                     }}
-                    className="text-tm-text-3 hover:text-tm-text-1"
+                    className="modal-close-btn"
                   >
-                    <X className="w-6 h-6" />
+                    <X className="h-4 w-4" />
                   </button>
                 </div>
               </div>
@@ -1712,9 +1712,9 @@ export default function TrainingPage() {
                       setShowScheduleForm(false)
                       setScheduleForm({ session_date: '', session_time: '', location: '', description: '' })
                     }}
-                    className="text-tm-text-3 hover:text-tm-text-1"
+                    className="modal-close-btn"
                   >
-                    <X className="w-6 h-6" />
+                    <X className="h-4 w-4" />
                   </button>
                 </div>
               </div>

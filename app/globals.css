@@ -3,6 +3,7 @@
 @tailwind utilities;
 
 :root {
+  color-scheme: dark;
   --primary-blue: #2563EB;
   --primary-red: #DC2626;
   --success-green: #059669;
@@ -169,11 +170,15 @@ body {
   .tm-select,
   .tm-textarea {
     @apply w-full rounded-[6px] border border-tm-border bg-tm-surface-hover px-3 py-2 text-sm text-tm-text-1 outline-none transition-colors;
+    color: var(--tm-text-1) !important;
+    -webkit-text-fill-color: var(--tm-text-1);
   }
 
   .tm-input::placeholder,
   .tm-textarea::placeholder {
     color: var(--tm-text-3);
+    -webkit-text-fill-color: var(--tm-text-3);
+    font-weight: 600;
   }
 
   .tm-input:focus,
@@ -212,11 +217,14 @@ body {
   background-color: var(--tm-surface-hover);
   border-color: var(--tm-border);
   color: var(--tm-text-1);
+  -webkit-text-fill-color: var(--tm-text-1);
 }
 
 .tm-app input::placeholder,
 .tm-app textarea::placeholder {
   color: var(--tm-text-3);
+  -webkit-text-fill-color: var(--tm-text-3);
+  font-weight: 600;
 }
 
 .tm-app select option {
@@ -254,6 +262,34 @@ body {
 
 ::-webkit-scrollbar-corner {
   background: transparent;
+}
+
+/* ── Modal close / exit button ─────────────────────────────────────────────────
+   Applied globally by sed replacement; gives every modal exit button a visible
+   bordered container with an accent glow on hover.                              */
+.modal-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--tm-border, rgba(255,255,255,0.07));
+  color: var(--tm-text-3, #506478);
+  background: transparent;
+  transition: border-color 150ms, color 150ms, background 150ms, box-shadow 150ms;
+  cursor: pointer;
+}
+.modal-close-btn:hover {
+  border-color: var(--acc, #5BA3D9);
+  color: var(--acc, #5BA3D9);
+  background: var(--acc-dim, rgba(91,163,217,0.10));
+  box-shadow: 0 0 10px var(--acc-glow, rgba(91,163,217,0.22));
+}
+.modal-close-btn:focus-visible {
+  outline: 2px solid var(--acc, #5BA3D9);
+  outline-offset: 2px;
 }
 
 

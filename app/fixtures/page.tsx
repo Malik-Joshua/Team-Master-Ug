@@ -1169,9 +1169,9 @@ export default function FixturesPage() {
                 setMatchStaff({ coach: null, physio: null, team_manager: null })
                 setStaffAttendance({})
               }}
-              className="text-tm-text-3 hover:text-tm-text-1"
+              className="modal-close-btn"
             >
-              <X className="w-6 h-6" />
+              <X className="h-4 w-4" />
             </button>
           </div>
         </div>
@@ -1698,9 +1698,9 @@ export default function FixturesPage() {
                           coach_id: '',
                         })
                       }}
-                      className="text-tm-text-3 hover:text-tm-text-1"
+                      className="modal-close-btn"
                     >
-                      <X className="w-6 h-6" />
+                      <X className="h-4 w-4" />
                     </button>
                   </div>
                 </div>
@@ -1897,9 +1897,9 @@ export default function FixturesPage() {
                         setMatchStaff({ coach: null, physio: null, team_manager: null })
                         setStaffAttendance({})
                       }}
-                      className="text-tm-text-3 hover:text-tm-text-1"
+                      className="modal-close-btn"
                     >
-                      <X className="w-6 h-6" />
+                      <X className="h-4 w-4" />
                     </button>
                   </div>
                 </div>
@@ -2419,9 +2419,9 @@ export default function FixturesPage() {
                       setViewingTeamForMatch('')
                       setViewedTeamSelection([])
                     }}
-                    className="text-tm-text-3 hover:text-tm-text-1"
+                    className="modal-close-btn"
                   >
-                    <X className="w-6 h-6" />
+                    <X className="h-4 w-4" />
                   </button>
                 </div>
                 {viewingTeamForMatch && (

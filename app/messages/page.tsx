@@ -2802,9 +2802,9 @@ export default function MessagesPage() {
                   </div>
                   <button
                     onClick={() => setSelectedMessage(null)}
-                    className="text-tm-text-3 hover:text-tm-text-1"
+                    className="modal-close-btn"
                   >
-                    <X className="w-6 h-6" />
+                    <X className="h-4 w-4" />
                   </button>
                 </div>
               </div>

@@ -564,19 +564,27 @@ export default function FinancePage() {
       {
         label: 'Revenue',
         data: monthlyData.revenue,
-        backgroundColor: 'rgba(5, 150, 105, 0.8)',
-        borderColor: '#059669',
+        backgroundColor: 'rgba(45, 184, 138, 0.75)',
+        borderColor: '#2DB88A',
         borderWidth: 2,
+        borderRadius: 4,
       },
       {
         label: 'Expenses',
         data: monthlyData.expenses,
-        backgroundColor: 'rgba(220, 38, 38, 0.8)',
-        borderColor: '#DC2626',
+        backgroundColor: 'rgba(224, 87, 87, 0.75)',
+        borderColor: '#E05757',
         borderWidth: 2,
+        borderRadius: 4,
       },
     ],
   }
+
+  // Chart.js renders on <canvas> — CSS variables don't work there.
+  // These values match the default navy dark theme tokens.
+  const CHART_TEXT  = '#8FA3BB'   // --t2
+  const CHART_GRID  = 'rgba(255,255,255,0.07)' // --b1
+  const CHART_TOOLTIP_BG = '#112035' // --p7
 
   const chartOptions = {
     responsive: true,
@@ -584,23 +592,41 @@ export default function FinancePage() {
     plugins: {
       legend: {
         position: 'top' as const,
+        labels: {
+          color: CHART_TEXT,
+          font: { size: 12 },
+          boxWidth: 12,
+          padding: 16,
+        },
       },
       tooltip: {
         mode: 'index' as const,
         intersect: false,
+        backgroundColor: CHART_TOOLTIP_BG,
+        titleColor: '#EDF2F8',
+        bodyColor: CHART_TEXT,
+        borderColor: CHART_GRID,
+        borderWidth: 1,
+        padding: 10,
+        callbacks: {
+          label: (ctx: any) => ` ${ctx.dataset.label}: UGX ${ctx.parsed.y.toLocaleString()}`,
+        },
       },
     },
     scales: {
       y: {
         beginAtZero: true,
-        grid: {
-          color: 'rgba(0, 0, 0, 0.05)',
+        grid: { color: CHART_GRID },
+        ticks: {
+          color: CHART_TEXT,
+          callback: (v: any) => `UGX ${Number(v).toLocaleString()}`,
         },
+        border: { color: CHART_GRID },
       },
       x: {
-        grid: {
-          display: false,
-        },
+        grid: { display: false },
+        ticks: { color: CHART_TEXT },
+        border: { color: CHART_GRID },
       },
     },
   }
@@ -684,7 +710,7 @@ export default function FinancePage() {
                   setSessionAttendance(null)
                   setMatchAttendance(null)
                 }}
-                className="text-tm-text-3 hover:text-tm-text-1"
+                className="modal-close-btn"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -856,9 +882,16 @@ export default function FinancePage() {
 
         <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
           <h3 className="text-xl font-bold text-tm-text-1 mb-4">Monthly Financial Trend</h3>
-          <div className="h-64">
-            <Bar data={chartData} options={chartOptions} />
-          </div>
+          {transactions.length === 0 ? (
+            <div className="h-64 flex flex-col items-center justify-center gap-2">
+              <div className="text-tm-text-3 text-sm">No transactions recorded yet.</div>
+              <div className="text-tm-text-3 text-xs opacity-60">Add revenue or expenses above to see the trend chart.</div>
+            </div>
+          ) : (
+            <div className="h-64">
+              <Bar data={chartData} options={chartOptions} />
+            </div>
+          )}
         </div>
 
         <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">

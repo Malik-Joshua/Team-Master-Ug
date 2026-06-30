@@ -6,13 +6,16 @@ import { User, Mail, Phone, Shield, Camera, Save, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import RefreshButton from '@/components/RefreshButton'
 
+
 export default function ProfilePage() {
   const [user, setUser] = useState<any>(null)
   const [club, setClub] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(false)
   const [uploadingLogo, setUploadingLogo] = useState(false)
+  const [uploadingPicture, setUploadingPicture] = useState(false)
   const logoInputRef = useRef<HTMLInputElement>(null)
+  const pictureInputRef = useRef<HTMLInputElement>(null)
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -37,6 +40,28 @@ export default function ProfilePage() {
       if (logoInputRef.current) logoInputRef.current.value = ''
     }
   }
+  const handlePictureUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingPicture(true)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const res = await fetch('/api/profile/upload-picture', { method: 'POST', body: fd })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || 'Upload failed')
+      }
+      const { url } = await res.json()
+      setUser((prev: any) => ({ ...prev, profile_picture_url: url }))
+    } catch (err: any) {
+      alert(`Error: ${err.message}`)
+    } finally {
+      setUploadingPicture(false)
+      if (pictureInputRef.current) pictureInputRef.current.value = ''
+    }
+  }
+
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -253,7 +278,7 @@ export default function ProfilePage() {
 
           <div className="flex flex-col md:flex-row gap-6">
             <div className="flex-shrink-0">
-              <div className="relative w-32 h-32 rounded-full overflow-hidden bg-tm-surface-hover">
+              <div className="group relative w-32 h-32 rounded-full overflow-hidden bg-tm-surface-hover">
                 {user.profile_picture_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -266,16 +291,31 @@ export default function ProfilePage() {
                     <User className="w-16 h-16 text-tm-on-secondary" />
                   </div>
                 )}
-                {editing && (
-                  <label className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center cursor-pointer hover:bg-opacity-70 transition-opacity">
-                    <Camera className="w-6 h-6 text-white" />
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                    />
-                  </label>
-                )}
+                <button
+                  type="button"
+                  onClick={() => pictureInputRef.current?.click()}
+                  disabled={uploadingPicture}
+                  title="Upload profile picture"
+                  className="absolute inset-0 flex items-center justify-center bg-black/55 text-white opacity-0 transition-opacity group-hover:opacity-100 disabled:opacity-100 cursor-pointer"
+                >
+                  {uploadingPicture ? (
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                  ) : (
+                    <span className="flex flex-col items-center gap-0.5">
+                      <Camera className="h-6 w-6" />
+                      <span className="text-[9px] font-medium">
+                        {user.profile_picture_url ? 'Change' : 'Upload'}
+                      </span>
+                    </span>
+                  )}
+                </button>
+                <input
+                  ref={pictureInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handlePictureUpload}
+                />
               </div>
             </div>
 

@@ -76,3 +76,60 @@ export async function GET(request: NextRequest) {
   }
 }
 
+export async function DELETE(request: NextRequest) {
+  try {
+    const supabase = await createClient()
+    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !authUser) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+    }
+
+    const supabaseAdmin = createServiceClient(supabaseUrl, supabaseServiceKey, {
+      auth: { autoRefreshToken: false, persistSession: false }
+    })
+
+    // Parse optional body — if `id` is provided, delete that one; otherwise delete all
+    let notificationId: string | null = null
+    try {
+      const body = await request.json()
+      notificationId = body?.id || null
+    } catch {
+      // no body — clear all
+    }
+
+    if (notificationId) {
+      const { error } = await supabaseAdmin
+        .from('notifications')
+        .delete()
+        .eq('id', notificationId)
+        .eq('user_id', authUser.id) // ensure user can only delete their own
+
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 })
+      }
+      return NextResponse.json({ success: true, deleted: 'one' })
+    } else {
+      const { error } = await supabaseAdmin
+        .from('notifications')
+        .delete()
+        .eq('user_id', authUser.id)
+
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 })
+      }
+      return NextResponse.json({ success: true, deleted: 'all' })
+    }
+  } catch (error: any) {
+    console.error('Notifications DELETE error:', error)
+    return NextResponse.json({ error: error.message || 'An unexpected error occurred' }, { status: 500 })
+  }
+}
+

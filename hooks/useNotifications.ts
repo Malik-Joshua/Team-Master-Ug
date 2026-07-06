@@ -346,6 +346,43 @@ export function useNotifications() {
     }
   }, [])
 
+  const deleteNotification = async (notificationId: string) => {
+    // Optimistically update UI immediately
+    setNotifications((prev) => {
+      const removed = prev.find((n) => n.id === notificationId)
+      if (removed && !removed.read) setUnreadCount((c) => Math.max(0, c - 1))
+      return prev.filter((n) => n.id !== notificationId)
+    })
+    try {
+      const res = await fetch('/api/notifications', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: notificationId }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        console.error('Error deleting notification:', err)
+      }
+    } catch (error) {
+      console.error('Error deleting notification:', error)
+    }
+  }
+
+  const clearAllNotifications = async () => {
+    // Optimistically update UI immediately
+    setNotifications([])
+    setUnreadCount(0)
+    try {
+      const res = await fetch('/api/notifications', { method: 'DELETE' })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        console.error('Error clearing notifications:', err)
+      }
+    } catch (error) {
+      console.error('Error clearing notifications:', error)
+    }
+  }
+
   const markAsRead = async (notificationId: string) => {
     try {
       const supabase = createClient()
@@ -459,5 +496,7 @@ export function useNotifications() {
     markAllAsRead,
     markNotificationByReference,
     refreshNotifications,
+    deleteNotification,
+    clearAllNotifications,
   }
 }

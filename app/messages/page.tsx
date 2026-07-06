@@ -7,6 +7,26 @@ import { createClient } from '@/lib/supabase/client'
 import RefreshButton from '@/components/RefreshButton'
 import { getAllowedRecipients, canSendMessage, getRoleDisplayName, type UserRole } from '@/lib/communication-rules'
 
+async function createNotification(data: {
+  user_id: string
+  title: string
+  message: string
+  type?: string
+  action_url?: string
+  reference_id?: string
+  reference_type?: string
+}) {
+  try {
+    await fetch('/api/notifications/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ singleNotification: data }),
+    })
+  } catch (e) {
+    console.error('createNotification error:', e)
+  }
+}
+
 interface Message {
   id: string
   sender_id: string
@@ -747,11 +767,10 @@ export default function MessagesPage() {
               
               // Create notifications for recipients with message references
               try {
-                const { db } = await import('@/lib/db-helpers')
                 // Create individual notifications with message IDs
                 const notificationPromises = messageResults.map((result: any) => {
                   if (result.data && result.data.id) {
-                    return db.createNotification({
+                    return createNotification({
                       user_id: result.data.recipient_id,
                       title: 'New Message',
                       message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
@@ -878,8 +897,7 @@ export default function MessagesPage() {
 
           // Create notification for recipient
           try {
-            const { db } = await import('@/lib/db-helpers')
-            await db.createNotification({
+            await createNotification({
               user_id: composeData.recipientId,
               title: 'New Message',
               message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
@@ -969,11 +987,10 @@ export default function MessagesPage() {
               
               // Create notifications for recipients with message references
               try {
-                const { db } = await import('@/lib/db-helpers')
                 // Create individual notifications with message IDs
                 const notificationPromises = messageResults.map((result: any) => {
                   if (result.data && result.data.id) {
-                    return db.createNotification({
+                    return createNotification({
                       user_id: result.data.recipient_id,
                       title: 'New Message',
                       message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
@@ -1078,9 +1095,8 @@ export default function MessagesPage() {
 
           // Create notification for recipient with message reference
           if (recipientId && newMessage) {
-            const { db } = await import('@/lib/db-helpers')
             try {
-              await db.createNotification({
+              await createNotification({
                 user_id: recipientId,
                 title: 'New Message',
                 message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
@@ -1182,9 +1198,8 @@ export default function MessagesPage() {
 
         // Create notification for recipient
         if (composeData.recipientId && newMessage) {
-          const { db } = await import('@/lib/db-helpers')
           try {
-            await db.createNotification({
+            await createNotification({
               user_id: composeData.recipientId,
               title: 'New Message',
               message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
@@ -1306,8 +1321,7 @@ export default function MessagesPage() {
 
         // Create notification for recipient
         try {
-          const { db } = await import('@/lib/db-helpers')
-          await db.createNotification({
+          await createNotification({
             user_id: composeData.recipientId,
             title: 'New Message',
             message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
@@ -1413,8 +1427,7 @@ export default function MessagesPage() {
 
         // Create notification for recipient
         try {
-          const { db } = await import('@/lib/db-helpers')
-          await db.createNotification({
+          await createNotification({
             user_id: composeData.recipientId,
             title: 'New Message',
             message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
@@ -1524,10 +1537,9 @@ export default function MessagesPage() {
               
               // Create notifications for recipients
               try {
-                const { db } = await import('@/lib/db-helpers')
                 const notificationPromises = messageResults.map((result: any) => {
                   if (result.data && result.data.id) {
-                    return db.createNotification({
+                    return createNotification({
                       user_id: result.data.recipient_id,
                       title: 'New Message',
                       message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
@@ -1650,8 +1662,7 @@ export default function MessagesPage() {
 
           // Create notification for recipient
           try {
-            const { db } = await import('@/lib/db-helpers')
-            await db.createNotification({
+            await createNotification({
               user_id: recipientId,
               title: 'New Message',
               message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
@@ -1740,11 +1751,10 @@ export default function MessagesPage() {
                 
                 // Create notifications for recipients with message references
                 try {
-                  const { db } = await import('@/lib/db-helpers')
                   // Create individual notifications with message IDs
                   const notificationPromises = messageResults.map((result: any) => {
                     if (result.data && result.data.id) {
-                      return db.createNotification({
+                      return createNotification({
                         user_id: result.data.recipient_id,
                         title: 'New Message',
                         message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,
@@ -1856,8 +1866,7 @@ export default function MessagesPage() {
 
           // Create notification for recipient
           try {
-            const { db } = await import('@/lib/db-helpers')
-            const notificationResult = await db.createNotification({
+            const notificationResult = await createNotification({
               user_id: recipientId,
               title: 'New Message',
               message: `${user.name} sent you a message: ${composeData.subject || 'No subject'}`,

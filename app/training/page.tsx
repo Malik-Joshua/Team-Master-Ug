@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import Layout from '@/components/Layout'
 import { Calendar, Users, Save, Download, Plus, Clock, MapPin, FileText, X, Upload, Activity, ChevronDown, FileSpreadsheet, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -35,6 +35,70 @@ interface AttendanceRecord {
     X: number
     I: number
   }
+}
+
+const ATTENDANCE_OPTIONS = [
+  { value: '' as const,  label: '— Select status —',      color: 'bg-tm-surface text-tm-text-3', border: 'border-tm-border' },
+  { value: 'P' as const, label: 'P — Present',            color: 'bg-success text-white',        border: 'border-green-600' },
+  { value: 'A' as const, label: 'A — Justified Absence',  color: 'bg-info text-white',           border: 'border-blue-500' },
+  { value: 'X' as const, label: 'X — Unjustified Absence',color: 'bg-white text-gray-900',       border: 'border-gray-300' },
+  { value: 'I' as const, label: 'I — Injured',            color: 'bg-red-600 text-white',        border: 'border-red-700' },
+]
+
+function AttendanceDropdown({ value, onChange }: { value: AttendanceCode; onChange: (val: string) => void }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const selected = ATTENDANCE_OPTIONS.find((o) => o.value === value)
+
+  return (
+    <div ref={ref} className="relative w-full max-w-[210px] mx-auto">
+      {/* Trigger button — neutral bg, colored badge only */}
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="w-full px-3 py-2 rounded-lg font-semibold text-sm flex items-center justify-between gap-2 border border-tm-border bg-tm-surface text-tm-text-1 transition-all hover:bg-tm-surface-hover"
+      >
+        <span className="flex items-center gap-2 truncate">
+          {selected ? (
+            <span className={`w-6 h-6 rounded flex items-center justify-center font-bold text-xs flex-shrink-0 ${selected.color} border ${selected.border}`}>
+              {selected.value}
+            </span>
+          ) : null}
+          <span className="truncate">{selected ? selected.label.split('—')[1]?.trim() : '— Select status —'}</span>
+        </span>
+        <ChevronDown className={`w-4 h-4 flex-shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <div className="absolute z-50 top-full mt-1 left-0 right-0 rounded-lg border border-tm-border shadow-lg overflow-hidden bg-tm-surface">
+          {ATTENDANCE_OPTIONS.filter((o) => o.value !== '').map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => { onChange(opt.value); setOpen(false) }}
+              className={`w-full px-3 py-2 text-sm font-medium flex items-center gap-3 transition-colors bg-tm-surface hover:bg-tm-surface-hover text-tm-text-1 ${
+                value === opt.value ? 'bg-tm-surface-hover' : ''
+              }`}
+            >
+              <span className={`w-7 h-7 rounded flex items-center justify-center font-bold text-xs flex-shrink-0 ${opt.color} border ${opt.border}`}>
+                {opt.value}
+              </span>
+              <span>{opt.label.split('—')[1]?.trim()}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
 }
 
 export default function TrainingPage() {
@@ -1002,16 +1066,11 @@ export default function TrainingPage() {
 
   const getCodeColor = (code: AttendanceCode) => {
     switch (code) {
-      case 'P':
-        return 'bg-success text-white'
-      case 'A':
-        return 'bg-info text-white'
-      case 'X':
-        return 'bg-black text-white'
-      case 'I':
-        return 'bg-secondary text-tm-on-secondary'
-      default:
-        return 'bg-tm-surface-hover text-tm-text-3'
+      case 'P': return 'bg-success text-white'
+      case 'A': return 'bg-info text-white'
+      case 'X': return 'bg-white text-gray-900'
+      case 'I': return 'bg-red-600 text-white'
+      default:  return 'bg-tm-surface-hover text-tm-text-3'
     }
   }
 
@@ -1934,7 +1993,7 @@ export default function TrainingPage() {
               </div>
             </div>
             <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center text-white font-bold">
+              <div className="w-8 h-8 bg-white border border-gray-300 rounded-lg flex items-center justify-center text-gray-900 font-bold">
                 X
               </div>
               <div>
@@ -1943,7 +2002,7 @@ export default function TrainingPage() {
               </div>
             </div>
             <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-tm-secondary rounded-lg flex items-center justify-center text-tm-on-secondary font-bold">
+              <div className="w-8 h-8 bg-red-600 rounded-lg flex items-center justify-center text-white font-bold">
                 I
               </div>
               <div>
@@ -2053,22 +2112,15 @@ export default function TrainingPage() {
                             </td>
                             <td className="px-4 py-3 text-center">
                               {canEdit ? (
-                                <select
-                                  value={code}
-                                  onChange={(e) =>
-                                    handleAttendanceChange(player.id, selectedSessionId, e.target.value as AttendanceCode)
-                                  }
-                                  className={`w-full max-w-[120px] mx-auto px-3 py-2 rounded-lg font-bold text-sm text-center cursor-pointer transition-all hover:scale-105 ${getCodeColor(code)} border-2 border-transparent hover:border-primary`}
-                                >
-                                  <option value="">-</option>
-                                  <option value="P">P - Present</option>
-                                  <option value="A">A - Justified Absence</option>
-                                  <option value="X">X - Unjustified Absence</option>
-                                  <option value="I">I - Injured</option>
-                                </select>
+                                <AttendanceDropdown
+                                  value={code as AttendanceCode}
+                                  onChange={(val) => handleAttendanceChange(player.id, selectedSessionId, val as AttendanceCode)}
+                                />
                               ) : (
-                                <div className={`w-full max-w-[120px] mx-auto px-3 py-2 rounded-lg font-bold text-sm text-center flex items-center justify-center ${getCodeColor(code)}`}>
-                                  {code || '-'}
+                                <div className={`w-full max-w-[210px] mx-auto px-3 py-2 rounded-lg font-semibold text-sm text-center flex items-center justify-center border ${
+                                  code === 'X' ? 'border-gray-300' : 'border-transparent'
+                                } ${getCodeColor(code as AttendanceCode)}`}>
+                                  {code === 'P' ? 'P — Present' : code === 'A' ? 'A — Justified Absence' : code === 'X' ? 'X — Unjustified Absence' : code === 'I' ? 'I — Injured' : '—'}
                                 </div>
                               )}
                             </td>

@@ -6,16 +6,25 @@ import { useId } from 'react'
 
 const POSITIONS: Record<string, { number: number; label: string; shape: string }> = {
   prop:           { number: 1,  label: 'Prop',           shape: 'pillars' },
+  loosehead_prop: { number: 1,  label: 'Loosehead Prop', shape: 'pillars' },
+  tighthead_prop: { number: 3,  label: 'Tighthead Prop', shape: 'pillars' },
   hooker:         { number: 2,  label: 'Hooker',         shape: 'hook'    },
   lock:           { number: 4,  label: 'Lock',           shape: 'tower'   },
-  flanker:        { number: 6,  label: 'Flanker',        shape: 'slash'   },
-  number_8:       { number: 8,  label: 'Number 8',       shape: 'anchor'  },
-  scrum_half:     { number: 9,  label: 'Scrum Half',     shape: 'spiral'  },
-  fly_half:       { number: 10, label: 'Fly Half',       shape: 'kick'    },
-  inside_centre:  { number: 12, label: 'Inside Centre',  shape: 'arrow'   },
-  outside_centre: { number: 13, label: 'Outside Centre', shape: 'split'   },
-  winger:         { number: 11, label: 'Winger',         shape: 'bolt'    },
-  full_back:      { number: 15, label: 'Full Back',      shape: 'catch'   },
+  flanker:           { number: 6,  label: 'Flanker',           shape: 'slash'   },
+  blindside_flanker: { number: 6,  label: 'Blindside Flanker', shape: 'slash'   },
+  openside_flanker:  { number: 7,  label: 'Openside Flanker',  shape: 'slash'   },
+  number_8:          { number: 8,  label: 'Number 8',          shape: 'anchor'  },
+  '8th_man':         { number: 8,  label: 'Number Eight',      shape: 'anchor'  },
+  scrum_half:        { number: 9,  label: 'Scrum Half',        shape: 'spiral'  },
+  fly_half:          { number: 10, label: 'Fly Half',          shape: 'kick'    },
+  inside_centre:     { number: 12, label: 'Inside Centre',     shape: 'arrow'   },
+  inside_center:     { number: 12, label: 'Inside Center',     shape: 'arrow'   },
+  outside_centre:    { number: 13, label: 'Outside Centre',    shape: 'split'   },
+  outside_center:    { number: 13, label: 'Outside Center',    shape: 'split'   },
+  winger:            { number: 11, label: 'Winger',            shape: 'bolt'    },
+  left_wing:         { number: 11, label: 'Left Wing',         shape: 'bolt'    },
+  right_wing:        { number: 14, label: 'Right Wing',        shape: 'bolt'    },
+  full_back:         { number: 15, label: 'Full Back',         shape: 'catch'   },
 }
 
 // ─── Fly Half — detailed hero icon ───────────────────────────────────────────

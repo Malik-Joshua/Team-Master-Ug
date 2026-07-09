@@ -383,16 +383,22 @@ export default function PlayersPage() {
   })
 
   const positions = [
-    { value: 'prop', label: 'Prop', category: 'forwards' },
+    // Forwards (the pack)
+    { value: 'loosehead_prop', label: 'Loosehead Prop', category: 'forwards' },
     { value: 'hooker', label: 'Hooker', category: 'forwards' },
+    { value: 'tighthead_prop', label: 'Tighthead Prop', category: 'forwards' },
     { value: 'lock', label: 'Lock', category: 'forwards' },
-    { value: 'flanker', label: 'Flanker', category: 'forwards' },
-    { value: '8th_man', label: '8th Man', category: 'forwards' },
+    { value: 'blindside_flanker', label: 'Blindside Flanker', category: 'forwards' },
+    { value: 'openside_flanker', label: 'Openside Flanker', category: 'forwards' },
+    { value: '8th_man', label: 'Number Eight', category: 'forwards' },
+    // Backs
     { value: 'scrum_half', label: 'Scrum Half', category: 'backs' },
     { value: 'fly_half', label: 'Fly Half', category: 'backs' },
     { value: 'inside_center', label: 'Inside Center', category: 'backs' },
     { value: 'outside_center', label: 'Outside Center', category: 'backs' },
-    { value: 'winger', label: 'Winger', category: 'backs' },
+    { value: 'left_wing', label: 'Left Wing', category: 'backs' },
+    { value: 'right_wing', label: 'Right Wing', category: 'backs' },
+    { value: 'full_back', label: 'Full-Back', category: 'backs' },
   ]
 
   return (

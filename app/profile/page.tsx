@@ -5,11 +5,13 @@ import Layout from '@/components/Layout'
 import { User, Mail, Phone, Shield, Camera, Save, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import RefreshButton from '@/components/RefreshButton'
+import RoleCard from '@/components/RoleCard'
 
 
 export default function ProfilePage() {
   const [user, setUser] = useState<any>(null)
   const [club, setClub] = useState<any>(null)
+  const [position, setPosition] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(false)
   const [uploadingLogo, setUploadingLogo] = useState(false)
@@ -91,6 +93,16 @@ export default function ProfilePage() {
             emergency_phone: profile.emergency_phone || '',
             birth_date: profile.birth_date ? new Date(profile.birth_date).toISOString().split('T')[0] : '',
           })
+
+          // Players have a position (in the players table) used to pick their role card
+          if (profile.role === 'player') {
+            const { data: playerRow } = await supabase
+              .from('players')
+              .select('position')
+              .eq('user_id', authUser.id)
+              .maybeSingle()
+            setPosition(playerRow?.position || null)
+          }
         }
 
         // Load club branding (latest-updated row = source of truth)
@@ -173,6 +185,15 @@ export default function ProfilePage() {
           emergency_phone: profile.emergency_phone || '',
           birth_date: profile.birth_date ? new Date(profile.birth_date).toISOString().split('T')[0] : '',
         })
+
+        if (profile.role === 'player') {
+          const { data: playerRow } = await supabase
+            .from('players')
+            .select('position')
+            .eq('user_id', authUser.id)
+            .maybeSingle()
+          setPosition(playerRow?.position || null)
+        }
       }
 
       const { data: clubData } = await supabase
@@ -190,6 +211,9 @@ export default function ProfilePage() {
   return (
     <Layout pageTitle="My Profile">
       <div className="max-w-4xl mx-auto space-y-6">
+        {/* Role card — a morale boost reminding players/coaches why their role matters */}
+        <RoleCard role={user.role} position={position} />
+
         {/* Club membership card — shows the full club crest so members feel part of the club */}
         <div className="overflow-hidden rounded-card border border-tm-border bg-tm-surface shadow-soft">
           <div className="h-1.5 w-full bg-tm-secondary" />

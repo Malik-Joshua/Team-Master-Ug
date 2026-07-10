@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Layout from '@/components/Layout'
 import { Users, Check, X, Save, Calendar, MapPin, Trophy, Plus, Eye, Trash2 } from 'lucide-react'
@@ -8,6 +8,37 @@ import RefreshButton from '@/components/RefreshButton'
 import { createClient } from '@/lib/supabase/client'
 import { db } from '@/lib/db-helpers'
 import { isActivityPast } from '@/lib/utils'
+
+// Rugby position metadata used to group the squad roster by playing position.
+// Forwards (1-8) are listed before backs (9-15); legacy values are included so
+// older player rows still group correctly.
+const POSITION_META: Record<string, { label: string; num: string; category: 'forwards' | 'backs' }> = {
+  loosehead_prop:    { label: 'Loosehead Prop',    num: '1',   category: 'forwards' },
+  prop:              { label: 'Prop',              num: '1',   category: 'forwards' },
+  hooker:            { label: 'Hooker',            num: '2',   category: 'forwards' },
+  tighthead_prop:    { label: 'Tighthead Prop',    num: '3',   category: 'forwards' },
+  lock:              { label: 'Lock',              num: '4/5', category: 'forwards' },
+  blindside_flanker: { label: 'Blindside Flanker', num: '6',   category: 'forwards' },
+  openside_flanker:  { label: 'Openside Flanker',  num: '7',   category: 'forwards' },
+  flanker:           { label: 'Flanker',           num: '6/7', category: 'forwards' },
+  '8th_man':         { label: 'Number Eight',      num: '8',   category: 'forwards' },
+  scrum_half:        { label: 'Scrum Half',        num: '9',   category: 'backs'    },
+  fly_half:          { label: 'Fly Half',          num: '10',  category: 'backs'    },
+  left_wing:         { label: 'Left Wing',         num: '11',  category: 'backs'    },
+  winger:            { label: 'Winger',            num: '11/14', category: 'backs'  },
+  inside_center:     { label: 'Inside Center',     num: '12',  category: 'backs'    },
+  outside_center:    { label: 'Outside Center',    num: '13',  category: 'backs'    },
+  right_wing:        { label: 'Right Wing',        num: '14',  category: 'backs'    },
+  full_back:         { label: 'Full-Back',         num: '15',  category: 'backs'    },
+}
+
+// Canonical display order (forwards 1-8, then backs 9-15).
+const POSITION_ORDER = [
+  'loosehead_prop', 'prop', 'hooker', 'tighthead_prop', 'lock',
+  'blindside_flanker', 'openside_flanker', 'flanker', '8th_man',
+  'scrum_half', 'fly_half', 'left_wing', 'winger',
+  'inside_center', 'outside_center', 'right_wing', 'full_back',
+]
 
 interface Player {
   user_id: string
@@ -106,6 +137,20 @@ export default function FixturesPage() {
   const [selectedMatchForStats, setSelectedMatchForStats] = useState<string>('')
   const [players, setPlayers] = useState<any[]>([])
   const [injuredPlayerIds, setInjuredPlayerIds] = useState<string[]>([])
+  // Per-player selection stats (attendance %, caps) keyed by user_id. Empty until
+  // a club has generated training/match data — the card shows "no data yet" then.
+  const [selectionStats, setSelectionStats] = useState<Record<string, { attendanceRate: number | null; sessions: number; present: number; caps: number }>>({})
+  // Past fixtures that have a saved squad, so the coach can copy one as a starting point.
+  const [previousSquads, setPreviousSquads] = useState<{ match_id: string; match_date: string; opponent: string; playerCount: number }[]>([])
+  const [applyingSquad, setApplyingSquad] = useState(false)
+  // After a squad is saved the roster collapses into a saved-team view; the coach
+  // can then view it, edit it, or delete it and start over.
+  const [editingRoster, setEditingRoster] = useState(true)
+  const [showSavedTeam, setShowSavedTeam] = useState(false)
+  const [deletingSquad, setDeletingSquad] = useState(false)
+  // Tracks the match whose collapsed/expanded view mode has been initialised, so
+  // background reloads don't reset the coach's Edit/View choice.
+  const viewModeMatch = useRef<string | null>(null)
   const [teamSelectionsForStats, setTeamSelectionsForStats] = useState<any[]>([])
   const [matchStaff, setMatchStaff] = useState<{
     coach: { id: string; name: string } | null
@@ -365,6 +410,39 @@ export default function FixturesPage() {
     loadData()
   }, [loadData])
 
+  // Load per-player selection stats (attendance %, caps) once. Fails soft:
+  // on any error the map stays empty and cards show "no data yet".
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch('/api/players/selection-stats', { cache: 'no-store' })
+        if (!res.ok) return
+        const data = await res.json()
+        if (!cancelled && data?.stats) setSelectionStats(data.stats)
+      } catch {
+        /* keep empty stats */
+      }
+    })()
+    return () => { cancelled = true }
+  }, [])
+
+  // Load the list of previous squads so the coach can copy one.
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch('/api/fixtures/previous-squads', { cache: 'no-store' })
+        if (!res.ok) return
+        const data = await res.json()
+        if (!cancelled && Array.isArray(data?.squads)) setPreviousSquads(data.squads)
+      } catch {
+        /* keep empty */
+      }
+    })()
+    return () => { cancelled = true }
+  }, [])
+
   // Load staff members when fixture form is opened
   useEffect(() => {
     const loadStaffMembers = async () => {
@@ -416,79 +494,48 @@ export default function FixturesPage() {
   }
 
   useEffect(() => {
-    const loadExistingSelection = async () => {
-      if (!selectedMatchId) return
+    if (!selectedMatchId) return
+    const matchId = selectedMatchId
 
+    const apply = (selections: any[]) => {
+      setExistingSelection(selections)
+      const map = new Map<string, TeamSelection>()
+      selections.forEach((sel: any) => {
+        map.set(sel.player_id, {
+          player_id: sel.player_id,
+          position: sel.position,
+          jersey_number: sel.jersey_number,
+          is_starting: sel.is_starting,
+          is_substitute: sel.is_substitute,
+          is_captain: sel.is_captain || false,
+          is_assistant_captain: sel.is_assistant_captain || false,
+          notes: sel.notes,
+        })
+      })
+      setTeamSelections(map)
+      // Initialise the view mode once per match, so background reloads don't
+      // fight the coach's Edit/View choice: a saved squad opens collapsed, an
+      // empty one opens the roster to build from.
+      if (viewModeMatch.current !== matchId) {
+        viewModeMatch.current = matchId
+        setEditingRoster(map.size === 0)
+        setShowSavedTeam(false)
+      }
+    }
+
+    const loadExistingSelection = async () => {
       try {
-        // Use API route to fetch team selection (bypasses RLS)
-        const response = await fetch(`/api/fixtures/team-selection?matchId=${selectedMatchId}`, { cache: 'no-store' })
+        const response = await fetch(`/api/fixtures/team-selection?matchId=${matchId}`, { cache: 'no-store' })
         if (response.ok) {
           const data = await response.json()
-          const selections = data.selections || []
-          setExistingSelection(selections)
-          
-          // Populate teamSelections map
-          const selectionsMap = new Map<string, TeamSelection>()
-          selections.forEach((sel: any) => {
-            selectionsMap.set(sel.player_id, {
-              player_id: sel.player_id,
-              position: sel.position,
-              jersey_number: sel.jersey_number,
-              is_starting: sel.is_starting,
-              is_substitute: sel.is_substitute,
-              is_captain: sel.is_captain || false,
-              is_assistant_captain: sel.is_assistant_captain || false,
-              notes: sel.notes,
-            })
-          })
-          setTeamSelections(selectionsMap)
-          console.log('Loaded team selection from API:', selections.length, 'players')
+          apply(data.selections || [])
         } else {
-          console.error('Error loading team selection from API:', response.statusText)
-          // Fallback to direct query
-          try {
-            const selections = await db.getFixtureTeamSelection(selectedMatchId)
-            setExistingSelection(selections)
-            
-            const selectionsMap = new Map<string, TeamSelection>()
-            selections.forEach((sel: any) => {
-              selectionsMap.set(sel.player_id, {
-                player_id: sel.player_id,
-                position: sel.position,
-                jersey_number: sel.jersey_number,
-                is_starting: sel.is_starting,
-                is_substitute: sel.is_substitute,
-                is_captain: sel.is_captain || false,
-                is_assistant_captain: sel.is_assistant_captain || false,
-                notes: sel.notes,
-              })
-            })
-            setTeamSelections(selectionsMap)
-          } catch (fallbackError) {
-            console.error('Error in fallback team selection query:', fallbackError)
-          }
+          apply(await db.getFixtureTeamSelection(matchId))
         }
       } catch (error) {
         console.error('Error loading existing selection:', error)
-        // Fallback to direct query
         try {
-          const selections = await db.getFixtureTeamSelection(selectedMatchId)
-          setExistingSelection(selections)
-          
-          const selectionsMap = new Map<string, TeamSelection>()
-          selections.forEach((sel: any) => {
-            selectionsMap.set(sel.player_id, {
-              player_id: sel.player_id,
-              position: sel.position,
-              jersey_number: sel.jersey_number,
-              is_starting: sel.is_starting,
-              is_substitute: sel.is_substitute,
-              is_captain: sel.is_captain || false,
-              is_assistant_captain: sel.is_assistant_captain || false,
-              notes: sel.notes,
-            })
-          })
-          setTeamSelections(selectionsMap)
+          apply(await db.getFixtureTeamSelection(matchId))
         } catch (fallbackError) {
           console.error('Error in fallback team selection query:', fallbackError)
         }
@@ -498,9 +545,78 @@ export default function FixturesPage() {
     loadExistingSelection()
   }, [selectedMatchId])
 
+  // Copy a previous fixture's squad into the current (unsaved) selection so the
+  // coach can start from it and tweak. Players no longer available are skipped.
+  const applyPreviousSquad = async (sourceMatchId: string) => {
+    if (!sourceMatchId) return
+    if (teamSelections.size > 0 && !confirm('Replace your current selection with this previous squad? You can still make changes before saving.')) {
+      return
+    }
+    setApplyingSquad(true)
+    try {
+      const res = await fetch(`/api/fixtures/team-selection?matchId=${sourceMatchId}`, { cache: 'no-store' })
+      if (!res.ok) throw new Error('Failed to load previous squad')
+      const data = await res.json()
+      const selections = data.selections || []
+      const availableIds = new Set(availablePlayers.map((p) => p.user_id))
+      const map = new Map<string, TeamSelection>()
+      let skipped = 0
+      selections.forEach((sel: any) => {
+        if (!availableIds.has(sel.player_id)) { skipped += 1; return }
+        map.set(sel.player_id, {
+          player_id: sel.player_id,
+          position: sel.position,
+          jersey_number: sel.jersey_number,
+          is_starting: sel.is_starting,
+          is_substitute: sel.is_substitute,
+          is_captain: sel.is_captain || false,
+          is_assistant_captain: sel.is_assistant_captain || false,
+          notes: sel.notes,
+        })
+      })
+      setTeamSelections(map)
+      setEditingRoster(true)
+      setShowSavedTeam(false)
+      const src = previousSquads.find((s) => s.match_id === sourceMatchId)
+      alert(
+        `Loaded ${map.size} player${map.size === 1 ? '' : 's'} from ${src ? 'vs ' + src.opponent : 'previous squad'}` +
+        (skipped ? ` (${skipped} no longer available and were skipped)` : '') +
+        `. Adjust as needed, then Save.`
+      )
+    } catch (e: any) {
+      alert(e.message || 'Could not load previous squad')
+    } finally {
+      setApplyingSquad(false)
+    }
+  }
+
+  // Delete the whole saved squad for the current match and reopen an empty roster.
+  const handleDeleteSquad = async () => {
+    if (!selectedMatchId) return
+    if (!confirm('Delete the entire selected squad for this fixture and start over? This cannot be undone.')) {
+      return
+    }
+    setDeletingSquad(true)
+    try {
+      const res = await fetch(`/api/fixtures/team-selection?matchId=${selectedMatchId}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || 'Failed to delete squad')
+      }
+      setTeamSelections(new Map())
+      setExistingSelection([])
+      setShowSavedTeam(false)
+      setEditingRoster(true)
+    } catch (e: any) {
+      alert(e.message || 'Could not delete the squad')
+    } finally {
+      setDeletingSquad(false)
+    }
+  }
+
   const togglePlayerSelection = (playerId: string, player: Player) => {
     const newSelections = new Map(teamSelections)
-    
+
     if (newSelections.has(playerId)) {
       newSelections.delete(playerId)
     } else {
@@ -570,6 +686,9 @@ export default function FixturesPage() {
       console.log('Team selection saved successfully:', result)
       
       alert('Team selection saved successfully!')
+      // Collapse the roster into the saved-team view, with the team shown.
+      setEditingRoster(false)
+      setShowSavedTeam(true)
       // Reload existing selection using API route
       try {
         const response = await fetch(`/api/fixtures/team-selection?matchId=${selectedMatchId}`, { cache: 'no-store' })
@@ -1139,6 +1258,37 @@ export default function FixturesPage() {
   const selectedPlayers = Array.from(teamSelections.values())
   const startingPlayers = selectedPlayers.filter(p => p.is_starting && !p.is_substitute)
   const substitutes = selectedPlayers.filter(p => p.is_substitute)
+
+  // Group the available-players roster by playing position (forwards 1-8 first,
+  // then backs 9-15) as a flat list of header + player items, so the coach can
+  // see at a glance how many of each position (9s, 1s, 10s, 15s...) they have.
+  type RosterItem =
+    | { type: 'header'; key: string; label: string; num: string; count: number; category: 'forwards' | 'backs'; firstOfCategory: boolean }
+    | { type: 'player'; player: Player }
+  const orderedRosterItems: RosterItem[] = (() => {
+    const items: RosterItem[] = []
+    const known = new Set(POSITION_ORDER)
+    let lastCategory: string | null = null
+    for (const slug of POSITION_ORDER) {
+      const group = availablePlayers.filter((p) => (p.players?.position || '') === slug)
+      if (!group.length) continue
+      const meta = POSITION_META[slug]
+      items.push({
+        type: 'header', key: slug, label: meta.label, num: meta.num,
+        count: group.length, category: meta.category,
+        firstOfCategory: meta.category !== lastCategory,
+      })
+      lastCategory = meta.category
+      group.forEach((player) => items.push({ type: 'player', player }))
+    }
+    const unassigned = availablePlayers.filter((p) => !known.has(p.players?.position || ''))
+    if (unassigned.length) {
+      items.push({ type: 'header', key: '__unassigned', label: 'Unassigned', num: '—', count: unassigned.length, category: 'backs', firstOfCategory: false })
+      unassigned.forEach((player) => items.push({ type: 'player', player }))
+    }
+    return items
+  })()
+
   const statsEligibleMatches = matches.filter((match) => isWithinStatsWindow(match.match_date))
   const coachUpcomingMatches = matches.filter((match) => !isActivityPast(match.match_date, null) && match.status !== 'played')
   const selectedTeamIds = new Set(teamSelectionsForStats.map((selection: any) => selection.player_id))
@@ -2549,14 +2699,16 @@ export default function FixturesPage() {
               <Trophy className="w-6 h-6 text-primary" />
               Select Team for Fixture
             </h2>
-            <button
-              onClick={handleSave}
-              disabled={saving || teamSelections.size === 0}
-              className="bg-tm-secondary text-tm-on-secondary px-6 py-2 rounded-[6px] font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              <Save className="w-4 h-4" />
-              {saving ? 'Saving...' : 'Save Team Selection'}
-            </button>
+            {selectedMatchId && editingRoster && (
+              <button
+                onClick={handleSave}
+                disabled={saving || teamSelections.size === 0}
+                className="bg-tm-secondary text-tm-on-secondary px-6 py-2 rounded-[6px] font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                <Save className="w-4 h-4" />
+                {saving ? 'Saving...' : 'Save Team Selection'}
+              </button>
+            )}
           </div>
 
           {/* Match Selector */}
@@ -2567,8 +2719,12 @@ export default function FixturesPage() {
             <select
               value={selectedMatchId}
               onChange={(e) => {
-                setSelectedMatchId(e.target.value)
+                const v = e.target.value
+                if (v === selectedMatchId) return // same match — don't clear the loaded squad
+                viewModeMatch.current = null // let the new match initialise its view mode
+                setSelectedMatchId(v)
                 setTeamSelections(new Map())
+                setShowSavedTeam(false)
               }}
               className="w-full md:w-auto px-4 py-2 border border-tm-border rounded-[6px] focus:outline-none focus:ring-2 focus:ring-primary"
             >
@@ -2638,20 +2794,159 @@ export default function FixturesPage() {
               </div>
             </div>
 
-            {/* Players List */}
+            {/* Saved-team view — after saving, the roster collapses to this.
+                The coach can view the team, edit it, or delete it and start over. */}
+            {!editingRoster && teamSelections.size > 0 && (
+              <div className="bg-tm-surface rounded-card border border-tm-border shadow-soft overflow-hidden">
+                <div className="p-6 border-b border-tm-border flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-success/15 text-success">
+                      <Check className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-tm-text-1">Team selection saved</h3>
+                      <p className="text-xs text-tm-text-3">
+                        {startingPlayers.length} starting · {substitutes.length} substitutes · {teamSelections.size} total
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => setShowSavedTeam((v) => !v)}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-tm-border bg-tm-surface-hover px-3 py-2 text-sm font-medium text-tm-text-1 transition-colors hover:bg-tm-surface"
+                    >
+                      <Eye className="h-4 w-4" /> {showSavedTeam ? 'Hide team' : 'View team'}
+                    </button>
+                    <button
+                      onClick={() => { setEditingRoster(true); setShowSavedTeam(false) }}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-tm-border bg-tm-surface-hover px-3 py-2 text-sm font-medium text-tm-text-1 transition-colors hover:bg-tm-surface"
+                    >
+                      Edit selection
+                    </button>
+                    <button
+                      onClick={handleDeleteSquad}
+                      disabled={deletingSquad}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm font-medium text-red-500 transition-colors hover:bg-red-500/20 disabled:opacity-50"
+                    >
+                      <Trash2 className="h-4 w-4" /> {deletingSquad ? 'Deleting…' : 'Delete & start over'}
+                    </button>
+                  </div>
+                </div>
+
+                {showSavedTeam && (
+                  <div className="p-6 space-y-6">
+                    <div>
+                      <h4 className="mb-2 text-sm font-semibold uppercase tracking-wide text-tm-text-3">
+                        Starting ({existingSelection.filter((s: any) => s.is_starting && !s.is_substitute).length})
+                      </h4>
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                        {existingSelection
+                          .filter((s: any) => s.is_starting && !s.is_substitute)
+                          .map((s: any) => (
+                            <div key={s.player_id} className="flex items-center justify-between rounded-lg border border-tm-border px-3 py-2">
+                              <div className="min-w-0">
+                                <p className="truncate text-sm font-medium text-tm-text-1">{s.player_name || s.player?.name || 'Player'}</p>
+                                <p className="truncate text-xs text-tm-text-3 capitalize">
+                                  {(s.position || '').replace(/_/g, ' ')}
+                                  {s.is_captain ? ' · Captain' : s.is_assistant_captain ? ' · Asst. Captain' : ''}
+                                </p>
+                              </div>
+                              {s.jersey_number && <span className="ml-2 flex-shrink-0 text-xs font-bold text-tm-secondary">#{s.jersey_number}</span>}
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                    {existingSelection.filter((s: any) => s.is_substitute).length > 0 && (
+                      <div>
+                        <h4 className="mb-2 text-sm font-semibold uppercase tracking-wide text-tm-text-3">
+                          Substitutes ({existingSelection.filter((s: any) => s.is_substitute).length})
+                        </h4>
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                          {existingSelection
+                            .filter((s: any) => s.is_substitute)
+                            .map((s: any) => (
+                              <div key={s.player_id} className="flex items-center justify-between rounded-lg border border-tm-border px-3 py-2">
+                                <div className="min-w-0">
+                                  <p className="truncate text-sm font-medium text-tm-text-1">{s.player_name || s.player?.name || 'Player'}</p>
+                                  <p className="truncate text-xs text-tm-text-3 capitalize">{(s.position || '').replace(/_/g, ' ')}</p>
+                                </div>
+                                {s.jersey_number && <span className="ml-2 flex-shrink-0 text-xs font-bold text-tm-secondary">#{s.jersey_number}</span>}
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Players List — the editable roster (hidden once a squad is saved) */}
+            {editingRoster && (
             <div className="bg-tm-surface rounded-card border border-tm-border shadow-soft overflow-hidden">
               <div className="p-6 border-b border-tm-border">
                 <h3 className="text-xl font-bold text-tm-text-1 flex items-center gap-2">
                   <Users className="w-5 h-5" />
                   Available Players
                 </h3>
+                <p className="mt-1 text-xs text-tm-text-3">
+                  Grouped by position. Selection stats (attendance &amp; caps) fill in
+                  as your club logs training sessions and matches.
+                </p>
+
+                {/* Quick-start: copy a previous squad, then edit the roster below */}
+                {previousSquads.filter((s) => s.match_id !== selectedMatchId).length > 0 && (
+                  <div className="mt-4 flex flex-col gap-2 rounded-lg border border-tm-border bg-tm-surface-hover p-3 sm:flex-row sm:items-center">
+                    <label className="text-sm font-medium text-tm-text-1 whitespace-nowrap">
+                      Start from a previous squad
+                    </label>
+                    <select
+                      value=""
+                      disabled={applyingSquad}
+                      onChange={(e) => {
+                        const v = e.target.value
+                        e.target.value = ''
+                        if (v) applyPreviousSquad(v)
+                      }}
+                      className="w-full rounded-md border border-tm-border bg-tm-surface px-3 py-2 text-sm text-tm-text-1 focus:outline-none focus:ring-2 focus:ring-primary sm:ml-auto sm:w-auto sm:min-w-[260px]"
+                    >
+                      <option value="">{applyingSquad ? 'Loading…' : '— Copy a past selection… —'}</option>
+                      {previousSquads
+                        .filter((s) => s.match_id !== selectedMatchId)
+                        .map((s) => (
+                          <option key={s.match_id} value={s.match_id}>
+                            {new Date(s.match_date).toLocaleDateString('en-GB')} · vs {s.opponent} ({s.playerCount})
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                )}
               </div>
               <div className="p-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {availablePlayers.map((player) => {
+                  {orderedRosterItems.map((item) => {
+                    if (item.type === 'header') {
+                      return (
+                        <div key={item.key} className="col-span-full">
+                          {item.firstOfCategory && (
+                            <div className="mt-4 first:mt-0 mb-2 pb-1 border-b border-tm-border text-sm font-bold uppercase tracking-wider text-tm-secondary">
+                              {item.category === 'forwards' ? 'Forwards · 1–8' : 'Backs · 9–15'}
+                            </div>
+                          )}
+                          <div className="flex items-center gap-2 py-1">
+                            <span className="inline-flex items-center justify-center min-w-[2.25rem] h-7 px-2 rounded-md bg-tm-secondary/15 text-tm-secondary text-xs font-bold border border-tm-secondary/30">
+                              {item.num}
+                            </span>
+                            <h4 className="font-semibold text-tm-text-1">{item.label}</h4>
+                            <span className="text-xs text-tm-text-3">· {item.count} available</span>
+                          </div>
+                        </div>
+                      )
+                    }
+                    const player = item.player
                     const isSelected = teamSelections.has(player.user_id)
                     const selection = teamSelections.get(player.user_id)
-                    
+
                     return (
                       <div
                         key={player.user_id}
@@ -2688,6 +2983,35 @@ export default function FixturesPage() {
                             )}
                           </button>
                         </div>
+
+                        {/* Selection stats — real data where available, graceful
+                            "—" until the club logs training/matches. */}
+                        {(() => {
+                          const st = selectionStats[player.user_id]
+                          const injured = injuredPlayerIds.includes(player.user_id)
+                          return (
+                            <div className="mb-3 grid grid-cols-3 gap-1.5 text-center">
+                              <div className="rounded-md bg-tm-surface-hover py-1.5">
+                                <p className="text-[10px] uppercase tracking-wide text-tm-text-3">Status</p>
+                                <p className={`text-xs font-bold ${injured ? 'text-red-500' : 'text-success'}`}>
+                                  {injured ? 'Injured' : 'Fit'}
+                                </p>
+                              </div>
+                              <div className="rounded-md bg-tm-surface-hover py-1.5" title="Training attendance rate">
+                                <p className="text-[10px] uppercase tracking-wide text-tm-text-3">Attend.</p>
+                                <p className="text-xs font-bold text-tm-text-1">
+                                  {st?.attendanceRate != null ? `${st.attendanceRate}%` : '—'}
+                                </p>
+                              </div>
+                              <div className="rounded-md bg-tm-surface-hover py-1.5" title="Matches with recorded stats">
+                                <p className="text-[10px] uppercase tracking-wide text-tm-text-3">Caps</p>
+                                <p className="text-xs font-bold text-tm-text-1">
+                                  {st && st.caps > 0 ? st.caps : '—'}
+                                </p>
+                              </div>
+                            </div>
+                          )
+                        })()}
 
                         {isSelected && (
                           <div className="space-y-2 mt-3 pt-3 border-t border-tm-border">
@@ -2796,6 +3120,7 @@ export default function FixturesPage() {
                 </div>
               </div>
             </div>
+            )}
           </>
         )}
 

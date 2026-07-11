@@ -255,17 +255,19 @@ export async function GET(request: NextRequest) {
       const playerIds = selections.map((s: any) => s.player_id)
       const { data: playersData, error: playersError } = await supabaseAdmin
         .from('user_profiles')
-        .select('user_id, name')
+        .select('user_id, name, profile_picture_url')
         .in('user_id', playerIds)
 
       if (playersError) {
         console.error('Error fetching player names:', playersError)
       } else {
-        // Map player names to selections
-        const playersMap = new Map((playersData || []).map((p: any) => [p.user_id, p.name]))
+        // Map player names + photos to selections
+        const playersMap = new Map((playersData || []).map((p: any) => [p.user_id, p]))
         selections.forEach((selection: any) => {
-          selection.player_name = playersMap.get(selection.player_id) || 'Unknown'
-          selection.player = { name: playersMap.get(selection.player_id) || 'Unknown' }
+          const prof: any = playersMap.get(selection.player_id)
+          selection.player_name = prof?.name || 'Unknown'
+          selection.profile_picture_url = prof?.profile_picture_url || null
+          selection.player = { name: prof?.name || 'Unknown' }
         })
       }
     }

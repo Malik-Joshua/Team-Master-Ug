@@ -8,6 +8,7 @@ import RefreshButton from '@/components/RefreshButton'
 import { createClient } from '@/lib/supabase/client'
 import { db } from '@/lib/db-helpers'
 import { isActivityPast } from '@/lib/utils'
+import TeamPitchView from '@/components/TeamPitchView'
 
 // Rugby position metadata used to group the squad roster by playing position.
 // Forwards (1-8) are listed before backs (9-15); legacy values are included so
@@ -2834,48 +2835,12 @@ export default function FixturesPage() {
                 </div>
 
                 {showSavedTeam && (
-                  <div className="p-6 space-y-6">
-                    <div>
-                      <h4 className="mb-2 text-sm font-semibold uppercase tracking-wide text-tm-text-3">
-                        Starting ({existingSelection.filter((s: any) => s.is_starting && !s.is_substitute).length})
-                      </h4>
-                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                        {existingSelection
-                          .filter((s: any) => s.is_starting && !s.is_substitute)
-                          .map((s: any) => (
-                            <div key={s.player_id} className="flex items-center justify-between rounded-lg border border-tm-border px-3 py-2">
-                              <div className="min-w-0">
-                                <p className="truncate text-sm font-medium text-tm-text-1">{s.player_name || s.player?.name || 'Player'}</p>
-                                <p className="truncate text-xs text-tm-text-3 capitalize">
-                                  {(s.position || '').replace(/_/g, ' ')}
-                                  {s.is_captain ? ' · Captain' : s.is_assistant_captain ? ' · Asst. Captain' : ''}
-                                </p>
-                              </div>
-                              {s.jersey_number && <span className="ml-2 flex-shrink-0 text-xs font-bold text-tm-secondary">#{s.jersey_number}</span>}
-                            </div>
-                          ))}
-                      </div>
-                    </div>
-                    {existingSelection.filter((s: any) => s.is_substitute).length > 0 && (
-                      <div>
-                        <h4 className="mb-2 text-sm font-semibold uppercase tracking-wide text-tm-text-3">
-                          Substitutes ({existingSelection.filter((s: any) => s.is_substitute).length})
-                        </h4>
-                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                          {existingSelection
-                            .filter((s: any) => s.is_substitute)
-                            .map((s: any) => (
-                              <div key={s.player_id} className="flex items-center justify-between rounded-lg border border-tm-border px-3 py-2">
-                                <div className="min-w-0">
-                                  <p className="truncate text-sm font-medium text-tm-text-1">{s.player_name || s.player?.name || 'Player'}</p>
-                                  <p className="truncate text-xs text-tm-text-3 capitalize">{(s.position || '').replace(/_/g, ' ')}</p>
-                                </div>
-                                {s.jersey_number && <span className="ml-2 flex-shrink-0 text-xs font-bold text-tm-secondary">#{s.jersey_number}</span>}
-                              </div>
-                            ))}
-                        </div>
-                      </div>
-                    )}
+                  <div className="p-6">
+                    <TeamPitchView
+                      starting={existingSelection.filter((s: any) => s.is_starting && !s.is_substitute)}
+                      substitutes={existingSelection.filter((s: any) => s.is_substitute)}
+                      stats={selectionStats}
+                    />
                   </div>
                 )}
               </div>

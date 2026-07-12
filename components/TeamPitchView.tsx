@@ -60,6 +60,20 @@ const SLUG_TO_SLOTS: Record<string, number[]> = {
 const FORWARD_SLUGS = new Set(['loosehead_prop', 'prop', 'hooker', 'tighthead_prop', 'lock', 'blindside_flanker', 'openside_flanker', 'flanker', '8th_man'])
 
 const slugCategory = (slug?: string): Category => (FORWARD_SLUGS.has(slug || '') ? 'forwards' : 'backs')
+
+// Sevens (7-a-side): a single compact pitch, 3 forwards + 4 backs, no
+// forwards/backs toggle needed since it all fits on one screen.
+const SEVENS_SLOTS: Record<number, { code: string; label: string; x: number; y: number }> = {
+  1: { code: 'P',  label: 'Prop',        x: 25, y: 14 },
+  2: { code: 'H',  label: 'Hooker',      x: 50, y: 8 },
+  3: { code: 'P',  label: 'Prop',        x: 75, y: 14 },
+  4: { code: 'SH', label: 'Scrum-Half',  x: 30, y: 42 },
+  5: { code: 'FH', label: 'Fly-Half',    x: 70, y: 42 },
+  6: { code: 'C',  label: 'Centre',      x: 25, y: 70 },
+  7: { code: 'W',  label: 'Wing',        x: 75, y: 70 },
+}
+const SEVENS_FORWARD_SLOTS = [1, 2, 3]
+const SEVENS_BACK_SLOTS = [4, 5, 6, 7]
 const codeForSlug = (slug?: string) => {
   const num = (SLUG_TO_SLOTS[slug || ''] || [])[0]
   if (num == null) return (slug || '').replace(/_/g, ' ').slice(0, 3).toUpperCase()
@@ -228,13 +242,85 @@ function UnitToggle({ category, onToggle }: { category: Category; onToggle: () =
   )
 }
 
-export default function TeamPitchView({ starting, substitutes, stats }: {
+export default function TeamPitchView({ starting, substitutes, stats, format = 'fifteens' }: {
   starting: Selection[]
   substitutes: Selection[]
   stats: Record<string, Stat>
+  /** 'sevens' shows a compact 7-a-side pitch (3 forwards + 4 backs, no
+   *  toggle needed); 'fifteens' shows the full 15-a-side view with the
+   *  Forwards/Backs toggle. */
+  format?: 'sevens' | 'fifteens'
 }) {
   const [tab, setTab] = useState<'starting' | 'bench'>('starting')
   const [category, setCategory] = useState<Category>('forwards')
+
+  if (format === 'sevens') {
+    // Greedily assign starters to sevens slots (3 forwards, 4 backs).
+    const sevensSlots: Record<number, Selection> = {}
+    const takenSevens = new Set<number>()
+    const unplacedSevens: Selection[] = []
+    for (const p of starting) {
+      const list = slugCategory(p.position) === 'forwards' ? SEVENS_FORWARD_SLOTS : SEVENS_BACK_SLOTS
+      const free = list.find((s) => !takenSevens.has(s))
+      if (free != null) { sevensSlots[free] = p; takenSevens.add(free) } else unplacedSevens.push(p)
+    }
+    const tabs: { key: 'starting' | 'bench'; label: string; count: number }[] = [
+      { key: 'starting', label: 'Starting', count: starting.length },
+      { key: 'bench', label: 'Bench', count: substitutes.length },
+    ]
+    return (
+      <div className="overflow-hidden rounded-xl border border-tm-border">
+        <div className="flex bg-tm-bg">
+          {tabs.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`flex-1 py-3 text-center text-sm font-bold uppercase tracking-wider transition-colors ${
+                tab === t.key ? 'bg-teal-500 text-white' : 'bg-tm-surface-hover text-tm-text-3 hover:text-tm-text-1'
+              }`}
+            >
+              {t.label} <span className="ml-1 opacity-80">({t.count})</span>
+            </button>
+          ))}
+        </div>
+
+        {tab === 'starting' ? (
+          <div className="bg-tm-surface p-3">
+            <div className="mb-2">
+              <span className="rounded bg-teal-500 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white">
+                Sevens · 7 on the field
+              </span>
+            </div>
+            <UnitPitch selectionsBySlot={sevensSlots} slots={SEVENS_SLOTS} stats={stats} />
+            {unplacedSevens.length > 0 && (
+              <div className="mt-3">
+                <h5 className="mb-2 text-xs font-semibold uppercase tracking-wide text-tm-text-3">Other starters</h5>
+                <div className="flex flex-wrap gap-3">
+                  {unplacedSevens.map((s) => (
+                    <PlayerCard key={s.player_id} sel={s} stat={stats[s.player_id]} number={s.jersey_number || '–'} code={slugCategory(s.position) === 'forwards' ? 'FWD' : 'BCK'} size="bench" />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="bg-tm-surface p-4">
+            {substitutes.length === 0 ? (
+              <p className="rounded-lg border border-dashed border-tm-border p-6 text-center text-sm text-tm-text-3">
+                No substitutes selected for this fixture.
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-4">
+                {substitutes.map((s) => (
+                  <PlayerCard key={s.player_id} sel={s} stat={stats[s.player_id]} number={s.jersey_number || '–'} code={slugCategory(s.position) === 'forwards' ? 'FWD' : 'BCK'} size="bench" />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    )
+  }
 
   // Assign starters to shirt-number slots (greedy: first free slot for the slug).
   const slotAssignments: Record<number, Selection> = {}

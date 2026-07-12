@@ -60,7 +60,27 @@ interface Match {
   venue?: string
   tournament_type: string
   status?: string
+  squad_size?: number | null
 }
+
+// A fixture's "squad format" controls how the coach's selection roster and the
+// saved-team pitch view behave. 'sevens' = 12-player squad, 7 on the field
+// (World Rugby Sevens); 'fifteens' = standard 23-player matchday squad, 15 on
+// the field. tournament_type === 'sevens' always forces sevens; otherwise a
+// custom tournament with a small specified squad_size (<=12) is also treated
+// as sevens, since that's the only sensible way to field a squad that size.
+type SquadFormat = 'sevens' | 'fifteens'
+const getSquadFormat = (match?: { tournament_type?: string; squad_size?: number | null } | null): SquadFormat => {
+  if (!match) return 'fifteens'
+  if (match.tournament_type === 'sevens') return 'sevens'
+  if (match.squad_size != null && match.squad_size <= 12) return 'sevens'
+  return 'fifteens'
+}
+const getMaxSquadSize = (match?: { tournament_type?: string; squad_size?: number | null } | null): number => {
+  if (match?.squad_size != null) return match.squad_size
+  return getSquadFormat(match) === 'sevens' ? 12 : 23
+}
+const getMaxStarting = (format: SquadFormat) => (format === 'sevens' ? 7 : 15)
 
 interface TeamSelection {
   player_id: string
@@ -111,7 +131,11 @@ export default function FixturesPage() {
   const [fixtureForm, setFixtureForm] = useState({
     match_date: '',
     opponent: '',
-    tournament_type: 'friendly' as 'uganda_cup' | 'league' | 'sevens' | 'friendly',
+    // 'other' is a UI-only sentinel; the actual saved tournament_type comes
+    // from custom_tournament_type when 'other' is selected.
+    tournament_type: 'friendly' as 'uganda_cup' | 'league' | 'sevens' | 'friendly' | 'other',
+    custom_tournament_type: '',
+    squad_size: '23',
     venue: '',
     notes: '',
     physio_id: '',
@@ -214,12 +238,24 @@ export default function FixturesPage() {
           const today = new Date().toISOString().split('T')[0]
           
           try {
-            // Get all matches first
-            const { data: allMatches, error: matchesError } = await supabase
+            // Get all matches first. squad_size is a newer column (migration 042);
+            // fall back to selecting without it if that migration hasn't run yet,
+            // so this page keeps working either way.
+            let allMatches: any[] | null
+            let matchesError: any
+            ;({ data: allMatches, error: matchesError } = await supabase
               .from('matches')
-              .select('id, match_date, opponent, venue, tournament_type, status')
-              .order('match_date', { ascending: false })
-            
+              .select('id, match_date, opponent, venue, tournament_type, status, squad_size')
+              .order('match_date', { ascending: false }))
+            if (matchesError?.message?.includes('squad_size')) {
+              const retry = await supabase
+                .from('matches')
+                .select('id, match_date, opponent, venue, tournament_type, status')
+                .order('match_date', { ascending: false })
+              allMatches = retry.data
+              matchesError = retry.error
+            }
+
             if (matchesError) {
               console.error('Error loading matches:', matchesError)
               matchesData = []
@@ -261,6 +297,7 @@ export default function FixturesPage() {
                   opponent: m.opponent,
                   venue: m.venue || undefined,
                   tournament_type: m.tournament_type,
+                  squad_size: m.squad_size,
                   status: m.status,
                 }))
               
@@ -284,6 +321,7 @@ export default function FixturesPage() {
                   opponent: m.opponent,
                   venue: m.venue || undefined,
                   tournament_type: m.tournament_type,
+                  squad_size: m.squad_size,
                   status: m.status,
                 }))
                 console.log('Loaded matches from API:', matchesData.length)
@@ -299,11 +337,21 @@ export default function FixturesPage() {
           // Fallback to direct query if API fails
           if (matchesData.length === 0) {
             try {
-              const { data: allMatches, error: matchesError } = await supabase
+              let allMatches: any[] | null
+              let matchesError: any
+              ;({ data: allMatches, error: matchesError } = await supabase
                 .from('matches')
-                .select('id, match_date, opponent, venue, tournament_type, status')
-                .order('match_date', { ascending: true })
-              
+                .select('id, match_date, opponent, venue, tournament_type, status, squad_size')
+                .order('match_date', { ascending: true }))
+              if (matchesError?.message?.includes('squad_size')) {
+                const retry = await supabase
+                  .from('matches')
+                  .select('id, match_date, opponent, venue, tournament_type, status')
+                  .order('match_date', { ascending: true })
+                allMatches = retry.data
+                matchesError = retry.error
+              }
+
               if (matchesError) {
                 console.error('Error loading matches:', matchesError)
                 matchesData = []
@@ -314,6 +362,7 @@ export default function FixturesPage() {
                   opponent: m.opponent,
                   venue: m.venue || undefined,
                   tournament_type: m.tournament_type,
+                  squad_size: m.squad_size,
                   status: m.status,
                 }))
                 console.log('Loaded matches from direct query:', matchesData.length)
@@ -621,25 +670,51 @@ export default function FixturesPage() {
     if (newSelections.has(playerId)) {
       newSelections.delete(playerId)
     } else {
+      // Enforce the fixture's squad cap (e.g. 12 for Sevens, or a custom
+      // tournament's specified size) before adding a new player.
+      const match = matches.find((m) => m.id === selectedMatchId)
+      const cap = getMaxSquadSize(match)
+      if (newSelections.size >= cap) {
+        alert(`This fixture's squad is capped at ${cap} players. Remove someone first, or edit the fixture's squad size.`)
+        return
+      }
+      const format = getSquadFormat(match)
+      const currentStarting = Array.from(newSelections.values()).filter((s) => s.is_starting && !s.is_substitute).length
+      const startingCap = getMaxStarting(format)
+      // New picks default to "starting" unless that's already full, in which
+      // case default to the bench so the coach isn't blocked mid-selection.
+      const startAsStarting = currentStarting < startingCap
       newSelections.set(playerId, {
         player_id: playerId,
         position: player.players.position,
         jersey_number: player.players.jersey_number,
-        is_starting: true,
-        is_substitute: false,
+        is_starting: startAsStarting,
+        is_substitute: !startAsStarting,
         is_captain: false,
         is_assistant_captain: false,
       })
     }
-    
+
     setTeamSelections(newSelections)
   }
 
   const updatePlayerSelection = (playerId: string, updates: Partial<TeamSelection>) => {
     const newSelections = new Map(teamSelections)
     const existing = newSelections.get(playerId)
-    
+
     if (existing) {
+      // If this update moves the player into the starting lineup, enforce the
+      // fixture's on-field cap (7 for Sevens, 15 for standard 15s).
+      if (updates.is_starting && !updates.is_substitute) {
+        const match = matches.find((m) => m.id === selectedMatchId)
+        const startingCap = getMaxStarting(getSquadFormat(match))
+        const currentStarting = Array.from(newSelections.values())
+          .filter((s) => s.is_starting && !s.is_substitute && s.player_id !== playerId).length
+        if (currentStarting >= startingCap) {
+          alert(`Only ${startingCap} players can start for this fixture. Move someone to the bench first.`)
+          return
+        }
+      }
       newSelections.set(playerId, { ...existing, ...updates })
       setTeamSelections(newSelections)
     }
@@ -743,9 +818,23 @@ export default function FixturesPage() {
       alert('Please fill in match date and opponent')
       return
     }
+    if (fixtureForm.tournament_type === 'other' && !fixtureForm.custom_tournament_type.trim()) {
+      alert('Please enter the tournament name')
+      return
+    }
+    const squadSizeNum = fixtureForm.squad_size ? parseInt(fixtureForm.squad_size, 10) : null
+    if (squadSizeNum != null && (Number.isNaN(squadSizeNum) || squadSizeNum < 1)) {
+      alert('Squad size must be a positive number')
+      return
+    }
 
     setCreatingFixture(true)
     try {
+      const finalTournamentType =
+        fixtureForm.tournament_type === 'other'
+          ? fixtureForm.custom_tournament_type.trim()
+          : fixtureForm.tournament_type
+
       const response = await fetch('/api/fixtures/create', {
         method: 'POST',
         headers: {
@@ -754,7 +843,8 @@ export default function FixturesPage() {
         body: JSON.stringify({
           match_date: fixtureForm.match_date,
           opponent: fixtureForm.opponent,
-          tournament_type: fixtureForm.tournament_type,
+          tournament_type: finalTournamentType,
+          squad_size: squadSizeNum,
           venue: fixtureForm.venue || null,
           notes: fixtureForm.notes || null,
           physio_id: fixtureForm.physio_id || null,
@@ -775,6 +865,8 @@ export default function FixturesPage() {
         match_date: '',
         opponent: '',
         tournament_type: 'friendly',
+        custom_tournament_type: '',
+        squad_size: '23',
         venue: '',
         notes: '',
         physio_id: '',
@@ -784,11 +876,22 @@ export default function FixturesPage() {
       
       // Reload matches
       const supabase = createClient()
-      const { data: matchesData, error: reloadError } = await supabase
+      let matchesData: any[] | null
+      let reloadError: any
+      ;({ data: matchesData, error: reloadError } = await supabase
         .from('matches')
-        .select('id, match_date, opponent, venue, tournament_type')
+        .select('id, match_date, opponent, venue, tournament_type, squad_size')
         .order('match_date', { ascending: false })
-        .limit(100)
+        .limit(100))
+      if (reloadError?.message?.includes('squad_size')) {
+        const retry = await supabase
+          .from('matches')
+          .select('id, match_date, opponent, venue, tournament_type')
+          .order('match_date', { ascending: false })
+          .limit(100)
+        matchesData = retry.data
+        reloadError = retry.error
+      }
 
       if (!reloadError && matchesData) {
         setMatches(matchesData)
@@ -996,11 +1099,22 @@ export default function FixturesPage() {
       setStaffAttendance({})
       
       // Reload matches
-      const { data: matchesData, error: reloadError } = await supabase
+      let matchesData: any[] | null
+      let reloadError: any
+      ;({ data: matchesData, error: reloadError } = await supabase
         .from('matches')
-        .select('id, match_date, opponent, venue, tournament_type')
+        .select('id, match_date, opponent, venue, tournament_type, squad_size')
         .order('match_date', { ascending: false })
-        .limit(100)
+        .limit(100))
+      if (reloadError?.message?.includes('squad_size')) {
+        const retry = await supabase
+          .from('matches')
+          .select('id, match_date, opponent, venue, tournament_type')
+          .order('match_date', { ascending: false })
+          .limit(100)
+        matchesData = retry.data
+        reloadError = retry.error
+      }
 
       if (!reloadError && matchesData) {
         setMatches(matchesData)
@@ -1256,6 +1370,9 @@ export default function FixturesPage() {
   }
 
   const selectedMatch = matches.find(m => m.id === selectedMatchId)
+  const squadFormat = getSquadFormat(selectedMatch)
+  const maxSquadSize = getMaxSquadSize(selectedMatch)
+  const maxStarting = getMaxStarting(squadFormat)
   const selectedPlayers = Array.from(teamSelections.values())
   const startingPlayers = selectedPlayers.filter(p => p.is_starting && !p.is_substitute)
   const substitutes = selectedPlayers.filter(p => p.is_substitute)
@@ -1263,11 +1380,27 @@ export default function FixturesPage() {
   // Group the available-players roster by playing position (forwards 1-8 first,
   // then backs 9-15) as a flat list of header + player items, so the coach can
   // see at a glance how many of each position (9s, 1s, 10s, 15s...) they have.
+  // For a compact format (Sevens etc.) the granular 1-15 breakdown doesn't
+  // apply — group by Forwards/Backs only instead.
   type RosterItem =
     | { type: 'header'; key: string; label: string; num: string; count: number; category: 'forwards' | 'backs'; firstOfCategory: boolean }
     | { type: 'player'; player: Player }
   const orderedRosterItems: RosterItem[] = (() => {
     const items: RosterItem[] = []
+    if (squadFormat === 'sevens') {
+      const isForwardSlug = (slug: string) => POSITION_META[slug]?.category === 'forwards'
+      const forwards = availablePlayers.filter((p) => isForwardSlug(p.players?.position || ''))
+      const backs = availablePlayers.filter((p) => !isForwardSlug(p.players?.position || ''))
+      if (forwards.length) {
+        items.push({ type: 'header', key: '__forwards', label: 'Forwards', num: '1-3', count: forwards.length, category: 'forwards', firstOfCategory: true })
+        forwards.forEach((player) => items.push({ type: 'player', player }))
+      }
+      if (backs.length) {
+        items.push({ type: 'header', key: '__backs', label: 'Backs', num: '4-7', count: backs.length, category: 'backs', firstOfCategory: true })
+        backs.forEach((player) => items.push({ type: 'player', player }))
+      }
+      return items
+    }
     const known = new Set(POSITION_ORDER)
     let lastCategory: string | null = null
     for (const slug of POSITION_ORDER) {
@@ -1842,6 +1975,8 @@ export default function FixturesPage() {
                           match_date: '',
                           opponent: '',
                           tournament_type: 'friendly',
+                          custom_tournament_type: '',
+                          squad_size: '23',
                           venue: '',
                           notes: '',
                           physio_id: '',
@@ -1896,14 +2031,55 @@ export default function FixturesPage() {
                     </label>
                     <select
                       value={fixtureForm.tournament_type}
-                      onChange={(e) => setFixtureForm({ ...fixtureForm, tournament_type: e.target.value as any })}
+                      onChange={(e) => {
+                        const value = e.target.value as typeof fixtureForm.tournament_type
+                        // Suggest a sensible default squad size per format; the
+                        // team manager can still override it.
+                        const suggestedSquadSize = value === 'sevens' ? '12' : value === 'other' ? '' : '23'
+                        setFixtureForm({ ...fixtureForm, tournament_type: value, squad_size: suggestedSquadSize })
+                      }}
                       className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                     >
                       <option value="friendly">Friendly</option>
                       <option value="league">League</option>
                       <option value="uganda_cup">Uganda Cup</option>
                       <option value="sevens">Sevens</option>
+                      <option value="other">Other (specify)…</option>
                     </select>
+                  </div>
+
+                  {fixtureForm.tournament_type === 'other' && (
+                    <div>
+                      <label className="block text-sm font-medium text-tm-text-3 mb-2">
+                        Tournament Name
+                      </label>
+                      <input
+                        type="text"
+                        value={fixtureForm.custom_tournament_type}
+                        onChange={(e) => setFixtureForm({ ...fixtureForm, custom_tournament_type: e.target.value })}
+                        placeholder="e.g., Invitational Tens, School Cup..."
+                        className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                        required
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-sm font-medium text-tm-text-3 mb-2">
+                      Squad Size <span className="font-normal text-tm-text-3">(total players allowed)</span>
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={fixtureForm.squad_size}
+                      onChange={(e) => setFixtureForm({ ...fixtureForm, squad_size: e.target.value })}
+                      placeholder="e.g., 23 for 15s, 12 for Sevens"
+                      className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                    />
+                    <p className="mt-1 text-xs text-tm-text-3">
+                      A squad of 12 or fewer switches team selection and the pitch view to a
+                      compact (Sevens-style) format — 7 players on the field instead of 15.
+                    </p>
                   </div>
 
                   <div>
@@ -2005,6 +2181,8 @@ export default function FixturesPage() {
                           match_date: '',
                           opponent: '',
                           tournament_type: 'friendly',
+                          custom_tournament_type: '',
+                          squad_size: '23',
                           venue: '',
                           notes: '',
                           physio_id: '',
@@ -2779,9 +2957,19 @@ export default function FixturesPage() {
           <>
             {/* Selection Summary */}
             <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
+              {squadFormat === 'sevens' && (
+                <div className="mb-4 flex items-center gap-2">
+                  <span className="rounded bg-tm-secondary px-2.5 py-1 text-xs font-bold uppercase tracking-wide text-tm-on-secondary">
+                    Sevens format
+                  </span>
+                  <span className="text-xs text-tm-text-3">
+                    Max {maxSquadSize} in the squad · {maxStarting} on the field at once
+                  </span>
+                </div>
+              )}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="text-center p-4 bg-primary/10 rounded-lg">
-                  <p className="text-2xl font-bold text-primary">{startingPlayers.length}</p>
+                  <p className="text-2xl font-bold text-primary">{startingPlayers.length}<span className="text-base font-medium text-tm-text-3">/{maxStarting}</span></p>
                   <p className="text-sm text-tm-text-3">Starting Players</p>
                 </div>
                 <div className="text-center p-4 bg-secondary/10 rounded-lg">
@@ -2789,7 +2977,7 @@ export default function FixturesPage() {
                   <p className="text-sm text-tm-text-3">Substitutes</p>
                 </div>
                 <div className="text-center p-4 bg-success/10 rounded-lg">
-                  <p className="text-2xl font-bold text-success">{teamSelections.size}</p>
+                  <p className="text-2xl font-bold text-success">{teamSelections.size}<span className="text-base font-medium text-tm-text-3">/{maxSquadSize}</span></p>
                   <p className="text-sm text-tm-text-3">Total Selected</p>
                 </div>
               </div>
@@ -2840,6 +3028,7 @@ export default function FixturesPage() {
                       starting={existingSelection.filter((s: any) => s.is_starting && !s.is_substitute)}
                       substitutes={existingSelection.filter((s: any) => s.is_substitute)}
                       stats={selectionStats}
+                      format={squadFormat}
                     />
                   </div>
                 )}
@@ -2855,8 +3044,9 @@ export default function FixturesPage() {
                   Available Players
                 </h3>
                 <p className="mt-1 text-xs text-tm-text-3">
-                  Grouped by position. Selection stats (attendance &amp; caps) fill in
-                  as your club logs training sessions and matches.
+                  {squadFormat === 'sevens'
+                    ? `Sevens format — grouped by Forwards/Backs. Squad capped at ${maxSquadSize}, ${maxStarting} on the field at once.`
+                    : 'Grouped by position. Selection stats (attendance & caps) fill in as your club logs training sessions and matches.'}
                 </p>
 
                 {/* Quick-start: copy a previous squad, then edit the roster below */}

@@ -166,6 +166,7 @@ export async function GET(request: NextRequest) {
         name: player.name,
         email: player.email,
         phone: player.phone,
+        profile_picture_url: player.profile_picture_url || null,
         position: details.position || player.position || '',
         category: details.category || '',
         jersey_number: details.jersey_number || null,

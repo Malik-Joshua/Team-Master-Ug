@@ -46,6 +46,7 @@ interface Player {
   name: string
   email: string
   status: string
+  profile_picture_url?: string | null
   players: {
     position: string
     category: string
@@ -394,6 +395,7 @@ export default function FixturesPage() {
                     name: p.name,
                     email: p.email || '',
                     status: p.status || 'active',
+                    profile_picture_url: p.profile_picture_url || null,
                     players: {
                       position: p.position || '',
                       category: p.category || '',
@@ -3112,20 +3114,49 @@ export default function FixturesPage() {
                         }`}
                       >
                         <div className="flex items-start justify-between mb-3">
-                          <div className="flex-1">
-                            <h4 className="font-semibold text-tm-text-1">{player.name}</h4>
-                            <p className="text-xs text-tm-text-3 capitalize">
-                              {player.players.position.replace('_', ' ')} • {player.players.category}
-                            </p>
-                            {player.players.jersey_number && (
-                              <p className="text-xs text-tm-text-3">
-                                Jersey: #{player.players.jersey_number}
+                          <div className="flex flex-1 min-w-0 items-start gap-3">
+                            {/* Avatar: uploaded photo if available, otherwise
+                                initials — ring colour matches Forwards/Backs,
+                                same visual language as the pitch-view cards. */}
+                            <div
+                              className={`relative flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-full ring-2 ${
+                                player.players.category === 'forwards' ? 'ring-tm-secondary' : 'ring-tm-primary'
+                              } bg-tm-surface-hover`}
+                            >
+                              {player.profile_picture_url ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={player.profile_picture_url}
+                                  alt={player.name}
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : (
+                                <span className="text-sm font-bold text-tm-text-1">
+                                  {player.name
+                                    .trim()
+                                    .split(/\s+/)
+                                    .map((w) => w[0])
+                                    .join('')
+                                    .slice(0, 2)
+                                    .toUpperCase()}
+                                </span>
+                              )}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <h4 className="truncate font-semibold text-tm-text-1">{player.name}</h4>
+                              <p className="truncate text-xs text-tm-text-3 capitalize">
+                                {player.players.position.replace('_', ' ')} • {player.players.category}
                               </p>
-                            )}
+                              {player.players.jersey_number && (
+                                <p className="text-xs text-tm-text-3">
+                                  Jersey: #{player.players.jersey_number}
+                                </p>
+                              )}
+                            </div>
                           </div>
                           <button
                             onClick={() => togglePlayerSelection(player.user_id, player)}
-                            className={`p-2 rounded-lg transition-colors ${
+                            className={`flex-shrink-0 p-2 rounded-lg transition-colors ${
                               isSelected
                                 ? 'bg-primary text-tm-on-secondary'
                                 : 'bg-tm-surface-hover text-tm-text-3 hover:bg-primary/10'

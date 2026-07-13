@@ -71,6 +71,9 @@ export default function OnboardingPage() {
   // Single club colour — the whole app theme is derived from it.
   const [primaryColor, setPrimaryColor] = useState('#0ea5e9')
   const [clubNickname, setClubNickname] = useState('')
+  // Kept separate from the club name — the slogan is used to hype players/
+  // teams (e.g. shown on a player's dashboard when selected for a fixture).
+  const [clubSlogan, setClubSlogan] = useState('')
   const [yearFounded, setYearFounded] = useState('')
   const [website, setWebsite] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
@@ -180,23 +183,36 @@ export default function OnboardingPage() {
         }
 
         // Save club branding + sport config to club_settings
-        const { error: upsertError } = await supabase
+        const clubSettingsPayload: Record<string, any> = {
+          admin_user_id: user.id,
+          primary_color: primaryColor,
+          secondary_color: derivedAccent,
+          club_nickname: clubNickname || null,
+          club_slogan: clubSlogan || null,
+          year_founded: yearFounded ? parseInt(yearFounded) : null,
+          website: website || null,
+          badge_url: badgeUrl,
+          league: league || null,
+          season_start_month: seasonMonth || null,
+          multiple_teams: multipleTeams,
+          teams: multipleTeams ? teams : [],
+          squad_size: squadSize ? parseInt(squadSize) : null,
+          updated_at: new Date().toISOString(),
+        }
+
+        let { error: upsertError } = await supabase
           .from('club_settings')
-          .upsert({
-            admin_user_id: user.id,
-            primary_color: primaryColor,
-            secondary_color: derivedAccent,
-            club_nickname: clubNickname || null,
-            year_founded: yearFounded ? parseInt(yearFounded) : null,
-            website: website || null,
-            badge_url: badgeUrl,
-            league: league || null,
-            season_start_month: seasonMonth || null,
-            multiple_teams: multipleTeams,
-            teams: multipleTeams ? teams : [],
-            squad_size: squadSize ? parseInt(squadSize) : null,
-            updated_at: new Date().toISOString(),
-          }, { onConflict: 'admin_user_id' })
+          .upsert(clubSettingsPayload, { onConflict: 'admin_user_id' })
+
+        // club_slogan is a newer column (migration 043). If it hasn't been
+        // applied yet, retry without it so onboarding still completes.
+        if (upsertError?.message?.includes('club_slogan')) {
+          const { club_slogan, ...withoutSlogan } = clubSettingsPayload
+          const retry = await supabase
+            .from('club_settings')
+            .upsert(withoutSlogan, { onConflict: 'admin_user_id' })
+          upsertError = retry.error
+        }
 
         if (upsertError) {
           console.error('[Onboarding] Error saving club settings:', upsertError)
@@ -314,9 +330,18 @@ export default function OnboardingPage() {
         </div>
 
         <div className="mb-4">
-          <label className={lbl}>Club nickname or motto <span className="font-normal text-gray-500">(optional)</span></label>
+          <label className={lbl}>Club name <span className="font-normal text-gray-500">(optional)</span></label>
           <input type="text" value={clubNickname} onChange={(e) => setClubNickname(e.target.value)}
             placeholder="e.g. The Heathens" className={inp} />
+        </div>
+
+        <div className="mb-4">
+          <label className={lbl}>Club slogan <span className="font-normal text-gray-500">(optional)</span></label>
+          <p className="text-[12px] text-gray-400 mb-2.5 -mt-0.5">
+            A rallying line for the team — shown to players when they&apos;re selected for a fixture.
+          </p>
+          <input type="text" value={clubSlogan} onChange={(e) => setClubSlogan(e.target.value)}
+            placeholder="e.g. Strength. Unity. Victory." className={inp} />
         </div>
 
         <div className="grid grid-cols-2 gap-3">

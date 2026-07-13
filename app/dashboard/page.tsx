@@ -68,6 +68,8 @@ export default function DashboardPage() {
   const [loadingBestMetrics, setLoadingBestMetrics] = useState(false)
   const [playerFixtureSelection, setPlayerFixtureSelection] = useState<any>(null)
   const [loadingPlayerFixture, setLoadingPlayerFixture] = useState(false)
+  // The club's hype slogan, shown on the "You're Selected!" banner below.
+  const [clubSlogan, setClubSlogan] = useState<string | null>(null)
   const [activeInjuriesView, setActiveInjuriesView] = useState<any[]>([])
   const [loadingActiveInjuries, setLoadingActiveInjuries] = useState(false)
   const [recentTeamSelections, setRecentTeamSelections] = useState<any[]>([])
@@ -519,6 +521,33 @@ export default function DashboardPage() {
     loadDashboard()
   }, [loadDashboard])
 
+  // Load the club's slogan for the "You're Selected!" banner. Isolated from
+  // the main dashboard load so a failure here never blocks anything else.
+  useEffect(() => {
+    const loadClubSlogan = async () => {
+      try {
+        const supabase = createClient()
+        let { data, error } = await supabase
+          .from('club_settings')
+          .select('club_slogan')
+          .order('updated_at', { ascending: false, nullsFirst: false })
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+        // club_slogan is a newer column (migration 043) — fall back quietly
+        // if it hasn't been applied yet.
+        if (error?.message?.includes('club_slogan')) {
+          setClubSlogan(null)
+          return
+        }
+        setClubSlogan(data?.club_slogan || null)
+      } catch {
+        setClubSlogan(null)
+      }
+    }
+    loadClubSlogan()
+  }, [])
+
   // Refresh gym stats for players periodically (every 30 seconds) and on page visibility change
   useEffect(() => {
     if (user?.role === 'player') {
@@ -646,6 +675,15 @@ export default function DashboardPage() {
                       </span>
                     )}
                   </div>
+
+                  {/* Club slogan — hypes the player up, styled in the club's
+                      primary colour so every club's rallying line stands out. */}
+                  {clubSlogan && (
+                    <p className="text-primary font-semibold italic text-base mb-3">
+                      &ldquo;{clubSlogan}&rdquo;
+                    </p>
+                  )}
+
                   <div className="bg-tm-surface-hover rounded-lg p-4 mb-3">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>

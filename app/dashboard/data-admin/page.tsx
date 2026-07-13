@@ -621,8 +621,8 @@ export default function DataAdminDashboard() {
 
         {/* Quick Stats */}
         <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-3 lg:grid-cols-5">
-          <StatCard title="Total Players" value={players.length} icon={Users} iconColor="bg-primary" />
-          <StatCard title="Matches Attended" value={staffMatchesAttended} icon={CheckCircle} iconColor="bg-primary" />
+          <StatCard title="Total Players" value={players.length} icon={Users} iconColor="bg-primary" href="/players" />
+          <StatCard title="Matches Attended" value={staffMatchesAttended} icon={CheckCircle} iconColor="bg-primary" href="/fixtures" />
         </div>
 
         {/* Match Stats Entry Form Modal */}

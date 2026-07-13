@@ -1,4 +1,5 @@
 import { LucideIcon, TrendingUp, TrendingDown, AlertCircle, Calendar } from 'lucide-react'
+import Link from 'next/link'
 import { cn } from '@/lib/utils'
 
 interface ConceptStatCardProps {
@@ -12,6 +13,10 @@ interface ConceptStatCardProps {
   iconTextColor: string
   /** Override the big value's color (e.g. red for an "injured" alert). Defaults to the primary text color. */
   valueColor?: string
+  /** When provided, the whole card becomes a link to this route (e.g. "/players"). */
+  href?: string
+  /** When provided instead of href, the whole card becomes a button that calls this. */
+  onClick?: () => void
 }
 
 export default function ConceptStatCard({
@@ -24,6 +29,8 @@ export default function ConceptStatCard({
   iconBgColor,
   iconTextColor,
   valueColor,
+  href,
+  onClick,
 }: ConceptStatCardProps) {
   const getChangeIcon = () => {
     if (changeType === 'positive') return <TrendingUp className="w-[14px] h-[14px]" />
@@ -37,8 +44,10 @@ export default function ConceptStatCard({
     return '#5A6478'
   }
 
-  return (
-    <div className="rounded-[10px] p-4 transition-all duration-200 hover:scale-[1.02] hover:border-[var(--tm-primary)] hover:shadow-lg cursor-default group" style={{ background: 'var(--tm-surface)', border: '1px solid var(--tm-border)' }}>
+  const isInteractive = !!href || !!onClick
+
+  const content = (
+    <>
       {/* Top section */}
       <div className="flex items-start justify-between mb-[10px]">
         <span className="text-[11px] font-medium uppercase tracking-[0.05em]" style={{ color: 'var(--tm-text-3)' }}>
@@ -68,6 +77,36 @@ export default function ConceptStatCard({
 
       {/* Meta */}
       {meta && <div className="text-[11px]" style={{ color: 'var(--tm-text-3)' }}>{meta}</div>}
+    </>
+  )
+
+  const className = cn(
+    'rounded-[10px] p-4 transition-all duration-200 hover:scale-[1.02] hover:border-[var(--tm-primary)] group text-left w-full',
+    isInteractive
+      ? 'cursor-pointer hover:shadow-[0_0_16px_2px_var(--tm-primary),0_8px_20px_rgba(0,0,0,0.35)]'
+      : 'cursor-default hover:shadow-lg'
+  )
+  const style = { background: 'var(--tm-surface)', border: '1px solid var(--tm-border)' }
+
+  if (href) {
+    return (
+      <Link href={href} className={className} style={style}>
+        {content}
+      </Link>
+    )
+  }
+
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} className={className} style={style}>
+        {content}
+      </button>
+    )
+  }
+
+  return (
+    <div className={className} style={style}>
+      {content}
     </div>
   )
 }

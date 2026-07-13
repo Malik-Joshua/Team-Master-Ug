@@ -953,6 +953,7 @@ export default function DashboardPage() {
               icon={Calendar}
               iconColor="bg-primary"
               iconTextColor="text-tm-on-secondary"
+              href="/training"
             />
             <StatCard
               title="Games Played"
@@ -960,6 +961,7 @@ export default function DashboardPage() {
               icon={Trophy}
               iconColor="bg-secondary"
               iconTextColor="text-tm-on-secondary"
+              href="/performance"
             />
             <StatCard
               title="Tries Scored"
@@ -967,6 +969,7 @@ export default function DashboardPage() {
               icon={Target}
               iconColor="bg-success"
               iconTextColor="text-white"
+              href="/performance"
             />
             <StatCard
               title="Tackles Made"
@@ -974,6 +977,7 @@ export default function DashboardPage() {
               icon={Activity}
               iconColor="bg-info"
               iconTextColor="text-white"
+              href="/performance"
             />
           </div>
 
@@ -1370,6 +1374,7 @@ export default function DashboardPage() {
               icon={Activity}
               iconColor="bg-primary"
               iconTextColor="text-tm-on-secondary"
+              href="/players"
             />
             <StatCard
               title="Active Players"
@@ -1377,6 +1382,7 @@ export default function DashboardPage() {
               icon={Activity}
               iconColor="bg-success"
               iconTextColor="text-white"
+              href="/players"
             />
             <StatCard
               title="Injured Players"
@@ -1385,6 +1391,7 @@ export default function DashboardPage() {
               iconColor="bg-[#E05757]"
               iconTextColor="text-white"
               valueColor="#E05757"
+              href="/players"
             />
             <StatCard
               title="Training Sessions"
@@ -1392,6 +1399,7 @@ export default function DashboardPage() {
               icon={Calendar}
               iconColor="bg-info"
               iconTextColor="text-white"
+              href="/training"
             />
             <StatCard
               title="Matches Attended"
@@ -1399,6 +1407,7 @@ export default function DashboardPage() {
               icon={Trophy}
               iconColor="bg-warning"
               iconTextColor="text-white"
+              href="/fixtures"
             />
           </div>
 

@@ -303,7 +303,7 @@ export default function ClubCaptainDashboard() {
 
         {/* Quick Stats */}
         <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-4">
-          <StatCard title="Total Players" value={players.length} icon={Users} iconColor="bg-primary" />
+          <StatCard title="Total Players" value={players.length} icon={Users} iconColor="bg-primary" href="/players" />
         </div>
 
         {/* Player Fixture Selection (if they're selected) */}

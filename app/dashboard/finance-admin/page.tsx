@@ -300,6 +300,7 @@ export default function FinanceAdminDashboard() {
             icon={TrendingUp}
             iconColor="bg-success"
             iconTextColor="text-white"
+            href="/finance"
           />
           <StatCard
             title="Total Expense"
@@ -307,6 +308,7 @@ export default function FinanceAdminDashboard() {
             icon={TrendingDown}
             iconColor="bg-secondary"
             iconTextColor="text-tm-on-secondary"
+            href="/finance"
           />
           <StatCard
             title="Net Balance"
@@ -314,6 +316,7 @@ export default function FinanceAdminDashboard() {
             icon={DollarSign}
             iconColor="bg-primary"
             iconTextColor="text-tm-on-secondary"
+            href="/finance"
           />
         </div>
 

@@ -26,7 +26,10 @@ export default function FixtureCard({
   onMatchDay,
 }: FixtureCardProps) {
   return (
-    <div className="rounded-[10px] p-4 mb-3" style={{ background: 'var(--tm-bg-elevated)', border: '1px solid var(--tm-border)' }}>
+    <div
+      className="rounded-[10px] p-4 mb-3 transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--tm-primary)] hover:shadow-[0_0_16px_2px_var(--tm-primary),0_8px_20px_rgba(0,0,0,0.35)]"
+      style={{ background: 'var(--tm-bg-elevated)', border: '1px solid var(--tm-border)' }}
+    >
       {/* Label */}
       <div className="text-[10px] font-medium tracking-[0.06em] uppercase mb-2" style={{ color: 'var(--tm-text-muted)' }}>
         {label}

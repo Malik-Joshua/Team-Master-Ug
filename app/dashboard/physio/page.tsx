@@ -687,39 +687,43 @@ export default function PhysioDashboard() {
         )}
 
         <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-4">
-          <StatCard 
-            title="Training Sessions Attended" 
-            value={trainingSessionsAttended} 
-            icon={CalendarDays} 
-            iconColor="bg-primary" 
+          <StatCard
+            title="Training Sessions Attended"
+            value={trainingSessionsAttended}
+            icon={CalendarDays}
+            iconColor="bg-primary"
             iconTextColor="text-tm-on-secondary"
             description="Total training sessions"
+            href="/training"
           />
-          <StatCard 
-            title="Games Attended" 
-            value={gamesAttended} 
-            icon={Trophy} 
-            iconColor="bg-secondary" 
+          <StatCard
+            title="Games Attended"
+            value={gamesAttended}
+            icon={Trophy}
+            iconColor="bg-secondary"
             iconTextColor="text-tm-on-secondary"
             description="Total matches attended"
+            href="/fixtures"
           />
-          <StatCard 
-            title="Active Injuries" 
-            value={activeInjuries.length} 
-            icon={AlertCircle} 
+          <StatCard
+            title="Active Injuries"
+            value={activeInjuries.length}
+            icon={AlertCircle}
             iconColor="bg-warning"
             iconTextColor="text-white"
+            onClick={() => { setFilterStatus('active'); document.getElementById('injury-records')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }}
           />
-          <StatCard 
-            title="Cleared Injuries" 
-            value={clearedInjuries.length} 
-            icon={CheckCircle} 
+          <StatCard
+            title="Cleared Injuries"
+            value={clearedInjuries.length}
+            icon={CheckCircle}
             iconColor="bg-success"
             iconTextColor="text-white"
+            onClick={() => { setFilterStatus('cleared'); document.getElementById('injury-records')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }}
           />
         </div>
 
-        <div className="bg-tm-surface rounded-card border border-tm-border shadow-soft p-6">
+        <div id="injury-records" className="bg-tm-surface rounded-card border border-tm-border shadow-soft p-6">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-tm-text-1">Injury Records</h2>
             <div className="flex items-center space-x-2">

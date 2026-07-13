@@ -488,6 +488,7 @@ export default function AdminDashboard() {
             icon={Users}
             iconBgColor="rgba(91, 163, 217, 0.12)"
             iconTextColor="#5BA3D9"
+            href="/players"
           />
           <ConceptStatCard
             label="Attendance rate"
@@ -498,6 +499,7 @@ export default function AdminDashboard() {
             icon={Activity}
             iconBgColor="rgba(45, 184, 138, 0.12)"
             iconTextColor="#2DB88A"
+            href="/training"
           />
           <ConceptStatCard
             label="Active injuries"
@@ -508,6 +510,7 @@ export default function AdminDashboard() {
             icon={HeartPulse}
             iconBgColor="rgba(224, 87, 87, 0.12)"
             iconTextColor="#E05757"
+            href="/players"
           />
         </div>
 

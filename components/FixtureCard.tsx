@@ -7,6 +7,9 @@ interface FixtureCardProps {
   date: string
   time: string
   venue: string
+  /** Club slogan — hypes the team ahead of the fixture; rendered in the
+   *  club's primary colour when provided. */
+  slogan?: string | null
   onViewSquad?: () => void
   onMatchDay?: () => void
 }
@@ -18,6 +21,7 @@ export default function FixtureCard({
   date,
   time,
   venue,
+  slogan,
   onViewSquad,
   onMatchDay,
 }: FixtureCardProps) {
@@ -36,6 +40,12 @@ export default function FixtureCard({
         </span>
         <span className="text-[13px] font-medium" style={{ color: 'var(--tm-text-1)' }}>{awayTeam}</span>
       </div>
+
+      {slogan && (
+        <p className="text-[12px] font-semibold italic mb-2.5 truncate" style={{ color: 'var(--tm-primary)' }}>
+          &ldquo;{slogan}&rdquo;
+        </p>
+      )}
 
       {/* Meta */}
       <div className="flex gap-3.5 mb-3">

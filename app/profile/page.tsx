@@ -19,6 +19,31 @@ export default function ProfilePage() {
   const logoInputRef = useRef<HTMLInputElement>(null)
   const pictureInputRef = useRef<HTMLInputElement>(null)
 
+  // Club slogan editing (admin only) — hypes the team, shown on selection
+  // screens elsewhere in the app.
+  const [editingSlogan, setEditingSlogan] = useState(false)
+  const [sloganDraft, setSloganDraft] = useState('')
+  const [savingSlogan, setSavingSlogan] = useState(false)
+
+  const handleSaveSlogan = async () => {
+    setSavingSlogan(true)
+    try {
+      const res = await fetch('/api/club/update-slogan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slogan: sloganDraft.trim() }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to save slogan')
+      setClub((prev: any) => ({ ...(prev || {}), club_slogan: data.slogan }))
+      setEditingSlogan(false)
+    } catch (err: any) {
+      alert(`Error: ${err.message}`)
+    } finally {
+      setSavingSlogan(false)
+    }
+  }
+
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -105,14 +130,28 @@ export default function ProfilePage() {
           }
         }
 
-        // Load club branding (latest-updated row = source of truth)
-        const { data: clubData } = await supabase
+        // Load club branding (latest-updated row = source of truth).
+        // club_slogan is a newer column (migration 043) — fall back to
+        // selecting without it if that migration hasn't run yet.
+        let clubData: any
+        let clubError: any
+        ;({ data: clubData, error: clubError } = await supabase
           .from('club_settings')
-          .select('club_nickname, badge_url, league')
+          .select('club_nickname, club_slogan, badge_url, league')
           .order('updated_at', { ascending: false, nullsFirst: false })
           .order('created_at', { ascending: false })
           .limit(1)
-          .maybeSingle()
+          .maybeSingle())
+        if (clubError?.message?.includes('club_slogan')) {
+          const retry = await supabase
+            .from('club_settings')
+            .select('club_nickname, badge_url, league')
+            .order('updated_at', { ascending: false, nullsFirst: false })
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle()
+          clubData = retry.data
+        }
         if (clubData) setClub(clubData)
       }
       setLoading(false)
@@ -196,13 +235,25 @@ export default function ProfilePage() {
         }
       }
 
-      const { data: clubData } = await supabase
+      let clubData: any
+      let clubError: any
+      ;({ data: clubData, error: clubError } = await supabase
         .from('club_settings')
-        .select('club_nickname, badge_url, league')
+        .select('club_nickname, club_slogan, badge_url, league')
         .order('updated_at', { ascending: false, nullsFirst: false })
         .order('created_at', { ascending: false })
         .limit(1)
-        .maybeSingle()
+        .maybeSingle())
+      if (clubError?.message?.includes('club_slogan')) {
+        const retry = await supabase
+          .from('club_settings')
+          .select('club_nickname, badge_url, league')
+          .order('updated_at', { ascending: false, nullsFirst: false })
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+        clubData = retry.data
+      }
       if (clubData) setClub(clubData)
     }
     setLoading(false)
@@ -281,6 +332,58 @@ export default function ProfilePage() {
               </span>
               <span className="text-[11px] text-tm-text-3">Active member</span>
             </div>
+          </div>
+
+          {/* Club slogan — hypes the team; admins can edit it here and it
+              renders wherever the club's rallying line is shown (e.g. a
+              player's "You're Selected!" dashboard alert). */}
+          <div className="border-t border-tm-border px-5 py-4 sm:px-6">
+            {editingSlogan ? (
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <input
+                  type="text"
+                  value={sloganDraft}
+                  onChange={(e) => setSloganDraft(e.target.value)}
+                  placeholder="e.g. Strength. Unity. Victory."
+                  className="w-full flex-1 rounded-lg border-2 border-tm-border px-3 py-2 text-sm text-tm-text-1 transition-all focus:border-primary focus:ring-2 focus:ring-primary"
+                  autoFocus
+                />
+                <div className="flex flex-shrink-0 gap-2">
+                  <button
+                    onClick={handleSaveSlogan}
+                    disabled={savingSlogan}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-tm-secondary px-3 py-2 text-sm font-semibold text-tm-on-secondary transition-opacity hover:opacity-90 disabled:opacity-50"
+                  >
+                    <Save className="h-3.5 w-3.5" /> {savingSlogan ? 'Saving…' : 'Save'}
+                  </button>
+                  <button
+                    onClick={() => setEditingSlogan(false)}
+                    disabled={savingSlogan}
+                    className="rounded-lg border border-tm-border px-3 py-2 text-sm font-medium text-tm-text-1 transition-colors hover:bg-tm-surface-hover"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between gap-3">
+                {club?.club_slogan ? (
+                  <p className="truncate font-semibold italic text-primary">&ldquo;{club.club_slogan}&rdquo;</p>
+                ) : (
+                  <p className="text-sm text-tm-text-3">
+                    {user.role === 'admin' ? 'No club slogan set yet — add one to hype the team.' : 'No club slogan set yet.'}
+                  </p>
+                )}
+                {user.role === 'admin' && (
+                  <button
+                    onClick={() => { setSloganDraft(club?.club_slogan || ''); setEditingSlogan(true) }}
+                    className="flex-shrink-0 text-xs font-medium text-tm-text-3 underline decoration-dotted hover:text-tm-text-1"
+                  >
+                    {club?.club_slogan ? 'Edit' : 'Add slogan'}
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
 

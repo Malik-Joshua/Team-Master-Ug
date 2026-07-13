@@ -177,6 +177,8 @@ export default function FixturesPage() {
   // Tracks the match whose collapsed/expanded view mode has been initialised, so
   // background reloads don't reset the coach's Edit/View choice.
   const viewModeMatch = useRef<string | null>(null)
+  // Club slogan — shown on the "Team selection saved" header to hype the squad.
+  const [clubSlogan, setClubSlogan] = useState<string | null>(null)
   const [teamSelectionsForStats, setTeamSelectionsForStats] = useState<any[]>([])
   const [matchStaff, setMatchStaff] = useState<{
     coach: { id: string; name: string } | null
@@ -490,6 +492,34 @@ export default function FixturesPage() {
         if (!cancelled && Array.isArray(data?.squads)) setPreviousSquads(data.squads)
       } catch {
         /* keep empty */
+      }
+    })()
+    return () => { cancelled = true }
+  }, [])
+
+  // Load the club's slogan for the "Team selection saved" header. Isolated so
+  // a failure here never blocks anything else on the page.
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const supabase = createClient()
+        let { data, error } = await supabase
+          .from('club_settings')
+          .select('club_slogan')
+          .order('updated_at', { ascending: false, nullsFirst: false })
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+        // club_slogan is a newer column (migration 043) — fall back quietly
+        // if it hasn't been applied yet.
+        if (error?.message?.includes('club_slogan')) {
+          if (!cancelled) setClubSlogan(null)
+          return
+        }
+        if (!cancelled) setClubSlogan(data?.club_slogan || null)
+      } catch {
+        if (!cancelled) setClubSlogan(null)
       }
     })()
     return () => { cancelled = true }
@@ -3023,6 +3053,13 @@ export default function FixturesPage() {
                     </button>
                   </div>
                 </div>
+
+                {/* Club slogan — hypes the squad ahead of the fixture */}
+                {clubSlogan && (
+                  <div className="border-b border-tm-border px-6 py-3">
+                    <p className="font-semibold italic text-primary">&ldquo;{clubSlogan}&rdquo;</p>
+                  </div>
+                )}
 
                 {showSavedTeam && (
                   <div className="p-6">

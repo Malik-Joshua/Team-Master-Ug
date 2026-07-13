@@ -82,6 +82,8 @@ export default function AdminDashboard() {
   const [loadingInjuries, setLoadingInjuries] = useState(false)
   const [teamSelection, setTeamSelection] = useState<any>(null)
   const [loadingTeamSelection, setLoadingTeamSelection] = useState(false)
+  // Club slogan — shown on the "Next fixture" card to hype the squad.
+  const [clubSlogan, setClubSlogan] = useState<string | null>(null)
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalPlayers: 0,
@@ -291,6 +293,33 @@ export default function AdminDashboard() {
     setIsMounted(true)
     loadData()
   }, [loadData])
+
+  // Load the club's slogan for the "Next fixture" card. Isolated so a
+  // failure here never blocks the rest of the dashboard.
+  useEffect(() => {
+    const loadClubSlogan = async () => {
+      try {
+        const supabase = createClient()
+        let { data, error } = await supabase
+          .from('club_settings')
+          .select('club_slogan')
+          .order('updated_at', { ascending: false, nullsFirst: false })
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+        // club_slogan is a newer column (migration 043) — fall back quietly
+        // if it hasn't been applied yet.
+        if (error?.message?.includes('club_slogan')) {
+          setClubSlogan(null)
+          return
+        }
+        setClubSlogan(data?.club_slogan || null)
+      } catch {
+        setClubSlogan(null)
+      }
+    }
+    loadClubSlogan()
+  }, [])
 
   const handleApproveBudget = async (budgetId: string) => {
     try {
@@ -510,6 +539,7 @@ export default function AdminDashboard() {
                 date={formatDateSafe(upcomingMatches[0].match_date, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
                 time={formatTimeSafe(upcomingMatches[0].match_date)}
                 venue={upcomingMatches[0].venue || 'TBD'}
+                slogan={clubSlogan}
                 onViewSquad={() => setShowSquadModal(true)}
                 onMatchDay={() => setShowMatchDayModal(true)}
               />

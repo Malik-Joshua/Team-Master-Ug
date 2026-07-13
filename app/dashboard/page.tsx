@@ -913,8 +913,17 @@ export default function DashboardPage() {
                   )}
                 </div>
               </div>
-              <div className="w-20 h-20 rounded-full bg-tm-secondary flex items-center justify-center text-tm-on-secondary text-2xl font-bold">
-                {user.name.charAt(0).toUpperCase()}
+              <div className="w-20 h-20 rounded-full bg-tm-secondary flex items-center justify-center text-tm-on-secondary text-2xl font-bold overflow-hidden flex-shrink-0">
+                {user.profile_picture_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={user.profile_picture_url}
+                    alt={user.name}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  user.name.charAt(0).toUpperCase()
+                )}
               </div>
             </div>
           </div>

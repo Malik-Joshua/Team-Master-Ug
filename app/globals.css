@@ -99,10 +99,11 @@ body {
   .hover-lift {
     transition: all 300ms ease-in-out;
   }
-  
+
   .hover-lift:hover {
     transform: translateY(-4px);
-    box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+    border-color: var(--tm-primary);
+    box-shadow: 0 0 16px 2px var(--tm-primary), 0 10px 20px rgba(0, 0, 0, 0.35);
   }
   
   .card-shadow {

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import Link from 'next/link'
 import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
 import BirthdayAlert from '@/components/BirthdayAlert'
@@ -1412,9 +1413,9 @@ export default function DataAdminDashboard() {
           </div>
         )}
 
-        {/* Quick Actions */}
+        {/* Quick Actions — each tile now actually goes somewhere */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft hover-lift">
+          <Link href="/players" className="block bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft hover-lift cursor-pointer">
             <div className="flex items-center space-x-4">
               <div className="bg-primary w-12 h-12 rounded-xl flex items-center justify-center">
                 <Users className="w-6 h-6 text-tm-on-secondary" />
@@ -1424,8 +1425,8 @@ export default function DataAdminDashboard() {
                 <p className="text-sm text-tm-text-3">View and edit player information</p>
               </div>
             </div>
-          </div>
-          <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft hover-lift">
+          </Link>
+          <Link href="/training" className="block bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft hover-lift cursor-pointer">
             <div className="flex items-center space-x-4">
               <div className="bg-success w-12 h-12 rounded-xl flex items-center justify-center">
                 <Calendar className="w-6 h-6 text-white" />
@@ -1435,8 +1436,12 @@ export default function DataAdminDashboard() {
                 <p className="text-sm text-tm-text-3">Record and track training sessions</p>
               </div>
             </div>
-          </div>
-          <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft hover-lift">
+          </Link>
+          <button
+            type="button"
+            onClick={() => setShowMatchForm(true)}
+            className="text-left w-full bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft hover-lift cursor-pointer"
+          >
             <div className="flex items-center space-x-4">
               <div className="bg-warning w-12 h-12 rounded-xl flex items-center justify-center">
                 <BarChart3 className="w-6 h-6 text-white" />
@@ -1446,7 +1451,7 @@ export default function DataAdminDashboard() {
                 <p className="text-sm text-tm-text-3">Log match performance data</p>
               </div>
             </div>
-          </div>
+          </button>
         </div>
       </div>
     </Layout>

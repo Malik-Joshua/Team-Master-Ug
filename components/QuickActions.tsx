@@ -21,7 +21,7 @@ export default function QuickActions({ actions }: QuickActionsProps) {
           <button
             key={index}
             onClick={action.onClick}
-            className="rounded-[10px] p-3.5 flex flex-col items-center gap-2 cursor-pointer transition-all duration-200 hover:border-[var(--tm-primary)] hover:bg-[var(--tm-primary-subtle)] hover:scale-[1.03] hover:shadow-lg"
+            className="rounded-[10px] p-3.5 flex flex-col items-center gap-2 cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--tm-primary)] hover:bg-[var(--tm-primary-subtle)] hover:scale-[1.03] hover:shadow-[0_0_14px_2px_var(--tm-primary),0_8px_16px_rgba(0,0,0,0.3)]"
             style={{ background: 'var(--tm-surface)', border: '1px solid var(--tm-border)' }}
           >
             <div

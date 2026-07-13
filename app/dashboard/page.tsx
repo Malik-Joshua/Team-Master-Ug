@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
 import BirthdayAlert from '@/components/BirthdayAlert'
+import FixtureCard from '@/components/FixtureCard'
 import { Calendar, Activity, Trophy, Target, AlertCircle, Dumbbell, Edit, X, Save, HeartPulse, Pill, FileText, Clock, CheckCircle, MapPin } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
@@ -37,6 +38,22 @@ if (typeof window !== 'undefined') {
     Legend,
     Filler
   )
+}
+
+// Same helpers used by the admin dashboard's "Next fixture" card, so the
+// coach's version renders identically.
+const formatDateSafe = (dateString: string | null | undefined, options: Intl.DateTimeFormatOptions = { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) => {
+  if (!dateString) return 'TBD'
+  const date = new Date(dateString)
+  if (isNaN(date.getTime())) return 'TBD'
+  return date.toLocaleDateString('en-US', options)
+}
+
+const formatTimeSafe = (dateString: string | null | undefined) => {
+  if (!dateString) return 'TBD'
+  const date = new Date(dateString)
+  if (isNaN(date.getTime())) return 'TBD'
+  return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
 }
 
 export default function DashboardPage() {
@@ -1630,86 +1647,22 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* Upcoming Fixture Team Selection */}
+          {/* Upcoming fixture — same card the club owner sees, so the coach's
+              dashboard matches. "View squad" sends the coach to /fixtures
+              (the pitch view) instead of a modal, since the coach manages
+              and reviews the squad on the pitch, not in a popup. */}
           {playerFixtureSelection && playerFixtureSelection.match && (
-            <div className="bg-tm-surface rounded-card border border-tm-border shadow-soft">
-              <div className="p-4 sm:p-6 border-b border-tm-border">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <h3 className="text-lg sm:text-xl font-bold text-tm-text-1 flex items-center gap-2">
-                    <Trophy className="w-5 h-5 text-primary flex-shrink-0" />
-                    Upcoming Fixture Team Selection
-                  </h3>
-                  <Link
-                    href="/fixtures"
-                    className="text-primary hover:underline text-sm font-medium"
-                  >
-                    Manage Team Selection →
-                  </Link>
-                </div>
-              </div>
-              <div className="p-4 sm:p-6">
-                <div className="mb-4">
-                  <h4 className="font-semibold text-tm-text-1 mb-2">
-                    {new Date(playerFixtureSelection.match.match_date).toLocaleDateString('en-US', {
-                      weekday: 'long',
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric',
-                    })} vs {playerFixtureSelection.match.opponent}
-                  </h4>
-                  {playerFixtureSelection.match.venue && (
-                    <p className="text-sm text-tm-text-3">Venue: {playerFixtureSelection.match.venue}</p>
-                  )}
-                </div>
-                
-                {playerFixtureSelection.starting && playerFixtureSelection.starting.length > 0 && (
-                  <div className="mb-4">
-                    <h5 className="font-semibold text-tm-text-1 mb-2 text-sm sm:text-base">Starting Lineup ({playerFixtureSelection.starting.length})</h5>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
-                      {playerFixtureSelection.starting.map((selection: any) => (
-                        <div key={selection.id} className="bg-success/5 border border-success/20 rounded-lg p-3">
-                          <div className="flex items-center justify-between">
-                            <span className="font-medium text-tm-text-1">{selection.player?.name || 'Unknown'}</span>
-                            {selection.jersey_number && (
-                              <span className="bg-success/20 text-success px-2 py-1 rounded text-xs font-bold">#{selection.jersey_number}</span>
-                            )}
-                          </div>
-                          {selection.position && (
-                            <p className="text-xs text-tm-text-3 mt-1 capitalize">{selection.position.replace(/_/g, ' ')}</p>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {playerFixtureSelection.substitutes && playerFixtureSelection.substitutes.length > 0 && (
-                  <div>
-                    <h5 className="font-semibold text-tm-text-1 mb-2 text-sm sm:text-base">Substitutes ({playerFixtureSelection.substitutes.length})</h5>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
-                      {playerFixtureSelection.substitutes.map((selection: any) => (
-                        <div key={selection.id} className="bg-warning/5 border border-warning/20 rounded-lg p-3">
-                          <div className="flex items-center justify-between">
-                            <span className="font-medium text-tm-text-1">{selection.player?.name || 'Unknown'}</span>
-                            {selection.jersey_number && (
-                              <span className="bg-warning/20 text-warning px-2 py-1 rounded text-xs font-bold">#{selection.jersey_number}</span>
-                            )}
-                          </div>
-                          {selection.position && (
-                            <p className="text-xs text-tm-text-3 mt-1 capitalize">{selection.position.replace(/_/g, ' ')}</p>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {(!playerFixtureSelection.starting || playerFixtureSelection.starting.length === 0) && 
-                 (!playerFixtureSelection.substitutes || playerFixtureSelection.substitutes.length === 0) && (
-                  <p className="text-tm-text-3 text-center py-4">No team selection made yet for this fixture.</p>
-                )}
-              </div>
-            </div>
+            <FixtureCard
+              label={`Next fixture · ${playerFixtureSelection.match.tournament_type?.replace('_', ' ') || 'Match'}`}
+              homeTeam="Team Master"
+              awayTeam={playerFixtureSelection.match.opponent}
+              date={formatDateSafe(playerFixtureSelection.match.match_date)}
+              time={formatTimeSafe(playerFixtureSelection.match.match_date)}
+              venue={playerFixtureSelection.match.venue || 'TBD'}
+              slogan={clubSlogan}
+              onViewSquad={() => router.push('/fixtures')}
+              onMatchDay={() => router.push('/fixtures')}
+            />
           )}
 
           {/* Active Injuries View (Read-Only) */}

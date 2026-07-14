@@ -2,13 +2,31 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
 import BirthdayAlert from '@/components/BirthdayAlert'
+import FixtureCard from '@/components/FixtureCard'
 import { Users, Activity, BarChart3, Calendar, Trophy, Plus, X, Save, MapPin, CheckCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import RefreshButton from '@/components/RefreshButton'
 import { isActivityPast } from '@/lib/utils'
+
+// Same helpers used by the admin/coach dashboards' "Next fixture" card, so
+// the team manager's version renders identically.
+const formatDateSafe = (dateString: string | null | undefined, options: Intl.DateTimeFormatOptions = { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) => {
+  if (!dateString) return 'TBD'
+  const date = new Date(dateString)
+  if (isNaN(date.getTime())) return 'TBD'
+  return date.toLocaleDateString('en-US', options)
+}
+
+const formatTimeSafe = (dateString: string | null | undefined) => {
+  if (!dateString) return 'TBD'
+  const date = new Date(dateString)
+  if (isNaN(date.getTime())) return 'TBD'
+  return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+}
 
 interface Player {
   user_id: string
@@ -38,8 +56,11 @@ interface PlayerStats {
 }
 
 export default function DataAdminDashboard() {
+  const router = useRouter()
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  // Club slogan — shown on the "Next fixture" card to hype the squad.
+  const [clubSlogan, setClubSlogan] = useState<string | null>(null)
   const [players, setPlayers] = useState<Player[]>([])
   const [activePlayersCount, setActivePlayersCount] = useState(0)
   const [matchesCount, setMatchesCount] = useState(0)
@@ -77,7 +98,6 @@ export default function DataAdminDashboard() {
   const [matches, setMatches] = useState<any[]>([])
   const [selectedMatchForStats, setSelectedMatchForStats] = useState<string>('')
   const [teamSelections, setTeamSelections] = useState<any[]>([])
-  const [selectedMatchForView, setSelectedMatchForView] = useState<string>('')
   const [loadingTeamSelection, setLoadingTeamSelection] = useState(false)
   const [matchWithStaff, setMatchWithStaff] = useState<any>(null)
 
@@ -263,6 +283,33 @@ export default function DataAdminDashboard() {
   useEffect(() => {
     loadData()
   }, [loadData])
+
+  // Load the club's slogan for the "Next fixture" card. Isolated so a
+  // failure here never blocks the rest of the dashboard.
+  useEffect(() => {
+    const loadClubSlogan = async () => {
+      try {
+        const supabase = createClient()
+        let { data, error } = await supabase
+          .from('club_settings')
+          .select('club_slogan')
+          .order('updated_at', { ascending: false, nullsFirst: false })
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+        // club_slogan is a newer column (migration 043) — fall back quietly
+        // if it hasn't been applied yet.
+        if (error?.message?.includes('club_slogan')) {
+          setClubSlogan(null)
+          return
+        }
+        setClubSlogan(data?.club_slogan || null)
+      } catch {
+        setClubSlogan(null)
+      }
+    }
+    loadClubSlogan()
+  }, [])
 
   // Load staff members when fixture form is opened
   useEffect(() => {
@@ -606,6 +653,12 @@ export default function DataAdminDashboard() {
   }
 
   if (!user) return null
+
+  // Next upcoming fixture, for the "Next fixture" card below.
+  const today = new Date().toISOString().split('T')[0]
+  const nextUpcomingMatch = matches
+    .filter((m: any) => m.match_date >= today)
+    .sort((a: any, b: any) => a.match_date.localeCompare(b.match_date))[0]
 
   return (
     <Layout pageTitle="Team Manager Dashboard">
@@ -1190,164 +1243,22 @@ export default function DataAdminDashboard() {
           </div>
         )}
 
-        {/* View Selected Team for Fixture - Summary */}
-        <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
-          <h2 className="text-2xl font-bold text-tm-text-1 mb-6 flex items-center">
-            <Trophy className="w-6 h-6 mr-2 text-primary" />
-            View Selected Team for Fixture
-          </h2>
-          
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-tm-text-3 mb-2">
-              Select Match/Fixture
-            </label>
-            <select
-              value={selectedMatchForView}
-              onChange={(e) => {
-                setSelectedMatchForView(e.target.value)
-                if (e.target.value) {
-                  loadTeamSelection(e.target.value)
-                } else {
-                  setTeamSelections([])
-                }
-              }}
-              className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
-            >
-              <option value="">Select a match...</option>
-              {matches.map((match) => {
-                const today = new Date().toISOString().split('T')[0]
-                const isUpcoming = match.match_date >= today
-                return (
-                  <option key={match.id} value={match.id}>
-                    {new Date(match.match_date).toLocaleDateString()} - vs {match.opponent} ({match.tournament_type}) {isUpcoming ? '(Upcoming)' : '(Played)'}
-                  </option>
-                )
-              })}
-            </select>
-          </div>
-
-          {loadingTeamSelection && selectedMatchForView && (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-            </div>
-          )}
-
-          {teamSelections.length > 0 && !loadingTeamSelection && (
-            <div className="space-y-4">
-              {/* Staff Assignment Information */}
-              {matchWithStaff && (matchWithStaff.physio || matchWithStaff.team_manager || matchWithStaff.coach) && (
-                <div className="bg-tm-surface-hover rounded-lg p-4 border border-tm-border mb-6">
-                  <h3 className="text-lg font-semibold text-tm-text-1 mb-3">Assigned Staff for Game Day</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {matchWithStaff.physio && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-tm-text-3">Physiotherapist:</span>
-                        <span className="text-sm text-tm-text-1 font-semibold">
-                          {typeof matchWithStaff.physio === 'object' ? matchWithStaff.physio.name : 'Assigned'}
-                        </span>
-                      </div>
-                    )}
-                    {matchWithStaff.team_manager && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-tm-text-3">Team Manager:</span>
-                        <span className="text-sm text-tm-text-1 font-semibold">
-                          {typeof matchWithStaff.team_manager === 'object' ? matchWithStaff.team_manager.name : 'Assigned'}
-                        </span>
-                      </div>
-                    )}
-                    {matchWithStaff.coach && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-tm-text-3">Coach:</span>
-                        <span className="text-sm text-tm-text-1 font-semibold">
-                          {typeof matchWithStaff.coach === 'object' ? matchWithStaff.coach.name : 'Assigned'}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-              
-              {/* Summary Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div className="text-center p-4 bg-primary/10 rounded-lg">
-                  <p className="text-2xl font-bold text-primary">
-                    {teamSelections.filter((s: any) => s.is_starting && !s.is_substitute).length}
-                  </p>
-                  <p className="text-sm text-tm-text-3">Starting Players</p>
-                </div>
-                <div className="text-center p-4 bg-secondary/10 rounded-lg">
-                  <p className="text-2xl font-bold text-secondary">
-                    {teamSelections.filter((s: any) => s.is_substitute).length}
-                  </p>
-                  <p className="text-sm text-tm-text-3">Substitutes</p>
-                </div>
-                <div className="text-center p-4 bg-success/10 rounded-lg">
-                  <p className="text-2xl font-bold text-success">{teamSelections.length}</p>
-                  <p className="text-sm text-tm-text-3">Total Selected</p>
-                </div>
-              </div>
-
-              {/* Starting Lineup Summary */}
-              <div>
-                <h3 className="text-lg font-semibold text-tm-text-1 mb-4">Starting Lineup</h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                  {teamSelections
-                    .filter((s: any) => s.is_starting && !s.is_substitute)
-                    .map((selection: any) => (
-                      <div key={selection.player_id} className="p-3 bg-primary/5 border border-primary/20 rounded-lg">
-                        <p className="font-semibold text-tm-text-1">{selection.player_name || 'Unknown'}</p>
-                        {selection.position && (
-                          <p className="text-sm text-tm-text-3 capitalize">
-                            {selection.position.replace('_', ' ')}
-                          </p>
-                        )}
-                        {selection.jersey_number && (
-                          <p className="text-sm text-tm-text-3">Jersey #{selection.jersey_number}</p>
-                        )}
-                      </div>
-                    ))}
-                </div>
-              </div>
-
-              {/* Substitutes Summary */}
-              {teamSelections.filter((s: any) => s.is_substitute).length > 0 && (
-                <div>
-                  <h3 className="text-lg font-semibold text-tm-text-1 mb-4">Substitutes</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                    {teamSelections
-                      .filter((s: any) => s.is_substitute)
-                      .map((selection: any) => (
-                        <div key={selection.player_id} className="p-3 bg-secondary/5 border border-secondary/20 rounded-lg">
-                          <p className="font-semibold text-tm-text-1">{selection.player_name || 'Unknown'}</p>
-                          {selection.position && (
-                            <p className="text-sm text-tm-text-3 capitalize">
-                              {selection.position.replace('_', ' ')}
-                            </p>
-                          )}
-                          {selection.jersey_number && (
-                            <p className="text-sm text-tm-text-3">Jersey #{selection.jersey_number}</p>
-                          )}
-                        </div>
-                      ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {teamSelections.length === 0 && !loadingTeamSelection && selectedMatchForView && (
-            <div className="text-center py-8 text-tm-text-3">
-              <p>No team has been selected for this match yet.</p>
-              <p className="text-sm mt-2">The coach will select the team on the Fixtures page.</p>
-            </div>
-          )}
-
-          {!selectedMatchForView && (
-            <div className="text-center py-8 text-tm-text-3">
-              <p>Select a match above to view the selected team.</p>
-            </div>
-          )}
-        </div>
+        {/* Next fixture — same card the club owner and coach see. "View squad"
+            sends the team manager to /fixtures, where the selected squad is
+            now viewed (moved off this dashboard). */}
+        {nextUpcomingMatch && (
+          <FixtureCard
+            label={`Next fixture · ${nextUpcomingMatch.tournament_type?.replace('_', ' ') || 'Match'}`}
+            homeTeam="Team Master"
+            awayTeam={nextUpcomingMatch.opponent}
+            date={formatDateSafe(nextUpcomingMatch.match_date)}
+            time={formatTimeSafe(nextUpcomingMatch.match_date)}
+            venue={nextUpcomingMatch.venue || 'TBD'}
+            slogan={clubSlogan}
+            onViewSquad={() => router.push('/fixtures')}
+            onMatchDay={() => router.push('/fixtures')}
+          />
+        )}
 
         {/* Recent Gym Schedules */}
         {recentGymSchedules.length > 0 && (

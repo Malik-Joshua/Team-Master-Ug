@@ -1461,6 +1461,136 @@ export default function FixturesPage() {
   const statsPlayers = selectedMatchForStats
     ? players.filter((player) => selectedTeamIds.has(player.user_id))
     : players
+  // View Team Selection Modal — shared across roles (admin, data_admin) so
+  // whichever branch's return statement renders it, the same modal shows.
+  const teamViewModal = showTeamViewModal ? (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+      <div className="bg-tm-surface rounded-card shadow-large max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-tm-border">
+        <div className="p-6 border-b border-tm-border sticky top-0 bg-tm-surface z-10">
+          <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-bold text-tm-text-1">Selected Team</h2>
+            <button
+              onClick={() => {
+                setShowTeamViewModal(false)
+                setViewingTeamForMatch('')
+                setViewedTeamSelection([])
+              }}
+              className="modal-close-btn"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          {viewingTeamForMatch && (
+            <p className="text-sm text-tm-text-3 mt-2">
+              {matches.find(m => m.id === viewingTeamForMatch)?.opponent &&
+                `vs ${matches.find(m => m.id === viewingTeamForMatch)?.opponent} - ${new Date(matches.find(m => m.id === viewingTeamForMatch)?.match_date || '').toLocaleDateString()}`
+              }
+            </p>
+          )}
+        </div>
+        <div className="p-6">
+          {loadingTeamView ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+          ) : viewedTeamSelection.length === 0 ? (
+            <div className="text-center py-12 text-tm-text-3">
+              <Users className="w-16 h-16 mx-auto mb-4 text-tm-text-3" />
+              <p className="text-lg font-semibold">No team selected yet</p>
+              <p className="text-sm mt-2">The coach has not selected a team for this fixture</p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {/* Starting Lineup */}
+              <div>
+                <h3 className="text-lg font-bold text-tm-text-1 mb-4 flex items-center gap-2">
+                  <Check className="w-5 h-5 text-success" />
+                  Starting Lineup ({viewedTeamSelection.filter((s: any) => s.is_starting && !s.is_substitute).length})
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {viewedTeamSelection
+                    .filter((s: any) => s.is_starting && !s.is_substitute)
+                    .map((selection: any) => (
+                      <div key={selection.player_id} className="bg-tm-surface-hover/50 rounded-lg p-3 border border-tm-border">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 flex-wrap mb-1">
+                              <p className="font-semibold text-tm-text-1">{selection.player_name || 'Unknown Player'}</p>
+                              {selection.is_captain && (
+                                <span className="px-2 py-0.5 bg-warning/100 text-white text-xs font-bold rounded-full flex items-center gap-1">
+                                  <Trophy className="w-3 h-3" />
+                                  Captain
+                                </span>
+                              )}
+                              {selection.is_assistant_captain && (
+                                <span className="px-2 py-0.5 bg-tm-surface-hover0 text-white text-xs font-bold rounded-full flex items-center gap-1">
+                                  <Trophy className="w-3 h-3" />
+                                  Asst. Captain
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-tm-text-3">{selection.position || 'N/A'}</p>
+                          </div>
+                          {selection.jersey_number && (
+                            <span className="px-3 py-1 bg-primary text-tm-on-secondary rounded-full text-sm font-bold">
+                              #{selection.jersey_number}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+
+              {/* Substitutes */}
+              {viewedTeamSelection.filter((s: any) => s.is_substitute).length > 0 && (
+                <div>
+                  <h3 className="text-lg font-bold text-tm-text-1 mb-4 flex items-center gap-2">
+                    <Users className="w-5 h-5 text-primary" />
+                    Substitutes ({viewedTeamSelection.filter((s: any) => s.is_substitute).length})
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {viewedTeamSelection
+                      .filter((s: any) => s.is_substitute)
+                      .map((selection: any) => (
+                        <div key={selection.player_id} className="bg-tm-surface-hover/50 rounded-lg p-3 border border-tm-border">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 flex-wrap mb-1">
+                                <p className="font-semibold text-tm-text-1">{selection.player_name || 'Unknown Player'}</p>
+                                {selection.is_captain && (
+                                  <span className="px-2 py-0.5 bg-warning/100 text-white text-xs font-bold rounded-full flex items-center gap-1">
+                                    <Trophy className="w-3 h-3" />
+                                    Captain
+                                  </span>
+                                )}
+                                {selection.is_assistant_captain && (
+                                  <span className="px-2 py-0.5 bg-tm-surface-hover0 text-white text-xs font-bold rounded-full flex items-center gap-1">
+                                    <Trophy className="w-3 h-3" />
+                                    Asst. Captain
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-sm text-tm-text-3">{selection.position || 'N/A'}</p>
+                            </div>
+                            {selection.jersey_number && (
+                              <span className="px-3 py-1 bg-primary text-tm-on-secondary rounded-full text-sm font-bold">
+                                #{selection.jersey_number}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  ) : null
+
   const matchStatsModal = showMatchForm ? (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-3 sm:p-4 z-50 backdrop-blur-sm">
       <div className="bg-tm-surface rounded-card shadow-large w-full max-w-[95vw] sm:max-w-6xl border border-tm-border max-h-[90vh] overflow-hidden flex flex-col">
@@ -1942,7 +2072,7 @@ export default function FixturesPage() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2 ml-4">
-                          {isUpcoming && user?.role === 'admin' && (
+                          {isUpcoming && (user?.role === 'admin' || user?.role === 'data_admin') && (
                             <button
                               onClick={() => handleViewTeam(match.id)}
                               disabled={loadingTeamView && viewingTeamForMatch === match.id}
@@ -2626,6 +2756,7 @@ export default function FixturesPage() {
             </div>
           )}
         </div>
+        {teamViewModal}
       </Layout>
     )
   }
@@ -2767,134 +2898,7 @@ export default function FixturesPage() {
           </div>
         </div>
 
-        {/* View Team Selection Modal */}
-        {showTeamViewModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-            <div className="bg-tm-surface rounded-card shadow-large max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-tm-border">
-              <div className="p-6 border-b border-tm-border sticky top-0 bg-tm-surface z-10">
-                <div className="flex justify-between items-center">
-                  <h2 className="text-2xl font-bold text-tm-text-1">Selected Team</h2>
-                  <button
-                    onClick={() => {
-                      setShowTeamViewModal(false)
-                      setViewingTeamForMatch('')
-                      setViewedTeamSelection([])
-                    }}
-                    className="modal-close-btn"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-                {viewingTeamForMatch && (
-                  <p className="text-sm text-tm-text-3 mt-2">
-                    {matches.find(m => m.id === viewingTeamForMatch)?.opponent && 
-                      `vs ${matches.find(m => m.id === viewingTeamForMatch)?.opponent} - ${new Date(matches.find(m => m.id === viewingTeamForMatch)?.match_date || '').toLocaleDateString()}`
-                    }
-                  </p>
-                )}
-              </div>
-              <div className="p-6">
-                {loadingTeamView ? (
-                  <div className="flex items-center justify-center py-12">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                  </div>
-                ) : viewedTeamSelection.length === 0 ? (
-                  <div className="text-center py-12 text-tm-text-3">
-                    <Users className="w-16 h-16 mx-auto mb-4 text-tm-text-3" />
-                    <p className="text-lg font-semibold">No team selected yet</p>
-                    <p className="text-sm mt-2">The coach has not selected a team for this fixture</p>
-                  </div>
-                ) : (
-                  <div className="space-y-6">
-                    {/* Starting Lineup */}
-                    <div>
-                      <h3 className="text-lg font-bold text-tm-text-1 mb-4 flex items-center gap-2">
-                        <Check className="w-5 h-5 text-success" />
-                        Starting Lineup ({viewedTeamSelection.filter((s: any) => s.is_starting && !s.is_substitute).length})
-                      </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {viewedTeamSelection
-                          .filter((s: any) => s.is_starting && !s.is_substitute)
-                          .map((selection: any) => (
-                            <div key={selection.player_id} className="bg-tm-surface-hover/50 rounded-lg p-3 border border-tm-border">
-                              <div className="flex items-center justify-between">
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2 flex-wrap mb-1">
-                                    <p className="font-semibold text-tm-text-1">{selection.player_name || 'Unknown Player'}</p>
-                                    {selection.is_captain && (
-                                      <span className="px-2 py-0.5 bg-warning/100 text-white text-xs font-bold rounded-full flex items-center gap-1">
-                                        <Trophy className="w-3 h-3" />
-                                        Captain
-                                      </span>
-                                    )}
-                                    {selection.is_assistant_captain && (
-                                      <span className="px-2 py-0.5 bg-tm-surface-hover0 text-white text-xs font-bold rounded-full flex items-center gap-1">
-                                        <Trophy className="w-3 h-3" />
-                                        Asst. Captain
-                                      </span>
-                                    )}
-                                  </div>
-                                  <p className="text-sm text-tm-text-3">{selection.position || 'N/A'}</p>
-                                </div>
-                                {selection.jersey_number && (
-                                  <span className="px-3 py-1 bg-primary text-tm-on-secondary rounded-full text-sm font-bold">
-                                    #{selection.jersey_number}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                      </div>
-                    </div>
-
-                    {/* Substitutes */}
-                    {viewedTeamSelection.filter((s: any) => s.is_substitute).length > 0 && (
-                      <div>
-                        <h3 className="text-lg font-bold text-tm-text-1 mb-4 flex items-center gap-2">
-                          <Users className="w-5 h-5 text-primary" />
-                          Substitutes ({viewedTeamSelection.filter((s: any) => s.is_substitute).length})
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          {viewedTeamSelection
-                            .filter((s: any) => s.is_substitute)
-                            .map((selection: any) => (
-                              <div key={selection.player_id} className="bg-tm-surface-hover/50 rounded-lg p-3 border border-tm-border">
-                                <div className="flex items-center justify-between">
-                                  <div className="flex-1">
-                                    <div className="flex items-center gap-2 flex-wrap mb-1">
-                                      <p className="font-semibold text-tm-text-1">{selection.player_name || 'Unknown Player'}</p>
-                                      {selection.is_captain && (
-                                        <span className="px-2 py-0.5 bg-warning/100 text-white text-xs font-bold rounded-full flex items-center gap-1">
-                                          <Trophy className="w-3 h-3" />
-                                          Captain
-                                        </span>
-                                      )}
-                                      {selection.is_assistant_captain && (
-                                        <span className="px-2 py-0.5 bg-tm-surface-hover0 text-white text-xs font-bold rounded-full flex items-center gap-1">
-                                          <Trophy className="w-3 h-3" />
-                                          Asst. Captain
-                                        </span>
-                                      )}
-                                    </div>
-                                    <p className="text-sm text-tm-text-3">{selection.position || 'N/A'}</p>
-                                  </div>
-                                  {selection.jersey_number && (
-                                    <span className="px-3 py-1 bg-primary text-tm-on-secondary rounded-full text-sm font-bold">
-                                      #{selection.jersey_number}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
+        {teamViewModal}
       </Layout>
     )
   }

@@ -92,20 +92,46 @@ export async function GET(
       s.player_name = playersMap.get(s.player_id) || 'Unknown Player'
     })
 
-    // Club branding — name + colours (most recent row wins)
+    // Club branding — name + colours + badge (most recent row wins)
     let clubName = 'Team Master'
     let primaryColor = '#1A5276'
+    let badgeUrl: string | null = null
     try {
       const { data: club } = await supabaseAdmin
         .from('club_settings')
-        .select('club_nickname, primary_color')
+        .select('club_nickname, primary_color, badge_url')
         .order('updated_at', { ascending: false, nullsFirst: false })
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle()
       if (club?.club_nickname) clubName = club.club_nickname
       if (club?.primary_color) primaryColor = club.primary_color
+      if (club?.badge_url) badgeUrl = club.badge_url
     } catch { /* keep defaults */ }
+
+    // Fetch the club badge and turn it into a data URL jsPDF can embed. Best
+    // effort — if the badge can't be loaded we simply render the header without
+    // it rather than failing the whole download.
+    let badgeDataUrl: string | null = null
+    let badgeFormat: 'PNG' | 'JPEG' | null = null
+    if (badgeUrl) {
+      try {
+        const imgRes = await fetch(badgeUrl)
+        if (imgRes.ok) {
+          const contentType = imgRes.headers.get('content-type') || ''
+          const buf = Buffer.from(await imgRes.arrayBuffer())
+          // jsPDF's addImage handles PNG and JPEG; skip anything else (e.g. svg).
+          if (contentType.includes('png') || badgeUrl.toLowerCase().endsWith('.png')) {
+            badgeFormat = 'PNG'
+          } else if (contentType.includes('jpeg') || contentType.includes('jpg') || /\.jpe?g$/i.test(badgeUrl)) {
+            badgeFormat = 'JPEG'
+          }
+          if (badgeFormat && buf.length > 0) {
+            badgeDataUrl = `data:image/${badgeFormat.toLowerCase()};base64,${buf.toString('base64')}`
+          }
+        }
+      } catch { /* render without the badge */ }
+    }
 
     // Convert hex → RGB for jsPDF
     const hexToRgb = (hex: string): [number, number, number] => {
@@ -176,13 +202,30 @@ export async function GET(
     // Header band (club colour)
     doc.setFillColor(pr, pg, pb)
     doc.rect(0, 0, pageWidth, 40, 'F')
+
+    // Club badge (left) — on a white rounded backdrop so transparent or
+    // dark-on-dark logos stay visible against the coloured band. Text shifts
+    // right to make room; without a badge the layout is unchanged.
+    let textX = margin
+    if (badgeDataUrl && badgeFormat) {
+      const size = 22
+      const bx = margin
+      const by = (40 - size) / 2 // vertically centre within the 40-tall band
+      try {
+        doc.setFillColor(255, 255, 255)
+        doc.roundedRect(bx - 2, by - 2, size + 4, size + 4, 3, 3, 'F')
+        doc.addImage(badgeDataUrl, badgeFormat, bx, by, size, size)
+        textX = bx + size + 8
+      } catch { /* if the image fails to embed, fall back to text-only header */ }
+    }
+
     doc.setTextColor(255, 255, 255)
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(22)
-    doc.text(clubName, margin, 20)
+    doc.text(clubName, textX, 20)
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(12)
-    doc.text('Match Day Squad List', margin, 30)
+    doc.text('Match Day Squad List', textX, 30)
     // Tournament tag (right aligned)
     doc.setFontSize(11)
     doc.setFont('helvetica', 'bold')

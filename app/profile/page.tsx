@@ -25,6 +25,11 @@ export default function ProfilePage() {
   const [sloganDraft, setSloganDraft] = useState('')
   const [savingSlogan, setSavingSlogan] = useState(false)
 
+  // Club name editing (admin only) — the club's actual name, shown on fixtures
+  const [editingName, setEditingName] = useState(false)
+  const [nameDraft, setNameDraft] = useState('')
+  const [savingName, setSavingName] = useState(false)
+
   const handleSaveSlogan = async () => {
     setSavingSlogan(true)
     try {
@@ -41,6 +46,25 @@ export default function ProfilePage() {
       alert(`Error: ${err.message}`)
     } finally {
       setSavingSlogan(false)
+    }
+  }
+
+  const handleSaveName = async () => {
+    setSavingName(true)
+    try {
+      const res = await fetch('/api/club/update-name', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: nameDraft.trim() }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to save club name')
+      setClub((prev: any) => ({ ...(prev || {}), club_nickname: data.club_nickname }))
+      setEditingName(false)
+    } catch (err: any) {
+      alert(`Error: ${err.message}`)
+    } finally {
+      setSavingName(false)
     }
   }
 
@@ -332,6 +356,54 @@ export default function ProfilePage() {
               </span>
               <span className="text-[11px] text-tm-text-3">Active member</span>
             </div>
+          </div>
+
+          {/* Club name — the official name of the club, shown on fixtures and
+              match day alerts. Admins can edit it here. */}
+          <div className="border-t border-tm-border px-5 py-4 sm:px-6">
+            {editingName ? (
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <input
+                  type="text"
+                  value={nameDraft}
+                  onChange={(e) => setNameDraft(e.target.value)}
+                  placeholder="e.g. The Heathens"
+                  className="w-full flex-1 rounded-lg border-2 border-tm-border px-3 py-2 text-sm text-tm-text-1 transition-all focus:border-primary focus:ring-2 focus:ring-primary"
+                  autoFocus
+                />
+                <div className="flex flex-shrink-0 gap-2">
+                  <button
+                    onClick={handleSaveName}
+                    disabled={savingName}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-tm-secondary px-3 py-2 text-sm font-semibold text-tm-on-secondary transition-opacity hover:opacity-90 disabled:opacity-50"
+                  >
+                    <Save className="h-3.5 w-3.5" /> {savingName ? 'Saving…' : 'Save'}
+                  </button>
+                  <button
+                    onClick={() => setEditingName(false)}
+                    disabled={savingName}
+                    className="rounded-lg border border-tm-border px-3 py-2 text-sm font-medium text-tm-text-1 transition-colors hover:bg-tm-surface-hover"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex flex-col gap-0.5">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-tm-text-3">Club Name</p>
+                  <p className="text-sm font-semibold text-tm-text-1">{club?.club_nickname || 'Team Master'}</p>
+                </div>
+                {user.role === 'admin' && (
+                  <button
+                    onClick={() => { setNameDraft(club?.club_nickname || ''); setEditingName(true) }}
+                    className="flex-shrink-0 text-xs font-medium text-tm-text-3 underline decoration-dotted hover:text-tm-text-1"
+                  >
+                    Edit
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Club slogan — hypes the team; admins can edit it here and it

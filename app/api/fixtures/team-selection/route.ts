@@ -275,7 +275,7 @@ export async function GET(request: NextRequest) {
     // Get match details including staff assignments
     const { data: matchDetails } = await supabaseAdmin
       .from('matches')
-      .select('id, match_date, opponent, venue, tournament_type, physio_id, team_manager_id, coach_id')
+      .select('id, match_date, opponent, venue, tournament_type, notes, physio_id, team_manager_id, coach_id')
       .eq('id', matchId)
       .single()
 

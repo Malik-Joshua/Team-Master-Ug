@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Layout from '@/components/Layout'
-import { Users, Check, X, Save, Calendar, MapPin, Trophy, Plus, Eye, Trash2 } from 'lucide-react'
+import { Users, Check, X, Save, Calendar, MapPin, Trophy, Plus, Eye, Trash2, Search, Download } from 'lucide-react'
 import RefreshButton from '@/components/RefreshButton'
 import { createClient } from '@/lib/supabase/client'
 import { db } from '@/lib/db-helpers'
@@ -129,6 +129,11 @@ export default function FixturesPage() {
   // For data_admin: Create Fixture and Enter Match Stats
   const [showCreateFixtureForm, setShowCreateFixtureForm] = useState(false)
   const [showMatchForm, setShowMatchForm] = useState(false)
+  // Squad-selection history filter (data_admin fixtures page). Lets the team
+  // manager narrow the fixtures list by whether a squad has been picked yet,
+  // and search by opponent — acting as a history filter for selected squads.
+  const [squadFilter, setSquadFilter] = useState<'all' | 'selected' | 'pending'>('all')
+  const [fixtureSearch, setFixtureSearch] = useState('')
   const [fixtureForm, setFixtureForm] = useState({
     match_date: '',
     opponent: '',
@@ -210,6 +215,8 @@ export default function FixturesPage() {
   const [viewingTeamForMatch, setViewingTeamForMatch] = useState<string>('')
   const [viewedTeamSelection, setViewedTeamSelection] = useState<any[]>([])
   const [loadingTeamView, setLoadingTeamView] = useState(false)
+  // Tracks which fixture's squad PDF is currently being generated/downloaded.
+  const [downloadingSquadId, setDownloadingSquadId] = useState<string>('')
 
   const loadData = useCallback(async () => {
       try {
@@ -572,6 +579,38 @@ export default function FixturesPage() {
       alert('Error loading team selection')
     } finally {
       setLoadingTeamView(false)
+    }
+  }
+
+  // Generate + download a shareable PDF squad list for a fixture. The server
+  // renders a branded document; here we just stream the blob to a download.
+  const handleDownloadSquad = async (matchId: string) => {
+    setDownloadingSquadId(matchId)
+    try {
+      const response = await fetch(`/api/fixtures/${matchId}/squad-pdf`, { cache: 'no-store' })
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}))
+        alert(err.error || 'Failed to generate squad list')
+        return
+      }
+      const blob = await response.blob()
+      // Pull the server-suggested filename out of the Content-Disposition header.
+      const disposition = response.headers.get('Content-Disposition') || ''
+      const match = disposition.match(/filename="?([^"]+)"?/)
+      const fileName = match?.[1] || 'squad-list.pdf'
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = fileName
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Error downloading squad list:', error)
+      alert('Error downloading squad list')
+    } finally {
+      setDownloadingSquadId('')
     }
   }
 
@@ -1467,18 +1506,31 @@ export default function FixturesPage() {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
       <div className="bg-tm-surface rounded-card shadow-large max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-tm-border">
         <div className="p-6 border-b border-tm-border sticky top-0 bg-tm-surface z-10">
-          <div className="flex justify-between items-center">
+          <div className="flex justify-between items-center gap-3">
             <h2 className="text-2xl font-bold text-tm-text-1">Selected Team</h2>
-            <button
-              onClick={() => {
-                setShowTeamViewModal(false)
-                setViewingTeamForMatch('')
-                setViewedTeamSelection([])
-              }}
-              className="modal-close-btn"
-            >
-              <X className="h-4 w-4" />
-            </button>
+            <div className="flex items-center gap-2">
+              {viewedTeamSelection.length > 0 && viewingTeamForMatch && (
+                <button
+                  onClick={() => handleDownloadSquad(viewingTeamForMatch)}
+                  disabled={downloadingSquadId === viewingTeamForMatch}
+                  title="Download a shareable PDF of this squad"
+                  className="px-4 py-2 bg-primary text-tm-on-secondary rounded-[6px] font-semibold hover:opacity-90 transition-opacity inline-flex items-center disabled:opacity-50"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  {downloadingSquadId === viewingTeamForMatch ? 'Preparing…' : 'Download Squad List'}
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  setShowTeamViewModal(false)
+                  setViewingTeamForMatch('')
+                  setViewedTeamSelection([])
+                }}
+                className="modal-close-btn"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
           </div>
           {viewingTeamForMatch && (
             <p className="text-sm text-tm-text-3 mt-2">
@@ -1985,6 +2037,23 @@ export default function FixturesPage() {
 
   // For data_admin, show fixtures list with create and match stats options
   if (user?.role === 'data_admin') {
+    // Which fixtures already have a saved squad. `previousSquads` is the list of
+    // every match with at least one saved team selection, so its match_ids are
+    // exactly the fixtures a squad has been picked for.
+    const squadSelectedIds = new Set(previousSquads.map((s) => s.match_id))
+    // Apply the history filter: search by opponent + squad-selection status.
+    const searchTerm = fixtureSearch.trim().toLowerCase()
+    const filteredMatches = matches.filter((match) => {
+      const matchesSearch = !searchTerm || match.opponent?.toLowerCase().includes(searchTerm)
+      const hasSquad = squadSelectedIds.has(match.id)
+      const matchesStatus =
+        squadFilter === 'all' ||
+        (squadFilter === 'selected' && hasSquad) ||
+        (squadFilter === 'pending' && !hasSquad)
+      return matchesSearch && matchesStatus
+    })
+    const isFiltering = squadFilter !== 'all' || searchTerm.length > 0
+
     return (
       <Layout pageTitle="Fixtures">
         <div className="space-y-6">
@@ -2017,6 +2086,65 @@ export default function FixturesPage() {
               </div>
             </div>
 
+            {/* Squad-selection history filter — search a fixture by opponent and
+                narrow by whether its squad has been picked yet. Acts as a quick
+                history lookup for selected squads across all fixtures. */}
+            {matches.length > 0 && (
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-6">
+                {/* Search by opponent */}
+                <div className="relative flex-1 min-w-0">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-tm-text-3 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={fixtureSearch}
+                    onChange={(e) => setFixtureSearch(e.target.value)}
+                    placeholder="Search fixtures by opponent…"
+                    className="w-full bg-tm-bg-elevated border border-tm-border rounded-[6px] pl-9 pr-9 py-2 text-sm text-tm-text-1 placeholder:text-tm-text-3 focus:outline-none focus:border-primary transition-colors"
+                  />
+                  {fixtureSearch && (
+                    <button
+                      onClick={() => setFixtureSearch('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded flex items-center justify-center text-tm-text-3 hover:text-tm-text-1 hover:bg-tm-surface-hover transition-colors"
+                      aria-label="Clear search"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Squad-selection status segmented filter */}
+                <div className="flex items-center gap-1 bg-tm-bg-elevated border border-tm-border rounded-[6px] p-1 flex-shrink-0">
+                  {([
+                    { key: 'all', label: 'All' },
+                    { key: 'selected', label: 'Squad Selected' },
+                    { key: 'pending', label: 'Awaiting Squad' },
+                  ] as const).map((opt) => {
+                    const active = squadFilter === opt.key
+                    const count =
+                      opt.key === 'all'
+                        ? matches.length
+                        : opt.key === 'selected'
+                          ? matches.filter((m) => squadSelectedIds.has(m.id)).length
+                          : matches.filter((m) => !squadSelectedIds.has(m.id)).length
+                    return (
+                      <button
+                        key={opt.key}
+                        onClick={() => setSquadFilter(opt.key)}
+                        className={`px-3 py-1.5 rounded-[4px] text-xs font-semibold transition-colors whitespace-nowrap ${
+                          active
+                            ? 'bg-primary text-tm-on-secondary'
+                            : 'text-tm-text-3 hover:text-tm-text-1 hover:bg-tm-surface-hover'
+                        }`}
+                      >
+                        {opt.label}
+                        <span className={`ml-1.5 ${active ? 'opacity-80' : 'opacity-60'}`}>{count}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Fixtures List */}
             {matches.length === 0 ? (
               <div className="text-center py-12 text-tm-text-3">
@@ -2024,13 +2152,38 @@ export default function FixturesPage() {
                 <p className="text-lg font-semibold">No fixtures created yet</p>
                 <p className="text-sm mt-2">Click &quot;Create Fixture&quot; to add a new fixture</p>
               </div>
+            ) : filteredMatches.length === 0 ? (
+              <div className="text-center py-12 text-tm-text-3">
+                <Search className="w-16 h-16 mx-auto mb-4 text-tm-text-3" />
+                <p className="text-lg font-semibold">No fixtures match your filter</p>
+                <p className="text-sm mt-2">
+                  {squadFilter === 'selected'
+                    ? 'No fixtures have a squad selected for the current search.'
+                    : squadFilter === 'pending'
+                      ? 'Every matching fixture already has a squad selected.'
+                      : 'Try a different opponent name.'}
+                </p>
+                <button
+                  onClick={() => { setSquadFilter('all'); setFixtureSearch('') }}
+                  className="mt-4 px-4 py-2 bg-tm-surface-hover text-tm-text-1 rounded-[6px] text-sm font-semibold hover:opacity-90 transition-opacity"
+                >
+                  Clear filters
+                </button>
+              </div>
             ) : (
               <div className="space-y-4">
-                {matches.map((match) => {
+                {isFiltering && (
+                  <p className="text-xs text-tm-text-3">
+                    Showing {filteredMatches.length} of {matches.length} fixture{matches.length === 1 ? '' : 's'}
+                  </p>
+                )}
+                {filteredMatches.map((match) => {
                   const isUpcoming = !isActivityPast(match.match_date, null) && match.status !== 'played'
                   const isPlayed = !isUpcoming
                   const canEnterStats = isWithinStatsWindow(match.match_date)
-                  
+                  const squadInfo = previousSquads.find((s) => s.match_id === match.id)
+                  const hasSquad = !!squadInfo
+
                   return (
                     <div
                       key={match.id}
@@ -2038,7 +2191,7 @@ export default function FixturesPage() {
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
+                          <div className="flex items-center gap-3 mb-2 flex-wrap">
                             <h3 className="text-lg font-bold text-tm-text-1">
                               vs {match.opponent}
                             </h3>
@@ -2046,12 +2199,22 @@ export default function FixturesPage() {
                               {match.tournament_type.replace('_', ' ')}
                             </span>
                             <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                              isUpcoming 
-                                ? 'bg-success/15 text-success' 
+                              isUpcoming
+                                ? 'bg-success/15 text-success'
                                 : 'bg-tm-surface-hover text-tm-text-2'
                             }`}>
                               {isUpcoming ? 'Upcoming' : 'Played'}
                             </span>
+                            {hasSquad ? (
+                              <span className="px-3 py-1 rounded-full text-xs font-semibold bg-secondary/15 text-secondary inline-flex items-center gap-1">
+                                <Check className="w-3 h-3" />
+                                Squad selected{squadInfo ? ` · ${squadInfo.playerCount}` : ''}
+                              </span>
+                            ) : (
+                              <span className="px-3 py-1 rounded-full text-xs font-semibold bg-tm-surface-hover text-tm-text-3 inline-flex items-center gap-1">
+                                Awaiting squad
+                              </span>
+                            )}
                           </div>
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-tm-text-3">
                             <div className="flex items-center gap-2">
@@ -2080,6 +2243,17 @@ export default function FixturesPage() {
                             >
                               <Eye className="w-4 h-4 mr-2" />
                               View Team
+                            </button>
+                          )}
+                          {hasSquad && (user?.role === 'admin' || user?.role === 'data_admin') && (
+                            <button
+                              onClick={() => handleDownloadSquad(match.id)}
+                              disabled={downloadingSquadId === match.id}
+                              title="Download a shareable PDF of the selected squad"
+                              className="px-4 py-2 bg-tm-surface-hover text-tm-text-1 border border-tm-border rounded-[6px] font-semibold hover:border-primary hover:text-primary transition-all duration-300 inline-flex items-center disabled:opacity-50"
+                            >
+                              <Download className="w-4 h-4 mr-2" />
+                              {downloadingSquadId === match.id ? 'Preparing…' : 'Download Squad'}
                             </button>
                           )}
                           {canEnterStats && (

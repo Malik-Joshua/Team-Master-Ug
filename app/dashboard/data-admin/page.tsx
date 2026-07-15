@@ -7,6 +7,7 @@ import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
 import BirthdayAlert from '@/components/BirthdayAlert'
 import FixtureCard from '@/components/FixtureCard'
+import MatchDayModal from '@/components/MatchDayModal'
 import { Users, Activity, BarChart3, Calendar, Trophy, Plus, X, Save, MapPin, CheckCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import RefreshButton from '@/components/RefreshButton'
@@ -61,6 +62,11 @@ export default function DataAdminDashboard() {
   const [loading, setLoading] = useState(true)
   // Club slogan — shown on the "Next fixture" card to hype the squad.
   const [clubSlogan, setClubSlogan] = useState<string | null>(null)
+  const [clubBadge, setClubBadge] = useState<string | null>(null)
+  // Club's actual name — read live from club_settings so a rename by the
+  // admin instantly shows everywhere (fixture cards, match day modal, etc.)
+  const [clubName, setClubName] = useState<string | null>(null)
+  const [showMatchDayModal, setShowMatchDayModal] = useState(false)
   const [players, setPlayers] = useState<Player[]>([])
   const [activePlayersCount, setActivePlayersCount] = useState(0)
   const [matchesCount, setMatchesCount] = useState(0)
@@ -249,7 +255,7 @@ export default function DataAdminDashboard() {
           try {
             const { data: matchesData, error: matchesError } = await supabase
               .from('matches')
-              .select('id, match_date, opponent, venue, tournament_type, physio_id, team_manager_id, coach_id')
+              .select('id, match_date, opponent, venue, tournament_type, notes, physio_id, team_manager_id, coach_id')
               .order('match_date', { ascending: false })
               .limit(100)
 
@@ -292,18 +298,22 @@ export default function DataAdminDashboard() {
         const supabase = createClient()
         let { data, error } = await supabase
           .from('club_settings')
-          .select('club_slogan')
+          .select('club_slogan, badge_url, club_nickname')
           .order('updated_at', { ascending: false, nullsFirst: false })
           .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle()
-        // club_slogan is a newer column (migration 043) — fall back quietly
-        // if it hasn't been applied yet.
-        if (error?.message?.includes('club_slogan')) {
+        // club_slogan and badge_url are newer columns — fall back quietly
+        // if they haven't been applied yet.
+        if (error?.message?.includes('club_slogan') || error?.message?.includes('badge_url')) {
           setClubSlogan(null)
+          setClubBadge(null)
+          setClubName(null)
           return
         }
         setClubSlogan(data?.club_slogan || null)
+        setClubBadge(data?.badge_url || null)
+        setClubName(data?.club_nickname || null)
       } catch {
         setClubSlogan(null)
       }
@@ -1245,18 +1255,30 @@ export default function DataAdminDashboard() {
 
         {/* Next fixture — same card the club owner and coach see. "View squad"
             sends the team manager to /fixtures, where the selected squad is
-            now viewed (moved off this dashboard). */}
+            now viewed (moved off this dashboard). "Match day" opens the same
+            Match Day Details popup the club owner sees. */}
         {nextUpcomingMatch && (
           <FixtureCard
             label={`Next fixture · ${nextUpcomingMatch.tournament_type?.replace('_', ' ') || 'Match'}`}
-            homeTeam="Team Master"
+            homeTeam={clubName || 'Team Master'}
             awayTeam={nextUpcomingMatch.opponent}
             date={formatDateSafe(nextUpcomingMatch.match_date)}
             time={formatTimeSafe(nextUpcomingMatch.match_date)}
             venue={nextUpcomingMatch.venue || 'TBD'}
             slogan={clubSlogan}
+            clubBadgeUrl={clubBadge}
             onViewSquad={() => router.push('/fixtures')}
-            onMatchDay={() => router.push('/fixtures')}
+            onMatchDay={() => setShowMatchDayModal(true)}
+          />
+        )}
+
+        {showMatchDayModal && (
+          <MatchDayModal
+            match={nextUpcomingMatch || null}
+            onClose={() => setShowMatchDayModal(false)}
+            manageHref="/fixtures"
+            clubBadgeUrl={clubBadge}
+            homeTeamName={clubName}
           />
         )}
 

@@ -10,6 +10,8 @@ interface FixtureCardProps {
   /** Club slogan — hypes the team ahead of the fixture; rendered in the
    *  club's primary colour when provided. */
   slogan?: string | null
+  /** Club badge URL — displays the club logo on the card */
+  clubBadgeUrl?: string | null
   onViewSquad?: () => void
   onMatchDay?: () => void
 }
@@ -22,6 +24,7 @@ export default function FixtureCard({
   time,
   venue,
   slogan,
+  clubBadgeUrl,
   onViewSquad,
   onMatchDay,
 }: FixtureCardProps) {
@@ -30,9 +33,16 @@ export default function FixtureCard({
       className="rounded-[10px] p-4 mb-3 transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--tm-primary)] hover:shadow-[0_0_16px_2px_var(--tm-primary),0_8px_20px_rgba(0,0,0,0.35)]"
       style={{ background: 'var(--tm-bg-elevated)', border: '1px solid var(--tm-border)' }}
     >
-      {/* Label */}
-      <div className="text-[10px] font-medium tracking-[0.06em] uppercase mb-2" style={{ color: 'var(--tm-text-muted)' }}>
-        {label}
+      {/* Header with Label and Badge */}
+      <div className="flex items-center justify-between mb-2">
+        <div className="text-[10px] font-medium tracking-[0.06em] uppercase" style={{ color: 'var(--tm-text-muted)' }}>
+          {label}
+        </div>
+        {clubBadgeUrl && (
+          <div className="w-6 h-6 rounded-full overflow-hidden flex-shrink-0 border border-[var(--tm-border)]" style={{ background: 'var(--tm-surface-hover)' }}>
+            <img src={clubBadgeUrl} alt="Club logo" className="w-full h-full object-cover" />
+          </div>
+        )}
       </div>
 
       {/* Matchup */}

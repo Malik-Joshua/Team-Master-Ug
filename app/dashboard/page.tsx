@@ -8,6 +8,7 @@ import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
 import BirthdayAlert from '@/components/BirthdayAlert'
 import FixtureCard from '@/components/FixtureCard'
+import MatchDayModal from '@/components/MatchDayModal'
 import { Calendar, Activity, Trophy, Target, AlertCircle, Dumbbell, Edit, X, Save, HeartPulse, Pill, FileText, Clock, CheckCircle, MapPin } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
@@ -87,6 +88,11 @@ export default function DashboardPage() {
   const [loadingPlayerFixture, setLoadingPlayerFixture] = useState(false)
   // The club's hype slogan, shown on the "You're Selected!" banner below.
   const [clubSlogan, setClubSlogan] = useState<string | null>(null)
+  const [clubBadge, setClubBadge] = useState<string | null>(null)
+  // Club's actual name — read live from club_settings so a rename by the
+  // admin instantly shows everywhere (fixture cards, match day modal, etc.)
+  const [clubName, setClubName] = useState<string | null>(null)
+  const [showMatchDayModal, setShowMatchDayModal] = useState(false)
   const [activeInjuriesView, setActiveInjuriesView] = useState<any[]>([])
   const [loadingActiveInjuries, setLoadingActiveInjuries] = useState(false)
   const [recentTeamSelections, setRecentTeamSelections] = useState<any[]>([])
@@ -546,18 +552,22 @@ export default function DashboardPage() {
         const supabase = createClient()
         let { data, error } = await supabase
           .from('club_settings')
-          .select('club_slogan')
+          .select('club_slogan, badge_url, club_nickname')
           .order('updated_at', { ascending: false, nullsFirst: false })
           .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle()
-        // club_slogan is a newer column (migration 043) — fall back quietly
-        // if it hasn't been applied yet.
-        if (error?.message?.includes('club_slogan')) {
+        // club_slogan and badge_url are newer columns — fall back quietly
+        // if they haven't been applied yet.
+        if (error?.message?.includes('club_slogan') || error?.message?.includes('badge_url')) {
           setClubSlogan(null)
+          setClubBadge(null)
+          setClubName(null)
           return
         }
         setClubSlogan(data?.club_slogan || null)
+        setClubBadge(data?.badge_url || null)
+        setClubName(data?.club_nickname || null)
       } catch {
         setClubSlogan(null)
       }
@@ -663,8 +673,12 @@ export default function DashboardPage() {
             <div className="bg-tm-surface rounded-card p-6 border-2 border-primary shadow-soft">
               <div className="flex items-start gap-4">
                 <div className="flex-shrink-0">
-                  <div className="w-16 h-16 rounded-full bg-tm-secondary flex items-center justify-center">
-                    <Trophy className="w-8 h-8 text-tm-on-secondary" />
+                  <div className="w-16 h-16 rounded-full bg-tm-secondary flex items-center justify-center overflow-hidden">
+                    {clubBadge ? (
+                      <img src={clubBadge} alt="Club logo" className="w-full h-full object-cover" />
+                    ) : (
+                      <Trophy className="w-8 h-8 text-tm-on-secondary" />
+                    )}
                   </div>
                 </div>
                 <div className="flex-1">
@@ -1658,19 +1672,30 @@ export default function DashboardPage() {
 
           {/* Upcoming fixture — same card the club owner sees, so the coach's
               dashboard matches. "View squad" sends the coach to /fixtures
-              (the pitch view) instead of a modal, since the coach manages
-              and reviews the squad on the pitch, not in a popup. */}
+              (the pitch view); "Match day" opens the same Match Day Details
+              popup the club owner sees. */}
           {playerFixtureSelection && playerFixtureSelection.match && (
             <FixtureCard
               label={`Next fixture · ${playerFixtureSelection.match.tournament_type?.replace('_', ' ') || 'Match'}`}
-              homeTeam="Team Master"
+              homeTeam={clubName || 'Team Master'}
               awayTeam={playerFixtureSelection.match.opponent}
               date={formatDateSafe(playerFixtureSelection.match.match_date)}
               time={formatTimeSafe(playerFixtureSelection.match.match_date)}
               venue={playerFixtureSelection.match.venue || 'TBD'}
               slogan={clubSlogan}
+              clubBadgeUrl={clubBadge}
               onViewSquad={() => router.push('/fixtures')}
-              onMatchDay={() => router.push('/fixtures')}
+              onMatchDay={() => setShowMatchDayModal(true)}
+            />
+          )}
+
+          {showMatchDayModal && (
+            <MatchDayModal
+              match={playerFixtureSelection?.match || null}
+              onClose={() => setShowMatchDayModal(false)}
+              manageHref="/fixtures"
+              clubBadgeUrl={clubBadge}
+              homeTeamName={clubName}
             />
           )}
 

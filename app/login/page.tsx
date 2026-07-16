@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { ArrowRight, Mail, Lock, AlertCircle, CheckCircle, Eye, EyeOff } from 'lucide-react'
 import Link from 'next/link'
+import BallIcon from '@/components/BallIcon'
 
 // Make this page dynamic to avoid prerendering issues
 export const dynamic = 'force-dynamic'
@@ -21,6 +22,31 @@ export default function LoginPage() {
   const [pendingEmail, setPendingEmail] = useState<string | null>(null)
   const [redirectToOnboarding, setRedirectToOnboarding] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
+
+  // Mouse parallax for the floating background balls — deeper balls drift
+  // further, giving the login screen the same subtle depth as the hero.
+  const pageRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const page = pageRef.current
+    if (!page) return
+    const balls = Array.from(page.querySelectorAll<HTMLElement>('.tm-ball-wrap'))
+    const onMove = (e: MouseEvent) => {
+      const rect = page.getBoundingClientRect()
+      const x = (e.clientX - rect.left) / rect.width - 0.5
+      const y = (e.clientY - rect.top) / rect.height - 0.5
+      balls.forEach((el) => {
+        const depth = parseFloat(el.dataset.depth || '0.5')
+        el.style.transform = `translate(${x * depth * 60}px, ${y * depth * 42}px)`
+      })
+    }
+    const onLeave = () => balls.forEach((el) => { el.style.transform = 'translate(0px, 0px)' })
+    page.addEventListener('mousemove', onMove)
+    page.addEventListener('mouseleave', onLeave)
+    return () => {
+      page.removeEventListener('mousemove', onMove)
+      page.removeEventListener('mouseleave', onLeave)
+    }
+  }, [])
 
   useEffect(() => {
     setIsMounted(true)
@@ -166,7 +192,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0d1b2e] flex items-center justify-center p-4 relative overflow-hidden">
+    <div ref={pageRef} className="min-h-screen bg-[#0d1b2e] flex items-center justify-center p-4 relative overflow-hidden">
 
       {/* Top-left brand */}
       <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-6 py-4">
@@ -184,61 +210,52 @@ export default function LoginPage() {
         }}
       />
 
-      {/* Floating sport balls */}
+      {/* Floating sport balls — realistic shaded spheres that float, spin, and
+          drift with the cursor (same BallIcon component as the landing hero).
+          The opaque sign-in card masks the centre, so these read as background
+          decoration framing the form. */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none select-none">
-        {/* Soccer ball — top left */}
-        <svg viewBox="0 0 64 64" className="absolute" width="72" height="72"
-          style={{ top: '12%', left: '6%', opacity: 0.1, animation: 'float-slow 7s ease-in-out infinite', animationDelay: '0s' }}>
-          <circle cx="32" cy="32" r="28" stroke="white" strokeWidth="2" fill="none"/>
-          <polygon points="32,10 38,20 26,20" stroke="white" strokeWidth="1.5" fill="none"/>
-          <polygon points="10,38 18,32 18,44" stroke="white" strokeWidth="1.5" fill="none"/>
-          <polygon points="54,38 46,32 46,44" stroke="white" strokeWidth="1.5" fill="none"/>
-          <polygon points="22,54 26,44 38,44 42,54" stroke="white" strokeWidth="1.5" fill="none"/>
-        </svg>
+        {/* Soccer — top left */}
+        <div className="tm-ball-wrap" data-depth="0.9" style={{ top: '12%', left: '5%', opacity: 0.7 }}>
+          <div className="tm-ball-float" style={{ animation: 'float-slow 7s ease-in-out infinite' }}>
+            <BallIcon type="soccer" size={78} spin spinDir="cw" spinDuration={26} />
+          </div>
+        </div>
 
         {/* Basketball — top right */}
-        <svg viewBox="0 0 64 64" className="absolute" width="90" height="90"
-          style={{ top: '8%', right: '8%', opacity: 0.09, animation: 'float-mid 8s ease-in-out infinite', animationDelay: '1.5s' }}>
-          <circle cx="32" cy="32" r="28" stroke="white" strokeWidth="2" fill="none"/>
-          <path d="M32 4 Q48 18 48 32 Q48 46 32 60" stroke="white" strokeWidth="1.5" fill="none"/>
-          <path d="M32 4 Q16 18 16 32 Q16 46 32 60" stroke="white" strokeWidth="1.5" fill="none"/>
-          <line x1="4" y1="32" x2="60" y2="32" stroke="white" strokeWidth="1.5"/>
-        </svg>
+        <div className="tm-ball-wrap" data-depth="1.1" style={{ top: '8%', right: '6%', opacity: 0.7 }}>
+          <div className="tm-ball-float" style={{ animation: 'float-mid 8s ease-in-out infinite', animationDelay: '1.2s' }}>
+            <BallIcon type="basketball" size={84} spin spinDir="ccw" spinDuration={30} />
+          </div>
+        </div>
 
-        {/* Rugby ball — mid left */}
-        <svg viewBox="0 0 80 50" className="absolute" width="100" height="64"
-          style={{ top: '42%', left: '3%', opacity: 0.08, animation: 'float-fast 6s ease-in-out infinite', animationDelay: '3s' }}>
-          <ellipse cx="40" cy="25" rx="36" ry="20" stroke="white" strokeWidth="2" fill="none"/>
-          <line x1="4" y1="25" x2="76" y2="25" stroke="white" strokeWidth="1.5"/>
-          <path d="M28 10 Q40 25 28 40" stroke="white" strokeWidth="1.5" fill="none"/>
-          <path d="M52 10 Q40 25 52 40" stroke="white" strokeWidth="1.5" fill="none"/>
-        </svg>
-
-        {/* Tennis ball — bottom left */}
-        <svg viewBox="0 0 64 64" className="absolute" width="60" height="60"
-          style={{ bottom: '18%', left: '12%', opacity: 0.1, animation: 'float-mid 9s ease-in-out infinite', animationDelay: '0.8s' }}>
-          <circle cx="32" cy="32" r="28" stroke="white" strokeWidth="2" fill="none"/>
-          <path d="M10 20 Q22 32 10 44" stroke="white" strokeWidth="1.5" fill="none"/>
-          <path d="M54 20 Q42 32 54 44" stroke="white" strokeWidth="1.5" fill="none"/>
-        </svg>
+        {/* Rugby — mid left (oval, no spin) */}
+        <div className="tm-ball-wrap" data-depth="0.6" style={{ top: '46%', left: '4%', opacity: 0.68 }}>
+          <div className="tm-ball-float" style={{ animation: 'float-fast 6.5s ease-in-out infinite', animationDelay: '2.4s' }}>
+            <BallIcon type="rugby" size={96} />
+          </div>
+        </div>
 
         {/* Volleyball — mid right */}
-        <svg viewBox="0 0 64 64" className="absolute" width="78" height="78"
-          style={{ top: '38%', right: '5%', opacity: 0.08, animation: 'float-slow 10s ease-in-out infinite', animationDelay: '2.2s' }}>
-          <circle cx="32" cy="32" r="28" stroke="white" strokeWidth="2" fill="none"/>
-          <path d="M8 22 Q32 14 56 22" stroke="white" strokeWidth="1.5" fill="none"/>
-          <path d="M8 42 Q32 50 56 42" stroke="white" strokeWidth="1.5" fill="none"/>
-          <line x1="32" y1="4" x2="32" y2="60" stroke="white" strokeWidth="1.5"/>
-        </svg>
+        <div className="tm-ball-wrap" data-depth="1.2" style={{ top: '42%', right: '5%', opacity: 0.7 }}>
+          <div className="tm-ball-float" style={{ animation: 'float-slow 9s ease-in-out infinite', animationDelay: '0.6s' }}>
+            <BallIcon type="volleyball" size={76} spin spinDir="cw" spinDuration={34} />
+          </div>
+        </div>
 
-        {/* Cricket ball — bottom right */}
-        <svg viewBox="0 0 64 64" className="absolute" width="56" height="56"
-          style={{ bottom: '22%', right: '10%', opacity: 0.09, animation: 'float-fast 7.5s ease-in-out infinite', animationDelay: '4s' }}>
-          <circle cx="32" cy="32" r="28" stroke="white" strokeWidth="2" fill="none"/>
-          <path d="M20 10 Q32 32 20 54" stroke="white" strokeWidth="1.5" fill="none"/>
-          <path d="M44 10 Q32 32 44 54" stroke="white" strokeWidth="1.5" fill="none"/>
-          <line x1="4" y1="32" x2="60" y2="32" stroke="white" strokeWidth="1"/>
-        </svg>
+        {/* Tennis — bottom left */}
+        <div className="tm-ball-wrap" data-depth="0.7" style={{ bottom: '14%', left: '9%', opacity: 0.7 }}>
+          <div className="tm-ball-float" style={{ animation: 'float-mid 9s ease-in-out infinite', animationDelay: '3.2s' }}>
+            <BallIcon type="tennis" size={54} spin spinDir="ccw" spinDuration={20} />
+          </div>
+        </div>
+
+        {/* Cricket — bottom right */}
+        <div className="tm-ball-wrap" data-depth="1.0" style={{ bottom: '16%', right: '8%', opacity: 0.66 }}>
+          <div className="tm-ball-float" style={{ animation: 'float-fast 7.5s ease-in-out infinite', animationDelay: '1.8s' }}>
+            <BallIcon type="cricket" size={50} spin spinDir="cw" spinDuration={22} />
+          </div>
+        </div>
       </div>
 
       {/* Card */}

@@ -170,7 +170,7 @@ export default function LoginPage() {
 
       {/* Top-left brand */}
       <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-6 py-4">
-        <span className="inline-block border border-sky-400/40 text-sky-300 text-xs tracking-widest uppercase px-4 py-1.5 rounded-full">
+        <span className="inline-block cursor-pointer border border-sky-400/40 text-sky-300 text-xs tracking-widest uppercase px-4 py-1.5 rounded-full transition-all duration-200 hover:border-sky-400/80 hover:text-sky-200 hover:bg-sky-400/10 hover:scale-105 hover:shadow-[0_0_18px_rgba(56,189,248,0.4)] active:scale-100">
           Team Master
         </span>
       </div>

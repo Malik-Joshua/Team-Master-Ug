@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { ArrowRight, Users, QrCode, BarChart3, Lock } from 'lucide-react'
+import BallIcon, { type BallType } from '@/components/BallIcon'
 
 const clubThemes = [
   { name: 'Heathens RFC',    primary: '#8B1A1A', secondary: '#F5C518' },
@@ -59,25 +60,51 @@ const steps = [
   },
 ]
 
-const sports = [
-  { name: 'Rugby',      style: 'bg-sky-100 text-sky-700' },
-  { name: 'Football',   style: 'bg-emerald-100 text-emerald-700' },
-  { name: 'Basketball', style: 'bg-orange-100 text-orange-700' },
-  { name: 'Cricket',    style: 'bg-red-100 text-red-700' },
-  { name: 'Netball',    style: 'bg-purple-100 text-purple-700' },
-  { name: 'Athletics',  style: 'bg-yellow-100 text-yellow-700' },
+const sports: { name: string; ball: BallType }[] = [
+  { name: 'Football',   ball: 'soccer' },
+  { name: 'Basketball', ball: 'basketball' },
+  { name: 'Rugby',      ball: 'rugby' },
+  { name: 'Tennis',     ball: 'tennis' },
+  { name: 'Volleyball', ball: 'volleyball' },
+  { name: 'Cricket',    ball: 'cricket' },
 ]
 
 export default function Home() {
   const [activeTheme, setActiveTheme] = useState(0)
   const theme = clubThemes[activeTheme]
 
+  // Mouse parallax for the floating hero balls — deeper balls (higher data-depth)
+  // drift further, giving the background a subtle sense of 3D depth. Applied via
+  // direct DOM writes on the wrappers so tracking the cursor never re-renders.
+  const heroRef = useRef<HTMLElement>(null)
+  useEffect(() => {
+    const hero = heroRef.current
+    if (!hero) return
+    const balls = Array.from(hero.querySelectorAll<HTMLElement>('.tm-ball-wrap'))
+    const onMove = (e: MouseEvent) => {
+      const rect = hero.getBoundingClientRect()
+      const x = (e.clientX - rect.left) / rect.width - 0.5
+      const y = (e.clientY - rect.top) / rect.height - 0.5
+      balls.forEach((el) => {
+        const depth = parseFloat(el.dataset.depth || '0.5')
+        el.style.transform = `translate(${x * depth * 60}px, ${y * depth * 42}px)`
+      })
+    }
+    const onLeave = () => balls.forEach((el) => { el.style.transform = 'translate(0px, 0px)' })
+    hero.addEventListener('mousemove', onMove)
+    hero.addEventListener('mouseleave', onLeave)
+    return () => {
+      hero.removeEventListener('mousemove', onMove)
+      hero.removeEventListener('mouseleave', onLeave)
+    }
+  }, [])
+
   return (
     <div className="min-h-screen bg-[#1e1e1e]">
 
       {/* ── NAV ────────────────────────────────────────────────── */}
       <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-4">
-        <span className="inline-block border border-sky-400/40 text-sky-300 text-xs tracking-widest uppercase px-4 py-1.5 rounded-full">
+        <span className="inline-block cursor-pointer border border-sky-400/40 text-sky-300 text-xs tracking-widest uppercase px-4 py-1.5 rounded-full transition-all duration-200 hover:border-sky-400/80 hover:text-sky-200 hover:bg-sky-400/10 hover:scale-105 hover:shadow-[0_0_18px_rgba(56,189,248,0.4)] active:scale-100">
           Team Master
         </span>
         <Link
@@ -89,7 +116,7 @@ export default function Home() {
       </nav>
 
       {/* ── HERO ─────────────────────────────────────────────── */}
-      <section className="relative min-h-screen bg-[#0d1b2e] flex flex-col items-center justify-center overflow-hidden pb-24">
+      <section ref={heroRef} className="relative min-h-screen bg-[#0d1b2e] flex flex-col items-center justify-center overflow-hidden pb-24">
         <div
           className="absolute inset-0 opacity-[0.06]"
           style={{
@@ -98,68 +125,51 @@ export default function Home() {
           }}
         />
 
-        {/* Floating sport balls */}
+        {/* Floating sport balls — realistic shaded spheres (shared BallIcon
+            component) that gently float, spin, and drift with the cursor
+            (parallax handled in the effect above). */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none select-none">
-          {/* Soccer ball — top left */}
-          <svg viewBox="0 0 64 64" className="absolute" width="72" height="72"
-            style={{ top: '12%', left: '6%', opacity: 0.1, animation: 'float-slow 7s ease-in-out infinite', animationDelay: '0s' }}>
-            <circle cx="32" cy="32" r="28" stroke="white" strokeWidth="2" fill="none"/>
-            <polygon points="32,10 38,20 26,20" stroke="white" strokeWidth="1.5" fill="none"/>
-            <polygon points="10,38 18,32 18,44" stroke="white" strokeWidth="1.5" fill="none"/>
-            <polygon points="54,38 46,32 46,44" stroke="white" strokeWidth="1.5" fill="none"/>
-            <polygon points="22,54 26,44 38,44 42,54" stroke="white" strokeWidth="1.5" fill="none"/>
-          </svg>
+          {/* Soccer — top left */}
+          <div className="tm-ball-wrap" data-depth="0.9" style={{ top: '13%', left: '6%', opacity: 0.85 }}>
+            <div className="tm-ball-float" style={{ animation: 'float-slow 7s ease-in-out infinite' }}>
+              <BallIcon type="soccer" size={86} spin spinDir="cw" spinDuration={26} />
+            </div>
+          </div>
 
           {/* Basketball — top right */}
-          <svg viewBox="0 0 64 64" className="absolute" width="90" height="90"
-            style={{ top: '8%', right: '8%', opacity: 0.09, animation: 'float-mid 8s ease-in-out infinite', animationDelay: '1.5s' }}>
-            <circle cx="32" cy="32" r="28" stroke="white" strokeWidth="2" fill="none"/>
-            <path d="M32 4 Q48 18 48 32 Q48 46 32 60" stroke="white" strokeWidth="1.5" fill="none"/>
-            <path d="M32 4 Q16 18 16 32 Q16 46 32 60" stroke="white" strokeWidth="1.5" fill="none"/>
-            <line x1="4" y1="32" x2="60" y2="32" stroke="white" strokeWidth="1.5"/>
-          </svg>
+          <div className="tm-ball-wrap" data-depth="1.1" style={{ top: '9%', right: '8%', opacity: 0.85 }}>
+            <div className="tm-ball-float" style={{ animation: 'float-mid 8s ease-in-out infinite', animationDelay: '1.2s' }}>
+              <BallIcon type="basketball" size={92} spin spinDir="ccw" spinDuration={30} />
+            </div>
+          </div>
 
-          {/* Rugby ball — mid left */}
-          <svg viewBox="0 0 80 50" className="absolute" width="100" height="64"
-            style={{ top: '42%', left: '3%', opacity: 0.08, animation: 'float-fast 6s ease-in-out infinite', animationDelay: '3s' }}>
-            <ellipse cx="40" cy="25" rx="36" ry="20" stroke="white" strokeWidth="2" fill="none"/>
-            <line x1="4" y1="25" x2="76" y2="25" stroke="white" strokeWidth="1.5"/>
-            <path d="M28 10 Q40 25 28 40" stroke="white" strokeWidth="1.5" fill="none"/>
-            <path d="M52 10 Q40 25 52 40" stroke="white" strokeWidth="1.5" fill="none"/>
-          </svg>
-
-          {/* Tennis ball — bottom left */}
-          <svg viewBox="0 0 64 64" className="absolute" width="60" height="60"
-            style={{ bottom: '18%', left: '12%', opacity: 0.1, animation: 'float-mid 9s ease-in-out infinite', animationDelay: '0.8s' }}>
-            <circle cx="32" cy="32" r="28" stroke="white" strokeWidth="2" fill="none"/>
-            <path d="M10 20 Q22 32 10 44" stroke="white" strokeWidth="1.5" fill="none"/>
-            <path d="M54 20 Q42 32 54 44" stroke="white" strokeWidth="1.5" fill="none"/>
-          </svg>
+          {/* Rugby — mid left (oval, no spin) */}
+          <div className="tm-ball-wrap" data-depth="0.6" style={{ top: '50%', left: '4%', opacity: 0.82 }}>
+            <div className="tm-ball-float" style={{ animation: 'float-fast 6.5s ease-in-out infinite', animationDelay: '2.4s' }}>
+              <BallIcon type="rugby" size={104} />
+            </div>
+          </div>
 
           {/* Volleyball — mid right */}
-          <svg viewBox="0 0 64 64" className="absolute" width="78" height="78"
-            style={{ top: '38%', right: '5%', opacity: 0.08, animation: 'float-slow 10s ease-in-out infinite', animationDelay: '2.2s' }}>
-            <circle cx="32" cy="32" r="28" stroke="white" strokeWidth="2" fill="none"/>
-            <path d="M8 22 Q32 14 56 22" stroke="white" strokeWidth="1.5" fill="none"/>
-            <path d="M8 42 Q32 50 56 42" stroke="white" strokeWidth="1.5" fill="none"/>
-            <line x1="32" y1="4" x2="32" y2="60" stroke="white" strokeWidth="1.5"/>
-          </svg>
+          <div className="tm-ball-wrap" data-depth="1.2" style={{ top: '39%', right: '6%', opacity: 0.85 }}>
+            <div className="tm-ball-float" style={{ animation: 'float-slow 9s ease-in-out infinite', animationDelay: '0.6s' }}>
+              <BallIcon type="volleyball" size={82} spin spinDir="cw" spinDuration={34} />
+            </div>
+          </div>
 
-          {/* Cricket ball — bottom right */}
-          <svg viewBox="0 0 64 64" className="absolute" width="56" height="56"
-            style={{ bottom: '22%', right: '10%', opacity: 0.09, animation: 'float-fast 7.5s ease-in-out infinite', animationDelay: '4s' }}>
-            <circle cx="32" cy="32" r="28" stroke="white" strokeWidth="2" fill="none"/>
-            <path d="M20 10 Q32 32 20 54" stroke="white" strokeWidth="1.5" fill="none"/>
-            <path d="M44 10 Q32 32 44 54" stroke="white" strokeWidth="1.5" fill="none"/>
-            <line x1="4" y1="32" x2="60" y2="32" stroke="white" strokeWidth="1"/>
-          </svg>
+          {/* Tennis — bottom left */}
+          <div className="tm-ball-wrap" data-depth="0.7" style={{ bottom: '15%', left: '12%', opacity: 0.85 }}>
+            <div className="tm-ball-float" style={{ animation: 'float-mid 9s ease-in-out infinite', animationDelay: '3.2s' }}>
+              <BallIcon type="tennis" size={58} spin spinDir="ccw" spinDuration={20} />
+            </div>
+          </div>
 
-          {/* Small soccer ball — upper mid */}
-          <svg viewBox="0 0 64 64" className="absolute" width="44" height="44"
-            style={{ top: '20%', left: '38%', opacity: 0.07, animation: 'float-slow 11s ease-in-out infinite', animationDelay: '5s' }}>
-            <circle cx="32" cy="32" r="28" stroke="white" strokeWidth="2" fill="none"/>
-            <polygon points="32,10 38,20 26,20" stroke="white" strokeWidth="1.5" fill="none"/>
-          </svg>
+          {/* Cricket — bottom right */}
+          <div className="tm-ball-wrap" data-depth="1.0" style={{ bottom: '20%', right: '10%', opacity: 0.82 }}>
+            <div className="tm-ball-float" style={{ animation: 'float-fast 7.5s ease-in-out infinite', animationDelay: '1.8s' }}>
+              <BallIcon type="cricket" size={54} spin spinDir="cw" spinDuration={22} />
+            </div>
+          </div>
         </div>
         <div className="relative z-10 text-center px-4 max-w-3xl mx-auto">
           <div className="flex justify-center mb-6">
@@ -361,11 +371,19 @@ export default function Home() {
         <div className="max-w-3xl mx-auto">
           <h2 className="text-2xl font-bold text-white mb-2">Built for every sport</h2>
           <p className="text-gray-400 mb-6">Team Master adapts its modules and terminology to whatever sport your club plays.</p>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-3">
             {sports.map((s) => (
-              <span key={s.name} className={`px-3 py-1 rounded-full text-sm font-medium ${s.style}`}>{s.name}</span>
+              <div
+                key={s.name}
+                className="flex items-center gap-2.5 bg-[#141e2d] border border-white/10 rounded-xl pl-3 pr-4 py-2.5 transition-all duration-200 hover:border-sky-400/40 hover:-translate-y-0.5 hover:shadow-[0_0_16px_rgba(56,189,248,0.15)]"
+              >
+                <BallIcon type={s.ball} size={26} />
+                <span className="text-sm font-medium text-white">{s.name}</span>
+              </div>
             ))}
-            <span className="px-3 py-1 rounded-full text-sm font-medium bg-white/10 text-gray-400">+ more sports coming</span>
+            <div className="flex items-center bg-white/[0.03] border border-dashed border-white/15 rounded-xl px-4 py-2.5">
+              <span className="text-sm font-medium text-gray-400">+ more sports coming</span>
+            </div>
           </div>
         </div>
       </section>

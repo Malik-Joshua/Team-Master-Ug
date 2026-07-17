@@ -106,11 +106,13 @@ export default function TopBar({ title, userName, userRole, userAvatar }: TopBar
   const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
 
   return (
-    <header className="h-[60px] flex items-center pl-16 pr-4 sm:px-6 gap-3 sm:gap-4 flex-shrink-0" style={{ background: 'var(--tm-surface)', borderBottom: '1px solid var(--tm-border)' }}>
+    <header className="min-h-[60px] flex items-center pl-16 pr-4 sm:pr-6 lg:pl-6 py-2 gap-3 sm:gap-4 flex-shrink-0" style={{ background: 'var(--tm-surface)', borderBottom: '1px solid var(--tm-border)' }}>
       {/* Greeting */}
-      <div className="flex-1">
-        <h1 className="text-[15px] font-medium mb-[1px]" style={{ color: 'var(--tm-text-1)' }}>{getGreeting()}, {userName} 👋</h1>
-        <p className="text-[12px]" style={{ color: 'var(--tm-text-3)' }}>{formatDate()} · Season 2026</p>
+      <div className="flex-1 min-w-0">
+        <h1 className="text-[14px] sm:text-[15px] font-medium mb-[1px] leading-tight line-clamp-2" style={{ color: 'var(--tm-text-1)' }}>{getGreeting()}, {userName} 👋</h1>
+        <p className="text-[11px] sm:text-[12px] leading-tight truncate" style={{ color: 'var(--tm-text-3)' }}>
+          {formatDate()}<span className="hidden sm:inline"> · Season 2026</span>
+        </p>
       </div>
 
       {/* Search bar */}

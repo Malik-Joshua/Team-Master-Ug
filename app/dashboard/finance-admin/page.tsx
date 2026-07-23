@@ -1,47 +1,24 @@
 'use client'
 
 import Layout from '@/components/Layout'
-import { useRouter } from 'next/navigation'
-import StatCard from '@/components/StatCard'
 import BirthdayAlert from '@/components/BirthdayAlert'
-import { DollarSign, TrendingUp, TrendingDown, Calendar, X } from 'lucide-react'
+import { DollarSign, TrendingUp, TrendingDown, Calendar, X, AlertCircle, Wallet } from 'lucide-react'
+import Link from 'next/link'
+import { formatDistanceToNow } from 'date-fns'
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import RefreshButton from '@/components/RefreshButton'
 import {
   Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
+  ArcElement,
   Tooltip,
   Legend,
 } from 'chart.js'
-import { Bar } from 'react-chartjs-2'
+import { Doughnut } from 'react-chartjs-2'
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend
-)
+ChartJS.register(ArcElement, Tooltip, Legend)
 
 export default function FinanceAdminDashboard() {
-  const router = useRouter()
-  const [revenueForm, setRevenueForm] = useState({
-    type: '',
-    amount: '',
-    date: '',
-    notes: '',
-  })
-  const [expenseForm, setExpenseForm] = useState({
-    type: '',
-    amount: '',
-    date: '',
-    notes: '',
-  })
   const [trainingSessions, setTrainingSessions] = useState<any[]>([])
   const [matches, setMatches] = useState<any[]>([])
   const [selectedSessionId, setSelectedSessionId] = useState<string>('')
@@ -50,6 +27,7 @@ export default function FinanceAdminDashboard() {
   const [matchAttendance, setMatchAttendance] = useState<any>(null)
   const [loadingAttendance, setLoadingAttendance] = useState(false)
   const [transactions, setTransactions] = useState<any[]>([])
+  const [budgets, setBudgets] = useState<any[]>([])
 
   const loadData = useCallback(async () => {
     const supabase = createClient()
@@ -79,13 +57,32 @@ export default function FinanceAdminDashboard() {
       setMatches(matchesData)
     }
 
-    const { data: transactionsData } = await supabase
+    // Transactions — try to include budget_id (migration 044). If that column
+    // hasn't been applied yet, fall back to selecting without it so the page
+    // still works (the per-project burndown just shows 0 until it's applied).
+    const primaryTx = await supabase
       .from('financial_transactions')
-      .select('transaction_date, type, amount')
+      .select('id, transaction_date, type, amount, category, description, budget_id')
       .order('transaction_date', { ascending: false })
-
+    let transactionsData: any[] | null = primaryTx.data
+    if (primaryTx.error?.message?.includes('budget_id')) {
+      const retry = await supabase
+        .from('financial_transactions')
+        .select('id, transaction_date, type, amount, category, description')
+        .order('transaction_date', { ascending: false })
+      transactionsData = retry.data
+    }
     if (transactionsData) {
       setTransactions(transactionsData)
+    }
+
+    // Budgets (with their line items) power the KPI cards and burndown.
+    try {
+      const { db } = await import('@/lib/db-helpers')
+      const budgetsData = await db.getBudgets(authUser.id, 'finance_admin')
+      setBudgets(budgetsData || [])
+    } catch (e) {
+      console.error('Error loading budgets:', e)
     }
   }, [])
 
@@ -167,115 +164,87 @@ export default function FinanceAdminDashboard() {
     .reduce((sum: number, t: any) => sum + (t.amount || 0), 0)
   const netBalance = totalRevenue - totalExpenses
 
-  const buildMonthlyData = (items: any[]) => {
-    const now = new Date()
-    const months: Array<{ key: string; label: string }> = []
-    for (let i = 5; i >= 0; i -= 1) {
-      const date = new Date(now.getFullYear(), now.getMonth() - i, 1)
-      const key = `${date.getFullYear()}-${date.getMonth() + 1}`
-      const label = date.toLocaleDateString('en-US', { month: 'short' })
-      months.push({ key, label })
-    }
+  // ── KPI figures ────────────────────────────────────────────────────────
+  // Active budgets (still live) power the burndown below.
+  const activeBudgets = budgets.filter(
+    (b: any) => b.status === 'approved' || b.status === 'pending'
+  )
+  // Amount Spent = all expenses, with a freshness stamp from the most recent one.
+  const amountSpent = totalExpenses
+  const lastExpenseDate = transactions
+    .filter((t: any) => t.type === 'expense' && t.transaction_date)
+    .map((t: any) => t.transaction_date)
+    .sort()
+    .pop()
+  const spentUpdatedLabel = lastExpenseDate
+    ? `Updated ${formatDistanceToNow(new Date(lastExpenseDate), { addSuffix: true })}`
+    : 'No expenses logged yet'
+  const pendingReview = budgets.filter((b: any) => b.status === 'pending').length
 
-    const revenue = months.map((month) => {
-      return items
-        .filter((t: any) => t.type === 'revenue' && t.transaction_date)
-        .filter((t: any) => {
-          const d = new Date(t.transaction_date)
-          const key = `${d.getFullYear()}-${d.getMonth() + 1}`
-          return key === month.key
-        })
-        .reduce((sum: number, t: any) => sum + (t.amount || 0), 0)
+  // ── Critical Project Burndown ──────────────────────────────────────────
+  // Actual spend per project = sum of expense transactions tagged with that
+  // budget_id (migration 044). Show the projects closest to / over budget
+  // first, since those need attention.
+  const projectBurndown = activeBudgets
+    .map((b: any) => {
+      const budget = Number(b.total_amount) || 0
+      const spent = transactions
+        .filter((t: any) => t.type === 'expense' && t.budget_id === b.id)
+        .reduce((s: number, t: any) => s + (t.amount || 0), 0)
+      const pct = budget > 0 ? Math.min(Math.round((spent / budget) * 100), 100) : 0
+      return { id: b.id, name: b.event_name || 'Untitled project', spent, budget, pct, over: spent > budget }
     })
+    .sort((a, b) => b.pct - a.pct)
 
-    const expenses = months.map((month) => {
-      return items
-        .filter((t: any) => t.type === 'expense' && t.transaction_date)
-        .filter((t: any) => {
-          const d = new Date(t.transaction_date)
-          const key = `${d.getFullYear()}-${d.getMonth() + 1}`
-          return key === month.key
-        })
-        .reduce((sum: number, t: any) => sum + (t.amount || 0), 0)
-    })
+  // Recent transactions for the live roster (both revenue & expense).
+  const recentTransactions = transactions.slice(0, 6)
 
-    return {
-      labels: months.map((m) => m.label),
-      revenue,
-      expenses,
-    }
-  }
+  // Expenses grouped by category (for the doughnut breakdown). Sorted
+  // largest-first so the biggest cost centres lead the legend.
+  const expenseCategories = (() => {
+    const totals = new Map<string, number>()
+    transactions
+      .filter((t: any) => t.type === 'expense')
+      .forEach((t: any) => {
+        const label = (t.category || 'Other').toString()
+        // Normalise to Title Case so "equipment"/"Equipment" merge into one slice.
+        const key = label.charAt(0).toUpperCase() + label.slice(1).toLowerCase()
+        totals.set(key, (totals.get(key) || 0) + (t.amount || 0))
+      })
+    return Array.from(totals.entries())
+      .map(([category, amount]) => ({ category, amount }))
+      .sort((a, b) => b.amount - a.amount)
+  })()
 
-  // Monthly financial data for the last 6 months
-  const monthlyData = buildMonthlyData(transactions)
+  // A calm, distinct palette for the category slices.
+  const CATEGORY_COLORS = ['#E15A8C', '#4CAF87', '#6C6CE0', '#3B9AE8', '#E0A93B', '#9B6CE0', '#E07A5A', '#5AB6C9']
 
-  const chartData = {
-    labels: monthlyData.labels,
+  const doughnutData = {
+    labels: expenseCategories.map((c) => c.category),
     datasets: [
       {
-        label: 'Revenue',
-        data: monthlyData.revenue,
-        backgroundColor: 'rgba(5, 150, 105, 0.8)', // Success green
-        borderColor: '#059669',
-        borderWidth: 2,
-      },
-      {
-        label: 'Expenses',
-        data: monthlyData.expenses,
-        backgroundColor: 'rgba(220, 38, 38, 0.8)', // Secondary red
-        borderColor: '#DC2626',
-        borderWidth: 2,
+        data: expenseCategories.map((c) => c.amount),
+        backgroundColor: expenseCategories.map((_, i) => CATEGORY_COLORS[i % CATEGORY_COLORS.length]),
+        borderColor: 'var(--tm-surface)',
+        borderWidth: 3,
+        hoverOffset: 6,
       },
     ],
   }
 
-  const chartOptions = {
+  const doughnutOptions = {
     responsive: true,
     maintainAspectRatio: false,
+    cutout: '70%',
     plugins: {
-      legend: {
-        position: 'top' as const,
-        labels: {
-          usePointStyle: true,
-          padding: 15,
-          font: {
-            size: 12,
-            weight: 500,
-          },
-        },
-      },
+      legend: { display: false },
       tooltip: {
-        mode: 'index' as const,
-        intersect: false,
         callbacks: {
-          label: function(context: any) {
-            const value = context.parsed.y
-            if (value >= 1000000) {
-              return `${context.dataset.label}: UGX ${(value / 1000000).toFixed(1)}M`
-            }
-            return `${context.dataset.label}: UGX ${value.toLocaleString()}`
+          label: function (context: any) {
+            const value = context.parsed || 0
+            const pct = totalExpenses > 0 ? Math.round((value / totalExpenses) * 100) : 0
+            return `${context.label}: ${formatCurrency(value)} (${pct}%)`
           },
-        },
-      },
-    },
-    scales: {
-      y: {
-        beginAtZero: true,
-        grid: {
-          color: 'rgba(0, 0, 0, 0.05)',
-        },
-        ticks: {
-          callback: function(value: any) {
-            if (value >= 1000000) {
-              return `UGX ${(value / 1000000).toFixed(1)}M`
-            }
-            return `UGX ${value.toLocaleString()}`
-          },
-        },
-      },
-      x: {
-        grid: {
-          display: false,
         },
       },
     },
@@ -292,41 +261,188 @@ export default function FinanceAdminDashboard() {
           </div>
           <RefreshButton onRefresh={loadData} />
         </div>
-        {/* Financial Stats */}
-        <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-3">
-          <StatCard
-            title="Total Revenue"
-            value={formatCurrency(totalRevenue)}
-            icon={TrendingUp}
-            iconColor="bg-success"
-            iconTextColor="text-white"
-            href="/finance"
-          />
-          <StatCard
-            title="Total Expense"
-            value={formatCurrency(totalExpenses)}
-            icon={TrendingDown}
-            iconColor="bg-secondary"
-            iconTextColor="text-tm-on-secondary"
-            href="/finance"
-          />
-          <StatCard
-            title="Net Balance"
-            value={formatCurrency(netBalance)}
-            icon={DollarSign}
-            iconColor="bg-primary"
-            iconTextColor="text-tm-on-secondary"
-            href="/finance"
-          />
-        </div>
+        {/* Finance KPIs */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Amount Spent + last-updated stamp */}
+          <div className="bg-tm-surface rounded-card p-5 border border-tm-border shadow-soft">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-tm-text-3">Amount Spent</p>
+            <p className="text-[26px] leading-tight font-bold text-tm-text-1 mt-2">{formatCurrency(amountSpent)}</p>
+            <p className="text-[12px] text-tm-text-3 mt-3 inline-flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-success inline-block" />
+              {spentUpdatedLabel}
+            </p>
+          </div>
 
-        {/* Monthly Financial Trend Chart */}
-        <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
-          <h3 className="text-xl font-bold text-tm-text-1 mb-4">Monthly Financial Trend</h3>
-          <div className="h-64">
-            <Bar data={chartData} options={chartOptions} />
+          {/* Total Revenue */}
+          <div className="bg-tm-surface rounded-card p-5 border border-tm-border shadow-soft">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-tm-text-3">Total Revenue</p>
+            <p className="text-[26px] leading-tight font-bold text-tm-text-1 mt-2">{formatCurrency(totalRevenue)}</p>
+            <p className="text-[12px] text-tm-text-3 mt-3 inline-flex items-center gap-1.5">
+              <TrendingUp className="w-3.5 h-3.5 text-success" />
+              All income received
+            </p>
+          </div>
+
+          {/* Net Balance (revenue − expenses) + solvency badge */}
+          <div className="bg-tm-surface rounded-card p-5 border border-tm-border shadow-soft">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-tm-text-3">Net Balance</p>
+            <p className={`text-[26px] leading-tight font-bold mt-2 ${netBalance >= 0 ? 'text-success' : 'text-secondary'}`}>{formatCurrency(netBalance)}</p>
+            <span className={`inline-block mt-3 text-[11px] font-semibold px-2.5 py-1 rounded-full ${netBalance >= 0 ? 'bg-success/15 text-success' : 'bg-secondary/15 text-secondary'}`}>
+              {netBalance >= 0 ? 'Solvent Balance' : 'In Deficit'}
+            </span>
+          </div>
+
+          {/* Pending / Review */}
+          <div className="bg-tm-surface rounded-card p-5 border border-tm-border shadow-soft">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-tm-text-3">Pending / Review</p>
+            <p className="text-[26px] leading-tight font-bold text-warning mt-2">{pendingReview}</p>
+            <p className="text-[12px] mt-3 inline-flex items-center gap-1.5 text-warning">
+              <AlertCircle className="w-3.5 h-3.5" />
+              Requires sign-off or audit
+            </p>
           </div>
         </div>
+
+        {/* Analytics grid — left column: category donut + burndown; right: roster */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+        <div className="lg:col-span-1 space-y-6">
+
+        {/* Expenses by Category — doughnut breakdown */}
+        <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
+          <h3 className="text-xl font-bold text-tm-text-1 mb-4">Expenses by Category</h3>
+          {expenseCategories.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <TrendingDown className="w-12 h-12 text-tm-text-3 opacity-40 mb-3" />
+              <p className="text-sm font-medium text-tm-text-1">No expenses logged yet</p>
+              <p className="text-xs text-tm-text-3 mt-1">Add expenses on the Finance page to see the breakdown here.</p>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-6">
+              {/* Doughnut with total in the centre */}
+              <div className="relative w-[170px] h-[170px] flex-shrink-0">
+                <Doughnut data={doughnutData} options={doughnutOptions} />
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none px-4 text-center">
+                  <span className="text-[9px] font-semibold tracking-wider uppercase text-tm-text-3">Total Spent</span>
+                  <span className="text-base font-bold text-tm-text-1 leading-tight">{formatCurrency(totalExpenses)}</span>
+                  <span className="text-[11px] font-semibold text-primary mt-0.5">100%</span>
+                </div>
+              </div>
+
+              {/* Category legend — full card width so labels/amounts never truncate or overflow */}
+              <div className="w-full space-y-3">
+                {expenseCategories.map((c, i) => {
+                  const pct = totalExpenses > 0 ? Math.round((c.amount / totalExpenses) * 100) : 0
+                  return (
+                    <div key={c.category} className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: CATEGORY_COLORS[i % CATEGORY_COLORS.length] }} />
+                        <span className="text-sm font-medium text-tm-text-1 truncate">{c.category}</span>
+                        <span className="text-[11px] text-tm-text-3 flex-shrink-0">{pct}%</span>
+                      </div>
+                      <span className="text-sm font-semibold text-tm-text-1 flex-shrink-0 whitespace-nowrap">{formatCurrency(c.amount)}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Critical Project Burndown */}
+        <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
+          <div className="flex items-center justify-between mb-5">
+            <h3 className="text-xl font-bold text-tm-text-1">Critical Project Burndown</h3>
+            <Link href="/finance" className="text-[13px] font-semibold text-primary hover:opacity-80 transition-opacity">View All</Link>
+          </div>
+          {projectBurndown.length === 0 ? (
+            <div className="text-center py-8">
+              <Wallet className="w-11 h-11 mx-auto text-tm-text-3 opacity-40 mb-3" />
+              <p className="text-sm font-medium text-tm-text-1">No active budgets yet</p>
+              <p className="text-xs text-tm-text-3 mt-1">Create a budget on the Finance page, then tag expenses to it to track spend here.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {projectBurndown.slice(0, 5).map((p) => (
+                <div key={p.id}>
+                  <div className="flex items-center justify-between gap-3 mb-1.5">
+                    <span className="text-sm font-semibold text-tm-text-1 truncate">{p.name}</span>
+                    <span className="text-[13px] text-tm-text-3 flex-shrink-0">
+                      <span className={p.over ? 'text-secondary font-semibold' : 'text-tm-text-2 font-semibold'}>{formatCurrency(p.spent)}</span>
+                      {' / '}{formatCurrency(p.budget)}
+                    </span>
+                  </div>
+                  <div className="h-2 w-full rounded-full overflow-hidden" style={{ background: 'var(--tm-surface-hover)' }}>
+                    <div
+                      className={`h-full rounded-full transition-all ${p.over ? 'bg-secondary' : 'bg-success'}`}
+                      style={{ width: `${Math.max(p.pct, 2)}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        </div>{/* end left column */}
+
+        {/* Right column: live transactions roster */}
+        <div className="lg:col-span-2">
+        {/* Recent Transactions roster */}
+        <div className="bg-tm-surface rounded-card border border-tm-border shadow-soft overflow-hidden">
+          <div className="flex items-center justify-between px-6 py-5 border-b border-tm-border">
+            <h3 className="text-xl font-bold text-tm-text-1">Recent Transactions</h3>
+            <Link href="/finance" className="text-[13px] font-semibold text-primary hover:opacity-80 transition-opacity">Full Ledger</Link>
+          </div>
+          {recentTransactions.length === 0 ? (
+            <div className="text-center py-12">
+              <DollarSign className="w-12 h-12 mx-auto text-tm-text-3 opacity-40 mb-3" />
+              <p className="text-sm font-medium text-tm-text-1">No transactions yet</p>
+              <p className="text-xs text-tm-text-3 mt-1">Log revenue or expenses on the Finance page to see them here.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="text-[11px] font-semibold uppercase tracking-wider text-tm-text-3">
+                    <th className="px-6 py-3">Description</th>
+                    <th className="px-6 py-3 hidden sm:table-cell">Category</th>
+                    <th className="px-6 py-3">Amount</th>
+                    <th className="px-6 py-3">Type</th>
+                    <th className="px-6 py-3 hidden md:table-cell">Date</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-tm-border">
+                  {recentTransactions.map((t: any, i: number) => {
+                    const isRevenue = t.type === 'revenue'
+                    return (
+                      <tr key={t.id || i} className="hover:bg-tm-surface-hover transition-colors">
+                        <td className="px-6 py-3.5">
+                          <p className="text-sm font-medium text-tm-text-1 truncate max-w-[220px]">{t.description || t.category || '—'}</p>
+                        </td>
+                        <td className="px-6 py-3.5 hidden sm:table-cell">
+                          <span className="text-sm text-tm-text-3 capitalize">{t.category || '—'}</span>
+                        </td>
+                        <td className={`px-6 py-3.5 text-sm font-semibold ${isRevenue ? 'text-success' : 'text-secondary'}`}>
+                          {isRevenue ? '+' : '−'}{formatCurrency(t.amount || 0)}
+                        </td>
+                        <td className="px-6 py-3.5">
+                          <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full capitalize ${isRevenue ? 'bg-success/15 text-success' : 'bg-secondary/15 text-secondary'}`}>
+                            {t.type}
+                          </span>
+                        </td>
+                        <td className="px-6 py-3.5 hidden md:table-cell">
+                          <span className="text-sm text-tm-text-3">{t.transaction_date ? new Date(t.transaction_date).toLocaleDateString('en-GB') : '—'}</span>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+        </div>{/* end right column */}
+        </div>{/* end analytics grid */}
 
         {/* Attendance Summary Section */}
         <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
@@ -447,115 +563,6 @@ export default function FinanceAdminDashboard() {
                   </div>
                 </div>
               )}
-            </div>
-          </div>
-        </div>
-
-        {/* Dual Entry Forms */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Log Revenue Form */}
-          <div className="bg-tm-surface rounded-card p-6 border-2 border-success/20 shadow-soft">
-            <h3 className="text-xl font-bold text-tm-text-1 mb-6">Log Revenue</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-tm-text-1 mb-2">Type</label>
-                <select
-                  value={revenueForm.type}
-                  onChange={(e) => setRevenueForm({ ...revenueForm, type: e.target.value })}
-                  className="w-full px-4 py-3 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-success focus:border-success transition-all"
-                >
-                  <option value="">Select type...</option>
-                  <option value="sponsorship">Sponsorship</option>
-                  <option value="membership">Membership Fees</option>
-                  <option value="merchandise">Merchandise</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-tm-text-1 mb-2">Amount (UGX)</label>
-                <input
-                  type="number"
-                  value={revenueForm.amount}
-                  onChange={(e) => setRevenueForm({ ...revenueForm, amount: e.target.value })}
-                  className="w-full px-4 py-3 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-success focus:border-success transition-all"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-tm-text-1 mb-2">Date</label>
-                <input
-                  type="date"
-                  value={revenueForm.date}
-                  onChange={(e) => setRevenueForm({ ...revenueForm, date: e.target.value })}
-                  className="w-full px-4 py-3 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-success focus:border-success transition-all"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-tm-text-1 mb-2">Notes</label>
-                <textarea
-                  value={revenueForm.notes}
-                  onChange={(e) => setRevenueForm({ ...revenueForm, notes: e.target.value })}
-                  rows={3}
-                  className="w-full px-4 py-3 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-success focus:border-success transition-all"
-                />
-              </div>
-              <button
-                onClick={() => router.push('/finance')}
-                className="w-full px-6 py-3 bg-success text-white rounded-[6px] font-semibold hover:opacity-90 transition-colors"
-              >
-                Add Revenue
-              </button>
-            </div>
-          </div>
-
-          {/* Log Expense Form */}
-          <div className="bg-tm-surface rounded-card p-6 border-2 border-secondary/20 shadow-soft">
-            <h3 className="text-xl font-bold text-tm-text-1 mb-6">Log Expense</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-tm-text-1 mb-2">Type</label>
-                <select
-                  value={expenseForm.type}
-                  onChange={(e) => setExpenseForm({ ...expenseForm, type: e.target.value })}
-                  className="w-full px-4 py-3 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-secondary focus:border-secondary transition-all"
-                >
-                  <option value="">Select type...</option>
-                  <option value="equipment">Equipment</option>
-                  <option value="travel">Travel</option>
-                  <option value="facilities">Facilities</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-tm-text-1 mb-2">Amount (UGX)</label>
-                <input
-                  type="number"
-                  value={expenseForm.amount}
-                  onChange={(e) => setExpenseForm({ ...expenseForm, amount: e.target.value })}
-                  className="w-full px-4 py-3 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-secondary focus:border-secondary transition-all"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-tm-text-1 mb-2">Date</label>
-                <input
-                  type="date"
-                  value={expenseForm.date}
-                  onChange={(e) => setExpenseForm({ ...expenseForm, date: e.target.value })}
-                  className="w-full px-4 py-3 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-secondary focus:border-secondary transition-all"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-tm-text-1 mb-2">Notes</label>
-                <textarea
-                  value={expenseForm.notes}
-                  onChange={(e) => setExpenseForm({ ...expenseForm, notes: e.target.value })}
-                  rows={3}
-                  className="w-full px-4 py-3 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-secondary focus:border-secondary transition-all"
-                />
-              </div>
-              <button
-                onClick={() => router.push('/finance')}
-                className="w-full px-6 py-3 bg-secondary text-tm-on-secondary rounded-[6px] font-semibold hover:opacity-90 transition-colors"
-              >
-                Add Expense
-              </button>
             </div>
           </div>
         </div>

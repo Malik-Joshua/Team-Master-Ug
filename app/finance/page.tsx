@@ -72,6 +72,7 @@ export default function FinancePage() {
     amount: '',
     date: '',
     notes: '',
+    budget_id: '',
   })
   const [budgetForm, setBudgetForm] = useState({
     event_name: '',
@@ -234,22 +235,31 @@ export default function FinancePage() {
         return
       }
 
-      const { error } = await supabase.from('financial_transactions').insert({
+      const payload: Record<string, any> = {
         transaction_date: expenseForm.date || new Date().toISOString().split('T')[0],
         type: 'expense',
         category: expenseForm.type,
         description: expenseForm.notes || expenseForm.type,
         amount: parseFloat(expenseForm.amount),
         created_by: authUser.id,
-      })
+      }
+      // Tag the expense to a budget/project when one is picked (migration 044).
+      if (expenseForm.budget_id) payload.budget_id = expenseForm.budget_id
+
+      let { error } = await supabase.from('financial_transactions').insert(payload)
+      // If budget_id column isn't there yet, retry without it so logging still works.
+      if (error?.message?.includes('budget_id')) {
+        const { budget_id: _omit, ...withoutBudget } = payload
+        ;({ error } = await supabase.from('financial_transactions').insert(withoutBudget))
+      }
 
       if (error) throw error
 
       const { data: transactionsData } = await supabase.from('financial_transactions').select('*').order('transaction_date', { ascending: false })
       if (transactionsData) setTransactions(transactionsData as Transaction[])
-      
+
       setShowExpenseModal(false)
-      setExpenseForm({ type: '', amount: '', date: '', notes: '' })
+      setExpenseForm({ type: '', amount: '', date: '', notes: '', budget_id: '' })
       alert('Expense added successfully!')
     } catch (error: any) {
       console.error('Error adding expense:', error)
@@ -647,42 +657,42 @@ export default function FinancePage() {
   return (
     <Layout pageTitle="Financial Management">
       <div className="space-y-6">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
           <div>
             <h1 className="text-[20px] font-medium text-tm-text-1">Financial Management</h1>
             <p className="text-[13px] text-tm-text-3">Track revenue, expenses, and budgets</p>
           </div>
-          <div className="flex items-center space-x-3">
+          <div className="flex flex-wrap items-center gap-2">
             {user?.role === 'finance_admin' && (
               <>
                 <button
                   onClick={() => setShowAttendanceView(!showAttendanceView)}
-                  className="bg-primary text-tm-on-secondary px-6 py-3 rounded-[6px] font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
+                  className="bg-primary text-tm-on-secondary px-3.5 py-2 rounded-[8px] text-[13px] font-semibold hover:opacity-90 hover:-translate-y-0.5 transition-all duration-200 shadow-soft hover:shadow-medium inline-flex items-center whitespace-nowrap"
                 >
-                  <Calendar className="w-5 h-5 mr-2" />
+                  <Calendar className="w-4 h-4 mr-1.5" />
                   View Attendance
                 </button>
                 <button
                   onClick={() => setShowBudgetModal(true)}
-                  className="bg-info text-white px-6 py-3 rounded-[6px] font-semibold hover:bg-info-dark transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
+                  className="bg-info text-white px-3.5 py-2 rounded-[8px] text-[13px] font-semibold hover:bg-info-dark hover:-translate-y-0.5 transition-all duration-200 shadow-soft hover:shadow-medium inline-flex items-center whitespace-nowrap"
                 >
-                  <FileText className="w-5 h-5 mr-2" />
+                  <FileText className="w-4 h-4 mr-1.5" />
                   Create Budget
                 </button>
               </>
             )}
             <button
               onClick={() => setShowRevenueModal(true)}
-              className="bg-success text-white px-6 py-3 rounded-[6px] font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
+              className="bg-success text-white px-3.5 py-2 rounded-[8px] text-[13px] font-semibold hover:opacity-90 hover:-translate-y-0.5 transition-all duration-200 shadow-soft hover:shadow-medium inline-flex items-center whitespace-nowrap"
             >
-              <Plus className="w-5 h-5 mr-2" />
+              <Plus className="w-4 h-4 mr-1.5" />
               Add Revenue
             </button>
             <button
               onClick={() => setShowExpenseModal(true)}
-              className="bg-secondary text-tm-on-secondary px-6 py-3 rounded-[6px] font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
+              className="bg-secondary text-tm-on-secondary px-3.5 py-2 rounded-[8px] text-[13px] font-semibold hover:opacity-90 hover:-translate-y-0.5 transition-all duration-200 shadow-soft hover:shadow-medium inline-flex items-center whitespace-nowrap"
             >
-              <Plus className="w-5 h-5 mr-2" />
+              <Plus className="w-4 h-4 mr-1.5" />
               Add Expense
             </button>
           </div>
@@ -1172,6 +1182,18 @@ export default function FinancePage() {
                 </select>
               </div>
               <div>
+                <label className="block text-sm font-semibold text-tm-text-1 mb-2">
+                  Project / Budget <span className="font-normal text-tm-text-3">(optional)</span>
+                </label>
+                <select value={expenseForm.budget_id} onChange={(e) => setExpenseForm({ ...expenseForm, budget_id: e.target.value })} className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary">
+                  <option value="">No project</option>
+                  {budgets.map((b: any) => (
+                    <option key={b.id} value={b.id}>{b.event_name}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-tm-text-3 mt-1">Tag this expense to a budget to track its spend on the dashboard burndown.</p>
+              </div>
+              <div>
                 <label className="block text-sm font-semibold text-tm-text-1 mb-2">Amount (UGX)</label>
                 <input type="number" value={expenseForm.amount} onChange={(e) => setExpenseForm({ ...expenseForm, amount: e.target.value })} className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary" placeholder="0" />
               </div>
@@ -1185,7 +1207,7 @@ export default function FinancePage() {
               </div>
             </div>
             <div className="p-6 border-t border-tm-border flex justify-end space-x-3">
-              <button onClick={() => { setShowExpenseModal(false); setExpenseForm({ type: '', amount: '', date: '', notes: '' }) }} className="px-6 py-2 border border-tm-border rounded-[6px] font-semibold text-tm-text-1 hover:bg-tm-surface-hover transition-colors">
+              <button onClick={() => { setShowExpenseModal(false); setExpenseForm({ type: '', amount: '', date: '', notes: '', budget_id: '' }) }} className="px-6 py-2 border border-tm-border rounded-[6px] font-semibold text-tm-text-1 hover:bg-tm-surface-hover transition-colors">
                 Cancel
               </button>
               <button onClick={handleAddExpense} className="px-6 py-2 bg-secondary text-tm-on-secondary rounded-[6px] font-semibold hover:opacity-90 transition-colors">

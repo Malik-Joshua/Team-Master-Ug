@@ -47,7 +47,18 @@ export async function POST(request: NextRequest) {
       .eq('role', role)
       .limit(10)
 
-    if (profileError || !profiles || profiles.length === 0) {
+    // A real Supabase/network error (e.g. DNS/connection failure) is a very
+    // different problem than "no such role exists yet" — surface it as such
+    // instead of the generic 404, so a connectivity blip doesn't look like a
+    // missing account.
+    if (profileError) {
+      console.error('[dev-bypass-login] Supabase query failed:', profileError)
+      return NextResponse.json(
+        { error: `Could not reach the database: ${profileError.message}. This is usually a temporary connectivity issue — try again in a moment.` },
+        { status: 503 }
+      )
+    }
+    if (!profiles || profiles.length === 0) {
       return NextResponse.json(
         { error: `No active user profile found with role "${role}" in the database.` },
         { status: 404 }

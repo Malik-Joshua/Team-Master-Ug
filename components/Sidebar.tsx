@@ -43,7 +43,7 @@ const navigationItems: NavItem[] = [
   { name: 'Health & injuries', href: '/dashboard/physio', icon: HeartPulse, roles: ['physio', 'admin', 'coach', 'data_admin', 'club_captain'] },
   { name: 'Gym & fitness', href: '/gym', icon: Dumbbell, roles: ['player', 'coach', 'data_admin', 'admin'] },
   { name: 'Finance', href: '/finance', icon: DollarSign, roles: ['finance_admin', 'admin'] },
-  { name: 'Inventory', href: '/inventory', icon: Package, roles: ['data_admin', 'admin', 'physio'] },
+  { name: 'Inventory', href: '/inventory', icon: Package, roles: ['data_admin', 'admin', 'physio', 'finance_admin', 'coach'] },
   { name: 'Messages', href: '/messages', icon: MessageSquare },
   { name: 'Reports', href: '/reports', icon: FileText, roles: ['data_admin', 'finance_admin', 'admin', 'club_captain'] },
   { name: 'Staff', href: '/staff', icon: UserCircle, roles: ['admin'] },

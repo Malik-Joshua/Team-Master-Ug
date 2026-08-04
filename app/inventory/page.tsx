@@ -3,7 +3,10 @@
 import { useEffect, useState, useCallback } from 'react'
 import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
-import { Package, Plus, Search, Filter, Edit, Trash2, AlertCircle, CheckCircle, XCircle } from 'lucide-react'
+import {
+  Package, Plus, Search, Filter, Edit, Trash2, AlertCircle, CheckCircle, XCircle,
+  ArrowUpRight, ArrowDownLeft, ClipboardCheck, History, X,
+} from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import RefreshButton from '@/components/RefreshButton'
 
@@ -11,395 +14,335 @@ interface InventoryItem {
   id: string
   name: string
   category: string
-  quantity: number
   unit: string
   location: string
+  description?: string
+  quantityInStore: number
+  quantityInUse: number
+  quantitySpoilt: number
+  quantityLost: number
+  quantity: number // in_store + in_use, kept for anything reading the old flat total
+  lowStockThreshold: number
   status: 'in_stock' | 'low_stock' | 'out_of_stock'
   lastUpdated: string
-  description?: string
+  lastReconciledAt: string | null
+  reconciliationOverdue: boolean
 }
+
+const MANAGER_ROLES = ['admin', 'data_admin', 'finance_admin', 'coach']
 
 export default function InventoryPage() {
   const [user, setUser] = useState<any>(null)
   const [items, setItems] = useState<InventoryItem[]>([])
   const [loading, setLoading] = useState(true)
-  const [showAddModal, setShowAddModal] = useState(false)
-  const [showEditModal, setShowEditModal] = useState(false)
-  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [filterCategory, setFilterCategory] = useState('all')
   const [filterStatus, setFilterStatus] = useState('all')
-  const [formData, setFormData] = useState({
-    name: '',
-    category: '',
-    quantity: '',
-    unit: '',
+
+  // Log New Stock (receive)
+  const [showReceiveModal, setShowReceiveModal] = useState(false)
+  const [receiveForm, setReceiveForm] = useState({
+    mode: 'existing' as 'existing' | 'new',
+    item_id: '',
+    item_name: '',
+    category: 'Equipment',
+    unit: 'pieces',
     location: '',
     description: '',
+    low_stock_threshold: '10',
+    source: '',
+    date_received: new Date().toISOString().split('T')[0],
+    quantity_received: '',
+    notes: '',
   })
+  const [savingReceive, setSavingReceive] = useState(false)
+
+  // Edit item details (metadata only — never quantity)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editForm, setEditForm] = useState({ id: '', name: '', category: '', unit: '', location: '', description: '', low_stock_threshold: '10' })
+  const [savingEdit, setSavingEdit] = useState(false)
+
+  // Quick Issue / Return-Report — one shared modal, configured per action
+  const [moveModal, setMoveModal] = useState<{
+    item: InventoryItem
+    action: 'issue' | 'return'
+    destination: 'in_store' | 'spoilt' | 'lost' // only relevant for 'return'
+  } | null>(null)
+  const [moveQuantity, setMoveQuantity] = useState('')
+  const [moveNote, setMoveNote] = useState('')
+  const [savingMove, setSavingMove] = useState(false)
+
+  // Reconcile
+  const [reconcileItem, setReconcileItem] = useState<InventoryItem | null>(null)
+  const [reconcileFoundQty, setReconcileFoundQty] = useState('')
+  const [reconcileShortfallQty, setReconcileShortfallQty] = useState('')
+  const [reconcileShortfallDest, setReconcileShortfallDest] = useState<'spoilt' | 'lost'>('spoilt')
+  const [reconcileNote, setReconcileNote] = useState('')
+  const [savingReconcile, setSavingReconcile] = useState(false)
+
+  // History
+  const [historyItem, setHistoryItem] = useState<InventoryItem | null>(null)
+  const [historyData, setHistoryData] = useState<{ batches: any[]; transactions: any[] } | null>(null)
+  const [loadingHistory, setLoadingHistory] = useState(false)
+
+  const canManage = user && MANAGER_ROLES.includes(user.role)
 
   const loadData = useCallback(async () => {
-      const supabase = createClient()
-      const { data: { user: authUser } } = await supabase.auth.getUser()
+    const supabase = createClient()
+    const { data: { user: authUser } } = await supabase.auth.getUser()
+    if (!authUser) { setLoading(false); return }
 
-      if (!authUser) {
-        setLoading(false)
-        return
-      }
+    const { data: profile } = await supabase.from('user_profiles').select('*').eq('user_id', authUser.id).single()
+    if (!profile) { setLoading(false); return }
+    setUser(profile)
 
-        const { data: profile } = await supabase
-          .from('user_profiles')
-          .select('*')
-          .eq('user_id', authUser.id)
-          .single()
-
-        if (profile) {
-          setUser(profile)
-        
-        // Fetch inventory items - use API route for admin/data_admin/physio to bypass RLS
-        if (profile.role === 'admin' || profile.role === 'data_admin' || profile.role === 'physio') {
-          try {
-            console.log('Fetching inventory from API route for admin user...', profile.role)
-            const response = await fetch('/api/admin/inventory', {
-              cache: 'no-store', // Ensure fresh data
-            })
-            console.log('API response status:', response.status)
-            if (response.ok) {
-              const data = await response.json()
-              console.log('Inventory items fetched:', data.items?.length || 0, 'items')
-              if (data.items && data.items.length > 0) {
-                console.log('Sample item:', data.items[0])
-              }
-              setItems(data.items || [])
-            } else {
-              const error = await response.json()
-              console.error('Error fetching inventory:', error)
-              // Show user-friendly error message
-              if (error.error?.includes('SUPABASE_SERVICE_ROLE_KEY')) {
-                alert('Configuration Error: The SUPABASE_SERVICE_ROLE_KEY environment variable is not set in Vercel. Please check your deployment settings.')
-              } else if (error.error) {
-                console.error('API Error Details:', error)
-              }
-              // Fallback to direct query
-              const { data: itemsData, error: queryError } = await supabase
-                .from('inventory')
-                .select('*')
-                .order('item_name', { ascending: true })
-              if (!queryError && itemsData) {
-                const formattedItems: InventoryItem[] = itemsData.map((item: any) => ({
-                  id: item.id,
-                  name: item.item_name || item.name, // Use item_name from database
-                  category: item.category || 'Equipment',
-                  quantity: item.quantity || 0,
-                  unit: item.unit || 'pieces',
-                  location: item.location || '',
-                  status: item.quantity === 0 ? 'out_of_stock' : item.quantity < 10 ? 'low_stock' : 'in_stock',
-                  lastUpdated: item.updated_at || item.created_at || new Date().toISOString(),
-                  description: item.description || '',
-                }))
-                setItems(formattedItems)
-              }
-            }
-          } catch (error) {
-            console.error('Error fetching inventory from API:', error)
-            // Fallback to direct query
-            const { data: itemsData, error: queryError } = await supabase
-              .from('inventory')
-              .select('*')
-              .order('item_name', { ascending: true })
-            if (!queryError && itemsData) {
-              const formattedItems: InventoryItem[] = itemsData.map((item: any) => ({
-                id: item.id,
-                name: item.item_name || item.name, // Use item_name from database
-                category: item.category || 'Equipment',
-                quantity: item.quantity || 0,
-                unit: item.unit || 'pieces',
-                location: item.location || '',
-                status: item.quantity === 0 ? 'out_of_stock' : item.quantity < 10 ? 'low_stock' : 'in_stock',
-                lastUpdated: item.updated_at || item.created_at || new Date().toISOString(),
-                description: item.description || '',
-              }))
-              setItems(formattedItems)
-            }
-          }
-        } else {
-          // For other roles, use direct query (they can only see their own data)
-          const { data: itemsData, error } = await supabase
-            .from('inventory')
-            .select('*')
-            .order('item_name', { ascending: true })
-
-          if (error) {
-            console.error('Error fetching inventory:', error)
-          } else if (itemsData) {
-            const formattedItems: InventoryItem[] = itemsData.map((item: any) => ({
-              id: item.id,
-              name: item.item_name || item.name, // Use item_name from database
-              category: item.category || 'Equipment',
-              quantity: item.quantity || 0,
-              unit: item.unit || 'pieces',
-              location: item.location || '',
-              status: item.quantity === 0 ? 'out_of_stock' : item.quantity < 10 ? 'low_stock' : 'in_stock',
-              lastUpdated: item.updated_at || item.created_at || new Date().toISOString(),
-              description: item.description || '',
-            }))
-            setItems(formattedItems)
-          }
-        }
-      }
-      setLoading(false)
-  }, [])
-
-  useEffect(() => {
-    loadData()
-  }, [loadData])
-
-  // Refresh function to reload inventory data
-  const refreshInventory = async () => {
-    if (!user) return
-    
-    setLoading(true)
     try {
-      if (user.role === 'admin' || user.role === 'data_admin' || user.role === 'physio') {
-        console.log('Refreshing inventory via API route...')
-        const response = await fetch('/api/admin/inventory', {
-          cache: 'no-store',
-        })
-        console.log('Refresh API response status:', response.status)
-        if (response.ok) {
-          const data = await response.json()
-          console.log('Refreshed inventory items:', data.items?.length || 0)
-          setItems(data.items || [])
-        } else {
-          const errorData = await response.json()
-          console.error('Error from refresh API:', errorData)
-          // Fallback to direct query
-          const supabase = createClient()
-          const { data: itemsData, error: queryError } = await supabase
-            .from('inventory')
-            .select('*')
-            .order('item_name', { ascending: true })
-          if (!queryError && itemsData) {
-            const formattedItems: InventoryItem[] = itemsData.map((item: any) => ({
-              id: item.id,
-              name: item.item_name || item.name,
-              category: item.category || 'Equipment',
-              quantity: item.quantity || 0,
-              unit: item.unit || 'pieces',
-              location: item.location || '',
-              status: item.quantity === 0 ? 'out_of_stock' : item.quantity < 10 ? 'low_stock' : 'in_stock',
-              lastUpdated: item.updated_at || item.created_at || new Date().toISOString(),
-              description: item.description || '',
-            }))
-            setItems(formattedItems)
-          }
-        }
+      const response = await fetch('/api/admin/inventory', { cache: 'no-store' })
+      if (response.ok) {
+        const data = await response.json()
+        setItems(data.items || [])
       } else {
-        const supabase = createClient()
-        const { data: itemsData, error } = await supabase
-          .from('inventory')
-          .select('*')
-          .order('item_name', { ascending: true })
-        if (!error && itemsData) {
-          const formattedItems: InventoryItem[] = itemsData.map((item: any) => ({
-            id: item.id,
-            name: item.item_name || item.name,
-            category: item.category || 'Equipment',
-            quantity: item.quantity || 0,
-            unit: item.unit || 'pieces',
-            location: item.location || '',
-            status: item.quantity === 0 ? 'out_of_stock' : item.quantity < 10 ? 'low_stock' : 'in_stock',
-            lastUpdated: item.updated_at || item.created_at || new Date().toISOString(),
-            description: item.description || '',
-          }))
-          setItems(formattedItems)
-        }
+        const error = await response.json()
+        console.error('Error fetching inventory:', error)
       }
     } catch (error) {
-      console.error('Error refreshing inventory:', error)
-    } finally {
-      setLoading(false)
+      console.error('Error fetching inventory from API:', error)
     }
-  }
+    setLoading(false)
+  }, [])
 
-  const handleAddItem = async () => {
+  useEffect(() => { loadData() }, [loadData])
+
+  const resetReceiveForm = () => setReceiveForm({
+    mode: 'existing', item_id: '', item_name: '', category: 'Equipment', unit: 'pieces',
+    location: '', description: '', low_stock_threshold: '10', source: '',
+    date_received: new Date().toISOString().split('T')[0], quantity_received: '', notes: '',
+  })
+
+  const handleReceiveSubmit = async () => {
+    const qty = parseInt(receiveForm.quantity_received, 10)
+    if (!qty || qty <= 0) { alert('Enter how many units were received'); return }
+    if (receiveForm.mode === 'existing' && !receiveForm.item_id) { alert('Pick an item type'); return }
+    if (receiveForm.mode === 'new' && !receiveForm.item_name.trim()) { alert('Enter a name for the new item type'); return }
+
+    setSavingReceive(true)
     try {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-
-      if (!user) {
-        alert('Please log in to add items')
-        return
+      const payload: Record<string, any> = {
+        quantity_received: qty,
+        source: receiveForm.source || null,
+        date_received: receiveForm.date_received,
+        notes: receiveForm.notes || null,
       }
-
-      if (!formData.name || !formData.category) {
-        alert('Please fill in required fields')
-        return
-      }
-
-      const { data: newItem, error } = await supabase
-        .from('inventory')
-        .insert({
-          item_name: formData.name,
-          category: formData.category,
-          quantity: parseInt(formData.quantity) || 0,
-          unit: formData.unit || 'pieces',
-          location: formData.location,
-          description: formData.description,
-          created_by: user.id,
-        })
-        .select()
-        .single()
-
-      if (error) throw error
-
-      // Add to local state
-      const formattedItem: InventoryItem = {
-        id: newItem.id,
-        name: newItem.item_name,
-        category: newItem.category || '',
-        quantity: newItem.quantity,
-        unit: newItem.unit || 'pieces',
-        location: newItem.location || '',
-        status: newItem.quantity > 10 ? 'in_stock' : newItem.quantity > 0 ? 'low_stock' : 'out_of_stock',
-        lastUpdated: newItem.updated_at || newItem.created_at,
-        description: newItem.description || '',
-      }
-
-      // Refetch inventory items to ensure we have the latest data (especially for admin/physio users)
-      if (user?.role === 'admin' || user?.role === 'data_admin' || user?.role === 'physio') {
-        try {
-          const response = await fetch('/api/admin/inventory')
-          if (response.ok) {
-            const data = await response.json()
-            setItems(data.items || [])
-          }
-        } catch (error) {
-          console.error('Error refetching inventory:', error)
-          // Fallback: add to local state
-          setItems([formattedItem, ...items])
-        }
+      if (receiveForm.mode === 'existing') {
+        payload.item_id = receiveForm.item_id
       } else {
-      setItems([formattedItem, ...items])
+        payload.item_name = receiveForm.item_name.trim()
+        payload.category = receiveForm.category
+        payload.unit = receiveForm.unit
+        payload.location = receiveForm.location
+        payload.description = receiveForm.description
+        payload.low_stock_threshold = parseInt(receiveForm.low_stock_threshold, 10) || 10
       }
-      setFormData({ name: '', category: '', quantity: '', unit: '', location: '', description: '' })
-      setShowAddModal(false)
-      alert('Item added successfully!')
-    } catch (error: any) {
-      console.error('Error adding item:', error)
-      alert(`Error adding item: ${error.message}`)
+
+      const res = await fetch('/api/inventory/receive', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to log received stock')
+
+      await loadData()
+      setShowReceiveModal(false)
+      resetReceiveForm()
+      alert('Stock received and logged!')
+    } catch (err: any) {
+      alert(`Error: ${err.message}`)
+    } finally {
+      setSavingReceive(false)
     }
   }
 
-  const handleEditItem = (item: InventoryItem) => {
-    setSelectedItem(item)
-    setFormData({
-      name: item.name,
-      category: item.category,
-      quantity: item.quantity.toString(),
-      unit: item.unit,
-      location: item.location,
-      description: item.description || '',
+  const openEdit = (item: InventoryItem) => {
+    setEditForm({
+      id: item.id, name: item.name, category: item.category, unit: item.unit,
+      location: item.location, description: item.description || '', low_stock_threshold: String(item.lowStockThreshold),
     })
     setShowEditModal(true)
   }
 
-  const handleUpdateItem = async () => {
-    if (!selectedItem) return
-
+  const handleEditSubmit = async () => {
+    setSavingEdit(true)
     try {
-      const supabase = createClient()
-
-      const { data: updatedItem, error } = await supabase
-        .from('inventory')
-        .update({
-          item_name: formData.name,
-          category: formData.category,
-          quantity: parseInt(formData.quantity) || 0,
-          unit: formData.unit || 'pieces',
-          location: formData.location,
-          description: formData.description,
-        })
-        .eq('id', selectedItem.id)
-        .select()
-        .single()
-
-      if (error) throw error
-
-      // Update local state
-      const formattedItem: InventoryItem = {
-        id: updatedItem.id,
-        name: updatedItem.item_name,
-        category: updatedItem.category || '',
-        quantity: updatedItem.quantity,
-        unit: updatedItem.unit || 'pieces',
-        location: updatedItem.location || '',
-        status: updatedItem.quantity > 10 ? 'in_stock' : updatedItem.quantity > 0 ? 'low_stock' : 'out_of_stock',
-        lastUpdated: updatedItem.updated_at || updatedItem.created_at,
-        description: updatedItem.description || '',
-      }
-
-      // Refetch inventory items to ensure we have the latest data (especially for admin users)
-      await refreshInventory()
+      const res = await fetch(`/api/inventory/${editForm.id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          item_name: editForm.name, category: editForm.category, unit: editForm.unit,
+          location: editForm.location, description: editForm.description,
+          low_stock_threshold: parseInt(editForm.low_stock_threshold, 10) || 10,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to update item')
+      await loadData()
       setShowEditModal(false)
-      setSelectedItem(null)
-      setFormData({ name: '', category: '', quantity: '', unit: '', location: '', description: '' })
-      alert('Item updated successfully!')
-    } catch (error: any) {
-      console.error('Error updating item:', error)
-      alert(`Error updating item: ${error.message}`)
+      alert('Item details updated!')
+    } catch (err: any) {
+      alert(`Error: ${err.message}`)
+    } finally {
+      setSavingEdit(false)
     }
   }
 
   const handleDeleteItem = async (itemId: string) => {
-    if (!confirm('Are you sure you want to delete this item?')) return
-
+    if (!confirm('Delete this item type? This also permanently removes its batch and transaction history.')) return
     try {
-      const supabase = createClient()
-      const { error } = await supabase
-        .from('inventory')
-        .delete()
-        .eq('id', itemId)
+      const res = await fetch(`/api/inventory/${itemId}`, { method: 'DELETE' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to delete item')
+      await loadData()
+    } catch (err: any) {
+      alert(`Error: ${err.message}`)
+    }
+  }
 
-      if (error) throw error
+  const openMove = (item: InventoryItem, action: 'issue' | 'return') => {
+    setMoveModal({ item, action, destination: 'in_store' })
+    setMoveQuantity('')
+    setMoveNote('')
+  }
 
-      // Refetch inventory items to ensure we have the latest data (especially for admin users)
-      await refreshInventory()
-      alert('Item deleted successfully!')
-    } catch (error: any) {
-      console.error('Error deleting item:', error)
-      alert(`Error deleting item: ${error.message}`)
+  const handleMoveSubmit = async () => {
+    if (!moveModal) return
+    const qty = parseInt(moveQuantity, 10)
+    if (!qty || qty <= 0) { alert('Enter a quantity'); return }
+
+    const { item, action, destination } = moveModal
+    const body = action === 'issue'
+      ? { item_id: item.id, from_status: 'in_store', to_status: 'in_use', quantity: qty, type: 'issue', note: moveNote || null }
+      : { item_id: item.id, from_status: 'in_use', to_status: destination, quantity: qty, type: destination === 'in_store' ? 'return' : destination === 'spoilt' ? 'damage' : 'loss', note: moveNote || null }
+
+    setSavingMove(true)
+    try {
+      const res = await fetch('/api/inventory/move', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to update stock')
+      await loadData()
+      setMoveModal(null)
+    } catch (err: any) {
+      alert(`Error: ${err.message}`)
+    } finally {
+      setSavingMove(false)
+    }
+  }
+
+  const openReconcile = (item: InventoryItem) => {
+    setReconcileItem(item)
+    setReconcileFoundQty('')
+    setReconcileShortfallQty('')
+    setReconcileShortfallDest('spoilt')
+    setReconcileNote('')
+  }
+
+  const handleConfirmAccurate = async () => {
+    if (!reconcileItem) return
+    setSavingReconcile(true)
+    try {
+      const res = await fetch('/api/inventory/move', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ item_id: reconcileItem.id, quantity: 0, type: 'reconcile', note: 'Confirmed accurate' }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to confirm reconciliation')
+      await loadData()
+      setReconcileItem(null)
+      alert('Marked as reconciled.')
+    } catch (err: any) {
+      alert(`Error: ${err.message}`)
+    } finally {
+      setSavingReconcile(false)
+    }
+  }
+
+  const handleReconcileFound = async () => {
+    if (!reconcileItem) return
+    const qty = parseInt(reconcileFoundQty, 10)
+    if (!qty || qty <= 0) { alert('Enter how many units were found'); return }
+    setSavingReconcile(true)
+    try {
+      const res = await fetch('/api/inventory/move', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ item_id: reconcileItem.id, from_status: null, to_status: 'in_store', quantity: qty, type: 'reconcile', note: reconcileNote || 'Found during reconciliation' }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to log found stock')
+      await loadData()
+      setReconcileItem(null)
+      alert('Found stock logged!')
+    } catch (err: any) {
+      alert(`Error: ${err.message}`)
+    } finally {
+      setSavingReconcile(false)
+    }
+  }
+
+  const handleReconcileShortfall = async () => {
+    if (!reconcileItem) return
+    const qty = parseInt(reconcileShortfallQty, 10)
+    if (!qty || qty <= 0) { alert('Enter how many units are missing'); return }
+    setSavingReconcile(true)
+    try {
+      const res = await fetch('/api/inventory/move', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ item_id: reconcileItem.id, from_status: 'in_store', to_status: reconcileShortfallDest, quantity: qty, type: 'reconcile', note: reconcileNote || 'Shortfall found during reconciliation' }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to log shortfall')
+      await loadData()
+      setReconcileItem(null)
+      alert('Shortfall logged!')
+    } catch (err: any) {
+      alert(`Error: ${err.message}`)
+    } finally {
+      setSavingReconcile(false)
+    }
+  }
+
+  const openHistory = async (item: InventoryItem) => {
+    setHistoryItem(item)
+    setLoadingHistory(true)
+    setHistoryData(null)
+    try {
+      const res = await fetch(`/api/inventory/${item.id}/history`, { cache: 'no-store' })
+      const data = await res.json()
+      if (res.ok) setHistoryData({ batches: data.batches || [], transactions: data.transactions || [] })
+    } catch (err) {
+      console.error('Error loading history:', err)
+    } finally {
+      setLoadingHistory(false)
     }
   }
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'in_stock':
-        return 'bg-success/10 text-success'
-      case 'low_stock':
-        return 'bg-warning/10 text-warning'
-      case 'out_of_stock':
-        return 'bg-[#E05757]/10 text-[#E05757]'
-      default:
-        return 'bg-tm-surface-hover text-tm-text-3'
+      case 'in_stock': return 'bg-success/10 text-success'
+      case 'low_stock': return 'bg-warning/10 text-warning'
+      case 'out_of_stock': return 'bg-[#E05757]/10 text-[#E05757]'
+      default: return 'bg-tm-surface-hover text-tm-text-3'
     }
   }
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'in_stock':
-        return <CheckCircle className="w-4 h-4" />
-      case 'low_stock':
-        return <AlertCircle className="w-4 h-4" />
-      case 'out_of_stock':
-        return <XCircle className="w-4 h-4" />
-      default:
-        return null
+      case 'in_stock': return <CheckCircle className="w-4 h-4" />
+      case 'low_stock': return <AlertCircle className="w-4 h-4" />
+      case 'out_of_stock': return <XCircle className="w-4 h-4" />
+      default: return null
     }
   }
 
   const filteredItems = items.filter(item => {
-    const matchesSearch = 
+    const matchesSearch =
       item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.location.toLowerCase().includes(searchQuery.toLowerCase())
@@ -409,9 +352,9 @@ export default function InventoryPage() {
   })
 
   const totalItems = items.length
-  const inStockItems = items.filter(item => item.status === 'in_stock').length
   const lowStockItems = items.filter(item => item.status === 'low_stock').length
   const outOfStockItems = items.filter(item => item.status === 'out_of_stock').length
+  const overdueReconciliation = items.filter(item => item.reconciliationOverdue).length
   const categories = Array.from(new Set(items.map(item => item.category)))
 
   if (loading) {
@@ -430,105 +373,75 @@ export default function InventoryPage() {
     <Layout pageTitle="Inventory">
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
           <div>
             <h1 className="text-[20px] font-medium text-tm-text-1">
               {user.role === 'physio' ? 'Medical Inventory' : 'Inventory Management'}
             </h1>
             <p className="text-[13px] text-tm-text-3">
-              {user.role === 'physio' 
-                ? 'Track and manage medical kit supplies and equipment' 
-                : 'Track and manage club equipment and supplies'}
+              {user.role === 'physio'
+                ? 'Track medical kit supplies and equipment'
+                : 'Track stock, log usage, and keep counts accurate'}
             </p>
           </div>
           <div className="flex gap-3">
             <RefreshButton onRefresh={loadData} />
-          {(user.role === 'admin' || user.role === 'data_admin') && (
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="bg-tm-secondary text-tm-on-secondary px-6 py-3 rounded-[6px] font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
-          >
-            <Plus className="w-5 h-5 mr-2" />
-            Add Item
-          </button>
-          )}
+            {canManage && (
+              <button
+                onClick={() => setShowReceiveModal(true)}
+                className="bg-tm-secondary text-tm-on-secondary px-4 py-2.5 rounded-[8px] text-[13px] font-semibold hover:opacity-90 hover:-translate-y-0.5 transition-all duration-200 shadow-soft inline-flex items-center whitespace-nowrap"
+              >
+                <Plus className="w-4 h-4 mr-1.5" />
+                Log New Stock
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <StatCard
-            title="Total Items"
-            value={totalItems}
-            icon={Package}
-            iconColor="bg-primary"
-            iconTextColor="text-tm-on-secondary"
-            description="All inventory items"
-          />
-          <StatCard
-            title="In Stock"
-            value={inStockItems}
-            icon={CheckCircle}
-            iconColor="bg-success"
-            iconTextColor="text-white"
-            description="Items with good stock"
-          />
-          <StatCard
-            title="Low Stock"
-            value={lowStockItems}
-            icon={AlertCircle}
-            iconColor="bg-warning"
-            iconTextColor="text-white"
-            description="Items needing restock"
-          />
-          <StatCard
-            title="Out of Stock"
-            value={outOfStockItems}
-            icon={XCircle}
-            iconColor="bg-secondary"
-            iconTextColor="text-tm-on-secondary"
-            description="Items unavailable"
-          />
+        {/* Reconciliation overdue banner — the periodic-check safety net */}
+        {(user.role === 'finance_admin' || user.role === 'admin') && overdueReconciliation > 0 && (
+          <div className="bg-warning/10 border border-warning/30 rounded-card p-4 flex items-start gap-3">
+            <ClipboardCheck className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-tm-text-1">
+                {overdueReconciliation} item{overdueReconciliation === 1 ? '' : 's'} need{overdueReconciliation === 1 ? 's' : ''} a reconciliation check
+              </p>
+              <p className="text-xs text-tm-text-3 mt-0.5">
+                It&apos;s been over 30 days since these were last confirmed. Use &quot;Reconcile&quot; on each item below to catch unlogged loss, damage, or theft.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Stats */}
+        <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-4">
+          <StatCard title="Total Items" value={totalItems} icon={Package} iconColor="bg-primary" iconTextColor="text-tm-on-secondary" description="Item types tracked" />
+          <StatCard title="Low Stock" value={lowStockItems} icon={AlertCircle} iconColor="bg-warning" iconTextColor="text-white" description="Below reorder threshold" />
+          <StatCard title="Out of Stock" value={outOfStockItems} icon={XCircle} iconColor="bg-secondary" iconTextColor="text-tm-on-secondary" description="Nothing in store or in use" />
+          <StatCard title="Needs Reconciling" value={overdueReconciliation} icon={ClipboardCheck} iconColor="bg-info" iconTextColor="text-white" description="Not checked in 30+ days" />
         </div>
 
         {/* Search and Filters */}
         <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Search */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-tm-text-3 w-5 h-5" />
               <input
-                type="text"
-                placeholder="Search items..."
-                value={searchQuery}
+                type="text" placeholder="Search items..." value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary focus:border-primary transition-all"
               />
             </div>
-
-            {/* Category Filter */}
             <div className="relative">
               <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-tm-text-3 w-5 h-5" />
-              <select
-                value={filterCategory}
-                onChange={(e) => setFilterCategory(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary focus:border-primary transition-all bg-tm-surface text-tm-text-1"
-              >
+              <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)} className="w-full pl-10 pr-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary focus:border-primary transition-all bg-tm-surface text-tm-text-1">
                 <option value="all">All Categories</option>
-                {categories.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
+                {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
               </select>
             </div>
-
-            {/* Status Filter */}
             <div className="relative">
               <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-tm-text-3 w-5 h-5" />
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary focus:border-primary transition-all bg-tm-surface text-tm-text-1"
-              >
+              <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="w-full pl-10 pr-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary focus:border-primary transition-all bg-tm-surface text-tm-text-1">
                 <option value="all">All Status</option>
                 <option value="in_stock">In Stock</option>
                 <option value="low_stock">Low Stock</option>
@@ -538,12 +451,10 @@ export default function InventoryPage() {
           </div>
         </div>
 
-        {/* Inventory Table */}
+        {/* Inventory list */}
         <div className="bg-tm-surface rounded-card shadow-soft border border-tm-border overflow-hidden">
           <div className="px-6 py-4 border-b border-tm-border bg-tm-surface-hover">
-            <h2 className="text-xl font-bold text-tm-text-1">
-              Inventory Items ({filteredItems.length})
-            </h2>
+            <h2 className="text-xl font-bold text-tm-text-1">Inventory Items ({filteredItems.length})</h2>
           </div>
 
           {filteredItems.length === 0 ? (
@@ -555,319 +466,369 @@ export default function InventoryPage() {
               <p className="text-tm-text-3">Try adjusting your search or filters</p>
             </div>
           ) : (
-            <>
-              <div className="md:hidden divide-y divide-tm-border">
-                {filteredItems.map((item) => (
-                  <div key={item.id} className="p-4 space-y-3">
-                    <div>
-                      <p className="font-semibold text-tm-text-1">{item.name}</p>
-                      {item.description && (
-                        <p className="text-sm text-tm-text-3">{item.description}</p>
-                      )}
-                    </div>
-                    <div className="flex flex-wrap gap-2 text-xs">
-                      <span className="px-2 py-1 rounded-full bg-tm-surface-hover text-tm-text-1">{item.category}</span>
-                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(item.status)}`}>
-                        {getStatusIcon(item.status)}
-                        {item.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3 text-sm text-tm-text-3">
-                      <div>
-                        <p className="text-xs text-tm-text-3">Quantity</p>
-                        <p className="font-semibold text-tm-text-1">{item.quantity} {item.unit}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-tm-text-3">Location</p>
-                        <p className="font-semibold text-tm-text-1">{item.location || 'N/A'}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-tm-text-3">Updated</p>
-                        <p className="font-semibold text-tm-text-1">{new Date(item.lastUpdated).toLocaleDateString()}</p>
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      {(user.role === 'admin' || user.role === 'data_admin') && (
-                        <>
-                          <button
-                            onClick={() => handleEditItem(item)}
-                            className="p-2 text-info hover:bg-info/10 rounded-lg transition-colors"
-                            title="Edit Item"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteItem(item.id)}
-                            className="p-2 text-secondary hover:bg-secondary/10 rounded-lg transition-colors"
-                            title="Delete Item"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </>
-                      )}
-                      {user.role === 'physio' && (
-                        <span className="text-sm text-tm-text-3">View Only</span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="hidden md:block overflow-x-auto">
-                <table className="w-full">
-                <thead className="bg-tm-surface-hover">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-tm-text-1 uppercase">Item Name</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-tm-text-1 uppercase">Category</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-tm-text-1 uppercase">Quantity</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-tm-text-1 uppercase">Location</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-tm-text-1 uppercase">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-tm-text-1 uppercase">Last Updated</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-tm-text-1 uppercase">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-tm-border">
-                  {filteredItems.map((item) => (
-                    <tr key={item.id} className="hover:bg-tm-surface-hover transition-colors">
-                      <td className="px-6 py-4">
-                        <div>
-                          <p className="font-semibold text-tm-text-1">{item.name}</p>
-                          {item.description && (
-                            <p className="text-sm text-tm-text-3">{item.description}</p>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-tm-text-1">{item.category}</td>
-                      <td className="px-6 py-4">
-                        <span className="font-semibold text-tm-text-1">{item.quantity}</span>
-                        <span className="text-tm-text-3 ml-1">{item.unit}</span>
-                      </td>
-                      <td className="px-6 py-4 text-tm-text-3">{item.location}</td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(item.status)}`}>
+            <div className="divide-y divide-tm-border">
+              {filteredItems.map((item) => (
+                <div key={item.id} className="p-4 sm:p-5">
+                  <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+                    {/* Name + meta */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <p className="font-semibold text-tm-text-1">{item.name}</p>
+                        <span className="px-2 py-0.5 rounded-full bg-tm-surface-hover text-tm-text-3 text-[11px]">{item.category}</span>
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium ${getStatusColor(item.status)}`}>
                           {getStatusIcon(item.status)}
                           {item.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
                         </span>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-tm-text-3">
-                        {new Date(item.lastUpdated).toLocaleDateString()}
-                      </td>
-                      <td className="px-6 py-4">
-                        {(user.role === 'admin' || user.role === 'data_admin') && (
-                        <div className="flex items-center space-x-2">
-                          <button
-                            onClick={() => handleEditItem(item)}
-                            className="p-2 text-info hover:bg-info/10 rounded-lg transition-colors"
-                            title="Edit Item"
-                          >
+                        {item.reconciliationOverdue && (user.role === 'finance_admin' || user.role === 'admin') && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-info/10 text-info">
+                            <ClipboardCheck className="w-3 h-3" /> Reconcile due
+                          </span>
+                        )}
+                      </div>
+                      {item.description && <p className="text-xs text-tm-text-3 mb-1">{item.description}</p>}
+                      <p className="text-xs text-tm-text-3">{item.location || 'No location set'}</p>
+                    </div>
+
+                    {/* Status breakdown */}
+                    <div className="flex items-center gap-4 sm:gap-6 flex-shrink-0">
+                      <div className="text-center">
+                        <p className="text-lg font-bold text-tm-text-1">{item.quantityInStore}</p>
+                        <p className="text-[10px] uppercase tracking-wide text-tm-text-3">In Store</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-lg font-bold text-tm-text-1">{item.quantityInUse}</p>
+                        <p className="text-[10px] uppercase tracking-wide text-tm-text-3">In Use</p>
+                      </div>
+                      {item.quantitySpoilt > 0 && (
+                        <div className="text-center">
+                          <p className="text-lg font-bold text-secondary">{item.quantitySpoilt}</p>
+                          <p className="text-[10px] uppercase tracking-wide text-tm-text-3">Spoilt</p>
+                        </div>
+                      )}
+                      {item.quantityLost > 0 && (
+                        <div className="text-center">
+                          <p className="text-lg font-bold text-secondary">{item.quantityLost}</p>
+                          <p className="text-[10px] uppercase tracking-wide text-tm-text-3">Lost</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-1.5 flex-wrap flex-shrink-0">
+                      {canManage && (
+                        <>
+                          <button onClick={() => openMove(item, 'issue')} disabled={item.quantityInStore === 0} title="Issue units" className="p-2 text-primary hover:bg-primary-subtle rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
+                            <ArrowUpRight className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => openMove(item, 'return')} disabled={item.quantityInUse === 0} title="Return / report damaged or lost" className="p-2 text-success hover:bg-success/10 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
+                            <ArrowDownLeft className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => openReconcile(item)} title="Reconcile stock" className="p-2 text-info hover:bg-info/10 rounded-lg transition-colors">
+                            <ClipboardCheck className="w-4 h-4" />
+                          </button>
+                        </>
+                      )}
+                      <button onClick={() => openHistory(item)} title="View history" className="p-2 text-tm-text-3 hover:bg-tm-surface-hover rounded-lg transition-colors">
+                        <History className="w-4 h-4" />
+                      </button>
+                      {canManage && (
+                        <>
+                          <button onClick={() => openEdit(item)} title="Edit details" className="p-2 text-tm-text-3 hover:bg-tm-surface-hover rounded-lg transition-colors">
                             <Edit className="w-4 h-4" />
                           </button>
-                          <button
-                            onClick={() => handleDeleteItem(item.id)}
-                            className="p-2 text-secondary hover:bg-secondary/10 rounded-lg transition-colors"
-                            title="Delete Item"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                        )}
-                        {user.role === 'physio' && (
-                          <span className="text-sm text-tm-text-3">View Only</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-                </table>
-              </div>
-            </>
+                          {(user.role === 'admin' || user.role === 'data_admin') && (
+                            <button onClick={() => handleDeleteItem(item.id)} title="Delete item type" className="p-2 text-secondary hover:bg-secondary/10 rounded-lg transition-colors">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </>
+                      )}
+                      {!canManage && user.role === 'physio' && <span className="text-xs text-tm-text-3 px-2">View Only</span>}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </div>
 
-        {/* Add Item Modal */}
-        {showAddModal && (
+        {/* ── Log New Stock (receive) ─────────────────────────────────── */}
+        {showReceiveModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-3 sm:p-4 z-50 backdrop-blur-sm">
             <div className="bg-tm-surface rounded-card shadow-large w-full max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto border border-tm-border">
-              <div className="p-4 sm:p-6 border-b border-tm-border">
-                <h2 className="text-2xl font-bold text-tm-text-1">Add New Item</h2>
+              <div className="p-4 sm:p-6 border-b border-tm-border flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-tm-text-1">Log New Stock</h2>
+                <button onClick={() => { setShowReceiveModal(false); resetReceiveForm() }} className="text-tm-text-3 hover:text-tm-text-1"><X className="w-6 h-6" /></button>
               </div>
               <div className="p-4 sm:p-6 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-tm-text-3 mb-2">Item Name</label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary focus:border-primary transition-all"
-                    placeholder="e.g., Rugby Balls"
-                  />
+                <div className="flex gap-2 bg-tm-surface-hover p-1 rounded-lg w-fit">
+                  <button onClick={() => setReceiveForm({ ...receiveForm, mode: 'existing' })} className={`px-4 py-1.5 rounded-md text-sm font-semibold transition-colors ${receiveForm.mode === 'existing' ? 'bg-primary text-tm-on-secondary' : 'text-tm-text-3'}`}>Existing item</button>
+                  <button onClick={() => setReceiveForm({ ...receiveForm, mode: 'new' })} className={`px-4 py-1.5 rounded-md text-sm font-semibold transition-colors ${receiveForm.mode === 'new' ? 'bg-primary text-tm-on-secondary' : 'text-tm-text-3'}`}>New item type</button>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-tm-text-3 mb-2">Category</label>
-                  <select
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    className="w-full px-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary focus:border-primary transition-all"
-                  >
-                    <option value="">Select category...</option>
-                    <option value="Equipment">Equipment</option>
-                    <option value="Apparel">Apparel</option>
-                    <option value="Training">Training</option>
-                    <option value="Medical">Medical</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
+
+                {receiveForm.mode === 'existing' ? (
                   <div>
-                    <label className="block text-sm font-medium text-tm-text-3 mb-2">Quantity</label>
-                    <input
-                      type="number"
-                      value={formData.quantity}
-                      onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                      className="w-full px-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary focus:border-primary transition-all"
-                      placeholder="0"
-                    />
+                    <label className="block text-sm font-medium text-tm-text-3 mb-2">Item</label>
+                    <select value={receiveForm.item_id} onChange={(e) => setReceiveForm({ ...receiveForm, item_id: e.target.value })} className="w-full px-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary">
+                      <option value="">Select item...</option>
+                      {items.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
+                    </select>
+                  </div>
+                ) : (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-tm-text-3 mb-2">Item Name</label>
+                      <input type="text" value={receiveForm.item_name} onChange={(e) => setReceiveForm({ ...receiveForm, item_name: e.target.value })} className="w-full px-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary" placeholder="e.g., Rugby ball, size 5" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-tm-text-3 mb-2">Category</label>
+                        <select value={receiveForm.category} onChange={(e) => setReceiveForm({ ...receiveForm, category: e.target.value })} className="w-full px-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary">
+                          <option value="Equipment">Equipment</option>
+                          <option value="Apparel">Apparel</option>
+                          <option value="Training">Training</option>
+                          <option value="Medical">Medical</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-tm-text-3 mb-2">Unit</label>
+                        <input type="text" value={receiveForm.unit} onChange={(e) => setReceiveForm({ ...receiveForm, unit: e.target.value })} className="w-full px-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary" placeholder="e.g., pieces, kits" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-tm-text-3 mb-2">Location</label>
+                        <input type="text" value={receiveForm.location} onChange={(e) => setReceiveForm({ ...receiveForm, location: e.target.value })} className="w-full px-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary" placeholder="e.g., Storage Room A" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-tm-text-3 mb-2">Low-stock alert below</label>
+                        <input type="number" min="0" value={receiveForm.low_stock_threshold} onChange={(e) => setReceiveForm({ ...receiveForm, low_stock_threshold: e.target.value })} className="w-full px-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary" />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-tm-text-3 mb-2">Description</label>
+                      <textarea value={receiveForm.description} onChange={(e) => setReceiveForm({ ...receiveForm, description: e.target.value })} rows={2} className="w-full px-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary" placeholder="Optional" />
+                    </div>
+                  </>
+                )}
+
+                <div className="border-t border-tm-border pt-4 grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-tm-text-3 mb-2">Quantity Received *</label>
+                    <input type="number" min="1" value={receiveForm.quantity_received} onChange={(e) => setReceiveForm({ ...receiveForm, quantity_received: e.target.value })} className="w-full px-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary" placeholder="e.g., 13" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-tm-text-3 mb-2">Unit</label>
-                    <input
-                      type="text"
-                      value={formData.unit}
-                      onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                      className="w-full px-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary focus:border-primary transition-all"
-                      placeholder="e.g., pieces, kits"
-                    />
+                    <label className="block text-sm font-medium text-tm-text-3 mb-2">Date Received</label>
+                    <input type="date" value={receiveForm.date_received} onChange={(e) => setReceiveForm({ ...receiveForm, date_received: e.target.value })} className="w-full px-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary" />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-tm-text-3 mb-2">Location</label>
-                  <input
-                    type="text"
-                    value={formData.location}
-                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                    className="w-full px-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary focus:border-primary transition-all"
-                    placeholder="e.g., Storage Room A"
-                  />
+                  <label className="block text-sm font-medium text-tm-text-3 mb-2">Source</label>
+                  <input type="text" value={receiveForm.source} onChange={(e) => setReceiveForm({ ...receiveForm, source: e.target.value })} className="w-full px-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary" placeholder="e.g., Donation — Platinum Credit" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-tm-text-3 mb-2">Description</label>
-                  <textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    rows={3}
-                    className="w-full px-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary focus:border-primary transition-all"
-                    placeholder="Optional description..."
-                  />
+                  <label className="block text-sm font-medium text-tm-text-3 mb-2">Notes</label>
+                  <textarea value={receiveForm.notes} onChange={(e) => setReceiveForm({ ...receiveForm, notes: e.target.value })} rows={2} className="w-full px-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary" placeholder="Optional" />
                 </div>
+                <p className="text-xs text-tm-text-3">All {receiveForm.quantity_received || 'N'} units will start &quot;In Store.&quot;</p>
               </div>
               <div className="p-6 border-t border-tm-border flex justify-end space-x-3">
-                <button
-                  onClick={() => {
-                    setShowAddModal(false)
-                    setFormData({ name: '', category: '', quantity: '', unit: '', location: '', description: '' })
-                  }}
-                  className="px-6 py-3 bg-tm-surface-hover text-tm-text-1 rounded-[6px] font-semibold hover:bg-tm-surface-hover transition-all duration-300"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleAddItem}
-                  className="px-6 py-3 bg-tm-secondary text-tm-on-secondary rounded-[6px] font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium"
-                >
-                  Add Item
-                </button>
+                <button onClick={() => { setShowReceiveModal(false); resetReceiveForm() }} className="px-6 py-3 bg-tm-surface-hover text-tm-text-1 rounded-[6px] font-semibold hover:opacity-80 transition-all" disabled={savingReceive}>Cancel</button>
+                <button onClick={handleReceiveSubmit} disabled={savingReceive} className="px-6 py-3 bg-tm-secondary text-tm-on-secondary rounded-[6px] font-semibold hover:opacity-90 transition-all disabled:opacity-50">{savingReceive ? 'Saving...' : 'Log Stock'}</button>
               </div>
             </div>
           </div>
         )}
 
-        {/* Edit Item Modal */}
-        {showEditModal && selectedItem && (
+        {/* ── Edit item details ───────────────────────────────────────── */}
+        {showEditModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-3 sm:p-4 z-50 backdrop-blur-sm">
-            <div className="bg-tm-surface rounded-card shadow-large w-full max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto border border-tm-border">
-              <div className="p-4 sm:p-6 border-b border-tm-border">
-                <h2 className="text-2xl font-bold text-tm-text-1">Edit Item</h2>
+            <div className="bg-tm-surface rounded-card shadow-large w-full max-w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto border border-tm-border">
+              <div className="p-4 sm:p-6 border-b border-tm-border flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-tm-text-1">Edit Item Details</h2>
+                <button onClick={() => setShowEditModal(false)} className="text-tm-text-3 hover:text-tm-text-1"><X className="w-6 h-6" /></button>
               </div>
               <div className="p-4 sm:p-6 space-y-4">
+                <p className="text-xs text-tm-text-3 -mt-2">Quantity isn&apos;t edited here — use Issue / Return / Reconcile so every change stays logged.</p>
                 <div>
                   <label className="block text-sm font-medium text-tm-text-3 mb-2">Item Name</label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary focus:border-primary transition-all"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-tm-text-3 mb-2">Category</label>
-                  <select
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    className="w-full px-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary focus:border-primary transition-all"
-                  >
-                    <option value="">Select category...</option>
-                    <option value="Equipment">Equipment</option>
-                    <option value="Apparel">Apparel</option>
-                    <option value="Training">Training</option>
-                    <option value="Medical">Medical</option>
-                    <option value="Other">Other</option>
-                  </select>
+                  <input type="text" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} className="w-full px-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary" />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-tm-text-3 mb-2">Quantity</label>
-                    <input
-                      type="number"
-                      value={formData.quantity}
-                      onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                      className="w-full px-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary focus:border-primary transition-all"
-                    />
+                    <label className="block text-sm font-medium text-tm-text-3 mb-2">Category</label>
+                    <select value={editForm.category} onChange={(e) => setEditForm({ ...editForm, category: e.target.value })} className="w-full px-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary">
+                      <option value="Equipment">Equipment</option>
+                      <option value="Apparel">Apparel</option>
+                      <option value="Training">Training</option>
+                      <option value="Medical">Medical</option>
+                      <option value="Other">Other</option>
+                    </select>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-tm-text-3 mb-2">Unit</label>
-                    <input
-                      type="text"
-                      value={formData.unit}
-                      onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                      className="w-full px-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary focus:border-primary transition-all"
-                    />
+                    <input type="text" value={editForm.unit} onChange={(e) => setEditForm({ ...editForm, unit: e.target.value })} className="w-full px-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-tm-text-3 mb-2">Location</label>
+                    <input type="text" value={editForm.location} onChange={(e) => setEditForm({ ...editForm, location: e.target.value })} className="w-full px-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-tm-text-3 mb-2">Low-stock alert below</label>
+                    <input type="number" min="0" value={editForm.low_stock_threshold} onChange={(e) => setEditForm({ ...editForm, low_stock_threshold: e.target.value })} className="w-full px-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary" />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-tm-text-3 mb-2">Location</label>
-                  <input
-                    type="text"
-                    value={formData.location}
-                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                    className="w-full px-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary focus:border-primary transition-all"
-                  />
-                </div>
-                <div>
                   <label className="block text-sm font-medium text-tm-text-3 mb-2">Description</label>
-                  <textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    rows={3}
-                    className="w-full px-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary focus:border-primary transition-all"
-                  />
+                  <textarea value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} rows={3} className="w-full px-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary" />
                 </div>
               </div>
               <div className="p-6 border-t border-tm-border flex justify-end space-x-3">
-                <button
-                  onClick={() => {
-                    setShowEditModal(false)
-                    setSelectedItem(null)
-                    setFormData({ name: '', category: '', quantity: '', unit: '', location: '', description: '' })
-                  }}
-                  className="px-6 py-3 bg-tm-surface-hover text-tm-text-1 rounded-[6px] font-semibold hover:bg-tm-surface-hover transition-all duration-300"
-                >
-                  Cancel
+                <button onClick={() => setShowEditModal(false)} className="px-6 py-3 bg-tm-surface-hover text-tm-text-1 rounded-[6px] font-semibold hover:opacity-80" disabled={savingEdit}>Cancel</button>
+                <button onClick={handleEditSubmit} disabled={savingEdit} className="px-6 py-3 bg-tm-secondary text-tm-on-secondary rounded-[6px] font-semibold hover:opacity-90 disabled:opacity-50">{savingEdit ? 'Saving...' : 'Save Changes'}</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Issue / Return quick-action modal ───────────────────────── */}
+        {moveModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-3 sm:p-4 z-50 backdrop-blur-sm">
+            <div className="bg-tm-surface rounded-card shadow-large w-full max-w-md border border-tm-border">
+              <div className="p-5 border-b border-tm-border flex items-center justify-between">
+                <h3 className="text-lg font-bold text-tm-text-1">
+                  {moveModal.action === 'issue' ? `Issue ${moveModal.item.name}` : `Return / Report ${moveModal.item.name}`}
+                </h3>
+                <button onClick={() => setMoveModal(null)} className="text-tm-text-3 hover:text-tm-text-1"><X className="w-5 h-5" /></button>
+              </div>
+              <div className="p-5 space-y-4">
+                {moveModal.action === 'return' && (
+                  <div>
+                    <label className="block text-sm font-medium text-tm-text-3 mb-2">Where are these units going?</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {([
+                        { value: 'in_store', label: 'Back to Store' },
+                        { value: 'spoilt', label: 'Damaged' },
+                        { value: 'lost', label: 'Lost' },
+                      ] as const).map(opt => (
+                        <button
+                          key={opt.value}
+                          onClick={() => setMoveModal({ ...moveModal, destination: opt.value })}
+                          className={`px-2 py-2 rounded-lg text-xs font-semibold border transition-colors ${moveModal.destination === opt.value ? 'bg-primary text-tm-on-secondary border-primary' : 'border-tm-border text-tm-text-2 hover:bg-tm-surface-hover'}`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div>
+                  <label className="block text-sm font-medium text-tm-text-3 mb-2">
+                    Quantity <span className="text-tm-text-3 font-normal">(max {moveModal.action === 'issue' ? moveModal.item.quantityInStore : moveModal.item.quantityInUse})</span>
+                  </label>
+                  <input
+                    type="number" min="1" max={moveModal.action === 'issue' ? moveModal.item.quantityInStore : moveModal.item.quantityInUse}
+                    value={moveQuantity} onChange={(e) => setMoveQuantity(e.target.value)}
+                    className="w-full px-4 py-3 text-lg font-bold border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary" placeholder="0" autoFocus
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-tm-text-3 mb-2">Note <span className="font-normal">(optional)</span></label>
+                  <input type="text" value={moveNote} onChange={(e) => setMoveNote(e.target.value)} className="w-full px-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary" placeholder={moveModal.action === 'issue' ? 'e.g., Issued to U18 training' : 'e.g., Punctured during match'} />
+                </div>
+              </div>
+              <div className="p-5 border-t border-tm-border flex justify-end gap-3">
+                <button onClick={() => setMoveModal(null)} className="px-5 py-2.5 border border-tm-border rounded-[6px] font-semibold text-tm-text-1 hover:bg-tm-surface-hover" disabled={savingMove}>Cancel</button>
+                <button onClick={handleMoveSubmit} disabled={savingMove} className="px-5 py-2.5 bg-primary text-tm-on-secondary rounded-[6px] font-semibold hover:opacity-90 disabled:opacity-50">{savingMove ? 'Saving...' : 'Confirm'}</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Reconcile modal ─────────────────────────────────────────── */}
+        {reconcileItem && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-3 sm:p-4 z-50 backdrop-blur-sm">
+            <div className="bg-tm-surface rounded-card shadow-large w-full max-w-lg max-h-[90vh] overflow-y-auto border border-tm-border">
+              <div className="p-5 border-b border-tm-border flex items-center justify-between">
+                <h3 className="text-lg font-bold text-tm-text-1">Reconcile {reconcileItem.name}</h3>
+                <button onClick={() => setReconcileItem(null)} className="text-tm-text-3 hover:text-tm-text-1"><X className="w-5 h-5" /></button>
+              </div>
+              <div className="p-5 space-y-5">
+                <div className="bg-tm-surface-hover rounded-lg p-4 grid grid-cols-4 gap-3 text-center">
+                  <div><p className="text-lg font-bold text-tm-text-1">{reconcileItem.quantityInStore}</p><p className="text-[10px] uppercase text-tm-text-3">In Store</p></div>
+                  <div><p className="text-lg font-bold text-tm-text-1">{reconcileItem.quantityInUse}</p><p className="text-[10px] uppercase text-tm-text-3">In Use</p></div>
+                  <div><p className="text-lg font-bold text-secondary">{reconcileItem.quantitySpoilt}</p><p className="text-[10px] uppercase text-tm-text-3">Spoilt</p></div>
+                  <div><p className="text-lg font-bold text-secondary">{reconcileItem.quantityLost}</p><p className="text-[10px] uppercase text-tm-text-3">Lost</p></div>
+                </div>
+                <p className="text-xs text-tm-text-3">
+                  {reconcileItem.lastReconciledAt ? `Last confirmed ${new Date(reconcileItem.lastReconciledAt).toLocaleDateString()}.` : 'Never confirmed yet.'} Does this match what&apos;s physically there?
+                </p>
+                <button onClick={handleConfirmAccurate} disabled={savingReconcile} className="w-full px-4 py-3 bg-success/10 text-success rounded-[6px] font-semibold hover:bg-success/20 transition-colors disabled:opacity-50">
+                  ✓ Yes, counts are correct
                 </button>
-                <button
-                  onClick={handleUpdateItem}
-                  className="px-6 py-3 bg-tm-secondary text-tm-on-secondary rounded-[6px] font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium"
-                >
-                  Update Item
-                </button>
+
+                <div className="border-t border-tm-border pt-4">
+                  <p className="text-sm font-semibold text-tm-text-1 mb-2">Found extra stock?</p>
+                  <div className="flex gap-2">
+                    <input type="number" min="1" value={reconcileFoundQty} onChange={(e) => setReconcileFoundQty(e.target.value)} className="flex-1 px-3 py-2 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary text-sm" placeholder="Quantity" />
+                    <button onClick={handleReconcileFound} disabled={savingReconcile || !reconcileFoundQty} className="px-4 py-2 bg-primary text-tm-on-secondary rounded-[6px] font-semibold text-sm hover:opacity-90 disabled:opacity-50">Add to Store</button>
+                  </div>
+                </div>
+
+                <div className="border-t border-tm-border pt-4">
+                  <p className="text-sm font-semibold text-tm-text-1 mb-2">Missing from store?</p>
+                  <div className="flex gap-2 mb-2">
+                    <input type="number" min="1" max={reconcileItem.quantityInStore} value={reconcileShortfallQty} onChange={(e) => setReconcileShortfallQty(e.target.value)} className="flex-1 px-3 py-2 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary text-sm" placeholder="Quantity" />
+                    <select value={reconcileShortfallDest} onChange={(e) => setReconcileShortfallDest(e.target.value as 'spoilt' | 'lost')} className="px-3 py-2 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary text-sm">
+                      <option value="spoilt">Damaged</option>
+                      <option value="lost">Lost</option>
+                    </select>
+                  </div>
+                  <button onClick={handleReconcileShortfall} disabled={savingReconcile || !reconcileShortfallQty} className="w-full px-4 py-2 bg-secondary text-tm-on-secondary rounded-[6px] font-semibold text-sm hover:opacity-90 disabled:opacity-50">Log Shortfall</button>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-tm-text-3 mb-2">Note <span className="font-normal">(optional, applies to found/shortfall above)</span></label>
+                  <input type="text" value={reconcileNote} onChange={(e) => setReconcileNote(e.target.value)} className="w-full px-4 py-2.5 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary text-sm" placeholder="e.g., Found in kit bag from last season" />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── History modal ───────────────────────────────────────────── */}
+        {historyItem && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-3 sm:p-4 z-50 backdrop-blur-sm">
+            <div className="bg-tm-surface rounded-card shadow-large w-full max-w-2xl max-h-[85vh] overflow-y-auto border border-tm-border">
+              <div className="p-5 border-b border-tm-border flex items-center justify-between sticky top-0 bg-tm-surface">
+                <h3 className="text-lg font-bold text-tm-text-1">History — {historyItem.name}</h3>
+                <button onClick={() => setHistoryItem(null)} className="text-tm-text-3 hover:text-tm-text-1"><X className="w-5 h-5" /></button>
+              </div>
+              <div className="p-5">
+                {loadingHistory ? (
+                  <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>
+                ) : !historyData || historyData.transactions.length === 0 ? (
+                  <p className="text-center text-tm-text-3 py-8">No transactions logged yet.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {historyData.transactions.map((t: any) => (
+                      <div key={t.id} className="flex items-center justify-between p-3 bg-tm-surface-hover/50 rounded-lg border border-tm-border text-sm">
+                        <div className="min-w-0">
+                          <p className="font-semibold text-tm-text-1 capitalize">
+                            {t.type}{t.quantity > 0 ? ` · ${t.quantity} units` : ''}
+                            {t.from_status && t.to_status && ` (${t.from_status.replace('_', ' ')} → ${t.to_status.replace('_', ' ')})`}
+                            {!t.from_status && t.to_status && ` (→ ${t.to_status.replace('_', ' ')})`}
+                          </p>
+                          {t.note && <p className="text-xs text-tm-text-3 truncate">{t.note}</p>}
+                          <p className="text-xs text-tm-text-3">{t.performed_by_name} · {new Date(t.created_at).toLocaleString()}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -876,4 +837,3 @@ export default function InventoryPage() {
     </Layout>
   )
 }
-

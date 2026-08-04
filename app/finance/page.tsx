@@ -41,6 +41,7 @@ interface Budget {
   event_name: string
   event_type: string
   event_date: string
+  event_end_date?: string
   description: string
   total_amount: number
   status: 'pending' | 'approved' | 'rejected' | 'cancelled'
@@ -48,6 +49,38 @@ interface Budget {
   approved_by?: string
   rejection_reason?: string
   items?: any[]
+}
+
+// Human-readable label for each budget Type — used both for the category tag
+// saved on card-based expense items and anywhere a type needs to read nicely.
+const EVENT_TYPE_LABELS: Record<string, string> = {
+  game_day: 'Game Day',
+  training_session: 'Training Session',
+  gathering: 'Gathering',
+  event: 'Event',
+  salaries: 'Salaries',
+  medical_stock: 'Medical Stock',
+  equipment_stocks: 'Equipment/Stocks',
+  other: 'Other',
+}
+
+// Suggested expense cards per budget Type — the finance admin just fills in a
+// price for whichever apply, and can always add a custom card for anything
+// not listed. An empty array means no suggestions: the type is complex/varied
+// enough (Medical Stock) or open-ended (Other) that every item should be
+// added by hand instead of picked from a preset list.
+//
+// Equipment/Stocks is deliberately absent — it keeps the older, more detailed
+// free-form item list (name, category, quantity, unit price, notes) instead
+// of these simple price-only cards, since stock lines often need that detail.
+const EXPENSE_TEMPLATES_BY_TYPE: Record<string, string[]> = {
+  game_day: ['Travelling', 'Welfare', 'Accommodation', 'Pitch Preparation', 'Medical Supplies', 'Player Allowances', 'Staff Allowances', 'Venue'],
+  training_session: ['Player Allowances', 'Staff Allowances'],
+  salaries: ['Player Salaries', 'Staff Salaries'],
+  event: ['Venue'],
+  gathering: ['Venue'],
+  medical_stock: [],
+  other: [],
 }
 
 export default function FinancePage() {
@@ -78,10 +111,22 @@ export default function FinancePage() {
     event_name: '',
     event_type: 'game_day',
     event_date: '',
+    event_end_date: '',
     description: '',
     total_amount: '',
     items: [{ item_name: '', category: '', quantity: '1', unit_price: '', total_amount: '', notes: '' }],
   })
+  // Most budget Types use predefined expense cards instead of the generic
+  // free-form item list (see EXPENSE_TEMPLATES_BY_TYPE): each card is just an
+  // estimated price, plus the ability to add a custom card for anything
+  // missing. Keyed by item name, so switching Type never mixes up prices
+  // between types with same-named cards (each is reset — see
+  // handleEventTypeChange below).
+  const [cardPrices, setCardPrices] = useState<Record<string, string>>({})
+  const [customCardItems, setCustomCardItems] = useState<{ id: string; name: string; price: string }[]>([])
+  const [showAddCardItem, setShowAddCardItem] = useState(false)
+  const [newCardItemName, setNewCardItemName] = useState('')
+  const [newCardItemPrice, setNewCardItemPrice] = useState('')
   const [savingBudget, setSavingBudget] = useState(false)
   const [showAttendanceView, setShowAttendanceView] = useState(false)
   const [trainingSessions, setTrainingSessions] = useState<any[]>([])
@@ -294,24 +339,88 @@ export default function FinancePage() {
     setBudgetForm({ ...budgetForm, items: newItems })
   }
 
+  const handleCardPriceChange = (name: string, price: string) => {
+    setCardPrices({ ...cardPrices, [name]: price })
+  }
+
+  const handleAddCustomCardItem = () => {
+    if (!newCardItemName.trim()) return
+    setCustomCardItems([
+      ...customCardItems,
+      { id: `${Date.now()}`, name: newCardItemName.trim(), price: newCardItemPrice },
+    ])
+    setNewCardItemName('')
+    setNewCardItemPrice('')
+    setShowAddCardItem(false)
+  }
+
+  const handleRemoveCustomCardItem = (id: string) => {
+    setCustomCardItems(customCardItems.filter((i) => i.id !== id))
+  }
+
+  // Switching Type changes which cards apply, so clear whatever prices/custom
+  // cards were entered for the previous type — carrying them over would be
+  // confusing (and could silently double-count if two types happen to share
+  // a card name).
+  const handleEventTypeChange = (newType: string) => {
+    setBudgetForm({ ...budgetForm, event_type: newType })
+    setCardPrices({})
+    setCustomCardItems([])
+    setShowAddCardItem(false)
+    setNewCardItemName('')
+    setNewCardItemPrice('')
+  }
+
+  const resetBudgetForm = () => {
+    setBudgetForm({
+      event_name: '',
+      event_type: 'game_day',
+      event_date: '',
+      event_end_date: '',
+      description: '',
+      total_amount: '',
+      items: [{ item_name: '', category: '', quantity: '1', unit_price: '', total_amount: '', notes: '' }],
+    })
+    setCardPrices({})
+    setCustomCardItems([])
+    setShowAddCardItem(false)
+    setNewCardItemName('')
+    setNewCardItemPrice('')
+  }
+
+  // The estimate that feeds both the "Estimated from items" hint and the
+  // fallback total when the finance admin doesn't type their own total.
+  // Every Type except Equipment/Stocks is built from the card grid;
+  // Equipment/Stocks still uses the generic line-item list.
+  const computeEstimatedTotal = () => {
+    if (budgetForm.event_type !== 'equipment_stocks') {
+      const templates = EXPENSE_TEMPLATES_BY_TYPE[budgetForm.event_type] || []
+      const predefinedSum = templates.reduce(
+        (sum, name) => sum + (parseFloat(cardPrices[name]) || 0), 0
+      )
+      const customSum = customCardItems.reduce(
+        (sum, i) => sum + (parseFloat(i.price) || 0), 0
+      )
+      return predefinedSum + customSum
+    }
+    return budgetForm.items.reduce((sum, item) => sum + (parseFloat(item.total_amount) || 0), 0)
+  }
+
   const handleSubmitBudget = async () => {
     if (!budgetForm.event_name || !budgetForm.event_date) {
       alert('Please fill in event name and date')
       return
     }
 
-    // Use manually entered total_amount if provided, otherwise calculate from items
+    // Use manually entered total_amount if provided, otherwise calculate from
+    // the Game Day cards or the generic item list, whichever the Type uses.
     let totalAmount = parseFloat(budgetForm.total_amount) || 0
-    
     if (totalAmount === 0) {
-      // Fallback to calculating from items if total_amount is not provided
-      totalAmount = budgetForm.items.reduce((sum, item) => {
-      return sum + (parseFloat(item.total_amount) || 0)
-    }, 0)
+      totalAmount = computeEstimatedTotal()
     }
 
     if (totalAmount === 0) {
-      alert('Please enter a total budget amount or add budget items with valid amounts')
+      alert('Please enter a total budget amount or add expenses with valid amounts')
       return
     }
 
@@ -325,33 +434,76 @@ export default function FinancePage() {
         return
       }
 
-      const { data: budget, error: budgetError } = await supabase
+      const budgetPayload: Record<string, any> = {
+        event_name: budgetForm.event_name,
+        event_type: budgetForm.event_type,
+        event_date: budgetForm.event_date,
+        description: budgetForm.description,
+        total_amount: totalAmount, // Use calculated or manually entered total
+        status: 'pending',
+        created_by: authUser.id,
+      }
+      // event_end_date is a newer column (migration 045) — only send it if set,
+      // and fall back gracefully below if the migration hasn't been applied yet.
+      if (budgetForm.event_end_date) budgetPayload.event_end_date = budgetForm.event_end_date
+
+      let { data: budget, error: budgetError } = await supabase
         .from('budgets')
-        .insert({
-          event_name: budgetForm.event_name,
-          event_type: budgetForm.event_type,
-          event_date: budgetForm.event_date,
-          description: budgetForm.description,
-          total_amount: totalAmount, // Use calculated or manually entered total
-          status: 'pending',
-          created_by: authUser.id,
-        })
+        .insert(budgetPayload)
         .select('id')
         .single()
 
-      if (budgetError) throw budgetError
+      if (budgetError?.message?.includes('event_end_date')) {
+        const { event_end_date: _omit, ...withoutEndDate } = budgetPayload
+        const retry = await supabase.from('budgets').insert(withoutEndDate).select('id').single()
+        budget = retry.data
+        budgetError = retry.error
+      }
 
-      const itemsToInsert = budgetForm.items
-        .filter(item => item.item_name && parseFloat(item.total_amount) > 0)
-        .map(item => ({
-          budget_id: budget.id,
-          item_name: item.item_name,
-          category: item.category || null,
-          quantity: parseInt(item.quantity) || 1,
-          unit_price: parseFloat(item.unit_price) || 0,
-          total_amount: parseFloat(item.total_amount) || 0,
-          notes: item.notes || null,
-        }))
+      if (budgetError) throw budgetError
+      if (!budget) throw new Error('Budget was not created — please try again.')
+
+      // Every Type except Equipment/Stocks comes from the card grid
+      // (predefined + custom cards); Equipment/Stocks still uses the generic
+      // line-item list, which carries more detail (category/qty/notes) than
+      // a simple price card.
+      const cardCategoryLabel = EVENT_TYPE_LABELS[budgetForm.event_type] || budgetForm.event_type
+      const itemsToInsert = budgetForm.event_type !== 'equipment_stocks'
+        ? [
+            ...(EXPENSE_TEMPLATES_BY_TYPE[budgetForm.event_type] || [])
+              .filter((name) => parseFloat(cardPrices[name]) > 0)
+              .map((name) => ({
+                budget_id: budget.id,
+                item_name: name,
+                category: cardCategoryLabel,
+                quantity: 1,
+                unit_price: parseFloat(cardPrices[name]),
+                total_amount: parseFloat(cardPrices[name]),
+                notes: null,
+              })),
+            ...customCardItems
+              .filter((i) => i.name && parseFloat(i.price) > 0)
+              .map((i) => ({
+                budget_id: budget.id,
+                item_name: i.name,
+                category: cardCategoryLabel,
+                quantity: 1,
+                unit_price: parseFloat(i.price),
+                total_amount: parseFloat(i.price),
+                notes: null,
+              })),
+          ]
+        : budgetForm.items
+            .filter((item) => item.item_name && parseFloat(item.total_amount) > 0)
+            .map((item) => ({
+              budget_id: budget.id,
+              item_name: item.item_name,
+              category: item.category || null,
+              quantity: parseInt(item.quantity) || 1,
+              unit_price: parseFloat(item.unit_price) || 0,
+              total_amount: parseFloat(item.total_amount) || 0,
+              notes: item.notes || null,
+            }))
 
       if (itemsToInsert.length > 0) {
         const { error: itemsError } = await supabase.from('budget_items').insert(itemsToInsert)
@@ -371,18 +523,18 @@ export default function FinancePage() {
       })
 
       setShowBudgetModal(false)
-      setBudgetForm({
-        event_name: '',
-        event_type: 'game_day',
-        event_date: '',
-        description: '',
-        total_amount: '',
-        items: [{ item_name: '', category: '', quantity: '1', unit_price: '', total_amount: '', notes: '' }],
-      })
+      resetBudgetForm()
       alert('Budget submitted for approval!')
     } catch (error: any) {
       console.error('Error creating budget:', error)
-      alert(`Error creating budget: ${error.message}`)
+      // Salaries / Medical Stock / Equipment-Stocks are new categories (migration
+      // 045) — give a clear, actionable message if that hasn't been applied yet
+      // instead of surfacing the raw constraint error.
+      if (error.message?.includes('budgets_event_type_check')) {
+        alert('This budget category isn\'t enabled yet — ask your admin to apply the latest database update, or pick one of the original categories (Game Day, Training Session, Gathering, Event, Other) for now.')
+      } else {
+        alert(`Error creating budget: ${error.message}`)
+      }
     } finally {
       setSavingBudget(false)
     }
@@ -859,7 +1011,10 @@ export default function FinancePage() {
                         </span>
                       </div>
                       <p className="text-sm text-tm-text-3 mb-1">
-                        {budget.event_type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())} • {new Date(budget.event_date).toLocaleDateString()}
+                        {budget.event_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} • {new Date(budget.event_date).toLocaleDateString()}
+                        {(budget as any).event_end_date && (budget as any).event_end_date !== budget.event_date && (
+                          <> – {new Date((budget as any).event_end_date).toLocaleDateString()}</>
+                        )}
                       </p>
                       <p className="text-sm text-tm-text-3">{budget.description}</p>
                       <p className="text-lg font-bold text-primary mt-2">{formatCurrency(budget.total_amount)}</p>
@@ -1010,105 +1165,238 @@ export default function FinancePage() {
             <div className="p-4 sm:p-6 border-b border-tm-border">
               <div className="flex items-center justify-between">
                 <h3 className="text-2xl font-bold text-tm-text-1">Create Budget Request</h3>
-                <button onClick={() => setShowBudgetModal(false)} className="text-tm-text-3 hover:text-tm-text-1 transition-colors">
+                <button onClick={() => { setShowBudgetModal(false); resetBudgetForm() }} className="text-tm-text-3 hover:text-tm-text-1 transition-colors">
                   <X className="w-6 h-6" />
                 </button>
               </div>
             </div>
             <div className="p-4 sm:p-6 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Type comes first — it drives which expense cards render
+                    below (Game Day gets match-day cost cards; other types
+                    still use the generic item list until their cards are
+                    defined too). */}
                 <div>
-                  <label className="block text-sm font-semibold text-tm-text-1 mb-2">Event Name *</label>
-                  <input type="text" value={budgetForm.event_name} onChange={(e) => setBudgetForm({ ...budgetForm, event_name: e.target.value })} className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" required />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-tm-text-1 mb-2">Event Type *</label>
-                  <select value={budgetForm.event_type} onChange={(e) => setBudgetForm({ ...budgetForm, event_type: e.target.value })} className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
+                  <label className="block text-sm font-semibold text-tm-text-1 mb-2">Type *</label>
+                  <select value={budgetForm.event_type} onChange={(e) => handleEventTypeChange(e.target.value)} className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
                     <option value="game_day">Game Day</option>
                     <option value="training_session">Training Session</option>
                     <option value="gathering">Gathering</option>
                     <option value="event">Event</option>
+                    <option value="salaries">Salaries</option>
+                    <option value="medical_stock">Medical Stock</option>
+                    <option value="equipment_stocks">Equipment/Stocks</option>
                     <option value="other">Other</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-tm-text-1 mb-2">Event Date *</label>
+                  <label className="block text-sm font-semibold text-tm-text-1 mb-2">Name *</label>
+                  <input type="text" value={budgetForm.event_name} onChange={(e) => setBudgetForm({ ...budgetForm, event_name: e.target.value })} className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" required />
+                </div>
+                {/* Duration — a start and end date instead of a single day, so
+                    multi-day budgets (e.g. an away tournament weekend) can be
+                    represented properly. End date is optional; a single-day
+                    budget just leaves it blank. */}
+                <div>
+                  <label className="block text-sm font-semibold text-tm-text-1 mb-2">Start Date *</label>
                   <input type="date" value={budgetForm.event_date} onChange={(e) => setBudgetForm({ ...budgetForm, event_date: e.target.value })} className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" required />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-tm-text-1 mb-2">Total Budget (UGX) *</label>
-                  <input 
-                    type="number" 
-                    min="0" 
-                    step="0.01"
-                    value={budgetForm.total_amount} 
-                    onChange={(e) => setBudgetForm({ ...budgetForm, total_amount: e.target.value })} 
-                    className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" 
-                    placeholder="Enter total budget amount"
-                    required
+                  <label className="block text-sm font-semibold text-tm-text-1 mb-2">
+                    End Date <span className="font-normal text-tm-text-3">(optional)</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={budgetForm.event_end_date}
+                    min={budgetForm.event_date || undefined}
+                    onChange={(e) => setBudgetForm({ ...budgetForm, event_end_date: e.target.value })}
+                    className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                   />
-                  <p className="text-xs text-tm-text-3 mt-1">
-                    Calculated from items: {formatCurrency(budgetForm.items.reduce((sum, item) => sum + (parseFloat(item.total_amount) || 0), 0))}
-                  </p>
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-tm-text-1 mb-2">Description</label>
                 <textarea value={budgetForm.description} onChange={(e) => setBudgetForm({ ...budgetForm, description: e.target.value })} rows={3} className="w-full px-4 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Describe the event and budget purpose..." />
               </div>
-              
-              <div className="border-t border-tm-border pt-4">
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="text-lg font-bold text-tm-text-1">Budget Items</h4>
-                  <button onClick={handleAddBudgetItem} className="px-4 py-2 bg-primary text-tm-on-secondary rounded-[6px] font-semibold hover:opacity-90 transition-colors flex items-center text-sm">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Item
-                  </button>
-                </div>
-                <div className="space-y-4">
-                  {budgetForm.items.map((item, index) => (
-                    <div key={index} className="p-4 bg-tm-surface-hover/50 rounded-lg border border-tm-border">
-                      <div className="flex items-start justify-between mb-3">
-                        <h5 className="font-semibold text-tm-text-1">Item {index + 1}</h5>
-                        {budgetForm.items.length > 1 && (
-                          <button onClick={() => handleRemoveBudgetItem(index)} className="p-1 text-secondary hover:bg-secondary/10 rounded transition-colors">
-                            <Trash2 className="w-4 h-4" />
+
+              {budgetForm.event_type !== 'equipment_stocks' ? (
+                /* Card-based expenses — every Type except Equipment/Stocks.
+                   Types with suggested cards (Game Day, Training Session,
+                   Salaries, Event, Gathering) show those first; Medical Stock
+                   and Other have no suggestions, since those items vary too
+                   much to predict — the finance admin just adds each one by
+                   hand and states what it is. Any type can add a custom card
+                   for anything not listed. */
+                <div className="border-t border-tm-border pt-4">
+                  <div className="mb-4">
+                    <h4 className="text-lg font-bold text-tm-text-1">Expenses</h4>
+                    <p className="text-xs text-tm-text-3 mt-0.5">
+                      {(EXPENSE_TEMPLATES_BY_TYPE[budgetForm.event_type] || []).length > 0
+                        ? 'Fill in an estimated price for the ones that apply — leave the rest blank.'
+                        : 'Add each expense you need, with its name and an estimated price.'}
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {(EXPENSE_TEMPLATES_BY_TYPE[budgetForm.event_type] || []).map((name) => (
+                      <div key={name} className="p-4 bg-tm-surface-hover/50 rounded-lg border border-tm-border">
+                        <p className="text-sm font-semibold text-tm-text-1 mb-2">{name}</p>
+                        <label className="block text-xs font-medium text-tm-text-3 mb-1">Estimated Price (UGX)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={cardPrices[name] || ''}
+                          onChange={(e) => handleCardPriceChange(name, e.target.value)}
+                          placeholder="0"
+                          className="w-full px-3 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                        />
+                      </div>
+                    ))}
+
+                    {customCardItems.map((item) => (
+                      <div key={item.id} className="p-4 bg-tm-surface-hover/50 rounded-lg border border-tm-border">
+                        <div className="flex items-start justify-between mb-2">
+                          <p className="text-sm font-semibold text-tm-text-1 truncate pr-2">{item.name}</p>
+                          <button onClick={() => handleRemoveCustomCardItem(item.id)} className="p-0.5 text-secondary hover:bg-secondary/10 rounded transition-colors flex-shrink-0" title="Remove">
+                            <Trash2 className="w-3.5 h-3.5" />
                           </button>
-                        )}
+                        </div>
+                        <label className="block text-xs font-medium text-tm-text-3 mb-1">Estimated Price (UGX)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={item.price}
+                          onChange={(e) => setCustomCardItems(customCardItems.map((i) => i.id === item.id ? { ...i, price: e.target.value } : i))}
+                          placeholder="0"
+                          className="w-full px-3 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                        />
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-tm-text-3 mb-1">Item Name *</label>
-                          <input type="text" value={item.item_name} onChange={(e) => handleBudgetItemChange(index, 'item_name', e.target.value)} className="w-full px-3 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm" />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-tm-text-3 mb-1">Category</label>
-                          <input type="text" value={item.category} onChange={(e) => handleBudgetItemChange(index, 'category', e.target.value)} className="w-full px-3 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm" placeholder="e.g., Equipment, Food, Transport" />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-tm-text-3 mb-1">Quantity</label>
-                          <input type="number" min="1" value={item.quantity} onChange={(e) => handleBudgetItemChange(index, 'quantity', e.target.value)} className="w-full px-3 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm" />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-tm-text-3 mb-1">Unit Price (UGX)</label>
-                          <input type="number" min="0" step="0.01" value={item.unit_price} onChange={(e) => handleBudgetItemChange(index, 'unit_price', e.target.value)} className="w-full px-3 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm" />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-tm-text-3 mb-1">Total Amount</label>
-                          <input type="text" value={formatCurrency(parseFloat(item.total_amount) || 0)} disabled className="w-full px-3 py-2 border border-tm-border rounded-lg bg-tm-surface-hover text-sm font-semibold" />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-tm-text-3 mb-1">Notes</label>
-                          <input type="text" value={item.notes} onChange={(e) => handleBudgetItemChange(index, 'notes', e.target.value)} className="w-full px-3 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm" />
+                    ))}
+
+                    {/* "Add expense" card — for anything missing from the list above
+                        (and the only way in for Medical Stock / Other, which have
+                        no suggested cards). */}
+                    {showAddCardItem ? (
+                      <div className="p-4 bg-tm-surface-hover/50 rounded-lg border-2 border-dashed border-primary/40">
+                        <label className="block text-xs font-medium text-tm-text-3 mb-1">Expense Name</label>
+                        <input
+                          type="text"
+                          value={newCardItemName}
+                          onChange={(e) => setNewCardItemName(e.target.value)}
+                          placeholder="e.g., Match Officials"
+                          className="w-full px-3 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm mb-2"
+                          autoFocus
+                        />
+                        <label className="block text-xs font-medium text-tm-text-3 mb-1">Estimated Price (UGX)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={newCardItemPrice}
+                          onChange={(e) => setNewCardItemPrice(e.target.value)}
+                          placeholder="0"
+                          className="w-full px-3 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm mb-3"
+                        />
+                        <div className="flex gap-2">
+                          <button onClick={handleAddCustomCardItem} className="flex-1 px-3 py-1.5 bg-primary text-tm-on-secondary rounded-[6px] font-semibold text-xs hover:opacity-90 transition-colors">
+                            Add
+                          </button>
+                          <button onClick={() => { setShowAddCardItem(false); setNewCardItemName(''); setNewCardItemPrice('') }} className="flex-1 px-3 py-1.5 border border-tm-border rounded-[6px] font-semibold text-xs text-tm-text-1 hover:bg-tm-surface-hover transition-colors">
+                            Cancel
+                          </button>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ) : (
+                      <button
+                        onClick={() => setShowAddCardItem(true)}
+                        className="p-4 rounded-lg border-2 border-dashed border-tm-border hover:border-primary/50 hover:bg-tm-surface-hover/30 transition-colors flex flex-col items-center justify-center gap-1.5 text-tm-text-3 hover:text-primary min-h-[110px]"
+                      >
+                        <Plus className="w-5 h-5" />
+                        <span className="text-sm font-semibold">Add expense</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
+              ) : (
+                /* Equipment/Stocks keeps the original detailed item list —
+                   stock lines often need category/quantity/notes that a
+                   simple price card doesn't capture. */
+                <div className="border-t border-tm-border pt-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="text-lg font-bold text-tm-text-1">Budget Items</h4>
+                    <button onClick={handleAddBudgetItem} className="px-4 py-2 bg-primary text-tm-on-secondary rounded-[6px] font-semibold hover:opacity-90 transition-colors flex items-center text-sm">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Item
+                    </button>
+                  </div>
+                  <div className="space-y-4">
+                    {budgetForm.items.map((item, index) => (
+                      <div key={index} className="p-4 bg-tm-surface-hover/50 rounded-lg border border-tm-border">
+                        <div className="flex items-start justify-between mb-3">
+                          <h5 className="font-semibold text-tm-text-1">Item {index + 1}</h5>
+                          {budgetForm.items.length > 1 && (
+                            <button onClick={() => handleRemoveBudgetItem(index)} className="p-1 text-secondary hover:bg-secondary/10 rounded transition-colors">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-tm-text-3 mb-1">Item Name *</label>
+                            <input type="text" value={item.item_name} onChange={(e) => handleBudgetItemChange(index, 'item_name', e.target.value)} className="w-full px-3 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm" />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-tm-text-3 mb-1">Category</label>
+                            <input type="text" value={item.category} onChange={(e) => handleBudgetItemChange(index, 'category', e.target.value)} className="w-full px-3 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm" placeholder="e.g., Equipment, Food, Transport" />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-tm-text-3 mb-1">Quantity</label>
+                            <input type="number" min="1" value={item.quantity} onChange={(e) => handleBudgetItemChange(index, 'quantity', e.target.value)} className="w-full px-3 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm" />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-tm-text-3 mb-1">Unit Price (UGX)</label>
+                            <input type="number" min="0" step="0.01" value={item.unit_price} onChange={(e) => handleBudgetItemChange(index, 'unit_price', e.target.value)} className="w-full px-3 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm" />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-tm-text-3 mb-1">Total Amount</label>
+                            <input type="text" value={formatCurrency(parseFloat(item.total_amount) || 0)} disabled className="w-full px-3 py-2 border border-tm-border rounded-lg bg-tm-surface-hover text-sm font-semibold" />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-tm-text-3 mb-1">Notes</label>
+                            <input type="text" value={item.notes} onChange={(e) => handleBudgetItemChange(index, 'notes', e.target.value)} className="w-full px-3 py-2 border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm" />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Total sits at the bottom, right before submitting — it's the
+                  number the whole budget request boils down to. Defaults to
+                  the sum of the line items above; editable in case the finance
+                  admin wants to round up or add a contingency. */}
+              <div className="border-t border-tm-border pt-4">
+                <label className="block text-sm font-semibold text-tm-text-1 mb-2">Total Budget (UGX) *</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={budgetForm.total_amount}
+                  onChange={(e) => setBudgetForm({ ...budgetForm, total_amount: e.target.value })}
+                  className="w-full px-4 py-3 text-lg font-bold border border-tm-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="Enter total budget amount"
+                  required
+                />
+                <p className="text-xs text-tm-text-3 mt-1.5">
+                  Estimated from items: {formatCurrency(computeEstimatedTotal())}
+                  {' — leave blank to use this estimate, or override with your own total.'}
+                </p>
               </div>
             </div>
             <div className="p-6 border-t border-tm-border flex justify-end space-x-3">
-              <button onClick={() => setShowBudgetModal(false)} className="px-6 py-2 border border-tm-border rounded-[6px] font-semibold text-tm-text-1 hover:bg-tm-surface-hover transition-colors" disabled={savingBudget}>
+              <button onClick={() => { setShowBudgetModal(false); resetBudgetForm() }} className="px-6 py-2 border border-tm-border rounded-[6px] font-semibold text-tm-text-1 hover:bg-tm-surface-hover transition-colors" disabled={savingBudget}>
                 Cancel
               </button>
               <button onClick={handleSubmitBudget} className="px-6 py-2 bg-info text-white rounded-[6px] font-semibold hover:bg-info-dark transition-colors flex items-center disabled:opacity-50 disabled:cursor-not-allowed" disabled={savingBudget || !budgetForm.event_name || !budgetForm.event_date}>

@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { ArrowRight, Mail, Lock, AlertCircle, CheckCircle, Eye, EyeOff } from 'lucide-react'
 import Link from 'next/link'
 import BallIcon from '@/components/BallIcon'
+import { getDashboardPathForRole } from '@/lib/roleRoutes'
 
 // Make this page dynamic to avoid prerendering issues
 export const dynamic = 'force-dynamic'
@@ -94,7 +95,10 @@ export default function LoginPage() {
         throw authError
       }
 
-      router.push('/dashboard')
+      // Go straight to this role's real dashboard — the bypass response
+      // already tells us the role, so there's no need to land on the
+      // generic /dashboard first and let it redirect a second time.
+      router.push(getDashboardPathForRole(data.role))
       router.refresh()
     } catch (err: any) {
       console.error('[DevBypass] Error:', err)
@@ -179,9 +183,12 @@ export default function LoginPage() {
           localStorage.removeItem('dev_user')
         }
 
-        // Existing profile — check onboarding_completed flag, fall back to dashboard
+        // Existing profile — check onboarding_completed flag. Once onboarded,
+        // go straight to this role's real dashboard (skipping the generic
+        // /dashboard hop, same as the dev-bypass path above) so sign-in
+        // doesn't cost an extra full page mount + data fetch.
         const onboardingDone = profile?.onboarding_completed ?? true
-        router.push(onboardingDone ? '/dashboard' : '/onboarding')
+        router.push(onboardingDone ? getDashboardPathForRole(profile?.role) : '/onboarding')
         router.refresh()
       }
     } catch (err: any) {

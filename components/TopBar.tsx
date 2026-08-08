@@ -149,8 +149,15 @@ export default function TopBar({ title, userName, userRole, userAvatar }: TopBar
                     className="fixed inset-0 z-10"
                     onClick={() => setNotificationsOpen(false)}
                   />
-                  <div className="absolute right-0 mt-2 w-[90vw] max-w-sm sm:w-80 bg-tm-surface rounded-card shadow-large border border-tm-border z-20 max-h-96 overflow-y-auto">
-                    <div className="p-4 border-b border-tm-border flex items-center justify-between">
+                  {/* On mobile this is anchored to the viewport (fixed, inset
+                      left/right) rather than to the bell button — the button
+                      sits ~100px in from the right edge because of the
+                      messages icon and avatar, so a button-anchored dropdown
+                      wide enough to be readable would spill off the left of
+                      the screen. From sm: up there's room to anchor it to the
+                      button as a normal dropdown. */}
+                  <div className="fixed left-3 right-3 top-[68px] w-auto max-h-[70vh] sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-80 sm:max-h-96 bg-tm-surface rounded-card shadow-large border border-tm-border z-20 overflow-hidden flex flex-col">
+                    <div className="p-4 border-b border-tm-border flex items-center justify-between flex-shrink-0">
                       <div className="flex items-center space-x-2">
                         <h3 className="font-bold text-tm-text-1">Notifications</h3>
                         {notifications.filter(n => !n.read).length > 0 && (
@@ -186,7 +193,7 @@ export default function TopBar({ title, userName, userRole, userAvatar }: TopBar
                         </button>
                       </div>
                     </div>
-                    <div className="divide-y divide-tm-border max-h-96 overflow-y-auto">
+                    <div className="divide-y divide-tm-border flex-1 min-h-0 overflow-y-auto">
                       {notifications.length === 0 ? (
                         <div className="p-8 text-center">
                           <Bell className="w-12 h-12 text-tm-text-3 mx-auto mb-2 opacity-50" />

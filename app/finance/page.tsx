@@ -1411,8 +1411,15 @@ export default function FinancePage() {
       {showRevenueModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:p-4">
           <div className="bg-tm-surface rounded-card shadow-soft w-full max-w-[95vw] sm:max-w-2xl">
-            <div className="p-4 sm:p-6 border-b border-tm-border">
+            <div className="p-4 sm:p-6 border-b border-tm-border flex items-center justify-between">
               <h3 className="text-2xl font-bold text-tm-text-1">Add Revenue</h3>
+              <button
+                onClick={() => { setShowRevenueModal(false); setRevenueForm({ type: '', amount: '', date: '', notes: '' }) }}
+                className="text-tm-text-3 hover:text-tm-text-1 transition-colors"
+                aria-label="Close"
+              >
+                <X className="w-6 h-6" />
+              </button>
             </div>
             <div className="p-4 sm:p-6 space-y-4">
               <div>
@@ -1454,8 +1461,15 @@ export default function FinancePage() {
       {showExpenseModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:p-4">
           <div className="bg-tm-surface rounded-card shadow-soft w-full max-w-[95vw] sm:max-w-2xl">
-            <div className="p-4 sm:p-6 border-b border-tm-border">
+            <div className="p-4 sm:p-6 border-b border-tm-border flex items-center justify-between">
               <h3 className="text-2xl font-bold text-tm-text-1">Add Expense</h3>
+              <button
+                onClick={() => { setShowExpenseModal(false); setExpenseForm({ type: '', amount: '', date: '', notes: '', budget_id: '' }) }}
+                className="text-tm-text-3 hover:text-tm-text-1 transition-colors"
+                aria-label="Close"
+              >
+                <X className="w-6 h-6" />
+              </button>
             </div>
             <div className="p-4 sm:p-6 space-y-4">
               <div>

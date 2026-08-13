@@ -8,6 +8,7 @@ import { SidebarProvider, useSidebar } from '@/contexts/SidebarContext'
 import Sidebar from './Sidebar'
 import TopBar from './TopBar'
 import AIAssistant from './AIAssistant'
+import ModalScrollLock from './ModalScrollLock'
 
 interface LayoutProps {
   children: React.ReactNode
@@ -178,6 +179,8 @@ function LayoutContent({ children, pageTitle }: LayoutProps) {
         </main>
         <AIAssistant />
       </div>
+      {/* Keeps the page behind a modal from scrolling on touch devices */}
+      <ModalScrollLock />
     </div>
   )
 }

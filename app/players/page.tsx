@@ -6,7 +6,7 @@ import ConceptStatCard from '@/components/ConceptStatCard'
 import { PageHeader, Button, Card, StatGrid } from '@/components/ui'
 import { Users, Search, Filter, UserPlus, Eye, Edit, AlertCircle, CheckCircle, X, Save, Dumbbell, Award, RefreshCw } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import PositionIcon from '@/components/PositionIcon'
+import PlayerCard from '@/components/PlayerCard'
 
 interface Player {
   id: string
@@ -17,6 +17,7 @@ interface Player {
   email: string
   phone?: string
   profile_picture_url?: string | null
+  jersey_number?: number | string | null
   games_played?: number
   tries?: number
   tackles?: number
@@ -818,26 +819,22 @@ export default function PlayersPage() {
                 </div>
               </div>
 
-              {/* Position feature block — leads with the player's own photo so
-                  it reads as "this player, who plays X" rather than a generic
-                  position illustration; falls back to the position icon only
-                  when no photo has been uploaded. */}
+              {/* Position feature block — renders the same "player card"
+                  design used everywhere else in the app (pitch view, squad
+                  selection), so every player is represented consistently
+                  rather than a raw cropped photo or a generic illustration.
+                  PlayerCard itself falls back to initials when no photo has
+                  been uploaded, so this never looks broken. */}
               <div className="flex items-center gap-5 rounded-xl p-4 border"
                    style={{ background: 'var(--p7, #112035)', borderColor: 'var(--b1, rgba(255,255,255,0.07))' }}>
-                {selectedPlayer.profile_picture_url ? (
-                  <img
-                    src={selectedPlayer.profile_picture_url}
-                    alt={selectedPlayer.name}
-                    className="w-[90px] h-[90px] rounded-xl object-cover flex-shrink-0 drop-shadow-lg border-2"
-                    style={{ borderColor: 'var(--acc, #5BA3D9)' }}
-                  />
-                ) : (
-                  <PositionIcon
-                    position={selectedPlayer.position}
-                    size={90}
-                    className="flex-shrink-0 drop-shadow-lg"
-                  />
-                )}
+                <PlayerCard
+                  name={selectedPlayer.name}
+                  photoUrl={selectedPlayer.profile_picture_url}
+                  position={selectedPlayer.position}
+                  number={selectedPlayer.jersey_number ?? null}
+                  size="lg"
+                  className="flex-shrink-0 drop-shadow-lg"
+                />
                 <div>
                   <p className="text-[10px] font-semibold uppercase tracking-widest mb-1"
                      style={{ color: 'var(--t3, #506478)' }}>Position</p>

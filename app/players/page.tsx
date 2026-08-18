@@ -16,6 +16,7 @@ interface Player {
   status: string
   email: string
   phone?: string
+  profile_picture_url?: string | null
   games_played?: number
   tries?: number
   tackles?: number
@@ -797,10 +798,19 @@ export default function PlayersPage() {
             <div className="p-4 sm:p-6 space-y-5">
               {/* Player header */}
               <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-full flex items-center justify-center font-bold text-xl flex-shrink-0"
-                     style={{ background: 'var(--acc, #5BA3D9)', color: 'var(--btn-txt, #080F1C)' }}>
-                  {selectedPlayer.name.charAt(0).toUpperCase()}
-                </div>
+                {selectedPlayer.profile_picture_url ? (
+                  <img
+                    src={selectedPlayer.profile_picture_url}
+                    alt={selectedPlayer.name}
+                    className="w-16 h-16 rounded-full object-cover flex-shrink-0 border-2"
+                    style={{ borderColor: 'var(--acc, #5BA3D9)' }}
+                  />
+                ) : (
+                  <div className="w-16 h-16 rounded-full flex items-center justify-center font-bold text-xl flex-shrink-0"
+                       style={{ background: 'var(--acc, #5BA3D9)', color: 'var(--btn-txt, #080F1C)' }}>
+                    {selectedPlayer.name.charAt(0).toUpperCase()}
+                  </div>
+                )}
                 <div>
                   <h4 className="text-xl font-bold text-tm-text-1">{selectedPlayer.name}</h4>
                   <p className="text-sm text-tm-text-3">{selectedPlayer.email}</p>
@@ -808,14 +818,26 @@ export default function PlayersPage() {
                 </div>
               </div>
 
-              {/* Position feature block */}
+              {/* Position feature block — leads with the player's own photo so
+                  it reads as "this player, who plays X" rather than a generic
+                  position illustration; falls back to the position icon only
+                  when no photo has been uploaded. */}
               <div className="flex items-center gap-5 rounded-xl p-4 border"
                    style={{ background: 'var(--p7, #112035)', borderColor: 'var(--b1, rgba(255,255,255,0.07))' }}>
-                <PositionIcon
-                  position={selectedPlayer.position}
-                  size={90}
-                  className="flex-shrink-0 drop-shadow-lg"
-                />
+                {selectedPlayer.profile_picture_url ? (
+                  <img
+                    src={selectedPlayer.profile_picture_url}
+                    alt={selectedPlayer.name}
+                    className="w-[90px] h-[90px] rounded-xl object-cover flex-shrink-0 drop-shadow-lg border-2"
+                    style={{ borderColor: 'var(--acc, #5BA3D9)' }}
+                  />
+                ) : (
+                  <PositionIcon
+                    position={selectedPlayer.position}
+                    size={90}
+                    className="flex-shrink-0 drop-shadow-lg"
+                  />
+                )}
                 <div>
                   <p className="text-[10px] font-semibold uppercase tracking-widest mb-1"
                      style={{ color: 'var(--t3, #506478)' }}>Position</p>

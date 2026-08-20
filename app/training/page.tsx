@@ -1501,32 +1501,32 @@ export default function TrainingPage() {
                     <>
                       <button
                         onClick={() => setShowUploadForm(true)}
-                        className="bg-tm-surface text-primary px-6 py-3 rounded-[6px] font-semibold hover:bg-tm-surface-hover transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
+                        className="bg-info text-white px-4 py-2.5 rounded-[6px] text-sm font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center whitespace-nowrap"
                       >
-                        <Upload className="w-5 h-5 mr-2" />
+                        <Upload className="w-4 h-4 mr-2" />
                         Import Schedule
                       </button>
                       <button
                         onClick={() => setShowScheduleForm(true)}
-                        className="bg-tm-surface text-primary px-6 py-3 rounded-[6px] font-semibold hover:bg-tm-surface-hover transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
+                        className="bg-secondary text-tm-on-secondary px-4 py-2.5 rounded-[6px] text-sm font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center whitespace-nowrap"
                       >
-                        <Plus className="w-5 h-5 mr-2" />
+                        <Plus className="w-4 h-4 mr-2" />
                         Create Schedule
                       </button>
                       <button
                         onClick={() => setShowGymScheduleForm(true)}
-                        className="bg-tm-surface text-secondary px-6 py-3 rounded-[6px] font-semibold hover:bg-info/10 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
+                        className="bg-warning text-white px-4 py-2.5 rounded-[6px] text-sm font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center whitespace-nowrap"
                       >
-                        <Plus className="w-5 h-5 mr-2" />
+                        <Plus className="w-4 h-4 mr-2" />
                         Create Gym Schedule
                       </button>
                     </>
                   )}
                   <button
                     onClick={handleSave}
-                    className="bg-tm-surface text-primary px-6 py-3 rounded-[6px] font-semibold hover:bg-tm-surface-hover transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center"
+                    className="bg-success text-white px-4 py-2.5 rounded-[6px] text-sm font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center whitespace-nowrap"
                   >
-                    <Save className="w-5 h-5 mr-2" />
+                    <Save className="w-4 h-4 mr-2" />
                     Save Attendance
                   </button>
                 </>
@@ -1535,17 +1535,17 @@ export default function TrainingPage() {
                 <button
                   onClick={() => setShowExportMenu(!showExportMenu)}
                   disabled={exporting || sessions.length === 0}
-                  className="bg-white/20 text-white px-6 py-3 rounded-[6px] font-semibold hover:bg-white/30 transition-all duration-300 inline-flex items-center border border-white/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="bg-tm-surface text-tm-text-1 px-4 py-2.5 rounded-[6px] text-sm font-semibold hover:bg-tm-surface-hover hover:border-primary hover:text-primary transition-all duration-300 inline-flex items-center border border-tm-border disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                 >
                   {exporting ? (
                     <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
                       Exporting...
                     </>
                   ) : (
                     <>
-                <Download className="w-5 h-5 mr-2" />
-                Export
+                      <Download className="w-4 h-4 mr-2" />
+                      Export
                       <ChevronDown className="w-4 h-4 ml-2" />
                     </>
                   )}

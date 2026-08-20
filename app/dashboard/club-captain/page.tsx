@@ -293,7 +293,7 @@ export default function ClubCaptainDashboard() {
       <div className="space-y-6">
         <BirthdayAlert />
         {/* Header */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="text-[20px] font-medium text-tm-text-1">Club Captain Dashboard</h1>
             <p className="mt-[2px] text-[13px] text-tm-text-3">View team information, matches, and training schedules (Read-only)</p>

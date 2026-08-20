@@ -1238,7 +1238,7 @@ export default function TrainingPage() {
       <Layout pageTitle="Training Schedule">
         <div className="space-y-6">
           {/* Header */}
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h1 className="text-[20px] font-medium text-tm-text-1">Upcoming Training Sessions</h1>
               <p className="mt-[2px] text-[13px] text-tm-text-3">
@@ -1485,7 +1485,7 @@ export default function TrainingPage() {
       <div className="space-y-6">
         {/* Header */}
         <div>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h1 className="text-[20px] font-medium text-tm-text-1">Player Attendance at Training Sessions</h1>
               <p className="mt-[2px] text-[13px] text-tm-text-3">

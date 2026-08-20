@@ -254,7 +254,7 @@ export default function FinanceAdminDashboard() {
     <Layout pageTitle="Financial Overview">
       <div className="space-y-6">
         <BirthdayAlert />
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="text-[20px] font-medium text-tm-text-1">Finance Admin Dashboard</h1>
             <p className="mt-[2px] text-[13px] text-tm-text-3">Manage finances and attendance</p>

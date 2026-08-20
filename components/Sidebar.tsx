@@ -74,6 +74,16 @@ export default function Sidebar({ userRole, onLogout, clubSettings, userName, us
   const [mobileOpen, setMobileOpen] = useState(false)
   const pathname = usePathname()
 
+  // "Dashboard" (/dashboard) needs an exact match — every role-specific
+  // dashboard (physio, admin, data_admin, club_captain...) lives one level
+  // under it as /dashboard/<role>, its own distinct nav item. A plain
+  // startsWith('/dashboard/') check would light up "Dashboard" AND that
+  // role's own item at the same time on every one of those pages, which is
+  // the "two cells illuminated at once" bug. Every other nav item keeps
+  // prefix matching, since their own sub-pages should still highlight them.
+  const isNavItemActive = (href: string) =>
+    href === '/dashboard' ? pathname === '/dashboard' : pathname === href || pathname?.startsWith(href + '/')
+
   const filteredNavItems = navigationItems.filter(
     (item) => !item.roles || item.roles.includes(userRole)
   )
@@ -119,7 +129,7 @@ export default function Sidebar({ userRole, onLogout, clubSettings, userName, us
         <div className="px-4 pt-3 pb-1 text-[10px] font-medium tracking-wider uppercase" style={{ color: 'var(--tm-sidebar-text-muted)' }}>Main</div>
         {filteredNavItems.slice(0, 5).map((item) => {
           const Icon = item.icon
-          const isActive = pathname === item.href || pathname?.startsWith(item.href + '/')
+          const isActive = isNavItemActive(item.href)
           return (
             <Link
               key={item.name}
@@ -145,7 +155,7 @@ export default function Sidebar({ userRole, onLogout, clubSettings, userName, us
         <div className="px-4 pt-3 pb-1 text-[10px] font-medium tracking-wider uppercase" style={{ color: 'var(--tm-sidebar-text-muted)' }}>Club</div>
         {filteredNavItems.slice(5).map((item) => {
           const Icon = item.icon
-          const isActive = pathname === item.href || pathname?.startsWith(item.href + '/')
+          const isActive = isNavItemActive(item.href)
           return (
             <Link
               key={item.name}

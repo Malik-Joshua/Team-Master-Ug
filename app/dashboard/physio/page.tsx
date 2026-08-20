@@ -778,12 +778,12 @@ export default function PhysioDashboard() {
                       : 'border-tm-border bg-tm-surface'
                   }`}
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-3 mb-2">
-                        <User className="w-5 h-5 text-tm-text-3" />
-                        <h3 className="text-lg font-bold text-tm-text-1">{injury.player_name}</h3>
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-2">
+                        <User className="w-5 h-5 text-tm-text-3 flex-shrink-0" />
+                        <h3 className="text-lg font-bold text-tm-text-1 break-words">{injury.player_name}</h3>
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
                           injury.status === 'active'
                             ? 'bg-secondary text-tm-on-secondary'
                             : injury.status === 'cleared'
@@ -793,7 +793,7 @@ export default function PhysioDashboard() {
                           {injury.status.toUpperCase()}
                         </span>
                         {injury.healing_duration && (
-                          <span className="text-sm text-tm-text-3">
+                          <span className="text-sm text-tm-text-3 whitespace-nowrap inline-flex items-center">
                             <Clock className="w-4 h-4 inline mr-1" />
                             {injury.healing_duration} days
                           </span>
@@ -861,26 +861,24 @@ export default function PhysioDashboard() {
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center space-x-2 ml-4">
-                      {injury.status === 'active' && (
-                        <>
-                          <button
-                            onClick={() => handleEditInjury(injury)}
-                            className="p-2 text-info hover:bg-info/10 rounded-lg transition-colors"
-                            title="Edit Injury"
-                          >
-                            <Edit className="w-5 h-5" />
-                          </button>
-                          <button
-                            onClick={() => handleClearInjury(injury.id)}
-                            className="p-2 text-success hover:bg-success/10 rounded-lg transition-colors"
-                            title="Clear Injury"
-                          >
-                            <CheckCircle className="w-5 h-5" />
-                          </button>
-                        </>
-                      )}
-                    </div>
+                    {injury.status === 'active' && (
+                      <div className="flex items-center gap-2 flex-shrink-0 sm:ml-4">
+                        <button
+                          onClick={() => handleEditInjury(injury)}
+                          className="p-2 text-info hover:bg-info/10 rounded-lg transition-colors"
+                          title="Edit Injury"
+                        >
+                          <Edit className="w-5 h-5" />
+                        </button>
+                        <button
+                          onClick={() => handleClearInjury(injury.id)}
+                          className="p-2 text-success hover:bg-success/10 rounded-lg transition-colors"
+                          title="Clear Injury"
+                        >
+                          <CheckCircle className="w-5 h-5" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))

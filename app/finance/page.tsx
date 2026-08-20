@@ -1002,11 +1002,11 @@ export default function FinancePage() {
             <div className="space-y-4">
               {budgets.map((budget) => (
                 <div key={budget.id} className="p-4 bg-tm-surface-hover/50 rounded-lg border border-tm-border hover:bg-tm-surface-hover transition-colors">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-3 mb-2">
-                        <h3 className="font-bold text-tm-text-1">{budget.event_name}</h3>
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(budget.status)}`}>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-3 flex-wrap mb-2">
+                        <h3 className="font-bold text-tm-text-1 break-words">{budget.event_name}</h3>
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${getStatusColor(budget.status)}`}>
                           {budget.status.charAt(0).toUpperCase() + budget.status.slice(1)}
                         </span>
                       </div>
@@ -1020,7 +1020,7 @@ export default function FinancePage() {
                       <p className="text-lg font-bold text-primary mt-2">{formatCurrency(budget.total_amount)}</p>
                     </div>
                     {user?.role === 'admin' && budget.status === 'pending' && (
-                      <div className="flex items-center space-x-2 ml-4">
+                      <div className="flex items-center gap-2 flex-shrink-0 sm:ml-4">
                         <button
                           onClick={() => handleApproveBudget(budget.id)}
                           className="px-4 py-2 bg-success text-white rounded-[6px] font-semibold hover:opacity-90 transition-colors text-sm"

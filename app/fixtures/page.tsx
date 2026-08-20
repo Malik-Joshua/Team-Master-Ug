@@ -2941,17 +2941,19 @@ export default function FixturesPage() {
       <Layout pageTitle="Fixtures Summary">
         <div className="space-y-6">
           <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
-            <div className="flex items-center justify-between mb-4">
-              <div>
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <div className="min-w-0">
                 <h2 className="text-2xl font-bold text-tm-text-1 flex items-center gap-2 mb-2">
-                  <Trophy className="w-6 h-6 text-primary" />
+                  <Trophy className="w-6 h-6 text-primary flex-shrink-0" />
                   Match Summaries
                 </h2>
                 <p className="text-tm-text-3">
                   Summary of played matches with stats and upcoming fixtures with team selections
                 </p>
               </div>
-              <RefreshButton onRefresh={loadData} />
+              <div className="flex-shrink-0">
+                <RefreshButton onRefresh={loadData} />
+              </div>
             </div>
 
             {loadingSummaries ? (

@@ -896,14 +896,43 @@ export function generateCSVReport(report: ReportData): Blob {
 /**
  * Download a blob as a file
  */
-export function downloadBlob(blob: Blob, filename: string) {
+export async function downloadBlob(blob: Blob, filename: string) {
+  // On iOS Safari (and most in-app mobile browsers) a plain <a download>
+  // click on a blob: URL is unreliable — the "download" attribute isn't
+  // honoured for blob URLs there, so it just opens the file in a new tab
+  // as a viewer instead of saving it. The Web Share API's file-sharing
+  // support is the reliable way to get an explicit "Save to Files"/share
+  // sheet on mobile, so prefer it when the browser can actually share this
+  // file. Desktop browsers (and any mobile browser without file-share
+  // support) fall through to the normal anchor-download.
+  if (typeof navigator !== 'undefined' && typeof (navigator as any).canShare === 'function') {
+    try {
+      const file = new File([blob], filename, { type: blob.type })
+      if ((navigator as any).canShare({ files: [file] })) {
+        await (navigator as any).share({ files: [file] })
+        return
+      }
+    } catch (err: any) {
+      // AbortError means the user dismissed the share sheet themselves —
+      // that's a deliberate cancel, not a failure, so don't fall back to
+      // also triggering a browser download on top of it.
+      if (err?.name === 'AbortError') return
+      // Any other failure (share not actually supported despite canShare
+      // reporting true, etc.) — fall through to the anchor-download below
+      // so the user still gets the file some other way.
+    }
+  }
+
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
   link.download = filename
+  link.rel = 'noopener'
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)
-  URL.revokeObjectURL(url)
+  // Some mobile browsers process the click asynchronously — give it a beat
+  // before revoking the object URL so the download actually starts.
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 

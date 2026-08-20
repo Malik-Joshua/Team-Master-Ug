@@ -2059,16 +2059,16 @@ export default function FixturesPage() {
         <div className="space-y-6">
           {/* Header with Create Fixture and Enter Match Stats buttons */}
           <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
               <h2 className="text-2xl font-bold text-tm-text-1 flex items-center gap-2">
                 <Trophy className="w-6 h-6 text-primary" />
                 Fixtures
               </h2>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 sm:gap-3 flex-wrap w-full sm:w-auto">
                 <RefreshButton onRefresh={loadData} />
                 <button
                   onClick={() => setShowCreateFixtureForm(true)}
-                  className="bg-primary text-tm-on-secondary px-6 py-2 rounded-[6px] font-semibold hover:opacity-90 transition-opacity flex items-center gap-2"
+                  className="bg-primary text-tm-on-secondary px-4 sm:px-6 py-2 rounded-[6px] font-semibold hover:opacity-90 transition-opacity flex items-center gap-2 text-sm sm:text-base whitespace-nowrap"
                 >
                   <Plus className="w-4 h-4" />
                   Create Fixture
@@ -2078,7 +2078,7 @@ export default function FixturesPage() {
                     setSelectedMatchForStats('')
                     setShowMatchForm(true)
                   }}
-                  className="bg-secondary text-tm-on-secondary px-6 py-2 rounded-[6px] font-semibold hover:opacity-90 transition-opacity flex items-center gap-2"
+                  className="bg-secondary text-tm-on-secondary px-4 sm:px-6 py-2 rounded-[6px] font-semibold hover:opacity-90 transition-opacity flex items-center gap-2 text-sm sm:text-base whitespace-nowrap"
                 >
                   <Save className="w-4 h-4" />
                   Enter Match Stats
@@ -2189,8 +2189,8 @@ export default function FixturesPage() {
                       key={match.id}
                       className="border-2 border-tm-border rounded-lg p-4 hover:border-primary/50 transition-all"
                     >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-3 mb-2 flex-wrap">
                             <h3 className="text-lg font-bold text-tm-text-1">
                               vs {match.opponent}
@@ -2234,7 +2234,7 @@ export default function FixturesPage() {
                             )}
                           </div>
                         </div>
-                        <div className="flex items-center gap-2 ml-4">
+                        <div className="flex items-center gap-2 flex-wrap sm:ml-4 sm:flex-shrink-0">
                           {isUpcoming && (user?.role === 'admin' || user?.role === 'data_admin') && (
                             <button
                               onClick={() => handleViewTeam(match.id)}

@@ -524,8 +524,15 @@ export default function AdminDashboard() {
           />
         </div>
 
-        {/* Middle row - attendance + fixture + injuries */}
-        <div className="grid grid-cols-[1.4fr_1fr] gap-4">
+        {/* Middle row - attendance + fixture + injuries.
+            Fixed at a 1.4fr/1fr split with no fallback, this squeezed both
+            the attendance chips/chart and the injury list into ~150px-wide
+            columns on mobile, wrapping "Sprained ankle · Jun 26" onto three
+            lines and cramming the 4 attendance chips ("Present/Absent/
+            Justified/Injured") into slivers. Stack to a single column below
+            lg so each card gets the full width it needs; only apply the
+            side-by-side split on wider screens. */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-4">
           {/* Attendance summary */}
           {attendanceSummary && (
             <AttendanceSummary
@@ -591,14 +598,14 @@ export default function AdminDashboard() {
         {recentApprovals.length > 0 && (
           <div className="rounded-[10px] overflow-hidden" style={{ background: 'var(--tm-surface)', border: '1px solid var(--tm-border)' }}>
             <div className="p-4.5 border-b" style={{ borderColor: 'var(--tm-border)' }}>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <h3 className="text-[14px] font-medium flex items-center gap-1.5" style={{ color: 'var(--tm-text-1)' }}>
-                  <CheckCircle className="w-[17px] h-[17px] text-[#2DB88A]" />
+                  <CheckCircle className="w-[17px] h-[17px] text-[#2DB88A] flex-shrink-0" />
                   Recent Budget Approvals
                 </h3>
                 <Link
                   href="/finance"
-                  className="text-[12px] font-medium flex items-center gap-1 hover:opacity-80"
+                  className="text-[12px] font-medium flex items-center gap-1 hover:opacity-80 flex-shrink-0"
                   style={{ color: 'var(--tm-secondary)' }}
                 >
                   View All →
@@ -609,11 +616,11 @@ export default function AdminDashboard() {
               <div className="space-y-3.5">
                 {recentApprovals.map((budget) => (
                   <div key={budget.id} className="p-3.5 bg-success/5 rounded-[8px] border border-success/20">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1.5">
-                          <h4 className="text-[13px] font-semibold" style={{ color: 'var(--tm-text-1)' }}>{budget.event_name}</h4>
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-success/10 text-success border border-success/20">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                          <h4 className="text-[13px] font-semibold break-words" style={{ color: 'var(--tm-text-1)' }}>{budget.event_name}</h4>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-success/10 text-success border border-success/20 whitespace-nowrap">
                             Approved
                           </span>
                         </div>
@@ -661,14 +668,14 @@ export default function AdminDashboard() {
 
         {pendingBudgets.length > 0 && (
           <div className="rounded-[10px] overflow-hidden p-4.5" style={{ background: 'var(--tm-surface)', border: '1px solid var(--tm-border)' }}>
-            <div className="flex items-center justify-between mb-4 pb-3 border-b" style={{ borderColor: 'var(--tm-border)' }}>
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-4 pb-3 border-b" style={{ borderColor: 'var(--tm-border)' }}>
               <h2 className="text-[14px] font-medium flex items-center" style={{ color: 'var(--tm-text-1)' }}>
-                <FileText className="w-[17px] h-[17px] mr-1.5" style={{ color: 'var(--tm-secondary)' }} />
+                <FileText className="w-[17px] h-[17px] mr-1.5 flex-shrink-0" style={{ color: 'var(--tm-secondary)' }} />
                 Pending Budget Approvals ({pendingBudgets.length})
               </h2>
               <Link
                 href="/finance"
-                className="text-[12px] font-medium hover:opacity-80"
+                className="text-[12px] font-medium hover:opacity-80 flex-shrink-0"
                 style={{ color: 'var(--tm-secondary)' }}
               >
                 View All Budgets →
@@ -677,11 +684,11 @@ export default function AdminDashboard() {
             <div className="space-y-3.5">
               {pendingBudgets.slice(0, 3).map((budget) => (
                 <div key={budget.id} className="p-3.5 bg-warning/10 rounded-[8px] border border-warning/20 hover:bg-warning/20 transition-colors">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2.5 mb-1.5">
-                        <h3 className="text-[13px] font-semibold" style={{ color: 'var(--tm-text-1)' }}>{budget.event_name}</h3>
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-warning/10 text-warning border border-warning/20">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2.5 flex-wrap mb-1.5">
+                        <h3 className="text-[13px] font-semibold break-words" style={{ color: 'var(--tm-text-1)' }}>{budget.event_name}</h3>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-warning/10 text-warning border border-warning/20 whitespace-nowrap">
                           Pending
                         </span>
                       </div>
@@ -714,7 +721,7 @@ export default function AdminDashboard() {
                         Created by: {budget.created_by_profile?.name || 'Finance Admin'}
                       </p>
                     </div>
-                    <div className="flex items-center space-x-2 ml-4">
+                    <div className="flex items-center gap-2 flex-shrink-0 sm:ml-4">
                       <button
                         onClick={() => {
                           setSelectedBudget(budget)

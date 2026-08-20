@@ -1547,9 +1547,9 @@ export default function ReportsPage() {
           throw new Error('Unsupported format')
       }
 
-      downloadBlob(blob, filename)
+      await downloadBlob(blob, filename)
       setShowDownloadMenu(null)
-      alert(`Report downloaded as ${format.toUpperCase()}!`)
+      alert(`${format.toUpperCase()} report ready — check your downloads or share sheet.`)
     } catch (error: any) {
       console.error('Error downloading report:', error)
       alert(`Error downloading report: ${error.message}`)
@@ -1891,25 +1891,25 @@ export default function ReportsPage() {
                 return (
                   <div
                     key={report.id}
-                    className="p-6 hover:bg-tm-surface-hover transition-colors"
+                    className="p-4 sm:p-6 hover:bg-tm-surface-hover transition-colors"
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4 flex-1">
-                        <div className={`${typeColor} w-12 h-12 rounded-xl flex items-center justify-center`}>
-                          <Icon className="w-6 h-6 text-white" />
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                        <div className={`${typeColor} w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center flex-shrink-0`}>
+                          <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                         </div>
-                        <div className="flex-1">
-                          <h3 className="font-bold text-tm-text-1 mb-1">{report.title}</h3>
-                          <div className="flex items-center space-x-4 text-sm text-tm-text-3">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-bold text-tm-text-1 mb-1 break-words">{report.title}</h3>
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs sm:text-sm text-tm-text-3">
                             <span className="capitalize">{report.type} Report</span>
-                            <span>•</span>
+                            <span className="hidden sm:inline">•</span>
                             <span>{report.dateRange}</span>
-                            <span>•</span>
+                            <span className="hidden sm:inline">•</span>
                             <span>Generated {new Date(report.generatedAt).toLocaleDateString()}</span>
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-3">
+                      <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
                         <button
                           onClick={() => handleDeleteReport(report.id)}
                           className="px-3 py-2 text-secondary hover:bg-[#E05757]/10 rounded-[6px] transition-colors"

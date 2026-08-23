@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import Layout from '@/components/Layout'
-import { Calendar, Users, Save, Download, Plus, Clock, MapPin, FileText, X, Upload, Activity, ChevronDown, FileSpreadsheet, Trash2 } from 'lucide-react'
+import { Calendar, Users, Save, Download, Plus, Clock, MapPin, FileText, X, Upload, Activity, ChevronDown, FileSpreadsheet, Trash2, CheckCircle2, AlertCircle, UserCheck } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import RefreshButton from '@/components/RefreshButton'
 import { generatePDFReport, generateExcelReport, generateCSVReport, downloadBlob, type ReportData } from '@/lib/report-export'
@@ -119,6 +119,18 @@ export default function TrainingPage() {
   const [showUploadForm, setShowUploadForm] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [uploadFile, setUploadFile] = useState<File | null>(null)
+  // CSV attendance import state
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const [uploadStep, setUploadStep] = useState('')
+  const [csvRows, setCsvRows] = useState<Array<{
+    name: string
+    status: AttendanceCode | null
+    notes: string
+    matchedPlayer: Player | null
+    confidence: 'exact' | 'fuzzy' | 'none'
+  }>>([])
+  const [showCsvPreview, setShowCsvPreview] = useState(false)
+  const [csvSessionId, setCsvSessionId] = useState('')
   const [showGymScheduleForm, setShowGymScheduleForm] = useState(false)
   const [gymScheduleForm, setGymScheduleForm] = useState({
     schedule_date: '',
@@ -621,9 +633,163 @@ export default function TrainingPage() {
     }
   }
 
+  // ── CSV attendance import ──────────────────────────────────────────────────
+  // Parses a CSV whose rows are: player_name, status (P/A/X/I or words),
+  // optional notes.  Animates a progress bar through four labelled steps,
+  // then fuzzy-matches each name against the live players roster and fills
+  // the csvRows state so the coach can review before applying to the grid.
+  const handleCsvImport = async (file: File) => {
+    setUploading(true)
+    setUploadProgress(0)
+    setShowCsvPreview(false)
+    setCsvRows([])
+
+    const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
+
+    try {
+      // Step 1 — read the raw file
+      setUploadStep('Reading file…')
+      setUploadProgress(10)
+      const text: string = await new Promise((res, rej) => {
+        const fr = new FileReader()
+        fr.onload = (e) => res(e.target?.result as string)
+        fr.onerror = rej
+        fr.readAsText(file)
+      })
+      await sleep(300)
+      setUploadProgress(25)
+
+      // Step 2 — parse rows
+      setUploadStep('Parsing rows…')
+      await sleep(200)
+      const lines = text.split('\n').map(l => l.trim()).filter(Boolean)
+
+      // Detect header — skip if first line looks like column names
+      const HEADER_WORDS = ['player', 'name', 'status', 'attendance', 'note']
+      const firstLineLower = lines[0]?.toLowerCase() ?? ''
+      const hasHeader = HEADER_WORDS.some(w => firstLineLower.includes(w))
+      const dataLines = hasHeader ? lines.slice(1) : lines
+
+      // Normalise status string → AttendanceCode
+      const normaliseStatus = (raw: string): AttendanceCode | null => {
+        const s = raw.trim().toUpperCase()
+        if (s === 'P' || s.startsWith('PRES')) return 'P'
+        if (s === 'A' || s.startsWith('ABS'))  return 'A'
+        if (s === 'X' || s.startsWith('EXC') || s.startsWith('JUST')) return 'X'
+        if (s === 'I' || s.startsWith('INJ'))  return 'I'
+        return null
+      }
+
+      type RawRow = { name: string; status: AttendanceCode | null; notes: string }
+      const rawRows: RawRow[] = []
+      for (const line of dataLines) {
+        const sep = line.includes('\t') ? '\t' : ','
+        const parts = line.split(sep).map(p => p.trim().replace(/^"|"$/g, ''))
+        if (!parts[0]) continue
+        rawRows.push({
+          name:   parts[0],
+          status: normaliseStatus(parts[1] ?? ''),
+          notes:  parts.slice(2).join(', '),
+        })
+      }
+      setUploadProgress(50)
+      await sleep(300)
+
+      // Step 3 — match names to roster
+      setUploadStep('Matching players to roster…')
+      const matched = []
+      for (let i = 0; i < rawRows.length; i++) {
+        const row = rawRows[i]
+        const nameLower = row.name.toLowerCase()
+
+        // Exact match first
+        let player = players.find(p => p.name.toLowerCase() === nameLower) ?? null
+        let confidence: 'exact' | 'fuzzy' | 'none' = player ? 'exact' : 'none'
+
+        // Fuzzy: every word in the CSV name appears somewhere in the player name
+        if (!player) {
+          const words = nameLower.split(/\s+/).filter(Boolean)
+          player = players.find(p => {
+            const pn = p.name.toLowerCase()
+            return words.length > 0 && words.every(w => pn.includes(w))
+          }) ?? null
+          if (player) confidence = 'fuzzy'
+        }
+
+        matched.push({ ...row, matchedPlayer: player, confidence })
+        // Animate progress across players
+        setUploadProgress(50 + Math.round(((i + 1) / rawRows.length) * 35))
+        await sleep(60)
+      }
+      setUploadProgress(90)
+      await sleep(200)
+
+      // Step 4 — done
+      setUploadStep('Done — review below')
+      setUploadProgress(100)
+      await sleep(250)
+
+      setCsvRows(matched)
+      setShowCsvPreview(true)
+      // Pre-select the first available session if none chosen
+      if (!csvSessionId && sessions.length > 0) {
+        setCsvSessionId(sessions[0].id ?? '')
+      }
+    } catch (err: any) {
+      console.error('CSV parse error', err)
+      alert(`Could not read CSV: ${err.message}`)
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  // Apply the reviewed CSV rows to the live attendance grid and close the modal
+  const applyCSVToGrid = () => {
+    if (!csvSessionId) {
+      alert('Please select a session to apply the attendance to.')
+      return
+    }
+    const updates: Record<string, AttendanceCode> = {}
+    for (const row of csvRows) {
+      if (row.matchedPlayer && row.status) {
+        updates[`${row.matchedPlayer.id}-${csvSessionId}`] = row.status
+      }
+    }
+    if (Object.keys(updates).length === 0) {
+      alert('No matched players with a valid status were found. Check the CSV format.')
+      return
+    }
+    setAttendance(prev => ({ ...prev, ...updates }))
+    setSelectedSessionId(csvSessionId)
+    // Close and reset
+    setShowUploadForm(false)
+    setUploadFile(null)
+    setShowCsvPreview(false)
+    setCsvRows([])
+    setUploadProgress(0)
+    setUploadStep('')
+  }
+
+  const resetUploadModal = () => {
+    setShowUploadForm(false)
+    setUploadFile(null)
+    setShowCsvPreview(false)
+    setCsvRows([])
+    setUploadProgress(0)
+    setUploadStep('')
+    setUploading(false)
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   const handleFileUpload = async () => {
     if (!uploadFile) {
       alert('Please select a file to upload')
+      return
+    }
+
+    // CSV files → player attendance import flow (progress bar + preview)
+    if (uploadFile.name.endsWith('.csv') || uploadFile.type === 'text/csv') {
+      await handleCsvImport(uploadFile)
       return
     }
 
@@ -631,7 +797,7 @@ export default function TrainingPage() {
     try {
       const supabase = createClient()
       const { data: { user: authUser } } = await supabase.auth.getUser()
-      
+
       if (!authUser) {
         alert('Please log in to upload training schedule')
         return
@@ -1580,72 +1746,263 @@ export default function TrainingPage() {
           </div>
         </div>
 
-        {/* Upload Training Schedule Modal for Coaches */}
+        {/* ── Import modal (Schedule TXT/PDF  OR  Attendance CSV) ── */}
         {showUploadForm && user?.role === 'coach' && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-            <div className="bg-tm-surface rounded-card shadow-large max-w-2xl w-full border border-tm-border">
-              <div className="p-6 border-b border-tm-border">
-                <div className="flex justify-between items-center">
-                  <h2 className="text-2xl font-bold text-tm-text-1">Import Training Schedule</h2>
-                  <button
-                    onClick={() => {
-                      setShowUploadForm(false)
-                      setUploadFile(null)
-                    }}
-                    className="modal-close-btn"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-              <div className="p-6 space-y-4">
+          <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4 z-50 backdrop-blur-sm">
+            <div className="bg-tm-surface rounded-t-2xl sm:rounded-card shadow-large w-full sm:max-w-2xl border border-tm-border max-h-[92vh] flex flex-col">
+
+              {/* Header */}
+              <div className="p-5 border-b border-tm-border flex items-center justify-between flex-shrink-0">
                 <div>
-                  <label className="block text-sm font-medium text-tm-text-3 mb-2">
-                    <Upload className="w-4 h-4 inline mr-2" />
-                    Upload File (TXT or PDF)
-                  </label>
-                  <input
-                    type="file"
-                    accept=".txt,.pdf,text/plain,application/pdf"
-                    onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
-                    className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
-                  />
-                  {uploadFile && (
-                    <p className="mt-2 text-sm text-tm-text-3">
-                      Selected: {uploadFile.name} ({(uploadFile.size / 1024).toFixed(2)} KB)
-                    </p>
-                  )}
+                  <h2 className="text-xl font-bold text-tm-text-1">Import File</h2>
+                  <p className="text-xs text-tm-text-3 mt-0.5">
+                    CSV → player attendance &nbsp;·&nbsp; TXT/PDF → session schedule
+                  </p>
                 </div>
-                <div className="bg-tm-surface-hover border border-tm-border rounded-lg p-4">
-                  <h3 className="font-semibold text-tm-text-1 mb-2">File Format Guidelines:</h3>
-                  <ul className="text-sm text-tm-text-3 space-y-1 list-disc list-inside">
-                    <li>Each line should contain a training session</li>
-                    <li>Format: Date, Time, Location, Description (comma-separated)</li>
-                    <li>Or: Date | Time | Location | Description (pipe-separated)</li>
-                    <li>Or: Date - Description (dash-separated)</li>
-                    <li>Date formats: YYYY-MM-DD, MM/DD/YYYY, or DD Month YYYY</li>
-                    <li>Example: 2024-12-15, 18:00, Training Ground, Focus on scrummaging</li>
-                  </ul>
-                </div>
-                <div className="flex gap-3 pt-4">
-                  <button
-                    onClick={handleFileUpload}
-                    disabled={!uploadFile || uploading}
-                    className="flex-1 px-6 py-3 bg-tm-secondary text-tm-on-secondary rounded-[6px] hover:opacity-90 transition-all duration-300 font-semibold shadow-soft hover:shadow-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {uploading ? 'Importing...' : 'Import Schedule'}
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowUploadForm(false)
-                      setUploadFile(null)
-                    }}
-                    disabled={uploading}
-                    className="px-6 py-3 bg-tm-surface-hover text-tm-text-1 rounded-[6px] hover:bg-tm-surface-hover transition-all duration-300 font-semibold disabled:opacity-50"
-                  >
-                    Cancel
-                  </button>
-                </div>
+                <button onClick={resetUploadModal} disabled={uploading} className="modal-close-btn">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="p-5 space-y-4 overflow-y-auto flex-1">
+
+                {/* ── Phase 1: file picker (shown until processing starts) ── */}
+                {!uploading && !showCsvPreview && (
+                  <>
+                    {/* Drop zone */}
+                    <label className="flex flex-col items-center justify-center gap-3 border-2 border-dashed border-tm-border rounded-xl p-8 cursor-pointer hover:border-primary hover:bg-tm-surface-hover transition-all">
+                      <Upload className="w-8 h-8 text-tm-text-3" />
+                      <span className="text-sm font-medium text-tm-text-2">
+                        {uploadFile ? uploadFile.name : 'Tap to choose a file'}
+                      </span>
+                      {uploadFile && (
+                        <span className="text-xs text-tm-text-3">
+                          {(uploadFile.size / 1024).toFixed(1)} KB
+                        </span>
+                      )}
+                      <input
+                        type="file"
+                        accept=".csv,.txt,.pdf,text/csv,text/plain,application/pdf"
+                        className="sr-only"
+                        onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+                      />
+                    </label>
+
+                    {/* Format guide */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="bg-tm-surface-hover rounded-lg p-3 border border-tm-border">
+                        <p className="text-xs font-semibold text-secondary mb-1.5 uppercase tracking-wide">
+                          CSV — attendance import
+                        </p>
+                        <p className="text-[11px] text-tm-text-3 leading-relaxed font-mono">
+                          player_name, status, notes<br />
+                          Patrick Allan, P<br />
+                          John Smith, A, sick<br />
+                          Jane Doe, X, work<br />
+                          Tom Brown, I, knee
+                        </p>
+                        <p className="text-[10px] text-tm-text-3 mt-2">
+                          Status: P Present · A Absent · X Excused · I Injured
+                        </p>
+                      </div>
+                      <div className="bg-tm-surface-hover rounded-lg p-3 border border-tm-border">
+                        <p className="text-xs font-semibold text-info mb-1.5 uppercase tracking-wide">
+                          TXT/PDF — session schedule
+                        </p>
+                        <p className="text-[11px] text-tm-text-3 leading-relaxed font-mono">
+                          2024-12-15, 18:00, Pitch, Scrums<br />
+                          2024-12-18, 09:00, Gym, Conditioning<br />
+                          2024-12-22 | 17:30 | Pitch
+                        </p>
+                        <p className="text-[10px] text-tm-text-3 mt-2">
+                          One session per line, comma or pipe separated
+                        </p>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* ── Phase 2: animated progress (CSV only) ── */}
+                {uploading && (
+                  <div className="py-6 space-y-6">
+                    {/* Spinning icon */}
+                    <div className="flex justify-center">
+                      <div className="relative w-16 h-16">
+                        <div className="absolute inset-0 rounded-full border-4 border-tm-border" />
+                        <div
+                          className="absolute inset-0 rounded-full border-4 border-secondary border-t-transparent animate-spin"
+                          style={{ animationDuration: '0.9s' }}
+                        />
+                        <FileText className="absolute inset-0 m-auto w-6 h-6 text-secondary" />
+                      </div>
+                    </div>
+
+                    {/* Step label */}
+                    <div className="text-center">
+                      <p className="text-sm font-semibold text-tm-text-1">{uploadStep}</p>
+                      <p className="text-xs text-tm-text-3 mt-1">Please wait…</p>
+                    </div>
+
+                    {/* Progress bar */}
+                    <div>
+                      <div className="flex justify-between text-xs text-tm-text-3 mb-1.5">
+                        <span>Progress</span>
+                        <span>{uploadProgress}%</span>
+                      </div>
+                      <div className="h-2.5 bg-tm-surface-hover rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-secondary rounded-full transition-all duration-300 ease-out"
+                          style={{ width: `${uploadProgress}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Step milestones */}
+                    <div className="flex justify-between text-[10px] text-tm-text-3 px-1">
+                      {['Reading', 'Parsing', 'Matching players', 'Complete'].map((s, i) => {
+                        const threshold = [10, 50, 85, 100][i]
+                        const done = uploadProgress >= threshold
+                        return (
+                          <span key={s} className={`flex flex-col items-center gap-1 transition-colors ${done ? 'text-secondary font-semibold' : ''}`}>
+                            <span className={`w-3 h-3 rounded-full border-2 transition-all ${done ? 'bg-secondary border-secondary' : 'border-tm-border'}`} />
+                            {s}
+                          </span>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Phase 3: CSV preview table ── */}
+                {showCsvPreview && !uploading && (
+                  <div className="space-y-4">
+                    {/* Summary chips */}
+                    <div className="flex flex-wrap gap-2">
+                      {(['exact', 'fuzzy', 'none'] as const).map(c => {
+                        const count = csvRows.filter(r => r.confidence === c).length
+                        if (!count) return null
+                        const cfg = { exact: { label: 'Matched', cls: 'bg-success/15 text-success border-success/30' }, fuzzy: { label: 'Fuzzy match', cls: 'bg-warning/15 text-warning border-warning/30' }, none: { label: 'Not found', cls: 'bg-[#E05757]/15 text-[#E05757] border-[#E05757]/30' } }[c]
+                        return (
+                          <span key={c} className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${cfg.cls}`}>
+                            {count} {cfg.label}
+                          </span>
+                        )
+                      })}
+                      <span className="px-2.5 py-1 rounded-full text-xs font-semibold border bg-tm-surface-hover text-tm-text-3 border-tm-border">
+                        {csvRows.length} rows total
+                      </span>
+                    </div>
+
+                    {/* Session selector */}
+                    <div>
+                      <label className="block text-xs font-medium text-tm-text-3 mb-1.5">
+                        Apply attendance to session
+                      </label>
+                      <select
+                        value={csvSessionId}
+                        onChange={(e) => setCsvSessionId(e.target.value)}
+                        className="w-full tm-select rounded-lg px-3 py-2 text-sm"
+                      >
+                        <option value="">— Select a session —</option>
+                        {sessions.map(s => (
+                          <option key={s.id} value={s.id}>
+                            {new Date(s.date).toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+                            {s.title ? ` — ${s.title}` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Player rows */}
+                    <div className="rounded-xl border border-tm-border overflow-hidden">
+                      <div className="grid grid-cols-[1fr_auto_auto] text-[11px] font-semibold uppercase tracking-wide text-tm-text-3 bg-tm-surface-hover px-3 py-2 border-b border-tm-border">
+                        <span>Player</span>
+                        <span className="pr-6">Status</span>
+                        <span>Match</span>
+                      </div>
+                      <div className="divide-y divide-tm-border max-h-56 overflow-y-auto">
+                        {csvRows.map((row, i) => {
+                          const statusCfg: Record<string, { label: string; cls: string }> = {
+                            P: { label: 'Present', cls: 'bg-success/15 text-success' },
+                            A: { label: 'Absent', cls: 'bg-[#E05757]/15 text-[#E05757]' },
+                            X: { label: 'Excused', cls: 'bg-tm-surface-hover text-tm-text-2' },
+                            I: { label: 'Injured', cls: 'bg-warning/15 text-warning' },
+                          }
+                          const sc = row.status ? statusCfg[row.status] : null
+                          return (
+                            <div key={i} className="grid grid-cols-[1fr_auto_auto] items-center px-3 py-2.5 text-sm hover:bg-tm-surface-hover">
+                              <div className="min-w-0">
+                                <p className="font-medium text-tm-text-1 truncate">{row.name}</p>
+                                {row.matchedPlayer && row.matchedPlayer.name !== row.name && (
+                                  <p className="text-[10px] text-tm-text-3 truncate">→ {row.matchedPlayer.name}</p>
+                                )}
+                                {row.notes && <p className="text-[10px] text-tm-text-3 truncate">{row.notes}</p>}
+                              </div>
+                              <div className="px-3">
+                                {sc ? (
+                                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${sc.cls}`}>{sc.label}</span>
+                                ) : (
+                                  <span className="text-xs text-tm-text-3">—</span>
+                                )}
+                              </div>
+                              <div>
+                                {row.confidence === 'exact' && <CheckCircle2 className="w-4 h-4 text-success" />}
+                                {row.confidence === 'fuzzy' && <AlertCircle className="w-4 h-4 text-warning" />}
+                                {row.confidence === 'none'  && <X className="w-4 h-4 text-[#E05757]" />}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+
+                    {csvRows.some(r => r.confidence === 'none') && (
+                      <p className="text-xs text-tm-text-3 bg-tm-surface-hover rounded-lg px-3 py-2 border border-tm-border">
+                        <AlertCircle className="w-3.5 h-3.5 inline mr-1 text-warning" />
+                        Unmatched players won&apos;t be applied. Check spelling or add them to the roster first.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Footer actions */}
+              <div className="p-5 border-t border-tm-border flex-shrink-0">
+                {!uploading && !showCsvPreview && (
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleFileUpload}
+                      disabled={!uploadFile}
+                      className="flex-1 px-4 py-2.5 bg-secondary text-tm-on-secondary rounded-[6px] font-semibold text-sm hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Import
+                    </button>
+                    <button
+                      onClick={resetUploadModal}
+                      className="px-4 py-2.5 bg-tm-surface-hover text-tm-text-1 rounded-[6px] font-semibold text-sm hover:opacity-80 transition-all border border-tm-border"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
+                {showCsvPreview && !uploading && (
+                  <div className="flex gap-3">
+                    <button
+                      onClick={applyCSVToGrid}
+                      disabled={!csvSessionId || csvRows.filter(r => r.matchedPlayer && r.status).length === 0}
+                      className="flex-1 px-4 py-2.5 bg-success text-white rounded-[6px] font-semibold text-sm hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
+                    >
+                      <UserCheck className="w-4 h-4" />
+                      Apply {csvRows.filter(r => r.matchedPlayer && r.status).length} players to grid
+                    </button>
+                    <button
+                      onClick={resetUploadModal}
+                      className="px-4 py-2.5 bg-tm-surface-hover text-tm-text-1 rounded-[6px] font-semibold text-sm hover:opacity-80 transition-all border border-tm-border"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>

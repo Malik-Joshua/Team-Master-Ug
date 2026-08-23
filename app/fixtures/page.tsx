@@ -3,12 +3,14 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Layout from '@/components/Layout'
-import { Users, Check, X, Save, Calendar, MapPin, Trophy, Plus, Eye, Trash2, Search, Download } from 'lucide-react'
+import { Users, Check, X, Save, Calendar, MapPin, Trophy, Plus, Eye, Trash2, Search, Download, Upload, FileSpreadsheet } from 'lucide-react'
 import RefreshButton from '@/components/RefreshButton'
 import { createClient } from '@/lib/supabase/client'
 import { db } from '@/lib/db-helpers'
 import { isActivityPast } from '@/lib/utils'
 import TeamPitchView from '@/components/TeamPitchView'
+import Papa from 'papaparse'
+import * as XLSX from 'xlsx'
 
 // Rugby position metadata used to group the squad roster by playing position.
 // Forwards (1-8) are listed before backs (9-15); legacy values are included so
@@ -217,6 +219,14 @@ export default function FixturesPage() {
   const [loadingTeamView, setLoadingTeamView] = useState(false)
   // Tracks which fixture's squad PDF is currently being generated/downloaded.
   const [downloadingSquadId, setDownloadingSquadId] = useState<string>('')
+  // Stats import functionality
+  const [showImportModal, setShowImportModal] = useState(false)
+  const [importFile, setImportFile] = useState<File | null>(null)
+  const [importingStats, setImportingStats] = useState(false)
+  const [importProgress, setImportProgress] = useState(0)
+  const [importError, setImportError] = useState<string | null>(null)
+  const [importSuccess, setImportSuccess] = useState<string | null>(null)
+  const [importedPlayers, setImportedPlayers] = useState<Array<{ name: string; jerseyNumber?: number; stats: any }>>([])
 
   const loadData = useCallback(async () => {
       try {
@@ -1208,6 +1218,154 @@ export default function FixturesPage() {
     }))
   }
 
+  const downloadStatsTemplate = () => {
+    const headers = ['Jersey Number', 'Player Name', 'Tackles Made', 'Tackles Missed', 'Ball Handling Errors', 'Ball Carries', 'Tries Scored', 'Minutes Played']
+    const csvContent = [
+      headers.join(','),
+      '1,Player Name,0,0,0,0,0,0',
+      '2,Player Name,0,0,0,0,0,0',
+    ].join('\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    link.setAttribute('download', 'player_stats_template.csv')
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  const handleFileUpload = (file: File) => {
+    setImportFile(file)
+    setImportError(null)
+    setImportSuccess(null)
+
+    const fileExtension = file.name.split('.').pop()?.toLowerCase()
+
+    if (fileExtension === 'csv') {
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: (results) => {
+          processImportedData(results.data as any[])
+        },
+        error: (error) => {
+          setImportError(`CSV parsing error: ${error.message}`)
+        }
+      })
+    } else if (fileExtension === 'xlsx' || fileExtension === 'xls') {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer)
+        const workbook = XLSX.read(data, { type: 'array' })
+        const sheetName = workbook.SheetNames[0]
+        const worksheet = workbook.Sheets[sheetName]
+        const jsonData = XLSX.utils.sheet_to_json(worksheet)
+        processImportedData(jsonData)
+      }
+      reader.onerror = () => {
+        setImportError('Error reading Excel file')
+      }
+      reader.readAsArrayBuffer(file)
+    } else {
+      setImportError('Unsupported file format. Please upload a CSV or Excel file.')
+    }
+  }
+
+  const processImportedData = async (data: any[]) => {
+    setImportingStats(true)
+    setImportError(null)
+    setImportSuccess(null)
+    setImportProgress(0)
+    setImportedPlayers([])
+
+    console.log('Starting import process with data:', data.length, 'rows')
+    console.log('Available statsPlayers:', statsPlayers.length, 'players')
+    console.log('Current playerStats:', playerStats)
+
+    try {
+      let importedCount = 0
+      const updatedStats = { ...playerStats }
+      const importedPlayersList: Array<{ name: string; jerseyNumber?: number; stats: any }> = []
+      const totalRows = data.length
+
+      // Process rows with simulated progress
+      for (let i = 0; i < data.length; i++) {
+        const row = data[i]
+        console.log(`Row ${i + 1} full data:`, row)
+        console.log(`Row ${i + 1} keys:`, Object.keys(row))
+
+        const jerseyNumber = row['Jersey Number'] || row['jersey_number']
+        const playerName = row['Player Name'] || row['player_name']
+
+        console.log(`Processing row ${i + 1}:`, { jerseyNumber, playerName })
+
+        if (!jerseyNumber && !playerName) {
+          setImportProgress(Math.round(((i + 1) / totalRows) * 100))
+          await new Promise(resolve => setTimeout(resolve, 50)) // Small delay for progress animation
+          continue
+        }
+
+        const player = statsPlayers.find((p: any) => {
+          const playerJersey = p.players?.jersey_number
+          const playerNameMatch = p.name.toLowerCase().includes((playerName || '').toLowerCase())
+          const jerseyMatch = playerJersey === parseInt(jerseyNumber)
+          console.log(`Checking player ${p.name}: jersey=${playerJersey}, match=${jerseyMatch}, nameMatch=${playerNameMatch}`)
+          return jerseyMatch || playerNameMatch
+        })
+
+        if (player) {
+          const tacklesMade = parseInt(row['Tackles Made'] || row['tackles_made'] || '0')
+          const tacklesMissed = parseInt(row['Tackles Missed'] || row['tackles_missed'] || '0')
+          const ballHandlingErrors = parseInt(row['Ball Handling Errors'] || row['ball_handling_errors'] || '0')
+          const ballCarries = parseInt(row['Ball Carries'] || row['ball_carries'] || '0')
+          const triesScored = parseInt(row['Tries Scored'] || row['tries_scored'] || '0')
+          const minutesPlayed = parseInt(row['Minutes Played'] || row['minutes_played'] || '0')
+
+          const playerStats = {
+            player_id: player.user_id,
+            tackles_made: String(Math.max(0, tacklesMade)),
+            tackles_missed: String(Math.max(0, tacklesMissed)),
+            ball_handling_errors: String(Math.max(0, ballHandlingErrors)),
+            ball_carries: String(Math.max(0, ballCarries)),
+            tries_scored: String(Math.max(0, triesScored)),
+            minutes_played: String(Math.min(80, Math.max(0, minutesPlayed))),
+          }
+
+          updatedStats[player.user_id] = playerStats
+          importedPlayersList.push({
+            name: player.name,
+            jerseyNumber: player.players?.jersey_number,
+            stats: playerStats
+          })
+          importedCount++
+          console.log(`Imported stats for player: ${player.name} (${player.user_id})`)
+        } else {
+          console.log(`No matching player found for: ${jerseyNumber} / ${playerName}`)
+        }
+
+        // Update progress
+        setImportProgress(Math.round(((i + 1) / totalRows) * 100))
+        await new Promise(resolve => setTimeout(resolve, 50)) // Small delay for progress animation
+      }
+
+      console.log('Final updatedStats:', updatedStats)
+      console.log('Setting playerStats with', Object.keys(updatedStats).length, 'entries')
+      setPlayerStats(updatedStats)
+      setImportedPlayers(importedPlayersList)
+      setImportSuccess(`Successfully imported stats for ${importedCount} player(s)`)
+      // Keep modal open to show success details
+    } catch (error: any) {
+      console.error('Error processing data:', error)
+      setImportError(`Error processing data: ${error.message}`)
+    } finally {
+      setImportingStats(false)
+      setImportFile(null)
+    }
+  }
+
   // Load players and team selection when match is selected for stats
   useEffect(() => {
     const loadDataForMatchStats = async () => {
@@ -1643,6 +1801,177 @@ export default function FixturesPage() {
     </div>
   ) : null
 
+  const importStatsModal = showImportModal ? (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+      <div className="bg-tm-surface rounded-card shadow-large max-w-lg w-full border border-tm-border">
+        <div className="p-6 border-b border-tm-border">
+          <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-bold text-tm-text-1">Import Player Statistics</h2>
+            <button
+              onClick={() => {
+                setShowImportModal(false)
+                setImportFile(null)
+                setImportError(null)
+                setImportSuccess(null)
+              }}
+              className="modal-close-btn"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <p className="text-sm text-tm-text-3 mt-2">
+            Upload a CSV or Excel file with player statistics to auto-fill the form.
+          </p>
+        </div>
+        <div className="p-6">
+          {importSuccess && (
+            <div className="mb-4 p-4 bg-success/10 border border-success/30 rounded-lg">
+              <p className="text-sm text-success font-semibold mb-2">{importSuccess}</p>
+              {importedPlayers.length > 0 && (
+                <div className="mt-3 max-h-48 overflow-y-auto">
+                  <p className="text-xs text-success font-medium mb-2">Imported players:</p>
+                  <ul className="space-y-1">
+                    {importedPlayers.map((player, idx) => (
+                      <li key={idx} className="text-xs text-success flex items-center gap-2">
+                        <Check className="w-3 h-3" />
+                        {player.jerseyNumber ? `#${player.jerseyNumber} ` : ''}{player.name}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+          {importError && (
+            <div className="mb-4 p-3 bg-[#E05757]/10 border border-[#E05757]/30 rounded-lg">
+              <p className="text-sm text-[#E05757]">{importError}</p>
+            </div>
+          )}
+          {importingStats && (
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-medium text-tm-text-1">Processing file...</p>
+                <p className="text-sm text-tm-text-2">{importProgress}%</p>
+              </div>
+              <div className="w-full bg-tm-surface-hover rounded-full h-2">
+                <div
+                  className="bg-tm-primary h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${importProgress}%` }}
+                ></div>
+              </div>
+            </div>
+          )}
+          {!importSuccess && (
+            <>
+              <div
+                className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                  importFile ? 'border-tm-primary bg-tm-primary/5' : 'border-tm-border hover:border-tm-primary hover:bg-tm-surface-hover'
+                }`}
+                onDragOver={(e) => {
+                  e.preventDefault()
+                  e.currentTarget.classList.add('border-tm-primary', 'bg-tm-primary/5')
+                }}
+                onDragLeave={(e) => {
+                  e.preventDefault()
+                  if (!importFile) {
+                    e.currentTarget.classList.remove('border-tm-primary', 'bg-tm-primary/5')
+                  }
+                }}
+                onDrop={(e) => {
+                  e.preventDefault()
+                  e.currentTarget.classList.remove('border-tm-primary', 'bg-tm-primary/5')
+                  const file = e.dataTransfer.files[0]
+                  if (file) {
+                    handleFileUpload(file)
+                  }
+                }}
+              >
+                <input
+                  type="file"
+                  id="stats-file-input"
+                  className="hidden"
+                  accept=".csv,.xlsx,.xls"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) {
+                      handleFileUpload(file)
+                    }
+                  }}
+                  disabled={importingStats}
+                />
+                <label
+                  htmlFor="stats-file-input"
+                  className="cursor-pointer"
+                >
+                  {importingStats ? (
+                    <div className="space-y-3">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                      <p className="text-sm text-tm-text-2">Processing file...</p>
+                    </div>
+                  ) : importFile ? (
+                    <div className="space-y-3">
+                      <FileSpreadsheet className="w-12 h-12 mx-auto text-tm-primary" />
+                      <p className="text-sm font-medium text-tm-text-1">{importFile.name}</p>
+                      <p className="text-xs text-tm-text-3">Click to change file</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <Upload className="w-12 h-12 mx-auto text-tm-text-3" />
+                      <p className="text-sm font-medium text-tm-text-1">
+                        Drop your CSV or Excel file here
+                      </p>
+                      <p className="text-xs text-tm-text-3">or click to browse</p>
+                    </div>
+                  )}
+                </label>
+              </div>
+              <div className="mt-4 p-3 bg-tm-surface-hover rounded-lg">
+                <p className="text-xs font-semibold text-tm-text-1 mb-2">Expected columns:</p>
+                <p className="text-xs text-tm-text-3">
+                  Jersey Number, Player Name, Tackles Made, Tackles Missed, Ball Handling Errors, Ball Carries, Tries Scored, Minutes Played
+                </p>
+                <button
+                  onClick={downloadStatsTemplate}
+                  className="mt-2 text-xs text-tm-primary hover:underline flex items-center gap-1"
+                >
+                  <Download className="w-3 h-3" />
+                  Download template
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+        <div className="p-6 border-t border-tm-border flex justify-end gap-3">
+          <button
+            onClick={() => {
+              setShowImportModal(false)
+              setImportFile(null)
+              setImportError(null)
+              setImportSuccess(null)
+            }}
+            className="px-4 py-2 border border-tm-border rounded-lg text-sm font-medium text-tm-text-2 hover:bg-tm-surface-hover transition-colors"
+            disabled={importingStats}
+          >
+            Cancel
+          </button>
+          {importFile && (
+            <button
+              onClick={() => {
+                if (importFile) {
+                  handleFileUpload(importFile)
+                }
+              }}
+              className="px-4 py-2 bg-tm-secondary text-tm-on-secondary rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
+              disabled={importingStats}
+            >
+              {importingStats ? 'Importing...' : 'Import'}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  ) : null
+
   const matchStatsModal = showMatchForm ? (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-3 sm:p-4 z-50 backdrop-blur-sm">
       <div className="bg-tm-surface rounded-card shadow-large w-full max-w-[95vw] sm:max-w-6xl border border-tm-border max-h-[90vh] overflow-hidden flex flex-col">
@@ -1882,9 +2211,27 @@ export default function FixturesPage() {
 
           {/* Player Statistics */}
           <div>
-            <h3 className="text-lg font-semibold text-tm-text-1 mb-4">
-              Player Statistics
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-tm-text-1">
+                Player Statistics
+              </h3>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowImportModal(true)}
+                  className="flex items-center gap-2 px-3 py-2 bg-tm-surface-hover border border-tm-border rounded-lg text-sm font-medium text-tm-text-2 hover:border-tm-primary hover:text-tm-primary transition-all"
+                >
+                  <Upload className="w-4 h-4" />
+                  Import Stats
+                </button>
+                <button
+                  onClick={downloadStatsTemplate}
+                  className="flex items-center gap-2 px-3 py-2 bg-tm-surface-hover border border-tm-border rounded-lg text-sm font-medium text-tm-text-2 hover:border-tm-primary hover:text-tm-primary transition-all"
+                >
+                  <Download className="w-4 h-4" />
+                  Download Template
+                </button>
+              </div>
+            </div>
             {injuredPlayerIds.length > 0 && (
               <div className="mb-4 p-3 bg-[#E05757]/10 border border-[#E05757]/30 rounded-lg">
                 <p className="text-sm text-[#E05757]">
@@ -2777,9 +3124,27 @@ export default function FixturesPage() {
 
                   {/* Player Statistics */}
                   <div>
-                    <h3 className="text-lg font-semibold text-tm-text-1 mb-4">
-                      Player Statistics
-                    </h3>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold text-tm-text-1">
+                        Player Statistics
+                      </h3>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setShowImportModal(true)}
+                          className="flex items-center gap-2 px-3 py-2 bg-tm-surface-hover border border-tm-border rounded-lg text-sm font-medium text-tm-text-2 hover:border-tm-primary hover:text-tm-primary transition-all"
+                        >
+                          <Upload className="w-4 h-4" />
+                          Import Stats
+                        </button>
+                        <button
+                          onClick={downloadStatsTemplate}
+                          className="flex items-center gap-2 px-3 py-2 bg-tm-surface-hover border border-tm-border rounded-lg text-sm font-medium text-tm-text-2 hover:border-tm-primary hover:text-tm-primary transition-all"
+                        >
+                          <Download className="w-4 h-4" />
+                          Download Template
+                        </button>
+                      </div>
+                    </div>
                     {injuredPlayerIds.length > 0 && (
                       <div className="mb-4 p-3 bg-[#E05757]/10 border border-[#E05757]/30 rounded-lg">
                         <p className="text-sm text-[#E05757]">
@@ -2931,6 +3296,7 @@ export default function FixturesPage() {
           )}
         </div>
         {teamViewModal}
+        {importStatsModal}
       </Layout>
     )
   }
@@ -3075,6 +3441,7 @@ export default function FixturesPage() {
         </div>
 
         {teamViewModal}
+        {importStatsModal}
       </Layout>
     )
   }
@@ -3528,6 +3895,7 @@ export default function FixturesPage() {
         )}
 
       </div>
+      {importStatsModal}
       {matchStatsModal}
     </Layout>
   )

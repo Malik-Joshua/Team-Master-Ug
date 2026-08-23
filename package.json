@@ -19,6 +19,7 @@
     "jspdf": "^2.5.1",
     "lucide-react": "^0.344.0",
     "next": "^14.2.5",
+    "papaparse": "^5.6.0",
     "pdf-parse": "^2.4.5",
     "pdfjs-dist": "^5.4.394",
     "pdfkit": "^0.17.2",
@@ -32,6 +33,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.11.24",
+    "@types/papaparse": "^5.5.2",
     "@types/react": "^18.2.61",
     "@types/react-dom": "^18.2.19",
     "autoprefixer": "^10.4.17",

@@ -8,7 +8,7 @@ import StatCard from '@/components/StatCard'
 import BirthdayAlert from '@/components/BirthdayAlert'
 import FixtureCard from '@/components/FixtureCard'
 import MatchDayModal from '@/components/MatchDayModal'
-import { Users, Activity, BarChart3, Calendar, Trophy, Plus, X, Save, MapPin, CheckCircle } from 'lucide-react'
+import { Users, Activity, BarChart3, Calendar, Trophy, Plus, X, Save, MapPin, CheckCircle, Upload, FileText, CheckCircle2, AlertCircle, UserCheck } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import RefreshButton from '@/components/RefreshButton'
 import { isActivityPast } from '@/lib/utils'
@@ -106,6 +106,25 @@ export default function DataAdminDashboard() {
   const [teamSelections, setTeamSelections] = useState<any[]>([])
   const [loadingTeamSelection, setLoadingTeamSelection] = useState(false)
   const [matchWithStaff, setMatchWithStaff] = useState<any>(null)
+
+  // CSV match-stats import state
+  const [showStatsImport, setShowStatsImport] = useState(false)
+  const [statsImportFile, setStatsImportFile] = useState<File | null>(null)
+  const [statsImportProgress, setStatsImportProgress] = useState(0)
+  const [statsImportStep, setStatsImportStep] = useState('')
+  const [statsImporting, setStatsImporting] = useState(false)
+  const [statsImportRows, setStatsImportRows] = useState<Array<{
+    name: string
+    matchedPlayer: Player | null
+    confidence: 'exact' | 'fuzzy' | 'none'
+    tackles_made: number
+    tackles_missed: number
+    ball_handling_errors: number
+    ball_carries: number
+    tries_scored: number
+    minutes_played: number
+  }>>([])
+  const [showStatsPreview, setShowStatsPreview] = useState(false)
 
   const loadData = useCallback(async () => {
       const supabase = createClient()
@@ -516,6 +535,143 @@ export default function DataAdminDashboard() {
     }
   }
 
+  // ── CSV match-stats import ─────────────────────────────────────────────
+  const handleStatsCSVImport = async (file: File) => {
+    setStatsImporting(true)
+    setStatsImportProgress(0)
+    setShowStatsPreview(false)
+    setStatsImportRows([])
+    const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
+
+    try {
+      // Step 1 — read
+      setStatsImportStep('Reading file…')
+      setStatsImportProgress(10)
+      const text: string = await new Promise((res, rej) => {
+        const fr = new FileReader()
+        fr.onload = (e) => res(e.target?.result as string)
+        fr.onerror = rej
+        fr.readAsText(file)
+      })
+      await sleep(300)
+      setStatsImportProgress(25)
+
+      // Step 2 — parse
+      setStatsImportStep('Parsing player stats…')
+      await sleep(200)
+      const lines = text.split('\n').map(l => l.trim()).filter(Boolean)
+
+      // Detect header
+      const HEADER_WORDS = ['player', 'name', 'tackle', 'carries', 'tries', 'minutes']
+      const firstLower = lines[0]?.toLowerCase() ?? ''
+      const hasHeader = HEADER_WORDS.some(w => firstLower.includes(w))
+      const dataLines = hasHeader ? lines.slice(1) : lines
+
+      const STAT_FIELDS = ['tackles_made', 'tackles_missed', 'ball_handling_errors', 'ball_carries', 'tries_scored', 'minutes_played'] as const
+
+      type RawRow = {
+        name: string
+        tackles_made: number; tackles_missed: number; ball_handling_errors: number
+        ball_carries: number; tries_scored: number; minutes_played: number
+      }
+      const rawRows: RawRow[] = []
+      for (const line of dataLines) {
+        const sep = line.includes('\t') ? '\t' : ','
+        const parts = line.split(sep).map(p => p.trim().replace(/^"|"$/g, ''))
+        if (!parts[0]) continue
+        rawRows.push({
+          name: parts[0],
+          tackles_made:        parseInt(parts[1]) || 0,
+          tackles_missed:      parseInt(parts[2]) || 0,
+          ball_handling_errors: parseInt(parts[3]) || 0,
+          ball_carries:        parseInt(parts[4]) || 0,
+          tries_scored:        parseInt(parts[5]) || 0,
+          minutes_played:      parseInt(parts[6]) || 0,
+        })
+      }
+      setStatsImportProgress(50)
+      await sleep(300)
+
+      // Step 3 — match names to roster
+      setStatsImportStep('Matching players to roster…')
+      const matched = []
+      for (let i = 0; i < rawRows.length; i++) {
+        const row = rawRows[i]
+        const nameLower = row.name.toLowerCase()
+
+        let player = players.find(p => p.name.toLowerCase() === nameLower) ?? null
+        let confidence: 'exact' | 'fuzzy' | 'none' = player ? 'exact' : 'none'
+
+        if (!player) {
+          const words = nameLower.split(/\s+/).filter(Boolean)
+          player = players.find(p => {
+            const pn = p.name.toLowerCase()
+            return words.length > 0 && words.every(w => pn.includes(w))
+          }) ?? null
+          if (player) confidence = 'fuzzy'
+        }
+
+        matched.push({ ...row, matchedPlayer: player, confidence })
+        setStatsImportProgress(50 + Math.round(((i + 1) / rawRows.length) * 35))
+        await sleep(60)
+      }
+      setStatsImportProgress(90)
+      await sleep(200)
+
+      setStatsImportStep('Done — review below')
+      setStatsImportProgress(100)
+      await sleep(250)
+
+      setStatsImportRows(matched)
+      setShowStatsPreview(true)
+    } catch (err: any) {
+      console.error('Stats CSV parse error', err)
+      alert(`Could not read CSV: ${err.message}`)
+    } finally {
+      setStatsImporting(false)
+    }
+  }
+
+  const applyStatsCSVToGrid = () => {
+    const updates: Record<string, PlayerStats> = {}
+    for (const row of statsImportRows) {
+      if (row.matchedPlayer) {
+        updates[row.matchedPlayer.user_id] = {
+          player_id: row.matchedPlayer.user_id,
+          tackles_made: String(row.tackles_made),
+          tackles_missed: String(row.tackles_missed),
+          ball_handling_errors: String(row.ball_handling_errors),
+          ball_carries: String(row.ball_carries),
+          tries_scored: String(row.tries_scored),
+          minutes_played: String(row.minutes_played),
+        }
+      }
+    }
+    if (Object.keys(updates).length === 0) {
+      alert('No matched players found. Check the CSV format and player names.')
+      return
+    }
+    setPlayerStats(prev => ({ ...prev, ...updates }))
+    // Close import UI
+    setShowStatsImport(false)
+    setStatsImportFile(null)
+    setShowStatsPreview(false)
+    setStatsImportRows([])
+    setStatsImportProgress(0)
+    setStatsImportStep('')
+  }
+
+  const resetStatsImport = () => {
+    setShowStatsImport(false)
+    setStatsImportFile(null)
+    setShowStatsPreview(false)
+    setStatsImportRows([])
+    setStatsImportProgress(0)
+    setStatsImportStep('')
+    setStatsImporting(false)
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   const updatePlayerStat = (playerId: string, field: keyof PlayerStats, value: string) => {
     setPlayerStats((prev) => ({
       ...prev,
@@ -903,9 +1059,18 @@ export default function DataAdminDashboard() {
 
                 {/* Player Statistics */}
                 <div>
-                  <h3 className="text-lg font-semibold text-tm-text-1 mb-4">
-                    Player Statistics {selectedMatchForStats && '(Only players in selected team can have stats)'}
-                  </h3>
+                  <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                    <h3 className="text-lg font-semibold text-tm-text-1">
+                      Player Statistics {selectedMatchForStats && '(Only players in selected team can have stats)'}
+                    </h3>
+                    <button
+                      onClick={() => setShowStatsImport(true)}
+                      className="px-3 py-1.5 bg-info text-white rounded-[6px] text-xs font-semibold hover:opacity-90 transition-all inline-flex items-center gap-1.5"
+                    >
+                      <Upload className="w-3.5 h-3.5" />
+                      Import CSV
+                    </button>
+                  </div>
                   {selectedMatchForStats && (
                     <div className="mb-4 p-3 bg-warning/10 border border-warning/30 rounded-lg">
                       <p className="text-sm text-warning">
@@ -1057,6 +1222,202 @@ export default function DataAdminDashboard() {
                     Cancel
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── CSV stats import modal ── */}
+        {showStatsImport && (
+          <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4 z-[60] backdrop-blur-sm">
+            <div className="bg-tm-surface rounded-t-2xl sm:rounded-card shadow-large w-full sm:max-w-lg border border-tm-border max-h-[92vh] flex flex-col">
+
+              {/* Header */}
+              <div className="p-5 border-b border-tm-border flex items-center justify-between flex-shrink-0">
+                <div>
+                  <h2 className="text-lg font-bold text-tm-text-1">Import Player Stats</h2>
+                  <p className="text-xs text-tm-text-3 mt-0.5">Upload a CSV to auto-fill the stats grid</p>
+                </div>
+                <button onClick={resetStatsImport} disabled={statsImporting} className="modal-close-btn">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="p-5 space-y-4 overflow-y-auto flex-1">
+
+                {/* Phase 1 — file picker */}
+                {!statsImporting && !showStatsPreview && (
+                  <>
+                    <label className="flex flex-col items-center justify-center gap-3 border-2 border-dashed border-tm-border rounded-xl p-8 cursor-pointer hover:border-primary hover:bg-tm-surface-hover transition-all">
+                      <Upload className="w-8 h-8 text-tm-text-3" />
+                      <span className="text-sm font-medium text-tm-text-2">
+                        {statsImportFile ? statsImportFile.name : 'Tap to choose a CSV file'}
+                      </span>
+                      {statsImportFile && (
+                        <span className="text-xs text-tm-text-3">{(statsImportFile.size / 1024).toFixed(1)} KB</span>
+                      )}
+                      <input
+                        type="file"
+                        accept=".csv,text/csv"
+                        className="sr-only"
+                        onChange={(e) => setStatsImportFile(e.target.files?.[0] || null)}
+                      />
+                    </label>
+
+                    <div className="bg-tm-surface-hover rounded-lg p-3 border border-tm-border">
+                      <p className="text-xs font-semibold text-info mb-1.5 uppercase tracking-wide">
+                        CSV format
+                      </p>
+                      <p className="text-[11px] text-tm-text-3 leading-relaxed font-mono">
+                        player, tackles_made, tackles_missed,<br />
+                        &nbsp;&nbsp;ball_errors, carries, tries, minutes<br />
+                        Patrick Allan, 8, 2, 1, 5, 1, 60<br />
+                        John Smith, 5, 3, 0, 3, 0, 40
+                      </p>
+                      <p className="text-[10px] text-tm-text-3 mt-2">
+                        Header row optional. Columns after player name are numeric stats in the order shown.
+                      </p>
+                    </div>
+                  </>
+                )}
+
+                {/* Phase 2 — animated progress */}
+                {statsImporting && (
+                  <div className="py-6 space-y-6">
+                    <div className="flex justify-center">
+                      <div className="relative w-16 h-16">
+                        <div className="absolute inset-0 rounded-full border-4 border-tm-border" />
+                        <div className="absolute inset-0 rounded-full border-4 border-secondary border-t-transparent animate-spin" style={{ animationDuration: '0.9s' }} />
+                        <BarChart3 className="absolute inset-0 m-auto w-6 h-6 text-secondary" />
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-sm font-semibold text-tm-text-1">{statsImportStep}</p>
+                      <p className="text-xs text-tm-text-3 mt-1">Please wait…</p>
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-xs text-tm-text-3 mb-1.5">
+                        <span>Progress</span>
+                        <span>{statsImportProgress}%</span>
+                      </div>
+                      <div className="h-2.5 bg-tm-surface-hover rounded-full overflow-hidden">
+                        <div className="h-full bg-secondary rounded-full transition-all duration-300 ease-out" style={{ width: `${statsImportProgress}%` }} />
+                      </div>
+                    </div>
+                    <div className="flex justify-between text-[10px] text-tm-text-3 px-1">
+                      {['Reading', 'Parsing', 'Matching', 'Complete'].map((s, i) => {
+                        const threshold = [10, 50, 85, 100][i]
+                        const done = statsImportProgress >= threshold
+                        return (
+                          <span key={s} className={`flex flex-col items-center gap-1 transition-colors ${done ? 'text-secondary font-semibold' : ''}`}>
+                            <span className={`w-3 h-3 rounded-full border-2 transition-all ${done ? 'bg-secondary border-secondary' : 'border-tm-border'}`} />
+                            {s}
+                          </span>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Phase 3 — preview */}
+                {showStatsPreview && !statsImporting && (
+                  <div className="space-y-4">
+                    {/* Summary chips */}
+                    <div className="flex flex-wrap gap-2">
+                      {(['exact', 'fuzzy', 'none'] as const).map(c => {
+                        const count = statsImportRows.filter(r => r.confidence === c).length
+                        if (!count) return null
+                        const cfg = { exact: { label: 'Matched', cls: 'bg-success/15 text-success border-success/30' }, fuzzy: { label: 'Fuzzy', cls: 'bg-warning/15 text-warning border-warning/30' }, none: { label: 'Not found', cls: 'bg-[#E05757]/15 text-[#E05757] border-[#E05757]/30' } }[c]
+                        return (
+                          <span key={c} className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${cfg.cls}`}>{count} {cfg.label}</span>
+                        )
+                      })}
+                      <span className="px-2.5 py-1 rounded-full text-xs font-semibold border bg-tm-surface-hover text-tm-text-3 border-tm-border">{statsImportRows.length} rows</span>
+                    </div>
+
+                    {/* Player rows with stats */}
+                    <div className="rounded-xl border border-tm-border overflow-hidden">
+                      <div className="text-[10px] font-semibold uppercase tracking-wide text-tm-text-3 bg-tm-surface-hover px-3 py-2 border-b border-tm-border grid grid-cols-[1fr_auto] gap-2">
+                        <span>Player</span>
+                        <span>Stats summary</span>
+                      </div>
+                      <div className="divide-y divide-tm-border max-h-64 overflow-y-auto">
+                        {statsImportRows.map((row, i) => (
+                          <div key={i} className="px-3 py-2.5 hover:bg-tm-surface-hover">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-1.5">
+                                  {row.confidence === 'exact' && <CheckCircle2 className="w-3.5 h-3.5 text-success flex-shrink-0" />}
+                                  {row.confidence === 'fuzzy' && <AlertCircle className="w-3.5 h-3.5 text-warning flex-shrink-0" />}
+                                  {row.confidence === 'none'  && <X className="w-3.5 h-3.5 text-[#E05757] flex-shrink-0" />}
+                                  <span className="text-sm font-medium text-tm-text-1 truncate">{row.name}</span>
+                                </div>
+                                {row.matchedPlayer && row.matchedPlayer.name.toLowerCase() !== row.name.toLowerCase() && (
+                                  <p className="text-[10px] text-tm-text-3 ml-5 truncate">&rarr; {row.matchedPlayer.name}</p>
+                                )}
+                              </div>
+                              <div className="flex gap-1.5 flex-shrink-0 flex-wrap justify-end">
+                                {[
+                                  { v: row.tackles_made, l: 'TM', c: 'text-success' },
+                                  { v: row.tackles_missed, l: 'Tmiss', c: 'text-[#E05757]' },
+                                  { v: row.ball_handling_errors, l: 'Err', c: 'text-warning' },
+                                  { v: row.ball_carries, l: 'Car', c: 'text-info' },
+                                  { v: row.tries_scored, l: 'Try', c: 'text-secondary' },
+                                  { v: row.minutes_played, l: 'Min', c: 'text-tm-text-2' },
+                                ].map(({ v, l, c }) => (
+                                  <span key={l} className="text-[10px] font-mono">
+                                    <span className={`font-semibold ${c}`}>{v}</span>
+                                    <span className="text-tm-text-3 ml-0.5">{l}</span>
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {statsImportRows.some(r => r.confidence === 'none') && (
+                      <p className="text-xs text-tm-text-3 bg-tm-surface-hover rounded-lg px-3 py-2 border border-tm-border">
+                        <AlertCircle className="w-3.5 h-3.5 inline mr-1 text-warning" />
+                        Unmatched players will be skipped. Check spelling or add them to the roster.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="p-5 border-t border-tm-border flex-shrink-0">
+                {!statsImporting && !showStatsPreview && (
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => statsImportFile && handleStatsCSVImport(statsImportFile)}
+                      disabled={!statsImportFile}
+                      className="flex-1 px-4 py-2.5 bg-secondary text-tm-on-secondary rounded-[6px] font-semibold text-sm hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Import
+                    </button>
+                    <button onClick={resetStatsImport} className="px-4 py-2.5 bg-tm-surface-hover text-tm-text-1 rounded-[6px] font-semibold text-sm border border-tm-border">
+                      Cancel
+                    </button>
+                  </div>
+                )}
+                {showStatsPreview && !statsImporting && (
+                  <div className="flex gap-3">
+                    <button
+                      onClick={applyStatsCSVToGrid}
+                      disabled={statsImportRows.filter(r => r.matchedPlayer).length === 0}
+                      className="flex-1 px-4 py-2.5 bg-success text-white rounded-[6px] font-semibold text-sm hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
+                    >
+                      <UserCheck className="w-4 h-4" />
+                      Fill {statsImportRows.filter(r => r.matchedPlayer).length} players
+                    </button>
+                    <button onClick={resetStatsImport} className="px-4 py-2.5 bg-tm-surface-hover text-tm-text-1 rounded-[6px] font-semibold text-sm border border-tm-border">
+                      Cancel
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>

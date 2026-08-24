@@ -103,6 +103,9 @@ export default function DataAdminDashboard() {
   const [playerStats, setPlayerStats] = useState<Record<string, PlayerStats>>({})
   const [saving, setSaving] = useState(false)
   const [matches, setMatches] = useState<any[]>([])
+  // Set of match ids that already have at least one player-stat row recorded,
+  // so we can flag played matches that are still missing their stats.
+  const [matchesWithStats, setMatchesWithStats] = useState<Set<string>>(new Set())
   const [selectedMatchForStats, setSelectedMatchForStats] = useState<string>('')
   const [teamSelections, setTeamSelections] = useState<any[]>([])
   const [loadingTeamSelection, setLoadingTeamSelection] = useState(false)
@@ -275,7 +278,7 @@ export default function DataAdminDashboard() {
           try {
             const { data: matchesData, error: matchesError } = await supabase
               .from('matches')
-              .select('id, match_date, opponent, venue, tournament_type, notes, physio_id, team_manager_id, coach_id')
+              .select('id, match_date, opponent, venue, tournament_type, status, notes, physio_id, team_manager_id, coach_id')
               .order('match_date', { ascending: false })
               .limit(100)
 
@@ -297,6 +300,17 @@ export default function DataAdminDashboard() {
             } else if (matchesData) {
               setMatches(matchesData)
               console.log('Loaded matches for viewing:', matchesData.length)
+            }
+
+            // Work out which of those matches already have player stats recorded,
+            // so the dashboard can flag played matches that still need stats.
+            try {
+              const { data: statRows } = await supabase
+                .from('match_stats')
+                .select('match_id')
+              setMatchesWithStats(new Set((statRows || []).map((r: any) => r.match_id)))
+            } catch (statErr) {
+              console.error('Error loading match_stats coverage:', statErr)
             }
           } catch (matchesErr) {
             console.error('Error in matches loading:', matchesErr)
@@ -465,6 +479,9 @@ export default function DataAdminDashboard() {
           .insert(statsToInsert)
 
         if (statsError) throw statsError
+
+        // This match now has stats — drop it from the "needs stats" alert.
+        setMatchesWithStats((prev) => new Set(prev).add(selectedMatchForStats))
       }
 
       alert('Match stats saved successfully!')
@@ -817,6 +834,30 @@ export default function DataAdminDashboard() {
     .filter((m: any) => m.match_date >= today)
     .sort((a: any, b: any) => a.match_date.localeCompare(b.match_date))[0]
 
+  // A match counts as "played but unrecorded" when its date has passed yet
+  // no player-stat rows exist for it. These are the matches the manager needs
+  // to be nudged about — nobody's captured the stats for them yet.
+  const playedMatchesMissingStats = matches.filter(
+    (m: any) => isActivityPast(m.match_date, null) && !matchesWithStats.has(m.id)
+  )
+
+  // Open the Enter Match Statistics modal pre-selected to a specific match.
+  const openStatsForMatch = (match: any) => {
+    setSelectedMatchForStats(match.id)
+    setMatchForm({
+      match_date: match.match_date,
+      opponent: match.opponent,
+      tournament_type: (match.tournament_type as any) || 'friendly',
+      venue: match.venue || '',
+      result: 'win',
+      score_our_team: '0',
+      score_opponent: '0',
+      notes: '',
+    })
+    setPlayerStats({})
+    setShowMatchForm(true)
+  }
+
   return (
     <Layout pageTitle="Team Manager Dashboard">
       <div className="space-y-6">
@@ -835,6 +876,53 @@ export default function DataAdminDashboard() {
           <StatCard title="Total Players" value={players.length} icon={Users} iconColor="bg-primary" href="/players" />
           <StatCard title="Matches Attended" value={staffMatchesAttended} icon={CheckCircle} iconColor="bg-primary" href="/fixtures" />
         </div>
+
+        {/* Alert: played matches with no stats recorded yet */}
+        {playedMatchesMissingStats.length > 0 && (
+          <div className="rounded-card border border-warning/40 bg-warning/10 p-4 sm:p-5">
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-lg bg-warning/20 flex items-center justify-center flex-shrink-0">
+                <AlertCircle className="w-5 h-5 text-warning" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-semibold text-tm-text-1">
+                  {playedMatchesMissingStats.length} played {playedMatchesMissingStats.length === 1 ? 'match has' : 'matches have'} no stats recorded
+                </h3>
+                <p className="text-xs text-tm-text-3 mt-0.5">
+                  These fixtures have already been played but no match or player statistics were entered. Record them so player performance and reports stay accurate.
+                </p>
+                <div className="mt-3 space-y-2">
+                  {playedMatchesMissingStats.slice(0, 5).map((m: any) => (
+                    <div
+                      key={m.id}
+                      className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between rounded-lg bg-tm-surface border border-tm-border px-3 py-2.5"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-tm-text-1 truncate">vs {m.opponent}</p>
+                        <p className="text-[11px] text-tm-text-3">
+                          {new Date(m.match_date).toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+                          {m.tournament_type ? ` · ${String(m.tournament_type).replace('_', ' ')}` : ''}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => openStatsForMatch(m)}
+                        className="px-3 py-1.5 bg-warning text-white rounded-[6px] text-xs font-semibold hover:opacity-90 transition-all inline-flex items-center justify-center gap-1.5 flex-shrink-0"
+                      >
+                        <BarChart3 className="w-3.5 h-3.5" />
+                        Enter stats
+                      </button>
+                    </div>
+                  ))}
+                  {playedMatchesMissingStats.length > 5 && (
+                    <p className="text-[11px] text-tm-text-3">
+                      +{playedMatchesMissingStats.length - 5} more — use the Match Statistics card below to record them.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Match Stats Entry Form Modal */}
         {showMatchForm && (
@@ -934,11 +1022,16 @@ export default function DataAdminDashboard() {
                         className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                       >
                         <option value="">Select a match...</option>
-                        {matches.map((match) => (
-                          <option key={match.id} value={match.id}>
-                            {new Date(match.match_date).toLocaleDateString()} - vs {match.opponent} ({match.tournament_type})
-                          </option>
-                        ))}
+                        {matches.map((match) => {
+                          const played = isActivityPast(match.match_date, null)
+                          const hasStats = matchesWithStats.has(match.id)
+                          const flag = played && !hasStats ? '  ⚠ needs stats' : hasStats ? '  ✓ recorded' : ''
+                          return (
+                            <option key={match.id} value={match.id}>
+                              {new Date(match.match_date).toLocaleDateString()} - vs {match.opponent} ({match.tournament_type}){flag}
+                            </option>
+                          )
+                        })}
                       </select>
                     </div>
                     <p className="text-sm text-primary">
@@ -1052,7 +1145,7 @@ export default function DataAdminDashboard() {
                 <div>
                   <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                     <h3 className="text-lg font-semibold text-tm-text-1">
-                      Player Statistics {selectedMatchForStats && '(Only players in selected team can have stats)'}
+                      Player Statistics {selectedMatchForStats && teamSelections.length > 0 && '(Only players in selected team can have stats)'}
                     </h3>
                     <button
                       onClick={() => setShowStatsImport(true)}
@@ -1062,11 +1155,18 @@ export default function DataAdminDashboard() {
                       Import CSV / Excel
                     </button>
                   </div>
-                  {selectedMatchForStats && (
+                  {selectedMatchForStats && teamSelections.length > 0 && (
                     <div className="mb-4 p-3 bg-warning/10 border border-warning/30 rounded-lg">
                       <p className="text-sm text-warning">
-                        <strong>Note:</strong> Match stats can only be entered for players who are in the selected team for this fixture. 
+                        <strong>Note:</strong> Match stats can only be entered for players who are in the selected team for this fixture.
                         Make sure the team has been selected in the Fixtures page first.
+                      </p>
+                    </div>
+                  )}
+                  {selectedMatchForStats && teamSelections.length === 0 && (
+                    <div className="mb-4 p-3 bg-info/10 border border-info/30 rounded-lg">
+                      <p className="text-sm text-info">
+                        <strong>No squad was selected for this fixture.</strong> You can enter stats for any player below, or import them from a CSV/Excel file.
                       </p>
                     </div>
                   )}
@@ -1096,10 +1196,18 @@ export default function DataAdminDashboard() {
                             tries_scored: '0',
                             minutes_played: '0',
                           }
-                          // Check if player is in selected team (if match is selected)
-                          const isInSelectedTeam = selectedMatchForStats 
-                            ? teamSelections.some((s: any) => s.player_id === player.user_id)
-                            : true // If no match selected, allow all players
+                          // Check if player is in selected team (if match is selected).
+                          // IMPORTANT: if a match was played but no squad was ever
+                          // selected for it (teamSelections empty), we must NOT
+                          // disable everyone — otherwise the manager can't enter
+                          // stats at all for those exact "played but unrecorded"
+                          // games. In that case allow every player, which also
+                          // matches the save logic (it accepts all players when no
+                          // team selection exists).
+                          const noSquadSelected = teamSelections.length === 0
+                          const isInSelectedTeam = !selectedMatchForStats || noSquadSelected
+                            ? true
+                            : teamSelections.some((s: any) => s.player_id === player.user_id)
                           
                           return (
                             <tr 

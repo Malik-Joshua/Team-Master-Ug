@@ -12,6 +12,7 @@ import { Users, Activity, BarChart3, Calendar, Trophy, Plus, X, Save, MapPin, Ch
 import { createClient } from '@/lib/supabase/client'
 import RefreshButton from '@/components/RefreshButton'
 import { isActivityPast } from '@/lib/utils'
+import { readTabularFile } from '@/lib/tabular-import'
 
 // Same helpers used by the admin/coach dashboards' "Next fixture" card, so
 // the team manager's version renders identically.
@@ -544,30 +545,22 @@ export default function DataAdminDashboard() {
     const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 
     try {
-      // Step 1 — read
+      // Step 1 — read (CSV, TSV, or Excel)
       setStatsImportStep('Reading file…')
       setStatsImportProgress(10)
-      const text: string = await new Promise((res, rej) => {
-        const fr = new FileReader()
-        fr.onload = (e) => res(e.target?.result as string)
-        fr.onerror = rej
-        fr.readAsText(file)
-      })
+      const grid = await readTabularFile(file)
       await sleep(300)
       setStatsImportProgress(25)
 
       // Step 2 — parse
       setStatsImportStep('Parsing player stats…')
       await sleep(200)
-      const lines = text.split('\n').map(l => l.trim()).filter(Boolean)
 
       // Detect header
       const HEADER_WORDS = ['player', 'name', 'tackle', 'carries', 'tries', 'minutes']
-      const firstLower = lines[0]?.toLowerCase() ?? ''
+      const firstLower = (grid[0]?.join(' ') ?? '').toLowerCase()
       const hasHeader = HEADER_WORDS.some(w => firstLower.includes(w))
-      const dataLines = hasHeader ? lines.slice(1) : lines
-
-      const STAT_FIELDS = ['tackles_made', 'tackles_missed', 'ball_handling_errors', 'ball_carries', 'tries_scored', 'minutes_played'] as const
+      const dataRows = hasHeader ? grid.slice(1) : grid
 
       type RawRow = {
         name: string
@@ -575,9 +568,7 @@ export default function DataAdminDashboard() {
         ball_carries: number; tries_scored: number; minutes_played: number
       }
       const rawRows: RawRow[] = []
-      for (const line of dataLines) {
-        const sep = line.includes('\t') ? '\t' : ','
-        const parts = line.split(sep).map(p => p.trim().replace(/^"|"$/g, ''))
+      for (const parts of dataRows) {
         if (!parts[0]) continue
         rawRows.push({
           name: parts[0],
@@ -626,7 +617,7 @@ export default function DataAdminDashboard() {
       setShowStatsPreview(true)
     } catch (err: any) {
       console.error('Stats CSV parse error', err)
-      alert(`Could not read CSV: ${err.message}`)
+      alert(`Could not read file: ${err.message}`)
     } finally {
       setStatsImporting(false)
     }
@@ -1068,7 +1059,7 @@ export default function DataAdminDashboard() {
                       className="px-3 py-1.5 bg-info text-white rounded-[6px] text-xs font-semibold hover:opacity-90 transition-all inline-flex items-center gap-1.5"
                     >
                       <Upload className="w-3.5 h-3.5" />
-                      Import CSV
+                      Import CSV / Excel
                     </button>
                   </div>
                   {selectedMatchForStats && (
@@ -1236,7 +1227,7 @@ export default function DataAdminDashboard() {
               <div className="p-5 border-b border-tm-border flex items-center justify-between flex-shrink-0">
                 <div>
                   <h2 className="text-lg font-bold text-tm-text-1">Import Player Stats</h2>
-                  <p className="text-xs text-tm-text-3 mt-0.5">Upload a CSV to auto-fill the stats grid</p>
+                  <p className="text-xs text-tm-text-3 mt-0.5">Upload a CSV or Excel file to auto-fill the stats grid</p>
                 </div>
                 <button onClick={resetStatsImport} disabled={statsImporting} className="modal-close-btn">
                   <X className="h-4 w-4" />
@@ -1251,14 +1242,14 @@ export default function DataAdminDashboard() {
                     <label className="flex flex-col items-center justify-center gap-3 border-2 border-dashed border-tm-border rounded-xl p-8 cursor-pointer hover:border-primary hover:bg-tm-surface-hover transition-all">
                       <Upload className="w-8 h-8 text-tm-text-3" />
                       <span className="text-sm font-medium text-tm-text-2">
-                        {statsImportFile ? statsImportFile.name : 'Tap to choose a CSV file'}
+                        {statsImportFile ? statsImportFile.name : 'Tap to choose a CSV or Excel file'}
                       </span>
                       {statsImportFile && (
                         <span className="text-xs text-tm-text-3">{(statsImportFile.size / 1024).toFixed(1)} KB</span>
                       )}
                       <input
                         type="file"
-                        accept=".csv,text/csv"
+                        accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
                         className="sr-only"
                         onChange={(e) => setStatsImportFile(e.target.files?.[0] || null)}
                       />
@@ -1266,7 +1257,7 @@ export default function DataAdminDashboard() {
 
                     <div className="bg-tm-surface-hover rounded-lg p-3 border border-tm-border">
                       <p className="text-xs font-semibold text-info mb-1.5 uppercase tracking-wide">
-                        CSV format
+                        CSV / Excel format
                       </p>
                       <p className="text-[11px] text-tm-text-3 leading-relaxed font-mono">
                         player, tackles_made, tackles_missed,<br />

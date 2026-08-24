@@ -6,6 +6,7 @@ import { Calendar, Users, Save, Download, Plus, Clock, MapPin, FileText, X, Uplo
 import { createClient } from '@/lib/supabase/client'
 import RefreshButton from '@/components/RefreshButton'
 import { generatePDFReport, generateExcelReport, generateCSVReport, downloadBlob, type ReportData } from '@/lib/report-export'
+import { readTabularFile } from '@/lib/tabular-import'
 
 interface Player {
   id: string
@@ -131,6 +132,10 @@ export default function TrainingPage() {
   }>>([])
   const [showCsvPreview, setShowCsvPreview] = useState(false)
   const [csvSessionId, setCsvSessionId] = useState('')
+  // When the import modal is opened via "Import Attendance" (manager flow),
+  // it's locked to CSV/Excel attendance only — the schedule TXT/PDF half of
+  // the modal is hidden, since a manager doesn't create session schedules.
+  const [attendanceOnly, setAttendanceOnly] = useState(false)
   const [showGymScheduleForm, setShowGymScheduleForm] = useState(false)
   const [gymScheduleForm, setGymScheduleForm] = useState({
     schedule_date: '',
@@ -647,28 +652,22 @@ export default function TrainingPage() {
     const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 
     try {
-      // Step 1 — read the raw file
+      // Step 1 — read the raw file (CSV, TSV, or Excel)
       setUploadStep('Reading file…')
       setUploadProgress(10)
-      const text: string = await new Promise((res, rej) => {
-        const fr = new FileReader()
-        fr.onload = (e) => res(e.target?.result as string)
-        fr.onerror = rej
-        fr.readAsText(file)
-      })
+      const grid = await readTabularFile(file)
       await sleep(300)
       setUploadProgress(25)
 
       // Step 2 — parse rows
       setUploadStep('Parsing rows…')
       await sleep(200)
-      const lines = text.split('\n').map(l => l.trim()).filter(Boolean)
 
-      // Detect header — skip if first line looks like column names
+      // Detect header — skip if first row looks like column names
       const HEADER_WORDS = ['player', 'name', 'status', 'attendance', 'note']
-      const firstLineLower = lines[0]?.toLowerCase() ?? ''
-      const hasHeader = HEADER_WORDS.some(w => firstLineLower.includes(w))
-      const dataLines = hasHeader ? lines.slice(1) : lines
+      const firstRowLower = (grid[0]?.join(' ') ?? '').toLowerCase()
+      const hasHeader = HEADER_WORDS.some(w => firstRowLower.includes(w))
+      const dataRows = hasHeader ? grid.slice(1) : grid
 
       // Normalise status string → AttendanceCode
       const normaliseStatus = (raw: string): AttendanceCode | null => {
@@ -682,9 +681,7 @@ export default function TrainingPage() {
 
       type RawRow = { name: string; status: AttendanceCode | null; notes: string }
       const rawRows: RawRow[] = []
-      for (const line of dataLines) {
-        const sep = line.includes('\t') ? '\t' : ','
-        const parts = line.split(sep).map(p => p.trim().replace(/^"|"$/g, ''))
+      for (const parts of dataRows) {
         if (!parts[0]) continue
         rawRows.push({
           name:   parts[0],
@@ -737,7 +734,7 @@ export default function TrainingPage() {
       }
     } catch (err: any) {
       console.error('CSV parse error', err)
-      alert(`Could not read CSV: ${err.message}`)
+      alert(`Could not read file: ${err.message}`)
     } finally {
       setUploading(false)
     }
@@ -778,6 +775,7 @@ export default function TrainingPage() {
     setUploadProgress(0)
     setUploadStep('')
     setUploading(false)
+    setAttendanceOnly(false)
   }
   // ─────────────────────────────────────────────────────────────────────────
 
@@ -787,8 +785,17 @@ export default function TrainingPage() {
       return
     }
 
-    // CSV files → player attendance import flow (progress bar + preview)
-    if (uploadFile.name.endsWith('.csv') || uploadFile.type === 'text/csv') {
+    // CSV / Excel files → player attendance import flow (progress bar +
+    // preview). In attendance-only mode (manager) everything routes here.
+    const nameLower = uploadFile.name.toLowerCase()
+    const isSpreadsheet =
+      nameLower.endsWith('.csv') ||
+      nameLower.endsWith('.xlsx') ||
+      nameLower.endsWith('.xls') ||
+      uploadFile.type === 'text/csv' ||
+      uploadFile.type.includes('spreadsheetml') ||
+      uploadFile.type === 'application/vnd.ms-excel'
+    if (attendanceOnly || isSpreadsheet) {
       await handleCsvImport(uploadFile)
       return
     }
@@ -1688,6 +1695,19 @@ export default function TrainingPage() {
                       </button>
                     </>
                   )}
+                  {/* Manager attendance import (coach reaches the same flow via
+                      the dual-mode "Import Schedule" modal, so this button is
+                      scoped to the manager to avoid two identical import
+                      buttons in the coach's header). */}
+                  {user?.role === 'data_admin' && (
+                    <button
+                      onClick={() => { setAttendanceOnly(true); setShowUploadForm(true) }}
+                      className="bg-info text-white px-4 py-2.5 rounded-[6px] text-sm font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center whitespace-nowrap"
+                    >
+                      <Upload className="w-4 h-4 mr-2" />
+                      Import Attendance
+                    </button>
+                  )}
                   <button
                     onClick={handleSave}
                     className="bg-success text-white px-4 py-2.5 rounded-[6px] text-sm font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center whitespace-nowrap"
@@ -1746,17 +1766,21 @@ export default function TrainingPage() {
           </div>
         </div>
 
-        {/* ── Import modal (Schedule TXT/PDF  OR  Attendance CSV) ── */}
-        {showUploadForm && user?.role === 'coach' && (
+        {/* ── Import modal (Schedule TXT/PDF  OR  Attendance CSV/Excel) ── */}
+        {showUploadForm && (user?.role === 'coach' || user?.role === 'data_admin') && (
           <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4 z-50 backdrop-blur-sm">
             <div className="bg-tm-surface rounded-t-2xl sm:rounded-card shadow-large w-full sm:max-w-2xl border border-tm-border max-h-[92vh] flex flex-col">
 
               {/* Header */}
               <div className="p-5 border-b border-tm-border flex items-center justify-between flex-shrink-0">
                 <div>
-                  <h2 className="text-xl font-bold text-tm-text-1">Import File</h2>
+                  <h2 className="text-xl font-bold text-tm-text-1">
+                    {attendanceOnly ? 'Import Attendance' : 'Import File'}
+                  </h2>
                   <p className="text-xs text-tm-text-3 mt-0.5">
-                    CSV → player attendance &nbsp;·&nbsp; TXT/PDF → session schedule
+                    {attendanceOnly
+                      ? 'Upload a CSV or Excel file to auto-fill the attendance grid'
+                      : 'CSV/Excel → player attendance · TXT/PDF → session schedule'}
                   </p>
                 </div>
                 <button onClick={resetUploadModal} disabled={uploading} className="modal-close-btn">
@@ -1773,7 +1797,7 @@ export default function TrainingPage() {
                     <label className="flex flex-col items-center justify-center gap-3 border-2 border-dashed border-tm-border rounded-xl p-8 cursor-pointer hover:border-primary hover:bg-tm-surface-hover transition-all">
                       <Upload className="w-8 h-8 text-tm-text-3" />
                       <span className="text-sm font-medium text-tm-text-2">
-                        {uploadFile ? uploadFile.name : 'Tap to choose a file'}
+                        {uploadFile ? uploadFile.name : (attendanceOnly ? 'Tap to choose a CSV or Excel file' : 'Tap to choose a file')}
                       </span>
                       {uploadFile && (
                         <span className="text-xs text-tm-text-3">
@@ -1782,17 +1806,19 @@ export default function TrainingPage() {
                       )}
                       <input
                         type="file"
-                        accept=".csv,.txt,.pdf,text/csv,text/plain,application/pdf"
+                        accept={attendanceOnly
+                          ? '.csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel'
+                          : '.csv,.xlsx,.xls,.txt,.pdf,text/csv,text/plain,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel'}
                         className="sr-only"
                         onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
                       />
                     </label>
 
                     {/* Format guide */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className={`grid grid-cols-1 gap-3 ${attendanceOnly ? '' : 'sm:grid-cols-2'}`}>
                       <div className="bg-tm-surface-hover rounded-lg p-3 border border-tm-border">
                         <p className="text-xs font-semibold text-secondary mb-1.5 uppercase tracking-wide">
-                          CSV — attendance import
+                          CSV / Excel — attendance import
                         </p>
                         <p className="text-[11px] text-tm-text-3 leading-relaxed font-mono">
                           player_name, status, notes<br />
@@ -1805,19 +1831,21 @@ export default function TrainingPage() {
                           Status: P Present · A Absent · X Excused · I Injured
                         </p>
                       </div>
-                      <div className="bg-tm-surface-hover rounded-lg p-3 border border-tm-border">
-                        <p className="text-xs font-semibold text-info mb-1.5 uppercase tracking-wide">
-                          TXT/PDF — session schedule
-                        </p>
-                        <p className="text-[11px] text-tm-text-3 leading-relaxed font-mono">
-                          2024-12-15, 18:00, Pitch, Scrums<br />
-                          2024-12-18, 09:00, Gym, Conditioning<br />
-                          2024-12-22 | 17:30 | Pitch
-                        </p>
-                        <p className="text-[10px] text-tm-text-3 mt-2">
-                          One session per line, comma or pipe separated
-                        </p>
-                      </div>
+                      {!attendanceOnly && (
+                        <div className="bg-tm-surface-hover rounded-lg p-3 border border-tm-border">
+                          <p className="text-xs font-semibold text-info mb-1.5 uppercase tracking-wide">
+                            TXT/PDF — session schedule
+                          </p>
+                          <p className="text-[11px] text-tm-text-3 leading-relaxed font-mono">
+                            2024-12-15, 18:00, Pitch, Scrums<br />
+                            2024-12-18, 09:00, Gym, Conditioning<br />
+                            2024-12-22 | 17:30 | Pitch
+                          </p>
+                          <p className="text-[10px] text-tm-text-3 mt-2">
+                            One session per line, comma or pipe separated
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </>
                 )}

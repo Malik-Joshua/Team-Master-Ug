@@ -155,6 +155,13 @@ export default function FixturesPage() {
   const [availableCoaches, setAvailableCoaches] = useState<any[]>([])
   const [creatingFixture, setCreatingFixture] = useState(false)
   const [deletingFixtureId, setDeletingFixtureId] = useState<string | null>(null)
+  // Sevens-tournament fields — shown only when tournament_type === 'sevens'.
+  // Choosing Sevens creates a whole tournament (3 group games + tracker)
+  // rather than a single fixture.
+  const [sevensName, setSevensName] = useState('')
+  const [sevensDay2, setSevensDay2] = useState('')
+  const [sevensOpponents, setSevensOpponents] = useState<string[]>(['', '', ''])
+  const [sevensSquad, setSevensSquad] = useState<string[]>([])
   const [matchForm, setMatchForm] = useState<MatchForm>({
     match_date: '',
     opponent: '',
@@ -894,7 +901,58 @@ export default function FixturesPage() {
   }
 
   // Handlers for data_admin
+  // Choosing "Sevens" creates a full tournament (3 group games + Day-2 tracker)
+  // instead of a single fixture — the manager enters the 3 group opponents and
+  // picks one squad for the whole tournament here.
+  const handleCreateSevensTournament = async () => {
+    if (!fixtureForm.match_date) {
+      alert('Please choose the Day 1 date.')
+      return
+    }
+    if (!sevensName.trim()) {
+      alert('Please give the tournament a name.')
+      return
+    }
+    const opponents = sevensOpponents.map((o) => o.trim())
+    if (opponents.filter(Boolean).length < 3) {
+      alert('Please enter all 3 group-stage opponents.')
+      return
+    }
+    setCreatingFixture(true)
+    try {
+      const res = await fetch('/api/tournaments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: sevensName.trim(),
+          venue: fixtureForm.venue || null,
+          day1_date: fixtureForm.match_date,
+          day2_date: sevensDay2 || null,
+          squad: sevensSquad,
+          groupOpponents: opponents,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to create tournament')
+      alert('Sevens tournament created! Track it and record each game from the Team Manager dashboard → Sevens Tournaments.')
+      setShowCreateFixtureForm(false)
+      setSevensName(''); setSevensDay2(''); setSevensOpponents(['', '', '']); setSevensSquad([])
+      setFixtureForm({
+        match_date: '', opponent: '', tournament_type: 'friendly', custom_tournament_type: '',
+        squad_size: '23', venue: '', notes: '', physio_id: '', team_manager_id: '', coach_id: '',
+      })
+    } catch (err: any) {
+      alert(`Error: ${err.message}`)
+    } finally {
+      setCreatingFixture(false)
+    }
+  }
+
   const handleCreateFixture = async () => {
+    if (fixtureForm.tournament_type === 'sevens') {
+      await handleCreateSevensTournament()
+      return
+    }
     if (!fixtureForm.match_date || !fixtureForm.opponent) {
       alert('Please fill in match date and opponent')
       return
@@ -2677,7 +2735,9 @@ export default function FixturesPage() {
                 <div className="p-6 space-y-4" style={{ maxHeight: 'calc(90vh - 120px)', overflowY: 'auto' }}>
                   <div className="bg-tm-surface-hover rounded-lg p-4 border border-tm-border mb-4">
                     <p className="text-sm text-primary">
-                      <strong>Note:</strong> After creating a fixture, the coach will be able to select the team for this match on the Fixtures page.
+                      <strong>Note:</strong> {fixtureForm.tournament_type === 'sevens'
+                        ? 'Choosing Sevens creates a whole tournament — 3 group games now, with Day 2 knockouts added as you record results. Track it from the dashboard → Sevens Tournaments.'
+                        : 'After creating a fixture, the coach will be able to select the team for this match on the Fixtures page.'}
                     </p>
                   </div>
 
@@ -2694,19 +2754,21 @@ export default function FixturesPage() {
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-tm-text-3 mb-2">
-                      Opponent <span className="text-[#E05757]">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={fixtureForm.opponent}
-                      onChange={(e) => setFixtureForm({ ...fixtureForm, opponent: e.target.value })}
-                      placeholder="e.g., Heathens RFC"
-                      className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
-                      required
-                    />
-                  </div>
+                  {fixtureForm.tournament_type !== 'sevens' && (
+                    <div>
+                      <label className="block text-sm font-medium text-tm-text-3 mb-2">
+                        Opponent <span className="text-[#E05757]">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={fixtureForm.opponent}
+                        onChange={(e) => setFixtureForm({ ...fixtureForm, opponent: e.target.value })}
+                        placeholder="e.g., Heathens RFC"
+                        className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                        required
+                      />
+                    </div>
+                  )}
 
                   <div>
                     <label className="block text-sm font-medium text-tm-text-3 mb-2">
@@ -2747,23 +2809,101 @@ export default function FixturesPage() {
                     </div>
                   )}
 
-                  <div>
-                    <label className="block text-sm font-medium text-tm-text-3 mb-2">
-                      Squad Size <span className="font-normal text-tm-text-3">(total players allowed)</span>
-                    </label>
-                    <input
-                      type="number"
-                      min={1}
-                      value={fixtureForm.squad_size}
-                      onChange={(e) => setFixtureForm({ ...fixtureForm, squad_size: e.target.value })}
-                      placeholder="e.g., 23 for 15s, 12 for Sevens"
-                      className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
-                    />
-                    <p className="mt-1 text-xs text-tm-text-3">
-                      A squad of 12 or fewer switches team selection and the pitch view to a
-                      compact (Sevens-style) format — 7 players on the field instead of 15.
-                    </p>
-                  </div>
+                  {/* ── Sevens tournament setup ── */}
+                  {fixtureForm.tournament_type === 'sevens' && (
+                    <div className="space-y-4 rounded-lg border border-info/40 bg-info/5 p-4">
+                      <p className="text-xs text-info font-medium">
+                        Sevens is a 2-day tournament. Enter your 3 group-stage opponents below — Day 2 knockout
+                        games get added in the tracker as you record results.
+                      </p>
+                      <div>
+                        <label className="block text-sm font-medium text-tm-text-3 mb-2">
+                          Tournament Name <span className="text-[#E05757]">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={sevensName}
+                          onChange={(e) => setSevensName(e.target.value)}
+                          placeholder="e.g., Rujumba Sevens 2026"
+                          className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-tm-text-3 mb-2">
+                          Group-stage opponents <span className="text-[#E05757]">*</span> <span className="font-normal text-tm-text-3">(3 games, Day 1)</span>
+                        </label>
+                        <div className="space-y-2">
+                          {[0, 1, 2].map((i) => (
+                            <input
+                              key={i}
+                              type="text"
+                              value={sevensOpponents[i]}
+                              onChange={(e) => setSevensOpponents((prev) => prev.map((o, idx) => idx === i ? e.target.value : o))}
+                              placeholder={`Group game ${i + 1} — opponent`}
+                              className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-tm-text-3 mb-2">
+                          Day 2 date <span className="font-normal text-tm-text-3">(knockouts)</span>
+                        </label>
+                        <input
+                          type="date"
+                          value={sevensDay2}
+                          onChange={(e) => setSevensDay2(e.target.value)}
+                          className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                        />
+                      </div>
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <label className="text-sm font-medium text-tm-text-3">
+                            Squad <span className="font-normal">({sevensSquad.length} selected)</span>
+                          </label>
+                          <span className="text-[11px] text-tm-text-3">Applies to all games</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-1.5 max-h-52 overflow-y-auto p-1 rounded-lg border border-tm-border">
+                          {players.map((pl: any) => {
+                            const on = sevensSquad.includes(pl.user_id)
+                            return (
+                              <button
+                                key={pl.user_id}
+                                type="button"
+                                onClick={() => setSevensSquad((prev) => on ? prev.filter((x) => x !== pl.user_id) : [...prev, pl.user_id])}
+                                className={`px-2.5 py-1.5 rounded-md text-xs font-medium text-left truncate transition-all border ${on ? 'bg-secondary text-tm-on-secondary border-secondary' : 'bg-tm-surface text-tm-text-2 border-tm-border hover:border-primary'}`}
+                              >
+                                {on ? '✓ ' : ''}{pl.name}
+                              </button>
+                            )
+                          })}
+                          {players.length === 0 && (
+                            <p className="text-xs text-tm-text-3 col-span-2 p-2">No players loaded.</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {fixtureForm.tournament_type !== 'sevens' && (
+                    <div>
+                      <label className="block text-sm font-medium text-tm-text-3 mb-2">
+                        Squad Size <span className="font-normal text-tm-text-3">(total players allowed)</span>
+                      </label>
+                      <input
+                        type="number"
+                        min={1}
+                        value={fixtureForm.squad_size}
+                        onChange={(e) => setFixtureForm({ ...fixtureForm, squad_size: e.target.value })}
+                        placeholder="e.g., 23 for 15s, 12 for Sevens"
+                        className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                      />
+                      <p className="mt-1 text-xs text-tm-text-3">
+                        A squad of 12 or fewer switches team selection and the pitch view to a
+                        compact (Sevens-style) format — 7 players on the field instead of 15.
+                      </p>
+                    </div>
+                  )}
 
                   <div>
                     <label className="block text-sm font-medium text-tm-text-3 mb-2">Venue</label>
@@ -2855,7 +2995,7 @@ export default function FixturesPage() {
                       className="flex-1 px-6 py-3 bg-tm-secondary text-tm-on-secondary rounded-[6px] hover:opacity-90 transition-all duration-300 font-semibold shadow-soft hover:shadow-medium disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center"
                     >
                       <Save className="w-5 h-5 mr-2" />
-                      {creatingFixture ? 'Creating...' : 'Create Fixture'}
+                      {creatingFixture ? 'Creating...' : fixtureForm.tournament_type === 'sevens' ? 'Create Tournament' : 'Create Fixture'}
                     </button>
                     <button
                       onClick={() => {

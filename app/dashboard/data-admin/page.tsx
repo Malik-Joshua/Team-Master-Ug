@@ -130,6 +130,33 @@ export default function DataAdminDashboard() {
   }>>([])
   const [showStatsPreview, setShowStatsPreview] = useState(false)
 
+  // ── Sevens tournaments ──
+  const [tournaments, setTournaments] = useState<any[]>([])
+  const [showTournaments, setShowTournaments] = useState(false)
+  const [activeTournamentId, setActiveTournamentId] = useState<string | null>(null)
+  // When entering stats for a tournament game we hide the tracker, then pop it
+  // back open (and reload) once the stats modal closes.
+  const [reopenTrackerFor, setReopenTrackerFor] = useState<string | null>(null)
+  const [tournamentsUnavailable, setTournamentsUnavailable] = useState(false)
+  // Opponent typed in when adding the next knockout / placement game.
+  const [advanceOpponent, setAdvanceOpponent] = useState('')
+
+  const loadTournaments = useCallback(async () => {
+    try {
+      const res = await fetch('/api/tournaments')
+      const data = await res.json()
+      if (!res.ok) {
+        if (data.needsMigration) setTournamentsUnavailable(true)
+        console.error('Error loading tournaments:', data.error)
+        return
+      }
+      setTournaments(data.tournaments || [])
+      setTournamentsUnavailable(false)
+    } catch (err) {
+      console.error('Error loading tournaments:', err)
+    }
+  }, [])
+
   const loadData = useCallback(async () => {
       const supabase = createClient()
       const { data: { user: authUser } } = await supabase.auth.getUser()
@@ -322,7 +349,21 @@ export default function DataAdminDashboard() {
 
   useEffect(() => {
     loadData()
-  }, [loadData])
+    loadTournaments()
+  }, [loadData, loadTournaments])
+
+  // Reopen the tournament tracker (and refresh) whenever the stats modal
+  // closes after being launched from a tournament game.
+  useEffect(() => {
+    if (!showMatchForm && reopenTrackerFor) {
+      const id = reopenTrackerFor
+      setReopenTrackerFor(null)
+      setActiveTournamentId(id)
+      setShowTournaments(true)
+      loadTournaments()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showMatchForm])
 
   // Load the club's slogan for the "Next fixture" card. Isolated so a
   // failure here never blocks the rest of the dashboard.
@@ -849,13 +890,377 @@ export default function DataAdminDashboard() {
       opponent: match.opponent,
       tournament_type: (match.tournament_type as any) || 'friendly',
       venue: match.venue || '',
-      result: 'win',
-      score_our_team: '0',
-      score_opponent: '0',
-      notes: '',
+      result: (match.result as any) || 'win',
+      score_our_team: String(match.score_our_team ?? 0),
+      score_opponent: String(match.score_opponent ?? 0),
+      notes: match.notes || '',
     })
     setPlayerStats({})
     setShowMatchForm(true)
+  }
+
+  // ── Tournament progression helpers ──────────────────────────────────────
+  const STAGE_LABEL: Record<string, string> = {
+    group: 'Group', quarter: 'Quarter-final', semi: 'Semi-final', final: 'Final', placement: 'Placement',
+  }
+
+  // Given a tournament (with .games and .group_outcome), work out what the
+  // manager needs to do next. Drives the tracker's prompts & buttons.
+  const getProgress = (t: any) => {
+    const games = [...(t.games || [])].sort((a, b) => (a.game_order || 0) - (b.game_order || 0))
+    const group = games.filter((g) => g.stage === 'group')
+    const knockout = games.filter((g) => g.stage !== 'group')
+    const groupComplete = group.length >= 3 && group.every((g) => g.result)
+    const wins = games.filter((g) => g.result === 'win').length
+    const losses = games.filter((g) => g.result === 'loss').length
+    const latest = knockout.length ? knockout[knockout.length - 1] : null
+
+    let phase: 'group' | 'branch' | 'awaiting_result' | 'advance' | 'done' = 'group'
+    let next: { stage: string; bracket: string | null; order: number } | null = null
+
+    if (!groupComplete) {
+      phase = 'group'
+    } else if (!t.group_outcome) {
+      phase = 'branch'
+    } else if (!latest) {
+      // group done + bracket chosen but no QF yet
+      phase = 'advance'
+      next = { stage: 'quarter', bracket: t.group_outcome, order: 4 }
+    } else if (!latest.result) {
+      phase = 'awaiting_result'
+    } else if (latest.stage === 'final' || (latest.game_order || 0) >= 6) {
+      phase = 'done'
+    } else {
+      phase = 'advance'
+      const order = (latest.game_order || 3) + 1
+      if (latest.stage === 'quarter') {
+        next = latest.result === 'win'
+          ? { stage: 'semi', bracket: t.group_outcome, order }
+          : { stage: 'placement', bracket: 'placement', order }
+      } else if (latest.stage === 'semi') {
+        next = latest.result === 'win'
+          ? { stage: 'final', bracket: t.group_outcome, order }
+          : { stage: 'placement', bracket: 'placement', order }
+      } else {
+        next = { stage: 'placement', bracket: 'placement', order }
+      }
+    }
+    return { games, group, knockout, groupComplete, wins, losses, latest, phase, next }
+  }
+
+  const patchTournament = async (id: string, patch: any) => {
+    const res = await fetch(`/api/tournaments/${id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch),
+    })
+    if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Update failed') }
+  }
+
+  const addTournamentGame = async (id: string, slot: { stage: string; bracket: string | null; order: number }, opponent?: string) => {
+    const res = await fetch(`/api/tournaments/${id}/games`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stage: slot.stage, bracket: slot.bracket, day_number: 2, game_order: slot.order, opponent: opponent?.trim() || undefined }),
+    })
+    if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Could not add game') }
+  }
+
+  const handleSetGroupOutcome = async (id: string, outcome: 'cup' | 'challenger') => {
+    try {
+      await patchTournament(id, { group_outcome: outcome, status: 'in_progress' })
+      await addTournamentGame(id, { stage: 'quarter', bracket: outcome, order: 4 }, advanceOpponent)
+      setAdvanceOpponent('')
+      await loadTournaments()
+    } catch (err: any) { alert(`Error: ${err.message}`) }
+  }
+
+  const handleAdvance = async (id: string, slot: { stage: string; bracket: string | null; order: number }) => {
+    try {
+      await addTournamentGame(id, slot, advanceOpponent)
+      setAdvanceOpponent('')
+      await loadTournaments()
+    } catch (err: any) { alert(`Error: ${err.message}`) }
+  }
+
+  const handleCompleteTournament = async (id: string, placement: string) => {
+    try {
+      await patchTournament(id, { final_placement: placement, status: 'completed' })
+      await loadTournaments()
+    } catch (err: any) { alert(`Error: ${err.message}`) }
+  }
+
+  const handleDeleteTournament = async (id: string) => {
+    if (!confirm('Delete this tournament and all its games/stats? This cannot be undone.')) return
+    try {
+      const res = await fetch(`/api/tournaments/${id}`, { method: 'DELETE' })
+      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Delete failed') }
+      if (activeTournamentId === id) setActiveTournamentId(null)
+      await loadTournaments()
+    } catch (err: any) { alert(`Error: ${err.message}`) }
+  }
+
+  // Enter stats for a tournament game: hide the tracker, open the stats modal;
+  // the effect below reopens the tracker once the stats modal closes.
+  const openStatsForTournamentGame = (tournamentId: string, game: any) => {
+    setReopenTrackerFor(tournamentId)
+    setShowTournaments(false)
+    openStatsForMatch(game)
+  }
+
+  const activeTournament = tournaments.find((t) => t.id === activeTournamentId) || null
+
+  const gameResultBadge = (g: any) => {
+    if (!g.result) return <span className="text-[11px] text-tm-text-3">Not recorded</span>
+    const map: Record<string, string> = {
+      win: 'bg-success/15 text-success', loss: 'bg-[#E05757]/15 text-[#E05757]', draw: 'bg-tm-surface-hover text-tm-text-2',
+    }
+    return (
+      <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${map[g.result] || ''}`}>
+        {g.result === 'win' ? 'Won' : g.result === 'loss' ? 'Lost' : 'Draw'} {g.score_our_team}–{g.score_opponent}
+      </span>
+    )
+  }
+
+  const renderGameCard = (t: any, g: any) => {
+    const title = g.stage === 'group'
+      ? `Group Game ${g.game_order}`
+      : `${STAGE_LABEL[g.stage] || g.stage}${g.bracket && g.bracket !== 'placement' ? ` · ${g.bracket === 'cup' ? 'Cup' : 'Challenger'}` : ''}`
+    return (
+      <div key={g.id} className="flex items-center justify-between gap-2 rounded-lg bg-tm-surface border border-tm-border px-3 py-2.5">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-tm-text-1 truncate">{title}</p>
+          <p className="text-[11px] text-tm-text-3 truncate">
+            {g.opponent && !g.opponent.startsWith('Group Game') && g.opponent !== 'TBD' ? `vs ${g.opponent}` : 'Opponent TBD'}
+            {'  ·  '}{gameResultBadge(g)}
+          </p>
+        </div>
+        <button
+          onClick={() => openStatsForTournamentGame(t.id, g)}
+          className="px-3 py-1.5 rounded-[6px] text-xs font-semibold inline-flex items-center gap-1.5 flex-shrink-0 bg-secondary text-tm-on-secondary hover:opacity-90 transition-all"
+        >
+          <BarChart3 className="w-3.5 h-3.5" />
+          {g.result ? 'Edit' : 'Record'}
+        </button>
+      </div>
+    )
+  }
+
+  const renderTracker = (t: any) => {
+    const p = getProgress(t)
+    return (
+      <div className="space-y-5">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <button onClick={() => setActiveTournamentId(null)} className="text-[12px] text-tm-text-3 hover:text-tm-text-1 mb-1 inline-flex items-center gap-1">
+              ← All tournaments
+            </button>
+            <h3 className="text-lg font-bold text-tm-text-1 truncate">{t.name}</h3>
+            <p className="text-[12px] text-tm-text-3">
+              {t.venue ? `${t.venue} · ` : ''}
+              {new Date(t.day1_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
+              {t.day2_date ? ` – ${new Date(t.day2_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}
+            </p>
+          </div>
+          <div className="flex flex-col items-end gap-1 flex-shrink-0">
+            <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${t.status === 'completed' ? 'bg-success/15 text-success' : t.status === 'in_progress' ? 'bg-warning/15 text-warning' : 'bg-tm-surface-hover text-tm-text-3'}`}>
+              {t.status === 'in_progress' ? 'In progress' : t.status === 'completed' ? 'Completed' : 'Upcoming'}
+            </span>
+            <span className="text-[11px] text-tm-text-3">Won {p.wins} · Lost {p.losses}</span>
+          </div>
+        </div>
+
+        {t.final_placement && (
+          <div className="rounded-lg bg-success/10 border border-success/30 px-3 py-2 flex items-center gap-2">
+            <Trophy className="w-4 h-4 text-success flex-shrink-0" />
+            <span className="text-sm font-semibold text-tm-text-1">Final result: {t.final_placement}</span>
+          </div>
+        )}
+
+        {/* Day 1 — Group stage */}
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-tm-text-3 mb-2">Day 1 · Group stage</p>
+          <div className="space-y-2">
+            {p.group.map((g) => renderGameCard(t, g))}
+          </div>
+        </div>
+
+        {/* Branch prompt */}
+        {p.phase === 'branch' && (
+          <div className="rounded-lg bg-info/10 border border-info/30 p-3">
+            <p className="text-sm font-semibold text-tm-text-1 mb-2">How did you finish the group?</p>
+            <p className="text-[12px] text-tm-text-3 mb-3">This decides your Day 2 path and creates your Quarter-final.</p>
+            <input
+              type="text"
+              value={advanceOpponent}
+              onChange={(e) => setAdvanceOpponent(e.target.value)}
+              placeholder="Quarter-final opponent (optional)"
+              className="w-full tm-input rounded-lg px-3 py-2 text-sm mb-2"
+            />
+            <div className="flex gap-2">
+              <button onClick={() => handleSetGroupOutcome(t.id, 'cup')} className="flex-1 px-3 py-2 bg-secondary text-tm-on-secondary rounded-[6px] text-sm font-semibold hover:opacity-90">
+                Top 2 → Cup
+              </button>
+              <button onClick={() => handleSetGroupOutcome(t.id, 'challenger')} className="flex-1 px-3 py-2 bg-info text-white rounded-[6px] text-sm font-semibold hover:opacity-90">
+                Below 2 → Challenger
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Day 2 — knockout / placement */}
+        {p.knockout.length > 0 && (
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-tm-text-3 mb-2">
+              Day 2 · {t.group_outcome === 'cup' ? 'Cup' : 'Challenger'} path
+            </p>
+            <div className="space-y-2">
+              {p.knockout.map((g) => renderGameCard(t, g))}
+            </div>
+          </div>
+        )}
+
+        {/* Advance / next-game guidance */}
+        {p.phase === 'awaiting_result' && (
+          <div className="rounded-lg bg-warning/10 border border-warning/30 px-3 py-2.5">
+            <p className="text-[12px] text-warning">
+              <AlertCircle className="w-3.5 h-3.5 inline mr-1" />
+              Record the result of your last game to unlock the next one.
+            </p>
+          </div>
+        )}
+        {p.phase === 'advance' && p.next && (
+          <div className="rounded-lg bg-tm-surface-hover border border-tm-border p-3">
+            <p className="text-sm font-medium text-tm-text-1 mb-2">
+              Next up: <span className="font-semibold">{STAGE_LABEL[p.next.stage]}</span>
+              {p.next.bracket && p.next.bracket !== 'placement' ? ` (${p.next.bracket === 'cup' ? 'Cup' : 'Challenger'})` : p.next.stage === 'placement' ? ' (placement playoff)' : ''}
+            </p>
+            <input
+              type="text"
+              value={advanceOpponent}
+              onChange={(e) => setAdvanceOpponent(e.target.value)}
+              placeholder="Opponent for this game (optional)"
+              className="w-full tm-input rounded-lg px-3 py-2 text-sm mb-2"
+            />
+            <div className="flex flex-wrap gap-2">
+              <button onClick={() => handleAdvance(t.id, p.next!)} className="px-3 py-2 bg-secondary text-tm-on-secondary rounded-[6px] text-sm font-semibold hover:opacity-90 inline-flex items-center gap-1.5">
+                <Plus className="w-4 h-4" /> Add {STAGE_LABEL[p.next.stage]}
+              </button>
+              {p.next.stage !== 'placement' && (
+                <button onClick={() => handleAdvance(t.id, { stage: 'placement', bracket: 'placement', order: p.next!.order })} className="px-3 py-2 bg-tm-surface text-tm-text-1 border border-tm-border rounded-[6px] text-sm font-semibold hover:bg-tm-surface-hover">
+                  Add placement instead
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Completion */}
+        {(p.phase === 'done' || p.knockout.length >= 3) && t.status !== 'completed' && (
+          <div className="rounded-lg bg-info/10 border border-info/30 p-3">
+            <p className="text-sm font-semibold text-tm-text-1 mb-2">Wrap up the tournament</p>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                id={`placement-${t.id}`}
+                type="text"
+                placeholder="Final placement, e.g. Cup Winners, 5th"
+                defaultValue={t.final_placement || ''}
+                className="flex-1 tm-input rounded-lg px-3 py-2 text-sm"
+              />
+              <button
+                onClick={() => {
+                  const el = document.getElementById(`placement-${t.id}`) as HTMLInputElement | null
+                  handleCompleteTournament(t.id, el?.value?.trim() || 'Completed')
+                }}
+                className="px-4 py-2 bg-success text-white rounded-[6px] text-sm font-semibold hover:opacity-90 inline-flex items-center justify-center gap-1.5"
+              >
+                <CheckCircle className="w-4 h-4" /> Mark completed
+              </button>
+            </div>
+          </div>
+        )}
+
+        <button onClick={() => handleDeleteTournament(t.id)} className="text-[12px] text-[#E05757] hover:underline">
+          Delete tournament
+        </button>
+      </div>
+    )
+  }
+
+  const renderTournamentsModal = () => {
+    if (!showTournaments) return null
+    return (
+      <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4 z-50 backdrop-blur-sm">
+        <div className="bg-tm-surface rounded-t-2xl sm:rounded-card shadow-large w-full sm:max-w-lg border border-tm-border max-h-[92vh] flex flex-col">
+          <div className="p-5 border-b border-tm-border flex items-center justify-between flex-shrink-0">
+            <div>
+              <h2 className="text-lg font-bold text-tm-text-1 flex items-center gap-2">
+                <Trophy className="w-5 h-5 text-info" /> Sevens Tournaments
+              </h2>
+              <p className="text-xs text-tm-text-3 mt-0.5">Group stage → Cup/Challenger → knockouts</p>
+            </div>
+            <button onClick={() => { setShowTournaments(false); setActiveTournamentId(null) }} className="modal-close-btn">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="p-5 overflow-y-auto flex-1">
+            {tournamentsUnavailable ? (
+              <div className="text-center py-8">
+                <AlertCircle className="w-10 h-10 text-warning mx-auto mb-3" />
+                <p className="text-sm font-semibold text-tm-text-1 mb-1">Tournaments aren&apos;t enabled yet</p>
+                <p className="text-xs text-tm-text-3">Ask your admin to run database migration 048 in Supabase, then reload.</p>
+              </div>
+            ) : activeTournament ? (
+              renderTracker(activeTournament)
+            ) : (
+              <div className="space-y-3">
+                {tournaments.length === 0 && (
+                  <div className="text-center py-8">
+                    <Trophy className="w-10 h-10 text-tm-text-3 mx-auto mb-3" />
+                    <p className="text-sm text-tm-text-3 mb-1">No tournaments yet.</p>
+                    <p className="text-xs text-tm-text-3">Create one from the <span className="font-semibold text-tm-text-2">Fixtures</span> page — hit <span className="font-semibold text-tm-text-2">Create Fixture</span> and choose <span className="font-semibold text-tm-text-2">Sevens</span>.</p>
+                  </div>
+                )}
+                {tournaments.map((t) => {
+                  const p = getProgress(t)
+                  return (
+                    <button
+                      key={t.id}
+                      onClick={() => setActiveTournamentId(t.id)}
+                      className="w-full text-left rounded-lg bg-tm-surface-hover border border-tm-border px-3 py-3 hover:border-primary transition-all"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-tm-text-1 truncate">{t.name}</p>
+                          <p className="text-[11px] text-tm-text-3">
+                            {new Date(t.day1_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                            {' · '}Won {p.wins} · Lost {p.losses}
+                            {t.final_placement ? ` · ${t.final_placement}` : ''}
+                          </p>
+                        </div>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold flex-shrink-0 ${t.status === 'completed' ? 'bg-success/15 text-success' : t.status === 'in_progress' ? 'bg-warning/15 text-warning' : 'bg-tm-surface text-tm-text-3 border border-tm-border'}`}>
+                          {t.status === 'in_progress' ? 'In progress' : t.status === 'completed' ? 'Done' : 'Upcoming'}
+                        </span>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+          {!activeTournament && !tournamentsUnavailable && (
+            <div className="p-5 border-t border-tm-border flex-shrink-0">
+              <Link
+                href="/fixtures"
+                className="w-full px-4 py-2.5 bg-info text-white rounded-[6px] font-semibold text-sm hover:opacity-90 inline-flex items-center justify-center gap-2"
+              >
+                <Plus className="w-4 h-4" /> New tournament (Fixtures → Sevens)
+              </Link>
+            </div>
+          )}
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -1845,7 +2250,29 @@ export default function DataAdminDashboard() {
               </div>
             </div>
           </button>
+          <button
+            type="button"
+            onClick={() => setShowTournaments(true)}
+            className="text-left w-full bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft hover-lift cursor-pointer"
+          >
+            <div className="flex items-center space-x-4">
+              <div className="bg-info w-12 h-12 rounded-xl flex items-center justify-center relative">
+                <Trophy className="w-6 h-6 text-white" />
+                {tournaments.some((t) => t.status !== 'completed') && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-warning text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                    {tournaments.filter((t) => t.status !== 'completed').length}
+                  </span>
+                )}
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-tm-text-1">Sevens Tournaments</h3>
+                <p className="text-sm text-tm-text-3">Track group + knockout games</p>
+              </div>
+            </div>
+          </button>
         </div>
+
+        {renderTournamentsModal()}
       </div>
     </Layout>
   )

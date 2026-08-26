@@ -64,6 +64,11 @@ interface Match {
   tournament_type: string
   status?: string
   squad_size?: number | null
+  // Sevens-tournament linkage (present only on tournament games)
+  tournament_id?: string | null
+  tournament_name?: string | null
+  stage?: string | null
+  game_order?: number | null
 }
 
 // A fixture's "squad format" controls how the coach's selection roster and the
@@ -123,6 +128,10 @@ export default function FixturesPage() {
   const [loading, setLoading] = useState(true)
   const [matches, setMatches] = useState<Match[]>([])
   const [selectedMatchId, setSelectedMatchId] = useState<string>('')
+  // When the coach picks a sevens tournament (not a single fixture) in the
+  // match selector, this holds its id — the one squad they build then saves
+  // to every game in the tournament at once.
+  const [selectedTournamentId, setSelectedTournamentId] = useState<string>('')
   const [availablePlayers, setAvailablePlayers] = useState<Player[]>([])
   const [teamSelections, setTeamSelections] = useState<Map<string, TeamSelection>>(new Map())
   const [saving, setSaving] = useState(false)
@@ -350,6 +359,10 @@ export default function FixturesPage() {
                   tournament_type: m.tournament_type,
                   squad_size: m.squad_size,
                   status: m.status,
+                  tournament_id: m.tournament_id ?? null,
+                  tournament_name: m.tournament_name ?? null,
+                  stage: m.stage ?? null,
+                  game_order: m.game_order ?? null,
                 }))
                 console.log('Loaded matches from API:', matchesData.length)
               }
@@ -368,9 +381,9 @@ export default function FixturesPage() {
               let matchesError: any
               ;({ data: allMatches, error: matchesError } = await supabase
                 .from('matches')
-                .select('id, match_date, opponent, venue, tournament_type, status, squad_size')
+                .select('id, match_date, opponent, venue, tournament_type, status, squad_size, tournament_id, stage, game_order')
                 .order('match_date', { ascending: true }))
-              if (matchesError?.message?.includes('squad_size')) {
+              if (matchesError?.message?.includes('squad_size') || matchesError?.message?.includes('tournament_id')) {
                 const retry = await supabase
                   .from('matches')
                   .select('id, match_date, opponent, venue, tournament_type, status')
@@ -391,6 +404,9 @@ export default function FixturesPage() {
                   tournament_type: m.tournament_type,
                   squad_size: m.squad_size,
                   status: m.status,
+                  tournament_id: m.tournament_id ?? null,
+                  stage: m.stage ?? null,
+                  game_order: m.game_order ?? null,
                 }))
                 console.log('Loaded matches from direct query:', matchesData.length)
               }
@@ -823,33 +839,35 @@ export default function FixturesPage() {
 
     try {
       const selectionsArray = Array.from(teamSelections.values())
+
+      // For a sevens tournament, one squad is saved to EVERY game in the
+      // tournament; for a normal fixture it's just the one match.
+      const targetMatchIds = selectedTournamentId
+        ? selectedTournamentGames.map((g) => g.id)
+        : [selectedMatchId]
+
       console.log('Saving team selection:', {
-        matchId: selectedMatchId,
+        tournament: selectedTournamentId || null,
+        matchIds: targetMatchIds,
         selectionsCount: selectionsArray.length,
-        selections: selectionsArray
-      })
-      
-      const response = await fetch('/api/fixtures/team-selection', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          matchId: selectedMatchId,
-          selections: selectionsArray,
-        }),
       })
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: response.statusText }))
-        console.error('Error saving team selection:', errorData)
-        throw new Error(errorData.error || `Failed to save team selection: ${response.status}`)
+      for (const matchId of targetMatchIds) {
+        const response = await fetch('/api/fixtures/team-selection', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ matchId, selections: selectionsArray }),
+        })
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: response.statusText }))
+          console.error('Error saving team selection:', errorData)
+          throw new Error(errorData.error || `Failed to save team selection: ${response.status}`)
+        }
       }
 
-      const result = await response.json()
-      console.log('Team selection saved successfully:', result)
-      
-      alert('Team selection saved successfully!')
+      alert(selectedTournamentId
+        ? `Team saved for the whole tournament (${targetMatchIds.length} game${targetMatchIds.length === 1 ? '' : 's'})!`
+        : 'Team selection saved successfully!')
       // Collapse the roster into the saved-team view, with the team shown.
       setEditingRoster(false)
       setShowSavedTeam(true)
@@ -1712,6 +1730,44 @@ export default function FixturesPage() {
 
   const statsEligibleMatches = matches.filter((match) => isWithinStatsWindow(match.match_date))
   const coachUpcomingMatches = matches.filter((match) => !isActivityPast(match.match_date, null) && match.status !== 'played')
+
+  // Coach match selector entries: sevens-tournament games collapse into ONE
+  // entry (the coach builds a single squad for the whole tournament), while
+  // every other fixture stays an individual option.
+  type SelectorEntry =
+    | { kind: 'match'; value: string; date: string; match: Match }
+    | { kind: 'tournament'; value: string; date: string; tournamentId: string; name: string; count: number; firstGameId: string }
+  const coachSelectorEntries: SelectorEntry[] = (() => {
+    const entries: SelectorEntry[] = []
+    const byTournament = new Map<string, Match[]>()
+    for (const m of coachUpcomingMatches) {
+      if (m.tournament_id) {
+        const arr = byTournament.get(m.tournament_id) || []
+        arr.push(m); byTournament.set(m.tournament_id, arr)
+      } else {
+        entries.push({ kind: 'match', value: m.id, date: m.match_date, match: m })
+      }
+    }
+    byTournament.forEach((games, tid) => {
+      const sorted = [...games].sort((a, b) => (a.game_order || 0) - (b.game_order || 0))
+      const first = sorted[0]
+      entries.push({
+        kind: 'tournament', value: `tournament:${tid}`, date: first.match_date,
+        tournamentId: tid, name: first.tournament_name || 'Sevens tournament',
+        count: sorted.length, firstGameId: first.id,
+      })
+    })
+    entries.sort((a, b) => a.date.localeCompare(b.date))
+    return entries
+  })()
+
+  // Every game id in the currently-selected tournament — the squad the coach
+  // builds is saved to all of them at once.
+  const selectedTournamentGames = selectedTournamentId
+    ? coachUpcomingMatches.filter((m) => m.tournament_id === selectedTournamentId)
+        .sort((a, b) => (a.game_order || 0) - (b.game_order || 0))
+    : []
+  const selectedTournamentName = selectedTournamentGames[0]?.tournament_name || 'Sevens tournament'
   const selectedTeamIds = new Set(teamSelectionsForStats.map((selection: any) => selection.player_id))
   const statsPlayers = selectedMatchForStats
     ? players.filter((player) => selectedTeamIds.has(player.user_id))
@@ -3604,36 +3660,66 @@ export default function FixturesPage() {
                 className="bg-tm-secondary text-tm-on-secondary px-6 py-2 rounded-[6px] font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 <Save className="w-4 h-4" />
-                {saving ? 'Saving...' : 'Save Team Selection'}
+                {saving ? 'Saving...' : selectedTournamentId ? 'Save Team for Tournament' : 'Save Team Selection'}
               </button>
             )}
           </div>
 
-          {/* Match Selector */}
+          {/* Match Selector — sevens tournaments appear as ONE entry */}
           <div className="mb-6">
             <label className="block text-sm font-medium text-tm-text-1 mb-2">
-              Select Match
+              Select Match or Tournament
             </label>
             <select
-              value={selectedMatchId}
+              value={selectedTournamentId ? `tournament:${selectedTournamentId}` : selectedMatchId}
               onChange={(e) => {
                 const v = e.target.value
-                if (v === selectedMatchId) return // same match — don't clear the loaded squad
-                viewModeMatch.current = null // let the new match initialise its view mode
-                setSelectedMatchId(v)
+                viewModeMatch.current = null
+                if (v.startsWith('tournament:')) {
+                  const tid = v.slice('tournament:'.length)
+                  if (tid === selectedTournamentId) return
+                  const games = coachUpcomingMatches
+                    .filter((m) => m.tournament_id === tid)
+                    .sort((a, b) => (a.game_order || 0) - (b.game_order || 0))
+                  setSelectedTournamentId(tid)
+                  setSelectedMatchId(games[0]?.id || '')
+                } else {
+                  if (v === selectedMatchId && !selectedTournamentId) return
+                  setSelectedTournamentId('')
+                  setSelectedMatchId(v)
+                }
                 setTeamSelections(new Map())
                 setShowSavedTeam(false)
               }}
               className="w-full md:w-auto px-4 py-2 border border-tm-border rounded-[6px] focus:outline-none focus:ring-2 focus:ring-primary"
             >
-              <option value="">-- Select a match --</option>
-              {coachUpcomingMatches.map((match) => (
-                <option key={match.id} value={match.id}>
-                  {new Date(match.match_date).toLocaleDateString()} vs {match.opponent}
-                </option>
+              <option value="">-- Select a match or tournament --</option>
+              {coachSelectorEntries.map((entry) => (
+                entry.kind === 'tournament' ? (
+                  <option key={entry.value} value={entry.value}>
+                    🏆 {new Date(entry.date).toLocaleDateString()} · {entry.name} (tournament · {entry.count} game{entry.count === 1 ? '' : 's'})
+                  </option>
+                ) : (
+                  <option key={entry.value} value={entry.value}>
+                    {new Date(entry.match.match_date).toLocaleDateString()} vs {entry.match.opponent}
+                  </option>
+                )
               ))}
             </select>
           </div>
+
+          {/* Tournament banner — one squad covers every game */}
+          {selectedTournamentId && (
+            <div className="mb-4 rounded-lg border border-info/40 bg-info/5 p-3">
+              <p className="text-sm font-semibold text-tm-text-1 flex items-center gap-2">
+                <Trophy className="w-4 h-4 text-info" /> {selectedTournamentName}
+              </p>
+              <p className="text-xs text-tm-text-3 mt-1">
+                One squad for the whole tournament — this selection is saved to all {selectedTournamentGames.length} game{selectedTournamentGames.length === 1 ? '' : 's'}
+                {selectedTournamentGames.length > 0 ? `: ${selectedTournamentGames.map((g) => g.opponent).join(', ')}` : ''}.
+              </p>
+            </div>
+          )}
 
           {/* Match Info */}
           {selectedMatch && (

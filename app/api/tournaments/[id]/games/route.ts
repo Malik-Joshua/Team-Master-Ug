@@ -107,14 +107,36 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
     if (gErr) return NextResponse.json({ error: gErr.message }, { status: 500 })
 
-    // Copy the shared squad into this game's selections
-    const { data: squad } = await admin
-      .from('tournament_squad')
-      .select('player_id')
+    // Copy the shared squad into this new game's selections. Prefer the squad
+    // that's actually on an existing game (this reflects the coach's latest
+    // team selection, since one squad is saved across all the tournament's
+    // games); fall back to the original tournament_squad picked at creation.
+    let squadPlayerIds: string[] = []
+    const { data: siblingGame } = await admin
+      .from('matches')
+      .select('id')
       .eq('tournament_id', params.id)
-    if (squad && squad.length > 0) {
+      .neq('id', game.id)
+      .order('game_order', { ascending: true })
+      .limit(1)
+      .maybeSingle()
+    if (siblingGame) {
+      const { data: sel } = await admin
+        .from('fixture_team_selections')
+        .select('player_id')
+        .eq('match_id', siblingGame.id)
+      squadPlayerIds = (sel || []).map((s: any) => s.player_id)
+    }
+    if (squadPlayerIds.length === 0) {
+      const { data: squad } = await admin
+        .from('tournament_squad')
+        .select('player_id')
+        .eq('tournament_id', params.id)
+      squadPlayerIds = (squad || []).map((s: any) => s.player_id)
+    }
+    if (squadPlayerIds.length > 0) {
       await admin.from('fixture_team_selections').insert(
-        squad.map((s: any) => ({ match_id: game.id, player_id: s.player_id, selected_by: auth.authUser.id }))
+        squadPlayerIds.map((pid) => ({ match_id: game.id, player_id: pid, selected_by: auth.authUser.id }))
       )
     }
 

@@ -75,10 +75,25 @@ export async function GET(request: NextRequest) {
     }
 
     if (!fixtures || fixtures.length === 0) {
-      return NextResponse.json({ 
+      return NextResponse.json({
         fixtures: [],
         count: 0
       })
+    }
+
+    // Attach the parent tournament name to any fixture that belongs to a
+    // sevens tournament, so the coach's match selector can group its games
+    // under one tournament heading.
+    const tournamentIds = Array.from(new Set(fixtures.map((m: any) => m.tournament_id).filter(Boolean)))
+    if (tournamentIds.length > 0) {
+      const { data: tRows } = await supabaseAdmin
+        .from('tournaments')
+        .select('id, name')
+        .in('id', tournamentIds)
+      const nameById = new Map((tRows || []).map((t: any) => [t.id, t.name]))
+      for (const m of fixtures as any[]) {
+        if (m.tournament_id) m.tournament_name = nameById.get(m.tournament_id) || null
+      }
     }
 
     // Filter out matches that have been played (date passed OR match stats exist)

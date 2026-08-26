@@ -488,7 +488,17 @@ export default function FixturesPage() {
         if (matchesData.length > 0) {
           if (profile.role === 'coach') {
             const nextUpcoming = matchesData.find((match) => !isActivityPast(match.match_date, null) && match.status !== 'played')
-            setSelectedMatchId(nextUpcoming?.id || '')
+            if (nextUpcoming?.tournament_id) {
+              // Auto-selecting a tournament game → select the whole tournament,
+              // so the selector shows it grouped and one squad saves to all games.
+              const firstGame = matchesData
+                .filter((m) => m.tournament_id === nextUpcoming.tournament_id)
+                .sort((a, b) => (a.game_order || 0) - (b.game_order || 0))[0]
+              setSelectedTournamentId(nextUpcoming.tournament_id)
+              setSelectedMatchId(firstGame?.id || nextUpcoming.id)
+            } else {
+              setSelectedMatchId(nextUpcoming?.id || '')
+            }
           } else {
             setSelectedMatchId(matchesData[0].id)
           }
@@ -697,7 +707,11 @@ export default function FixturesPage() {
     }
 
     loadExistingSelection()
-  }, [selectedMatchId])
+    // selectedTournamentId is included so that picking a tournament whose first
+    // game is ALREADY the selected match still re-runs this loader — otherwise
+    // switching into the tournament would clear the roster without reloading it
+    // (the "can't select a team" blank state).
+  }, [selectedMatchId, selectedTournamentId])
 
   // Copy a previous fixture's squad into the current (unsaved) selection so the
   // coach can start from it and tweak. Players no longer available are skipped.
@@ -3697,7 +3711,7 @@ export default function FixturesPage() {
               {coachSelectorEntries.map((entry) => (
                 entry.kind === 'tournament' ? (
                   <option key={entry.value} value={entry.value}>
-                    🏆 {new Date(entry.date).toLocaleDateString()} · {entry.name} (tournament · {entry.count} game{entry.count === 1 ? '' : 's'})
+                    🏆 {new Date(entry.date).toLocaleDateString()} · {entry.name} (tournament · up to 6 games)
                   </option>
                 ) : (
                   <option key={entry.value} value={entry.value}>
@@ -3715,8 +3729,10 @@ export default function FixturesPage() {
                 <Trophy className="w-4 h-4 text-info" /> {selectedTournamentName}
               </p>
               <p className="text-xs text-tm-text-3 mt-1">
-                One squad for the whole tournament — this selection is saved to all {selectedTournamentGames.length} game{selectedTournamentGames.length === 1 ? '' : 's'}
-                {selectedTournamentGames.length > 0 ? `: ${selectedTournamentGames.map((g) => g.opponent).join(', ')}` : ''}.
+                One squad for the whole tournament (up to 6 games over 2 days). This selection saves to all
+                {' '}{selectedTournamentGames.length} group game{selectedTournamentGames.length === 1 ? '' : 's'}
+                {selectedTournamentGames.length > 0 ? ` (${selectedTournamentGames.map((g) => g.opponent).join(', ')})` : ''}.
+                The Day 2 knockout games — added after the group stage, once you know who you face — inherit this same squad.
               </p>
             </div>
           )}

@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { readTabularFile } from '@/lib/tabular-import'
 import ClubColorPicker from '@/components/ui/ClubColorPicker'
 import SportBallsBackground from '@/components/SportBallsBackground'
 // @ts-ignore - themeEngine is a JS module
@@ -88,6 +89,24 @@ export default function OnboardingPage() {
   const [squadMode, setSquadMode] = useState<'csv' | 'manual' | null>(null)
   const [squadSize, setSquadSize] = useState('')
   const [csvFile, setCsvFile] = useState<File | null>(null)
+  // Rows parsed from the uploaded spreadsheet — one per player, editable in a
+  // preview table before they get committed. The `include` flag lets the user
+  // deselect obvious junk rows without editing the file.
+  type CsvPlayerRow = {
+    name: string
+    position: string
+    date_of_birth: string
+    email: string
+    jersey_number: string
+    include: boolean
+    error?: string
+  }
+  const [csvParsedRows, setCsvParsedRows] = useState<CsvPlayerRow[]>([])
+  const [csvParsing, setCsvParsing] = useState(false)
+  const [csvParseError, setCsvParseError] = useState<string | null>(null)
+  // Progress + result of the actual "create players" pass that runs in finish().
+  const [savingSquad, setSavingSquad] = useState(false)
+  const [squadSaveProgress, setSquadSaveProgress] = useState<{ done: number; total: number; failed: { name: string; reason: string }[] } | null>(null)
   const [manualPlayers, setManualPlayers] = useState<{ name: string; position: string }[]>([])
   const [newPlayer, setNewPlayer] = useState({ name: '', position: '' })
   const csvRef = useRef<HTMLInputElement>(null)
@@ -122,6 +141,101 @@ export default function OnboardingPage() {
 
   function removePlayer(i: number) {
     setManualPlayers(manualPlayers.filter((_, idx) => idx !== i))
+  }
+
+  // Turn a header like "Date Of Birth" into a stable normalised key ("date_of_birth")
+  // so we can accept a broad range of column-name spellings ("DOB", "Position",
+  // "Player Name", "Email Address", etc.) with one lookup table.
+  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')
+
+  // Parse the uploaded spreadsheet (CSV / TSV / .xlsx / .xls) and turn it into
+  // a list of preview rows. The header row is used to find the right columns
+  // regardless of order. Missing optional columns → empty strings. Rows with
+  // no name are dropped silently (blank spreadsheet padding).
+  async function handleCsvUpload(file: File) {
+    setCsvFile(file)
+    setCsvParseError(null)
+    setCsvParsedRows([])
+    setSquadSaveProgress(null)
+    setCsvParsing(true)
+    try {
+      const rows = await readTabularFile(file)
+      if (rows.length === 0) {
+        setCsvParseError('The file appears to be empty.')
+        return
+      }
+      // Locate columns from the header row. We look for common aliases so a
+      // manager doesn't have to match our template exactly.
+      const header = rows[0].map((h) => norm(String(h || '')))
+      const alias: Record<keyof Omit<CsvPlayerRow, 'include' | 'error'>, string[]> = {
+        name:          ['name', 'player_name', 'full_name', 'player', 'names'],
+        position:      ['position', 'pos', 'playing_position', 'role'],
+        date_of_birth: ['date_of_birth', 'dob', 'birth_date', 'birthdate', 'd_o_b'],
+        email:         ['email', 'email_address', 'e_mail', 'mail'],
+        jersey_number: ['jersey_number', 'jersey', 'shirt_number', 'shirt', 'number', 'no'],
+      }
+      const idx: Record<string, number> = {}
+      ;(Object.keys(alias) as Array<keyof typeof alias>).forEach((k) => {
+        idx[k] = header.findIndex((h) => alias[k].includes(h))
+      })
+      if (idx.name < 0) {
+        setCsvParseError('Could not find a "Name" column in the header row. Please include a Name column and try again.')
+        return
+      }
+      const parsed: CsvPlayerRow[] = []
+      for (let r = 1; r < rows.length; r++) {
+        const row = rows[r]
+        const name = String(row[idx.name] || '').trim()
+        if (!name) continue // silently skip blank rows
+        parsed.push({
+          name,
+          position: idx.position >= 0 ? String(row[idx.position] || '').trim() : '',
+          date_of_birth: idx.date_of_birth >= 0 ? String(row[idx.date_of_birth] || '').trim() : '',
+          email: idx.email >= 0 ? String(row[idx.email] || '').trim() : '',
+          jersey_number: idx.jersey_number >= 0 ? String(row[idx.jersey_number] || '').trim() : '',
+          include: true,
+        })
+      }
+      if (parsed.length === 0) {
+        setCsvParseError('No player rows found. Make sure the file has at least one row under the header.')
+        return
+      }
+      setCsvParsedRows(parsed)
+    } catch (err: any) {
+      console.error('CSV parse error:', err)
+      setCsvParseError(err?.message || 'Could not read the file. Make sure it is a valid CSV or Excel file.')
+    } finally {
+      setCsvParsing(false)
+    }
+  }
+
+  function updateCsvRow(i: number, patch: Partial<CsvPlayerRow>) {
+    setCsvParsedRows((rows) => rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)))
+  }
+  function removeCsvRow(i: number) {
+    setCsvParsedRows((rows) => rows.filter((_, idx) => idx !== i))
+  }
+  function clearCsv() {
+    setCsvFile(null)
+    setCsvParsedRows([])
+    setCsvParseError(null)
+    setSquadSaveProgress(null)
+    if (csvRef.current) csvRef.current.value = ''
+  }
+
+  // Build a tiny CSV template and trigger a download. Same headers we accept.
+  function downloadSquadTemplate() {
+    const csv = [
+      'Name,Position,Date of Birth,Email,Jersey Number',
+      'John Doe,Prop,1998-03-14,john@example.com,1',
+      'Jane Smith,Fly-half,2001-07-02,jane@example.com,10',
+    ].join('\n')
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'squad-template.csv'
+    document.body.appendChild(a); a.click(); a.remove()
+    URL.revokeObjectURL(url)
   }
 
   function addStaff() {
@@ -218,6 +332,70 @@ export default function OnboardingPage() {
           console.error('[Onboarding] Error saving club settings:', upsertError)
         } else {
           console.log('[Onboarding] Club settings saved successfully')
+        }
+
+        // ── Create the players collected in Step 3 ────────────────────────
+        //
+        // We fold both CSV rows (the ones the user left checked in the
+        // preview) and the manually-entered rows into one list, then POST
+        // each to /api/players. The endpoint handles duplicate-email
+        // rejection, role-limit checks, and creating auth+profile+players
+        // records atomically. Anything that fails is surfaced in the
+        // failed[] list below so the manager knows what to fix.
+        //
+        // The API requires an email per player. To keep onboarding friction
+        // low we auto-generate a placeholder if none was supplied — the
+        // manager can update it later on the Players screen. The domain uses
+        // `roster.local` to make placeholders obvious.
+        const nameSlug = (n: string) =>
+          n.toLowerCase().replace(/[^a-z0-9]+/g, '.').replace(/^\.|\.$/g, '')
+
+        const csvPlayers = csvParsedRows
+          .filter((r) => r.include && r.name.trim())
+          .map((r) => ({
+            name: r.name.trim(),
+            email: r.email.trim() || `${nameSlug(r.name)}.${Date.now()}${Math.floor(Math.random() * 1000)}@roster.local`,
+            position: r.position.trim() || 'Unassigned',
+            jersey_number: r.jersey_number ? parseInt(r.jersey_number) : undefined,
+            date_of_birth: r.date_of_birth || undefined,
+          }))
+        const manualCommit = manualPlayers
+          .filter((p) => p.name.trim())
+          .map((p) => ({
+            name: p.name.trim(),
+            email: `${nameSlug(p.name)}.${Date.now()}${Math.floor(Math.random() * 1000)}@roster.local`,
+            position: p.position.trim() || 'Unassigned',
+          }))
+        const toCreate = [...csvPlayers, ...manualCommit]
+
+        if (toCreate.length > 0) {
+          setSavingSquad(true)
+          const failed: { name: string; reason: string }[] = []
+          let done = 0
+          setSquadSaveProgress({ done: 0, total: toCreate.length, failed: [] })
+          for (const p of toCreate) {
+            try {
+              const res = await fetch('/api/players', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(p),
+              })
+              if (!res.ok) {
+                const j = await res.json().catch(() => ({} as any))
+                failed.push({ name: p.name, reason: j.error || `HTTP ${res.status}` })
+              }
+            } catch (e: any) {
+              failed.push({ name: p.name, reason: e?.message || 'Network error' })
+            }
+            done += 1
+            setSquadSaveProgress({ done, total: toCreate.length, failed: [...failed] })
+          }
+          setSavingSquad(false)
+          if (failed.length > 0) {
+            console.warn('[Onboarding] Some players failed to import:', failed)
+            // Not blocking — we still finish onboarding. The manager can
+            // add/fix them from the Players screen using the same form.
+          }
         }
 
         // Mark onboarding done
@@ -468,32 +646,168 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        {/* CSV mode */}
+        {/* CSV mode — upload a spreadsheet, parse it live, show a preview
+            table where the manager can review, tweak, and deselect rows
+            before we create the players. */}
         {squadMode === 'csv' && (
           <div>
-            <button type="button" onClick={() => setSquadMode(null)}
+            <button type="button" onClick={() => { setSquadMode(null); clearCsv() }}
               className="text-[12px] text-gray-500 hover:text-gray-300 mb-3 flex items-center gap-1">
               <ArrowLeft className="w-3 h-3" /> Change method
             </button>
-            <div
-              onClick={() => csvRef.current?.click()}
-              className="border-2 border-dashed border-[#27405c] hover:border-[#0ea5e9] rounded-xl p-8 text-center cursor-pointer transition-colors mb-3"
-            >
-              <FileSpreadsheet className="w-8 h-8 text-gray-500 mx-auto mb-2" />
-              {csvFile ? (
-                <p className="text-[13px] text-[#0ea5e9] font-medium">{csvFile.name}</p>
-              ) : (
-                <>
-                  <p className="text-[13px] text-gray-300 font-medium">Drop your CSV here or click to browse</p>
-                  <p className="text-[12px] text-gray-500 mt-1">Columns: Name, Position, Date of Birth</p>
-                </>
-              )}
-            </div>
-            <input ref={csvRef} type="file" accept=".csv" className="hidden"
-              onChange={(e) => setCsvFile(e.target.files?.[0] || null)} />
-            <a href="#" className="text-[12px] text-sky-400 hover:text-sky-300 transition-colors">
+
+            {/* Drop / browse zone — hidden once we have parsed rows to save
+                screen space for the preview table. */}
+            {csvParsedRows.length === 0 && (
+              <div
+                onClick={() => csvRef.current?.click()}
+                className="border-2 border-dashed border-[#27405c] hover:border-[#0ea5e9] rounded-xl p-8 text-center cursor-pointer transition-colors mb-3"
+              >
+                <FileSpreadsheet className="w-8 h-8 text-gray-500 mx-auto mb-2" />
+                {csvParsing ? (
+                  <p className="text-[13px] text-[#0ea5e9] font-medium">Reading {csvFile?.name || 'your file'}…</p>
+                ) : csvFile ? (
+                  <p className="text-[13px] text-[#0ea5e9] font-medium">{csvFile.name}</p>
+                ) : (
+                  <>
+                    <p className="text-[13px] text-gray-300 font-medium">Drop your spreadsheet here or click to browse</p>
+                    <p className="text-[12px] text-gray-500 mt-1">Accepts .csv, .xlsx, .xls · Columns: Name, Position, Date of Birth, Email, Jersey Number</p>
+                  </>
+                )}
+              </div>
+            )}
+            <input
+              ref={csvRef}
+              type="file"
+              accept=".csv,.tsv,.txt,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+              className="hidden"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCsvUpload(f) }}
+            />
+
+            {csvParseError && (
+              <div className="mb-3 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-[12px] text-red-300">
+                {csvParseError}
+              </div>
+            )}
+
+            {/* Parsed preview — the whole point of this step: the manager
+                sees exactly what will be imported before they commit. */}
+            {csvParsedRows.length > 0 && (
+              <div className="mb-3 rounded-xl border border-[#27405c] bg-[#0f1d2f] overflow-hidden">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#27405c] bg-[#16273d] px-3 py-2">
+                  <div className="text-[12px] text-gray-300">
+                    <span className="font-semibold text-white">{csvParsedRows.filter((r) => r.include).length}</span>
+                    {' of '}
+                    <span className="font-semibold text-white">{csvParsedRows.length}</span>
+                    {' players will be added'}
+                    {csvFile && <span className="text-gray-500"> — from {csvFile.name}</span>}
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => csvRef.current?.click()}
+                      className="text-[11px] text-sky-400 hover:text-sky-300"
+                    >Replace file</button>
+                    <button
+                      type="button"
+                      onClick={clearCsv}
+                      className="text-[11px] text-gray-400 hover:text-gray-200"
+                    >Clear</button>
+                  </div>
+                </div>
+                <div className="max-h-[320px] overflow-auto">
+                  <table className="w-full min-w-[720px] text-[12px]">
+                    <thead className="bg-[#16273d] text-gray-300 sticky top-0">
+                      <tr>
+                        <th className="px-2 py-1.5 text-left w-8">
+                          <input
+                            type="checkbox"
+                            aria-label="Toggle all"
+                            checked={csvParsedRows.every((r) => r.include)}
+                            onChange={(e) => setCsvParsedRows((rows) => rows.map((r) => ({ ...r, include: e.target.checked })))}
+                          />
+                        </th>
+                        <th className="px-2 py-1.5 text-left">Name</th>
+                        <th className="px-2 py-1.5 text-left">Position</th>
+                        <th className="px-2 py-1.5 text-left">Date of Birth</th>
+                        <th className="px-2 py-1.5 text-left">Email</th>
+                        <th className="px-2 py-1.5 text-left w-14">#</th>
+                        <th className="w-6"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {csvParsedRows.map((r, i) => (
+                        <tr key={i} className={r.include ? '' : 'opacity-50'}>
+                          <td className="px-2 py-1 border-t border-[#27405c]">
+                            <input
+                              type="checkbox"
+                              checked={r.include}
+                              onChange={(e) => updateCsvRow(i, { include: e.target.checked })}
+                              aria-label={`Include ${r.name}`}
+                            />
+                          </td>
+                          <td className="px-1 py-1 border-t border-[#27405c]">
+                            <input value={r.name} onChange={(e) => updateCsvRow(i, { name: e.target.value })}
+                              className="w-full bg-transparent text-white px-2 py-1 rounded border border-transparent hover:border-[#27405c] focus:border-[#0ea5e9] focus:outline-none" />
+                          </td>
+                          <td className="px-1 py-1 border-t border-[#27405c]">
+                            <input value={r.position} onChange={(e) => updateCsvRow(i, { position: e.target.value })}
+                              placeholder="Position"
+                              className="w-full bg-transparent text-white px-2 py-1 rounded border border-transparent hover:border-[#27405c] focus:border-[#0ea5e9] focus:outline-none" />
+                          </td>
+                          <td className="px-1 py-1 border-t border-[#27405c]">
+                            <input value={r.date_of_birth} onChange={(e) => updateCsvRow(i, { date_of_birth: e.target.value })}
+                              placeholder="YYYY-MM-DD"
+                              className="w-full bg-transparent text-white px-2 py-1 rounded border border-transparent hover:border-[#27405c] focus:border-[#0ea5e9] focus:outline-none" />
+                          </td>
+                          <td className="px-1 py-1 border-t border-[#27405c]">
+                            <input value={r.email} onChange={(e) => updateCsvRow(i, { email: e.target.value })}
+                              placeholder="(optional)"
+                              className="w-full bg-transparent text-white px-2 py-1 rounded border border-transparent hover:border-[#27405c] focus:border-[#0ea5e9] focus:outline-none" />
+                          </td>
+                          <td className="px-1 py-1 border-t border-[#27405c]">
+                            <input value={r.jersey_number} onChange={(e) => updateCsvRow(i, { jersey_number: e.target.value })}
+                              className="w-full bg-transparent text-white px-2 py-1 rounded border border-transparent hover:border-[#27405c] focus:border-[#0ea5e9] focus:outline-none" />
+                          </td>
+                          <td className="px-1 py-1 border-t border-[#27405c] text-right">
+                            <button type="button" onClick={() => removeCsvRow(i)} aria-label={`Remove ${r.name}`}>
+                              <X className="w-3.5 h-3.5 text-gray-500 hover:text-red-400" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="px-3 py-2 text-[11px] text-gray-500 border-t border-[#27405c]">
+                  Emails are optional here — any player left blank gets a placeholder you can update from the Players screen.
+                </p>
+              </div>
+            )}
+
+            {/* Progress + result of the actual create-players pass (runs
+                when the user clicks Finish). */}
+            {squadSaveProgress && (
+              <div className="mb-3 rounded-lg border border-[#27405c] bg-[#0f1d2f] px-3 py-2">
+                <div className="flex items-center justify-between text-[12px] text-gray-300 mb-1">
+                  <span>Adding players…</span>
+                  <span className="font-semibold text-white">{squadSaveProgress.done}/{squadSaveProgress.total}</span>
+                </div>
+                <div className="h-1.5 w-full rounded-full bg-[#16273d] overflow-hidden">
+                  <div className="h-full bg-[#0ea5e9] transition-all" style={{ width: `${(squadSaveProgress.done / Math.max(1, squadSaveProgress.total)) * 100}%` }} />
+                </div>
+                {squadSaveProgress.failed.length > 0 && (
+                  <p className="mt-2 text-[11px] text-red-300">
+                    {squadSaveProgress.failed.length} could not be added — you can fix them on the Players screen after finishing.
+                  </p>
+                )}
+              </div>
+            )}
+
+            <button type="button" onClick={downloadSquadTemplate}
+              className="text-[12px] text-sky-400 hover:text-sky-300 transition-colors">
               Download CSV template
-            </a>
+            </button>
           </div>
         )}
 
@@ -618,7 +932,11 @@ export default function OnboardingPage() {
             `Club colours configured`,
             league ? `League: ${league}` : 'Sport configuration saved',
             multipleTeams ? `${teams.length} team(s) configured` : 'Single team structure set',
-            squadMode === 'csv' && csvFile ? `Squad CSV uploaded: ${csvFile.name}` : squadMode === 'manual' && manualPlayers.length > 0 ? `${manualPlayers.length} player(s) added` : 'Squad — add players from the dashboard',
+            squadMode === 'csv' && csvParsedRows.filter((r) => r.include).length > 0
+              ? `${csvParsedRows.filter((r) => r.include).length} player(s) will be imported from ${csvFile?.name || 'your CSV'}`
+              : squadMode === 'manual' && manualPlayers.length > 0
+                ? `${manualPlayers.length} player(s) added`
+                : 'Squad — add players from the dashboard',
             staffInvites.length > 0 ? `${staffInvites.length} staff invite(s) sent` : 'Staff — invite from the dashboard anytime',
           ].map((item) => (
             <li key={item} className="flex items-center gap-2 py-2.5 border-b border-[#16273d] last:border-b-0">
@@ -687,11 +1005,18 @@ export default function OnboardingPage() {
             </div>
           )}
 
-          {/* Done CTA */}
+          {/* Done CTA — disabled while we're still POSTing players so the
+              page can't navigate away mid-import. */}
           {step === 4 && (
-            <button type="button" onClick={finish}
-              className="w-full flex items-center justify-center gap-1.5 px-5 py-3 bg-[#0ea5e9] rounded-lg text-sm font-medium text-white hover:bg-[#0284c7] transition-all duration-200 hover:shadow-[0_0_18px_rgba(14,165,233,0.45)] hover:scale-[1.01] active:scale-100 mt-4">
-              Go to dashboard <ArrowRight className="w-3.5 h-3.5" />
+            <button
+              type="button"
+              onClick={finish}
+              disabled={savingSquad}
+              className="w-full flex items-center justify-center gap-1.5 px-5 py-3 bg-[#0ea5e9] rounded-lg text-sm font-medium text-white hover:bg-[#0284c7] transition-all duration-200 hover:shadow-[0_0_18px_rgba(14,165,233,0.45)] hover:scale-[1.01] active:scale-100 mt-4 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {savingSquad && squadSaveProgress
+                ? <>Adding players {squadSaveProgress.done}/{squadSaveProgress.total}…</>
+                : <>Go to dashboard <ArrowRight className="w-3.5 h-3.5" /></>}
             </button>
           )}
         </div>

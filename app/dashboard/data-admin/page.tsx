@@ -1663,7 +1663,7 @@ export default function DataAdminDashboard() {
                           <th className="px-3 py-3 text-center text-xs font-bold text-tm-text-1">Ball Carries</th>
                           <th className="px-3 py-3 text-center text-xs font-bold text-tm-text-1">Tries Scored</th>
                           <th className="px-3 py-3 text-center text-xs font-bold text-tm-text-1">Minutes Played</th>
-                          <th className="px-3 py-3 text-center text-xs font-bold text-tm-text-1">Card</th>
+                          <th className="px-3 py-3 text-center text-xs font-bold text-tm-text-1 sticky right-0 bg-tm-surface-hover z-10">Card</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-tm-border">
@@ -1765,9 +1765,11 @@ export default function DataAdminDashboard() {
                                 />
                               </td>
                               {/* Card entry — Y (yellow) / R (red). Mutually
-                                  exclusive, click again to clear. Saving a
-                                  card also alerts the player and staff. */}
-                              <td className="px-2 py-2">
+                                  exclusive, click again to clear. Pinned to
+                                  the right so it's always visible without
+                                  horizontal scrolling. Saving a card also
+                                  alerts the player and staff. */}
+                              <td className={`px-2 py-2 sticky right-0 z-10 ${index % 2 === 0 ? 'bg-tm-surface' : 'bg-tm-surface-hover'} border-l border-tm-border`}>
                                 <div className="flex justify-center gap-1">
                                   <button
                                     type="button"

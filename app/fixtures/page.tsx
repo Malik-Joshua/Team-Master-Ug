@@ -2521,7 +2521,7 @@ export default function FixturesPage() {
                       <th className="px-3 py-3 text-center text-xs font-bold text-tm-text-1">Ball Carries</th>
                       <th className="px-3 py-3 text-center text-xs font-bold text-tm-text-1">Tries Scored</th>
                       <th className="px-3 py-3 text-center text-xs font-bold text-tm-text-1">Minutes Played</th>
-                      <th className="px-3 py-3 text-center text-xs font-bold text-tm-text-1">Card</th>
+                      <th className="px-3 py-3 text-center text-xs font-bold text-tm-text-1 sticky right-0 bg-tm-surface-hover z-10">Card</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-tm-border">
@@ -2602,9 +2602,11 @@ export default function FixturesPage() {
                             />
                           </td>
                           {/* Card entry — Y (yellow) / R (red). Mutually
-                              exclusive; second click clears. Saving a card
-                              also fires notifications to the player + staff. */}
-                          <td className="px-2 py-2">
+                              exclusive; second click clears. Pinned to the
+                              right so it's visible without horizontal
+                              scrolling. Saving a card also fires
+                              notifications to the player + staff. */}
+                          <td className={`px-2 py-2 sticky right-0 z-10 ${index % 2 === 0 ? 'bg-tm-surface' : 'bg-tm-surface-hover'} border-l border-tm-border`}>
                             <div className="flex justify-center gap-1">
                               <button
                                 type="button"
@@ -3548,6 +3550,7 @@ export default function FixturesPage() {
                               <th className="px-3 py-3 text-center text-xs font-bold text-tm-text-1">Ball Carries</th>
                               <th className="px-3 py-3 text-center text-xs font-bold text-tm-text-1">Tries Scored</th>
                               <th className="px-3 py-3 text-center text-xs font-bold text-tm-text-1">Minutes Played</th>
+                              <th className="px-3 py-3 text-center text-xs font-bold text-tm-text-1 sticky right-0 bg-tm-surface-hover z-10">Card</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-tm-border">
@@ -3560,6 +3563,8 @@ export default function FixturesPage() {
                                 ball_carries: '0',
                                 tries_scored: '0',
                                 minutes_played: '0',
+                                yellow_card: false,
+                                red_card: false,
                               }
 
                               return (
@@ -3624,6 +3629,37 @@ export default function FixturesPage() {
                                       onChange={(e) => updatePlayerStat(player.user_id, 'minutes_played', e.target.value)}
                                       className="w-full px-2 py-1 border border-tm-border rounded text-center text-sm"
                                     />
+                                  </td>
+                                  {/* Card entry — Y (yellow) / R (red). Mutually
+                                      exclusive, click again to clear. Pinned
+                                      to the right so it's visible without
+                                      horizontal scrolling. Saving a card also
+                                      alerts the player + coach + manager + owner. */}
+                                  <td className={`px-2 py-2 sticky right-0 z-10 ${index % 2 === 0 ? 'bg-tm-surface' : 'bg-tm-surface-hover'} border-l border-tm-border`}>
+                                    <div className="flex justify-center gap-1">
+                                      <button
+                                        type="button"
+                                        onClick={() => togglePlayerCard(player.user_id, 'yellow')}
+                                        aria-label="Toggle yellow card"
+                                        title="Yellow card"
+                                        className={`h-7 w-6 rounded border text-xs font-bold transition-colors ${
+                                          stats.yellow_card
+                                            ? 'border-yellow-500 bg-yellow-400 text-black shadow-inner'
+                                            : 'border-tm-border bg-tm-surface text-tm-text-3 hover:bg-yellow-400/20'
+                                        }`}
+                                      >Y</button>
+                                      <button
+                                        type="button"
+                                        onClick={() => togglePlayerCard(player.user_id, 'red')}
+                                        aria-label="Toggle red card"
+                                        title="Red card"
+                                        className={`h-7 w-6 rounded border text-xs font-bold transition-colors ${
+                                          stats.red_card
+                                            ? 'border-red-600 bg-red-600 text-white shadow-inner'
+                                            : 'border-tm-border bg-tm-surface text-tm-text-3 hover:bg-red-500/20'
+                                        }`}
+                                      >R</button>
+                                    </div>
                                   </td>
                                 </tr>
                               )

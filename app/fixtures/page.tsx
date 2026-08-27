@@ -120,6 +120,10 @@ interface PlayerStats {
   ball_carries: string
   tries_scored: string
   minutes_played: string
+  // On-field discipline — see the data-admin PlayerStats type for the
+  // full rationale. Mutually-exclusive Y/R toggles in the UI.
+  yellow_card: boolean
+  red_card: boolean
 }
 
 export default function FixturesPage() {
@@ -229,6 +233,11 @@ export default function FixturesPage() {
     isUpcoming: boolean
   }>>([])
   const [loadingSummaries, setLoadingSummaries] = useState(true)
+  // Per-user soft-hidden summaries — populated from /api/fixtures/hide-summary
+  // and applied client-side when rendering the Match Summaries list. Hiding is
+  // a personal preference; the underlying match & stats stay untouched.
+  const [hiddenSummaryIds, setHiddenSummaryIds] = useState<Set<string>>(new Set())
+  const [hidingSummaryId, setHidingSummaryId] = useState<string>('')
   const [showTeamViewModal, setShowTeamViewModal] = useState(false)
   const [viewingTeamForMatch, setViewingTeamForMatch] = useState<string>('')
   const [viewedTeamSelection, setViewedTeamSelection] = useState<any[]>([])
@@ -1223,7 +1232,8 @@ export default function FixturesPage() {
               parseInt(stats.ball_handling_errors) > 0 ||
               parseInt(stats.ball_carries) > 0 ||
               parseInt(stats.tries_scored) > 0 ||
-              parseInt(stats.minutes_played) > 0
+              parseInt(stats.minutes_played) > 0 ||
+              stats.yellow_card || stats.red_card
             )
           )
         })
@@ -1236,6 +1246,8 @@ export default function FixturesPage() {
           ball_carries: parseInt(stats.ball_carries) || 0,
           tries_scored: parseInt(stats.tries_scored) || 0,
           minutes_played: parseInt(stats.minutes_played) || 0,
+          yellow_card: !!stats.yellow_card,
+          red_card: !!stats.red_card,
         }))
 
       if (statsToInsert.length > 0) {
@@ -1245,11 +1257,44 @@ export default function FixturesPage() {
           .delete()
           .eq('match_id', selectedMatchForStats)
 
-        const { error: statsError } = await supabase
+        let { error: statsError } = await supabase
           .from('match_stats')
           .insert(statsToInsert)
 
+        // Graceful degrade if migration 049 hasn't been applied yet — retry
+        // without the card columns so the numeric stats still save.
+        let cardColumnsMissing = false
+        if (statsError && /yellow_card|red_card/i.test(statsError.message || '')) {
+          cardColumnsMissing = true
+          const stripped = statsToInsert.map(({ yellow_card, red_card, ...rest }: any) => rest)
+          const retry = await supabase.from('match_stats').insert(stripped)
+          statsError = retry.error
+        }
+
         if (statsError) throw statsError
+
+        // Fire discipline notifications for every carded player.
+        const carded = statsToInsert.filter((s: any) => s.yellow_card || s.red_card)
+        if (carded.length > 0 && !cardColumnsMissing) {
+          try {
+            await fetch('/api/match-stats/notify-cards', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                matchId: selectedMatchForStats,
+                cards: carded.map((s: any) => ({
+                  player_id: s.player_id,
+                  yellow_card: s.yellow_card,
+                  red_card: s.red_card,
+                })),
+              }),
+            })
+          } catch (e) { console.warn('Card notifications failed:', e) }
+        }
+
+        if (cardColumnsMissing) {
+          alert('Match stats saved. Note: red/yellow cards were not recorded — please run migration 049 in Supabase to enable the card feature.')
+        }
       }
 
       alert('Match stats saved successfully!')
@@ -1306,6 +1351,29 @@ export default function FixturesPage() {
         [field]: value,
       },
     }))
+  }
+
+  // Toggle discipline card — see data-admin togglePlayerCard for the shared
+  // rationale. Yellow and red are mutually exclusive; second click clears.
+  const togglePlayerCard = (playerId: string, kind: 'yellow' | 'red') => {
+    setPlayerStats((prev) => {
+      const current = prev[playerId] || {
+        player_id: playerId,
+        tackles_made: '0', tackles_missed: '0', ball_handling_errors: '0',
+        ball_carries: '0', tries_scored: '0', minutes_played: '0',
+        yellow_card: false, red_card: false,
+      }
+      const wasYellow = !!current.yellow_card
+      const wasRed = !!current.red_card
+      return {
+        ...prev,
+        [playerId]: {
+          ...current,
+          yellow_card: kind === 'yellow' ? !wasYellow : false,
+          red_card:    kind === 'red'    ? !wasRed    : false,
+        },
+      }
+    })
   }
 
   const downloadStatsTemplate = () => {
@@ -1414,7 +1482,7 @@ export default function FixturesPage() {
           const triesScored = parseInt(row['Tries Scored'] || row['tries_scored'] || '0')
           const minutesPlayed = parseInt(row['Minutes Played'] || row['minutes_played'] || '0')
 
-          const playerStats = {
+          const playerStats: PlayerStats = {
             player_id: player.user_id,
             tackles_made: String(Math.max(0, tacklesMade)),
             tackles_missed: String(Math.max(0, tacklesMissed)),
@@ -1422,6 +1490,10 @@ export default function FixturesPage() {
             ball_carries: String(Math.max(0, ballCarries)),
             tries_scored: String(Math.max(0, triesScored)),
             minutes_played: String(Math.min(80, Math.max(0, minutesPlayed))),
+            // Cards aren't in the CSV template — default to none. Manager
+            // can still toggle them per row after import.
+            yellow_card: false,
+            red_card: false,
           }
 
           updatedStats[player.user_id] = playerStats
@@ -1672,7 +1744,71 @@ export default function FixturesPage() {
     }
 
     loadMatchSummaries()
+
+    // Fire-and-forget: fetch this user's list of hidden summary ids so we
+    // can filter them out of the render. If migration 049 isn't applied yet
+    // the endpoint returns an empty list gracefully.
+    ;(async () => {
+      try {
+        const r = await fetch('/api/fixtures/hide-summary', { cache: 'no-store' })
+        if (r.ok) {
+          const j = await r.json()
+          if (Array.isArray(j.hidden)) setHiddenSummaryIds(new Set(j.hidden))
+        }
+      } catch { /* non-fatal */ }
+    })()
   }, [matches, user?.role, loading])
+
+  // Hide a match summary from THIS user's view. Non-destructive: the match
+  // and its stats stay in the database and remain visible to everyone else.
+  // Undo is possible via the "Show hidden" affordance at the top of the list.
+  const handleHideSummary = async (matchId: string) => {
+    if (hidingSummaryId) return
+    setHidingSummaryId(matchId)
+    // Optimistic — update the set first so the card disappears immediately.
+    setHiddenSummaryIds((prev) => new Set(prev).add(matchId))
+    try {
+      const r = await fetch('/api/fixtures/hide-summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ matchId }),
+      })
+      if (!r.ok) {
+        // Roll back and tell the user why. The most common reason on a fresh
+        // deploy is that migration 049 hasn't been applied yet.
+        setHiddenSummaryIds((prev) => { const s = new Set(prev); s.delete(matchId); return s })
+        const j = await r.json().catch(() => ({}))
+        alert(j.error || 'Could not hide this summary. Please try again.')
+      }
+    } catch (e: any) {
+      setHiddenSummaryIds((prev) => { const s = new Set(prev); s.delete(matchId); return s })
+      alert(e?.message || 'Could not hide this summary.')
+    } finally {
+      setHidingSummaryId('')
+    }
+  }
+
+  const handleUnhideAllSummaries = async () => {
+    const ids = Array.from(hiddenSummaryIds)
+    if (ids.length === 0) return
+    // Clear locally first for snappy UI
+    const previous = new Set(hiddenSummaryIds)
+    setHiddenSummaryIds(new Set())
+    try {
+      await Promise.all(
+        ids.map((matchId) =>
+          fetch('/api/fixtures/hide-summary', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ matchId }),
+          })
+        )
+      )
+    } catch {
+      // If something goes wrong, put them back so the list matches server state.
+      setHiddenSummaryIds(previous)
+    }
+  }
 
   if (loading) {
     return (
@@ -2385,6 +2521,7 @@ export default function FixturesPage() {
                       <th className="px-3 py-3 text-center text-xs font-bold text-tm-text-1">Ball Carries</th>
                       <th className="px-3 py-3 text-center text-xs font-bold text-tm-text-1">Tries Scored</th>
                       <th className="px-3 py-3 text-center text-xs font-bold text-tm-text-1">Minutes Played</th>
+                      <th className="px-3 py-3 text-center text-xs font-bold text-tm-text-1">Card</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-tm-border">
@@ -2397,6 +2534,8 @@ export default function FixturesPage() {
                         ball_carries: '0',
                         tries_scored: '0',
                         minutes_played: '0',
+                        yellow_card: false,
+                        red_card: false,
                       }
 
                       return (
@@ -2461,6 +2600,35 @@ export default function FixturesPage() {
                               onChange={(e) => updatePlayerStat(player.user_id, 'minutes_played', e.target.value)}
                               className="w-full px-2 py-1 border border-tm-border rounded text-center text-sm"
                             />
+                          </td>
+                          {/* Card entry — Y (yellow) / R (red). Mutually
+                              exclusive; second click clears. Saving a card
+                              also fires notifications to the player + staff. */}
+                          <td className="px-2 py-2">
+                            <div className="flex justify-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => togglePlayerCard(player.user_id, 'yellow')}
+                                aria-label="Toggle yellow card"
+                                title="Yellow card"
+                                className={`h-7 w-6 rounded border text-xs font-bold transition-colors ${
+                                  stats.yellow_card
+                                    ? 'border-yellow-500 bg-yellow-400 text-black shadow-inner'
+                                    : 'border-tm-border bg-tm-surface text-tm-text-3 hover:bg-yellow-400/20'
+                                }`}
+                              >Y</button>
+                              <button
+                                type="button"
+                                onClick={() => togglePlayerCard(player.user_id, 'red')}
+                                aria-label="Toggle red card"
+                                title="Red card"
+                                className={`h-7 w-6 rounded border text-xs font-bold transition-colors ${
+                                  stats.red_card
+                                    ? 'border-red-600 bg-red-600 text-white shadow-inner'
+                                    : 'border-tm-border bg-tm-surface text-tm-text-3 hover:bg-red-500/20'
+                                }`}
+                              >R</button>
+                            </div>
                           </td>
                         </tr>
                       )
@@ -3532,11 +3700,27 @@ export default function FixturesPage() {
               </div>
             </div>
 
+            {/* When the user has hidden summaries, show a small "N hidden — show them"
+                banner so nothing is silently lost. */}
+            {hiddenSummaryIds.size > 0 && (
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-tm-border bg-tm-surface-hover px-3 py-2 text-sm text-tm-text-2">
+                <span>
+                  {hiddenSummaryIds.size} summary{hiddenSummaryIds.size === 1 ? '' : 's'} hidden from your view.
+                </span>
+                <button
+                  onClick={handleUnhideAllSummaries}
+                  className="rounded-md border border-tm-border bg-tm-surface px-3 py-1 text-xs font-semibold text-tm-text-1 hover:bg-tm-surface-hover"
+                >
+                  Show hidden
+                </button>
+              </div>
+            )}
+
             {loadingSummaries ? (
               <div className="flex items-center justify-center py-12">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
               </div>
-            ) : matchSummaries.length === 0 ? (
+            ) : matchSummaries.filter((s) => !hiddenSummaryIds.has(s.matchId)).length === 0 ? (
               <div className="text-center py-12 text-tm-text-3">
                 <Trophy className="w-16 h-16 mx-auto mb-4 text-tm-text-3" />
                 <p className="text-lg font-semibold">No matches found</p>
@@ -3546,7 +3730,7 @@ export default function FixturesPage() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {matchSummaries.map((summary) => (
+                {matchSummaries.filter((s) => !hiddenSummaryIds.has(s.matchId)).map((summary) => (
                   <div
                     key={summary.matchId}
                     className="bg-tm-surface rounded-lg border border-tm-border shadow-soft p-5 hover:shadow-medium transition-all"
@@ -3557,13 +3741,30 @@ export default function FixturesPage() {
                         <h3 className="text-lg font-bold text-tm-text-1">
                           vs {summary.opponent}
                         </h3>
-                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                          summary.isUpcoming
-                            ? 'bg-success/15 text-success'
-                            : 'bg-tm-surface-hover text-tm-text-2'
-                        }`}>
-                          {summary.isUpcoming ? 'Upcoming' : 'Played'}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                            summary.isUpcoming
+                              ? 'bg-success/15 text-success'
+                              : 'bg-tm-surface-hover text-tm-text-2'
+                          }`}>
+                            {summary.isUpcoming ? 'Upcoming' : 'Played'}
+                          </span>
+                          {/* Soft-hide button — declutters the summaries list.
+                              Never destructive; recoverable via "Show hidden". */}
+                          <button
+                            onClick={() => {
+                              if (confirm(`Hide the summary for "vs ${summary.opponent}" from your view? The match and its stats stay in the database — you can restore it from "Show hidden".`)) {
+                                handleHideSummary(summary.matchId)
+                              }
+                            }}
+                            disabled={hidingSummaryId === summary.matchId}
+                            title="Hide this summary from your view"
+                            aria-label="Hide this summary"
+                            className="rounded-md p-1 text-tm-text-3 transition-colors hover:bg-red-500/10 hover:text-red-500 disabled:opacity-50"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
                       </div>
                       <div className="flex flex-wrap gap-2 text-xs text-tm-text-3">
                         <div className="flex items-center">

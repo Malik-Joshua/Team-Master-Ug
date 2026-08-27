@@ -55,6 +55,11 @@ interface PlayerStats {
   ball_carries: string
   tries_scored: string
   minutes_played: string
+  // On-field discipline. Modeled as two independent booleans (a 2nd-yellow →
+  // red typically means BOTH get recorded), but the UI treats them as
+  // mutually exclusive toggles for clarity.
+  yellow_card: boolean
+  red_card: boolean
 }
 
 export default function DataAdminDashboard() {
@@ -483,7 +488,9 @@ export default function DataAdminDashboard() {
       // If no team selected, allow all players
       const statsToInsert = Object.entries(playerStats)
         .filter(([playerId, stats]) => {
-          // Only include players who are in the selected team (if team exists) AND have at least one stat entered
+          // Only include players who are in the selected team (if team exists) AND
+          // have at least one stat entered — OR carry a discipline card, since a
+          // carded player with no other stats still needs a row to persist it.
           const isInSelectedTeam = selectedPlayerIds.length === 0 || selectedPlayerIds.includes(playerId)
           return (
             isInSelectedTeam &&
@@ -493,7 +500,8 @@ export default function DataAdminDashboard() {
               parseInt(stats.ball_handling_errors) > 0 ||
               parseInt(stats.ball_carries) > 0 ||
               parseInt(stats.tries_scored) > 0 ||
-              parseInt(stats.minutes_played) > 0
+              parseInt(stats.minutes_played) > 0 ||
+              stats.yellow_card || stats.red_card
             )
           )
         })
@@ -506,6 +514,8 @@ export default function DataAdminDashboard() {
           ball_carries: parseInt(stats.ball_carries) || 0,
           tries_scored: parseInt(stats.tries_scored) || 0,
           minutes_played: parseInt(stats.minutes_played) || 0,
+          yellow_card: !!stats.yellow_card,
+          red_card: !!stats.red_card,
         }))
 
       if (statsToInsert.length > 0) {
@@ -515,14 +525,51 @@ export default function DataAdminDashboard() {
           .delete()
           .eq('match_id', selectedMatchForStats)
 
-        const { error: statsError } = await supabase
+        let { error: statsError } = await supabase
           .from('match_stats')
           .insert(statsToInsert)
+
+        // Graceful degrade: if migration 049 (card columns) hasn't run yet
+        // on this database, re-insert without the card fields so the manager
+        // can still record the numeric stats. We'll surface a note at the end.
+        let cardColumnsMissing = false
+        if (statsError && /yellow_card|red_card/i.test(statsError.message || '')) {
+          cardColumnsMissing = true
+          const stripped = statsToInsert.map(({ yellow_card, red_card, ...rest }: any) => rest)
+          const retry = await supabase.from('match_stats').insert(stripped)
+          statsError = retry.error
+        }
 
         if (statsError) throw statsError
 
         // This match now has stats — drop it from the "needs stats" alert.
         setMatchesWithStats((prev) => new Set(prev).add(selectedMatchForStats))
+
+        // Fire discipline notifications for every carded player. See
+        // /api/match-stats/notify-cards for the exact recipient set (player +
+        // admins + coaches + owner). Non-blocking: even if it fails, the
+        // stats are already saved.
+        const carded = statsToInsert.filter((s: any) => s.yellow_card || s.red_card)
+        if (carded.length > 0 && !cardColumnsMissing) {
+          try {
+            await fetch('/api/match-stats/notify-cards', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                matchId: selectedMatchForStats,
+                cards: carded.map((s: any) => ({
+                  player_id: s.player_id,
+                  yellow_card: s.yellow_card,
+                  red_card: s.red_card,
+                })),
+              }),
+            })
+          } catch (e) { console.warn('Card notifications failed:', e) }
+        }
+
+        if (cardColumnsMissing) {
+          alert('Match stats saved. Note: red/yellow cards were not recorded — please run migration 049 in Supabase to enable the card feature.')
+        }
       }
 
       alert('Match stats saved successfully!')
@@ -693,6 +740,10 @@ export default function DataAdminDashboard() {
           ball_carries: String(row.ball_carries),
           tries_scored: String(row.tries_scored),
           minutes_played: String(row.minutes_played),
+          // CSV template doesn't carry cards — default to none. Manager can
+          // still toggle them per player after import.
+          yellow_card: false,
+          red_card: false,
         }
       }
     }
@@ -729,6 +780,30 @@ export default function DataAdminDashboard() {
         [field]: value,
       },
     }))
+  }
+
+  // Toggle a discipline card. Yellow and red are treated as mutually exclusive
+  // in the UI: turning one on turns the other off, and clicking the same one
+  // again clears it (a second click = "no card").
+  const togglePlayerCard = (playerId: string, kind: 'yellow' | 'red') => {
+    setPlayerStats((prev) => {
+      const current = prev[playerId] || {
+        player_id: playerId,
+        tackles_made: '0', tackles_missed: '0', ball_handling_errors: '0',
+        ball_carries: '0', tries_scored: '0', minutes_played: '0',
+        yellow_card: false, red_card: false,
+      }
+      const wasYellow = !!current.yellow_card
+      const wasRed = !!current.red_card
+      return {
+        ...prev,
+        [playerId]: {
+          ...current,
+          yellow_card: kind === 'yellow' ? !wasYellow : false,
+          red_card:    kind === 'red'    ? !wasRed    : false,
+        },
+      }
+    })
   }
 
   const loadTeamSelection = async (matchId: string) => {
@@ -1588,6 +1663,7 @@ export default function DataAdminDashboard() {
                           <th className="px-3 py-3 text-center text-xs font-bold text-tm-text-1">Ball Carries</th>
                           <th className="px-3 py-3 text-center text-xs font-bold text-tm-text-1">Tries Scored</th>
                           <th className="px-3 py-3 text-center text-xs font-bold text-tm-text-1">Minutes Played</th>
+                          <th className="px-3 py-3 text-center text-xs font-bold text-tm-text-1">Card</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-tm-border">
@@ -1600,6 +1676,8 @@ export default function DataAdminDashboard() {
                             ball_carries: '0',
                             tries_scored: '0',
                             minutes_played: '0',
+                            yellow_card: false,
+                            red_card: false,
                           }
                           // Check if player is in selected team (if match is selected).
                           // IMPORTANT: if a match was played but no squad was ever
@@ -1685,6 +1763,37 @@ export default function DataAdminDashboard() {
                                   disabled={!isInSelectedTeam && !!selectedMatchForStats}
                                   className="w-full px-2 py-1 border border-tm-border rounded text-center text-sm disabled:bg-tm-surface-hover disabled:cursor-not-allowed"
                                 />
+                              </td>
+                              {/* Card entry — Y (yellow) / R (red). Mutually
+                                  exclusive, click again to clear. Saving a
+                                  card also alerts the player and staff. */}
+                              <td className="px-2 py-2">
+                                <div className="flex justify-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => togglePlayerCard(player.user_id, 'yellow')}
+                                    disabled={!isInSelectedTeam && !!selectedMatchForStats}
+                                    aria-label="Toggle yellow card"
+                                    title="Yellow card"
+                                    className={`h-7 w-6 rounded border text-xs font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                                      stats.yellow_card
+                                        ? 'border-yellow-500 bg-yellow-400 text-black shadow-inner'
+                                        : 'border-tm-border bg-tm-surface text-tm-text-3 hover:bg-yellow-400/20'
+                                    }`}
+                                  >Y</button>
+                                  <button
+                                    type="button"
+                                    onClick={() => togglePlayerCard(player.user_id, 'red')}
+                                    disabled={!isInSelectedTeam && !!selectedMatchForStats}
+                                    aria-label="Toggle red card"
+                                    title="Red card"
+                                    className={`h-7 w-6 rounded border text-xs font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                                      stats.red_card
+                                        ? 'border-red-600 bg-red-600 text-white shadow-inner'
+                                        : 'border-tm-border bg-tm-surface text-tm-text-3 hover:bg-red-500/20'
+                                    }`}
+                                  >R</button>
+                                </div>
                               </td>
                             </tr>
                           )

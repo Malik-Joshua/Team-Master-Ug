@@ -1314,18 +1314,24 @@ export default function FixturesPage() {
       setMatchStaff({ coach: null, physio: null, team_manager: null })
       setStaffAttendance({})
       
-      // Reload matches
+      // Reload matches so the just-saved fixture flips to the "Played"
+      // badge (which is driven by matches.status === 'played') and the
+      // "Add Match Stats" button hides / shows the recorded flag. We MUST
+      // include the same columns the render path reads (status,
+      // tournament_id, stage, game_order) — otherwise the reloaded rows
+      // arrive with status=undefined and the badge stays on "Upcoming"
+      // even though the DB was correctly updated.
       let matchesData: any[] | null
       let reloadError: any
       ;({ data: matchesData, error: reloadError } = await supabase
         .from('matches')
-        .select('id, match_date, opponent, venue, tournament_type, squad_size')
+        .select('id, match_date, opponent, venue, tournament_type, status, squad_size, tournament_id, stage, game_order')
         .order('match_date', { ascending: false })
         .limit(100))
-      if (reloadError?.message?.includes('squad_size')) {
+      if (reloadError?.message?.includes('squad_size') || reloadError?.message?.includes('tournament_id')) {
         const retry = await supabase
           .from('matches')
-          .select('id, match_date, opponent, venue, tournament_type')
+          .select('id, match_date, opponent, venue, tournament_type, status')
           .order('match_date', { ascending: false })
           .limit(100)
         matchesData = retry.data
@@ -2687,8 +2693,11 @@ export default function FixturesPage() {
     // exactly the fixtures a squad has been picked for.
     const squadSelectedIds = new Set(previousSquads.map((s) => s.match_id))
     // Apply the history filter: search by opponent + squad-selection status.
+    // Also hide any fixtures this user has soft-hidden (per-user, non-destructive
+    // — the record still exists for everyone else and for reports).
     const searchTerm = fixtureSearch.trim().toLowerCase()
     const filteredMatches = matches.filter((match) => {
+      if (hiddenSummaryIds.has(match.id)) return false
       const matchesSearch = !searchTerm || match.opponent?.toLowerCase().includes(searchTerm)
       const hasSquad = squadSelectedIds.has(match.id)
       const matchesStatus =
@@ -2698,6 +2707,9 @@ export default function FixturesPage() {
       return matchesSearch && matchesStatus
     })
     const isFiltering = squadFilter !== 'all' || searchTerm.length > 0
+    // How many the current manager has hidden — surfaced above the list so
+    // hidden work can always be restored, never silently lost.
+    const managerHiddenCount = matches.filter((m) => hiddenSummaryIds.has(m.id)).length
 
     return (
       <Layout pageTitle="Fixtures">
@@ -2790,6 +2802,23 @@ export default function FixturesPage() {
               </div>
             )}
 
+            {/* Show-hidden banner — never let a hidden fixture be silently
+                lost. Clicking Show hidden restores everything the manager
+                soft-hid from this list. */}
+            {managerHiddenCount > 0 && (
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-tm-border bg-tm-surface-hover px-3 py-2 text-sm text-tm-text-2">
+                <span>
+                  {managerHiddenCount} fixture{managerHiddenCount === 1 ? '' : 's'} hidden from your view.
+                </span>
+                <button
+                  onClick={handleUnhideAllSummaries}
+                  className="rounded-md border border-tm-border bg-tm-surface px-3 py-1 text-xs font-semibold text-tm-text-1 hover:bg-tm-surface-hover"
+                >
+                  Show hidden
+                </button>
+              </div>
+            )}
+
             {/* Fixtures List */}
             {matches.length === 0 ? (
               <div className="text-center py-12 text-tm-text-3">
@@ -2850,6 +2879,17 @@ export default function FixturesPage() {
                             }`}>
                               {isUpcoming ? 'Upcoming' : 'Played'}
                             </span>
+                            {/* Stats-recorded chip: shows up the moment the
+                                manager saves stats (we set status='played'
+                                at save time), so the badge and this chip
+                                together answer "is this game done?" at a
+                                glance without opening the fixture. */}
+                            {match.status === 'played' && (
+                              <span className="px-3 py-1 rounded-full text-xs font-semibold bg-success/15 text-success inline-flex items-center gap-1">
+                                <Check className="w-3 h-3" />
+                                Stats recorded
+                              </span>
+                            )}
                             {hasSquad ? (
                               <span className="px-3 py-1 rounded-full text-xs font-semibold bg-secondary/15 text-secondary inline-flex items-center gap-1">
                                 <Check className="w-3 h-3" />
@@ -2924,14 +2964,35 @@ export default function FixturesPage() {
                             </button>
                           )}
                           {user?.role === 'data_admin' && (
-                            <button
-                              onClick={() => handleDeleteFixture(match.id)}
-                              disabled={deletingFixtureId === match.id}
-                              className="px-4 py-2 bg-red-600 text-white rounded-[6px] font-semibold hover:bg-red-700 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center disabled:opacity-50"
-                            >
-                              <Trash2 className="w-4 h-4 mr-2" />
-                              {deletingFixtureId === match.id ? 'Deleting...' : 'Delete'}
-                            </button>
+                            <>
+                              {/* Soft-hide — keeps the fixture and its stats
+                                  in the database (visible to everyone else
+                                  and included in reports), just removes it
+                                  from this manager's list. Use this when the
+                                  list gets over-populated with completed
+                                  weekends. Recoverable via "Show hidden". */}
+                              <button
+                                onClick={() => {
+                                  if (confirm(`Hide the fixture vs "${match.opponent}" from your view? The match and its stats stay in the database — you can restore it from "Show hidden".`)) {
+                                    handleHideSummary(match.id)
+                                  }
+                                }}
+                                disabled={hidingSummaryId === match.id}
+                                title="Hide this fixture from your view (non-destructive)"
+                                className="px-4 py-2 bg-tm-surface-hover text-tm-text-1 border border-tm-border rounded-[6px] font-semibold hover:border-primary hover:text-primary transition-all duration-300 inline-flex items-center disabled:opacity-50"
+                              >
+                                <Eye className="w-4 h-4 mr-2" />
+                                {hidingSummaryId === match.id ? 'Hiding…' : 'Hide'}
+                              </button>
+                              <button
+                                onClick={() => handleDeleteFixture(match.id)}
+                                disabled={deletingFixtureId === match.id}
+                                className="px-4 py-2 bg-red-600 text-white rounded-[6px] font-semibold hover:bg-red-700 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center disabled:opacity-50"
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                {deletingFixtureId === match.id ? 'Deleting...' : 'Delete'}
+                              </button>
+                            </>
                           )}
                         </div>
                       </div>

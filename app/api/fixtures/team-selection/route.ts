@@ -235,7 +235,7 @@ export async function GET(request: NextRequest) {
     })
 
     // Get team selections for this match with player names
-    const { data: selections, error } = await supabaseAdmin
+    let { data: selections, error } = await supabaseAdmin
       .from('fixture_team_selections')
       .select('*')
       .eq('match_id', matchId)
@@ -248,6 +248,76 @@ export async function GET(request: NextRequest) {
         { error: `Failed to fetch team selections: ${error.message}` },
         { status: 500 }
       )
+    }
+
+    // TOURNAMENT SQUAD PROPAGATION (defensive self-heal)
+    //
+    // A sevens tournament has one shared squad across all its games. If this
+    // match belongs to a tournament AND has no selections, we look for a
+    // sibling game in the same tournament that DOES have selections and copy
+    // them across. This repairs the case where an older coach save only
+    // wrote to game 1 before the "save-to-all" fix landed, so any staff
+    // hitting "View Team" on games 2 / 3 / etc. now sees the correct squad.
+    //
+    // We also persist the copy so the game is truly "fixed" for next time.
+    if (!selections || selections.length === 0) {
+      const { data: thisMatch } = await supabaseAdmin
+        .from('matches')
+        .select('tournament_id')
+        .eq('id', matchId)
+        .maybeSingle()
+
+      if (thisMatch?.tournament_id) {
+        const { data: siblings } = await supabaseAdmin
+          .from('matches')
+          .select('id')
+          .eq('tournament_id', thisMatch.tournament_id)
+          .neq('id', matchId)
+
+        const siblingIds = (siblings || []).map((s: any) => s.id)
+        if (siblingIds.length > 0) {
+          const { data: siblingSel } = await supabaseAdmin
+            .from('fixture_team_selections')
+            .select('*')
+            .in('match_id', siblingIds)
+
+          // Pick the sibling that has the largest saved squad (defensively
+          // avoids picking a half-populated game if one exists).
+          const byMatch: Record<string, any[]> = {}
+          for (const s of siblingSel || []) (byMatch[s.match_id] ||= []).push(s)
+          const bestMatchId = Object.keys(byMatch).sort((a, b) => byMatch[b].length - byMatch[a].length)[0]
+
+          if (bestMatchId && byMatch[bestMatchId].length > 0) {
+            const source = byMatch[bestMatchId]
+            const rowsToInsert = source.map((s: any) => ({
+              match_id: matchId,
+              player_id: s.player_id,
+              position: s.position ?? null,
+              jersey_number: s.jersey_number ?? null,
+              is_starting: s.is_starting ?? true,
+              is_substitute: s.is_substitute ?? false,
+              is_captain: s.is_captain ?? false,
+              is_assistant_captain: s.is_assistant_captain ?? false,
+              notes: s.notes ?? null,
+              selected_by: s.selected_by ?? authUser.id,
+            }))
+            const { error: healErr } = await supabaseAdmin
+              .from('fixture_team_selections')
+              .insert(rowsToInsert)
+            if (healErr) {
+              console.warn('[team-selection GET] auto-propagate failed:', healErr.message)
+            }
+            // Re-read so we return the same shape as the primary path.
+            const { data: refreshed } = await supabaseAdmin
+              .from('fixture_team_selections')
+              .select('*')
+              .eq('match_id', matchId)
+              .order('is_starting', { ascending: false })
+              .order('jersey_number', { ascending: true })
+            selections = refreshed || rowsToInsert as any
+          }
+        }
+      }
     }
 
     // Fetch player names using service role to bypass RLS
@@ -486,6 +556,50 @@ export async function POST(request: NextRequest) {
       .from('fixture_team_selections')
       .insert(records)
       .select()
+
+    // TOURNAMENT SQUAD PROPAGATION (server-side safety net)
+    //
+    // If this match is part of a sevens tournament, mirror the same squad
+    // to every sibling game in that tournament. This makes the "one squad
+    // for the whole tournament" rule an invariant regardless of which
+    // client path (coach page, manager page, admin page) issued the save,
+    // so we can't get back into the state where game 1 has a full squad
+    // and games 2/3 are empty.
+    if (!insertError) {
+      try {
+        const { data: parentMatch } = await supabaseAdmin
+          .from('matches')
+          .select('tournament_id')
+          .eq('id', matchId)
+          .maybeSingle()
+        if (parentMatch?.tournament_id) {
+          const { data: siblings } = await supabaseAdmin
+            .from('matches')
+            .select('id')
+            .eq('tournament_id', parentMatch.tournament_id)
+            .neq('id', matchId)
+          const siblingIds = (siblings || []).map((s: any) => s.id)
+          if (siblingIds.length > 0) {
+            // Wipe & repopulate each sibling's selections in one round trip.
+            await supabaseAdmin.from('fixture_team_selections').delete().in('match_id', siblingIds)
+            const mirrored: any[] = []
+            for (const sid of siblingIds) {
+              for (const r of records) mirrored.push({ ...r, match_id: sid })
+            }
+            if (mirrored.length > 0) {
+              const { error: mirrErr } = await supabaseAdmin
+                .from('fixture_team_selections')
+                .insert(mirrored)
+              if (mirrErr) console.warn('[team-selection POST] tournament propagate failed:', mirrErr.message)
+              else console.log(`[team-selection POST] mirrored squad to ${siblingIds.length} sibling tournament game(s)`)
+            }
+          }
+        }
+      } catch (propErr) {
+        console.warn('[team-selection POST] tournament propagate errored:', propErr)
+        // Non-fatal — the primary save already succeeded.
+      }
+    }
 
     if (insertError) {
       console.error('Error inserting team selections:', insertError)

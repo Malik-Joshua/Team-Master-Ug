@@ -68,7 +68,7 @@ export async function PATCH(
       .from('matches')
       .update(updateData)
       .eq('id', matchId)
-      .select('id, match_date, opponent, venue, tournament_type, physio_id, team_manager_id, coach_id')
+      .select('id, match_date, opponent, venue, tournament_type, physio_id, team_manager_id, coach_id, tournament_id')
       .single()
 
     if (updateError) {
@@ -84,6 +84,41 @@ export async function PATCH(
         { error: 'Match not found' },
         { status: 404 }
       )
+    }
+
+    // TOURNAMENT STAFF PROPAGATION
+    //
+    // A sevens tournament runs across 3–6 games with one shared squad AND
+    // one shared support crew (physio, team manager, coach). Assigning them
+    // to one game should populate every other game in the same tournament,
+    // so the physio/manager can see the full weekend on their dashboards
+    // without staff having to click into each fixture and re-assign.
+    //
+    // Only fields explicitly present in this PATCH body are mirrored — that
+    // way you can update just one role (e.g. swap the physio) without
+    // clobbering another.
+    if (updatedMatch.tournament_id) {
+      try {
+        const { data: siblings } = await supabaseAdmin
+          .from('matches')
+          .select('id')
+          .eq('tournament_id', updatedMatch.tournament_id)
+          .neq('id', matchId)
+        const siblingIds = (siblings || []).map((s: any) => s.id)
+        if (siblingIds.length > 0) {
+          const { error: mirrorErr } = await supabaseAdmin
+            .from('matches')
+            .update(updateData)
+            .in('id', siblingIds)
+          if (mirrorErr) {
+            console.warn('[staff PATCH] tournament propagate failed:', mirrorErr.message)
+          } else {
+            console.log(`[staff PATCH] mirrored staff to ${siblingIds.length} sibling tournament game(s)`)
+          }
+        }
+      } catch (propErr) {
+        console.warn('[staff PATCH] tournament propagate errored:', propErr)
+      }
     }
 
     // Fetch staff names if assigned

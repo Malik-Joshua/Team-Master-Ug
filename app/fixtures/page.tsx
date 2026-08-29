@@ -144,6 +144,9 @@ export default function FixturesPage() {
   // For data_admin: Create Fixture and Enter Match Stats
   const [showCreateFixtureForm, setShowCreateFixtureForm] = useState(false)
   const [showMatchForm, setShowMatchForm] = useState(false)
+  // True once we've confirmed the selected match already has saved
+  // match_stats — surfaces the "you're re-recording" banner in the modal.
+  const [reRecordingStats, setReRecordingStats] = useState(false)
   // Squad-selection history filter (data_admin fixtures page). Lets the team
   // manager narrow the fixtures list by whether a squad has been picked yet,
   // and search by opponent — acting as a history filter for selected squads.
@@ -1327,6 +1330,7 @@ export default function FixturesPage() {
       })
       setPlayerStats({})
       setSelectedMatchForStats('')
+      setReRecordingStats(false)
       setMatchStaff({ coach: null, physio: null, team_manager: null })
       setStaffAttendance({})
       
@@ -1683,6 +1687,77 @@ export default function FixturesPage() {
     }
 
     loadDataForMatchStats()
+  }, [selectedMatchForStats, showMatchForm])
+
+  // Prefill playerStats from any previously-saved match_stats for this
+  // fixture, so re-recording a played match starts from what was saved
+  // (numbers + Y/R cards) instead of an empty grid. Applies whenever the
+  // manager opens the Match Stats modal for a match that already has stats.
+  useEffect(() => {
+    if (!showMatchForm || !selectedMatchForStats) return
+    let cancelled = false
+
+    const loadExistingStats = async () => {
+      const supabase = createClient()
+      let { data: rows, error: err }: any = await supabase
+        .from('match_stats')
+        .select('player_id, tackles_made, tackles_missed, ball_handling_errors, ball_carries, tries_scored, minutes_played, yellow_card, red_card')
+        .eq('match_id', selectedMatchForStats)
+      if (err && /yellow_card|red_card/.test(err.message || '')) {
+        const retry = await supabase
+          .from('match_stats')
+          .select('player_id, tackles_made, tackles_missed, ball_handling_errors, ball_carries, tries_scored, minutes_played')
+          .eq('match_id', selectedMatchForStats)
+        rows = retry.data
+        err = retry.error
+      }
+      if (cancelled) return
+      if (err || !rows || rows.length === 0) {
+        setReRecordingStats(false)
+        return
+      }
+      setReRecordingStats(true)
+
+      const next: Record<string, PlayerStats> = {}
+      for (const r of rows) {
+        next[r.player_id] = {
+          player_id: r.player_id,
+          tackles_made: String(r.tackles_made ?? 0),
+          tackles_missed: String(r.tackles_missed ?? 0),
+          ball_handling_errors: String(r.ball_handling_errors ?? 0),
+          ball_carries: String(r.ball_carries ?? 0),
+          tries_scored: String(r.tries_scored ?? 0),
+          minutes_played: String(r.minutes_played ?? 0),
+          yellow_card: !!(r as any).yellow_card,
+          red_card: !!(r as any).red_card,
+        }
+      }
+      // Also pre-fill the match-level form (scores, result, notes) with
+      // whatever was saved, so the manager can tweak a single score
+      // without accidentally reverting the rest.
+      const { data: matchRow } = await supabase
+        .from('matches')
+        .select('result, score_our_team, score_opponent, notes, match_date, opponent, tournament_type, venue')
+        .eq('id', selectedMatchForStats)
+        .single()
+      if (matchRow && !cancelled) {
+        setMatchForm((prev) => ({
+          ...prev,
+          match_date: matchRow.match_date || prev.match_date,
+          opponent: matchRow.opponent || prev.opponent,
+          tournament_type: (matchRow.tournament_type as any) || prev.tournament_type,
+          venue: matchRow.venue || prev.venue,
+          result: matchRow.result || prev.result,
+          score_our_team: String(matchRow.score_our_team ?? prev.score_our_team ?? 0),
+          score_opponent: String(matchRow.score_opponent ?? prev.score_opponent ?? 0),
+          notes: matchRow.notes ?? prev.notes ?? '',
+        }))
+      }
+      setPlayerStats(next)
+    }
+
+    loadExistingStats()
+    return () => { cancelled = true }
   }, [selectedMatchForStats, showMatchForm])
 
   // Load match summaries for admin
@@ -2329,6 +2404,16 @@ export default function FixturesPage() {
                   ))}
                 </select>
               </div>
+            </div>
+          )}
+
+          {/* Re-record banner — appears when this fixture already has
+              saved stats, so the manager knows why the fields below are
+              pre-filled and that saving overwrites the previous record. */}
+          {reRecordingStats && (
+            <div className="mb-4 rounded-lg border border-info/40 bg-info/5 px-4 py-3">
+              <p className="text-sm font-semibold text-tm-text-1">You&apos;re re-recording previously saved stats.</p>
+              <p className="text-xs text-tm-text-3 mt-0.5">The match info, player numbers and cards below have been pre-loaded from what was saved before — tweak what you need and save to overwrite.</p>
             </div>
           )}
 
@@ -3413,6 +3498,18 @@ export default function FixturesPage() {
                           ))}
                         </select>
                       </div>
+                    </div>
+                  )}
+
+                  {/* Re-record banner — this modal is the one rendered
+                      for data_admin. Same banner as the coach/admin modal
+                      further up; kept in sync so the manager sees the
+                      same "you're overwriting" hint before touching a
+                      pre-filled grid. */}
+                  {reRecordingStats && (
+                    <div className="mb-4 rounded-lg border border-info/40 bg-info/5 px-4 py-3">
+                      <p className="text-sm font-semibold text-tm-text-1">You&apos;re re-recording previously saved stats.</p>
+                      <p className="text-xs text-tm-text-3 mt-0.5">The match info, player numbers and cards below have been pre-loaded from what was saved before — tweak what you need and save to overwrite.</p>
                     </div>
                   )}
 

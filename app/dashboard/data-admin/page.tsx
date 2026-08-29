@@ -851,6 +851,57 @@ export default function DataAdminDashboard() {
     }
   }, [selectedMatchForStats])
 
+  // Prefill playerStats from any previously-saved match_stats rows for this
+  // fixture, so the manager re-recording a played match sees their earlier
+  // numbers and cards in the grid and only needs to tweak the deltas —
+  // rather than re-entering every field from scratch. If the fixture has
+  // no saved stats, the grid stays at defaults.
+  useEffect(() => {
+    if (!selectedMatchForStats) return
+    let cancelled = false
+
+    const loadExistingStats = async () => {
+      const supabase = createClient()
+      // Try full SELECT (with card columns from migration 049). If those
+      // columns don't exist yet, retry without them so this still works
+      // on pre-049 databases.
+      let { data: rows, error: err }: any = await supabase
+        .from('match_stats')
+        .select('player_id, tackles_made, tackles_missed, ball_handling_errors, ball_carries, tries_scored, minutes_played, yellow_card, red_card')
+        .eq('match_id', selectedMatchForStats)
+      if (err && /yellow_card|red_card/.test(err.message || '')) {
+        const retry = await supabase
+          .from('match_stats')
+          .select('player_id, tackles_made, tackles_missed, ball_handling_errors, ball_carries, tries_scored, minutes_played')
+          .eq('match_id', selectedMatchForStats)
+        rows = retry.data
+        err = retry.error
+      }
+      if (cancelled || err || !rows) return
+      const next: Record<string, PlayerStats> = {}
+      for (const r of rows) {
+        next[r.player_id] = {
+          player_id: r.player_id,
+          tackles_made: String(r.tackles_made ?? 0),
+          tackles_missed: String(r.tackles_missed ?? 0),
+          ball_handling_errors: String(r.ball_handling_errors ?? 0),
+          ball_carries: String(r.ball_carries ?? 0),
+          tries_scored: String(r.tries_scored ?? 0),
+          minutes_played: String(r.minutes_played ?? 0),
+          yellow_card: !!(r as any).yellow_card,
+          red_card: !!(r as any).red_card,
+        }
+      }
+      // Replace wholesale — a re-record starts from what was saved. Any
+      // draft edits the manager made before the load are intentionally
+      // discarded so they don't get merged with the historical record.
+      setPlayerStats(next)
+    }
+
+    loadExistingStats()
+    return () => { cancelled = true }
+  }, [selectedMatchForStats])
+
   const handleCreateFixture = async () => {
     if (!fixtureForm.match_date || !fixtureForm.opponent) {
       alert('Please fill in match date and opponent')
@@ -1521,6 +1572,17 @@ export default function DataAdminDashboard() {
                     <p className="text-sm text-primary">
                       <strong>Note:</strong> To create a new fixture or enter match stats, go to the Fixtures page.
                     </p>
+                  </div>
+                )}
+
+                {/* Re-record banner — appears when this fixture already
+                    has saved stats, so the manager knows why the fields
+                    below are pre-filled and understands their edits will
+                    overwrite the previous record. */}
+                {selectedMatchForStats && matchesWithStats.has(selectedMatchForStats) && (
+                  <div className="mb-4 rounded-lg border border-info/40 bg-info/5 px-4 py-3">
+                    <p className="text-sm font-semibold text-tm-text-1">You&apos;re re-recording previously saved stats.</p>
+                    <p className="text-xs text-tm-text-3 mt-0.5">The match info, player numbers and cards below have been pre-loaded from what was saved before — tweak what you need and save to overwrite.</p>
                   </div>
                 )}
 

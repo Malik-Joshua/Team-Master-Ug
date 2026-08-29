@@ -1210,6 +1210,22 @@ export default function FixturesPage() {
           .upsert(attendanceRecords, { onConflict: 'match_id,staff_id' })
 
         if (attendanceError) throw attendanceError
+
+        // Fire absence alerts. Only the staff members recorded 'A' get
+        // flagged — the endpoint fans that out to the victim + finance +
+        // owner + manager with copy tailored per role. Non-blocking.
+        const absentIds = attendanceRecords
+          .filter((r) => r.attendance_status === 'A')
+          .map((r) => ({ staff_id: r.staff_id }))
+        if (absentIds.length > 0) {
+          try {
+            await fetch('/api/match-stats/notify-staff-absence', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ matchId: selectedMatchForStats, absent: absentIds }),
+            })
+          } catch (e) { console.warn('Staff absence notifications failed:', e) }
+        }
       }
 
       // Get selected team for this match (if exists)

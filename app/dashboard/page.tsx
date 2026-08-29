@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
 import BirthdayAlert from '@/components/BirthdayAlert'
+import DisciplineAlerts from '@/components/DisciplineAlerts'
 import FixtureCard from '@/components/FixtureCard'
 import MatchDayModal from '@/components/MatchDayModal'
 import { Calendar, Activity, Trophy, Target, AlertCircle, Dumbbell, Edit, X, Save, HeartPulse, Pill, FileText, Clock, CheckCircle, MapPin } from 'lucide-react'
@@ -661,6 +662,10 @@ export default function DashboardPage() {
       <Layout pageTitle="Player Dashboard">
         <div className="space-y-6">
           <BirthdayAlert />
+          {/* Discipline / absence alerts (cards issued to the player,
+              absences that concern them). Copy is already tailored per
+              account by the notify-cards / notify-staff-absence endpoints. */}
+          <DisciplineAlerts />
           {/* Fixture Selection Notification for Player */}
           {loadingPlayerFixture ? (
             <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
@@ -1380,6 +1385,7 @@ export default function DashboardPage() {
       <Layout pageTitle="Coach Control Center">
         <div className="space-y-4 sm:space-y-6">
           <BirthdayAlert />
+          <DisciplineAlerts />
           {/* Stats */}
           <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-3 lg:grid-cols-5">
             <StatCard

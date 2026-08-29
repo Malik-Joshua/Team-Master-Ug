@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
 import BirthdayAlert from '@/components/BirthdayAlert'
+import DisciplineAlerts from '@/components/DisciplineAlerts'
 import { Activity, AlertCircle, CheckCircle, Clock, Plus, X, Save, Edit, Calendar, Pill, FileText, User, CalendarDays, Trophy } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
@@ -553,6 +554,9 @@ export default function PhysioDashboard() {
     <Layout pageTitle="Physio Dashboard">
       <div className="space-y-6">
         <BirthdayAlert />
+        {/* If the physio was marked absent on a match day, the alert
+            shows up here too — first-person copy from notify-staff-absence. */}
+        <DisciplineAlerts />
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-[20px] font-medium text-tm-text-1">Injury management</h1>

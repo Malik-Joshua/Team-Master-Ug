@@ -2,6 +2,7 @@
 
 import Layout from '@/components/Layout'
 import BirthdayAlert from '@/components/BirthdayAlert'
+import DisciplineAlerts from '@/components/DisciplineAlerts'
 import { DollarSign, TrendingUp, TrendingDown, Calendar, X, AlertCircle, Wallet } from 'lucide-react'
 import Link from 'next/link'
 import { formatDistanceToNow } from 'date-fns'
@@ -254,6 +255,9 @@ export default function FinanceAdminDashboard() {
     <Layout pageTitle="Financial Overview">
       <div className="space-y-6">
         <BirthdayAlert />
+        {/* Staff absences carry payroll / compensation implications, so
+            finance sees them here alongside any red-card events. */}
+        <DisciplineAlerts />
         <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="text-[20px] font-medium text-tm-text-1">Finance Admin Dashboard</h1>

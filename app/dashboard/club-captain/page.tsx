@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
 import BirthdayAlert from '@/components/BirthdayAlert'
+import DisciplineAlerts from '@/components/DisciplineAlerts'
 import { Users, Activity, Calendar, Trophy, MapPin, Eye, AlertCircle, Dumbbell, Clock } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import RefreshButton from '@/components/RefreshButton'
@@ -292,6 +293,7 @@ export default function ClubCaptainDashboard() {
     <Layout pageTitle="Club Captain Dashboard">
       <div className="space-y-6">
         <BirthdayAlert />
+        <DisciplineAlerts />
         {/* Header */}
         <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>

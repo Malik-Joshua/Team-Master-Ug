@@ -11,6 +11,7 @@ import FixtureCard from '@/components/FixtureCard'
 import MatchDayModal from '@/components/MatchDayModal'
 import InjuryList from '@/components/InjuryList'
 import BirthdayAlert from '@/components/BirthdayAlert'
+import DisciplineAlerts from '@/components/DisciplineAlerts'
 import { Users, Activity, DollarSign, Package, Calendar, CheckCircle, XCircle, AlertCircle, FileText, X, Trophy, BarChart3, ClipboardCheck, CalendarPlus, HeartPulse, UserPlus, RefreshCw, ArrowRight, Clock, MapPin } from 'lucide-react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -435,6 +436,9 @@ export default function AdminDashboard() {
     <Layout pageTitle="Admin Dashboard">
       <div className="space-y-5">
         <BirthdayAlert />
+        {/* Owner-facing match-day alerts: any red / yellow card issued to
+            a player, and any staff member marked absent on match day. */}
+        <DisciplineAlerts />
         
         {/* Page header */}
         <div className="flex items-start justify-between">

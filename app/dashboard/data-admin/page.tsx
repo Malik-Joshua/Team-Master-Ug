@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
 import BirthdayAlert from '@/components/BirthdayAlert'
+import DisciplineAlerts from '@/components/DisciplineAlerts'
 import FixtureCard from '@/components/FixtureCard'
 import MatchDayModal from '@/components/MatchDayModal'
 import { Users, Activity, BarChart3, Calendar, Trophy, Plus, X, Save, MapPin, CheckCircle, Upload, FileText, CheckCircle2, AlertCircle, UserCheck } from 'lucide-react'
@@ -1342,6 +1343,9 @@ export default function DataAdminDashboard() {
     <Layout pageTitle="Team Manager Dashboard">
       <div className="space-y-6">
         <BirthdayAlert />
+        {/* Match-day alerts: cards issued and staff absences that concern
+            the manager (fixture coverage + follow-up). */}
+        <DisciplineAlerts />
         {/* Header */}
         <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>

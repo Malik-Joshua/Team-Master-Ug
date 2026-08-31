@@ -54,15 +54,19 @@ export default function ReportsPage() {
   }, [showDownloadMenu])
 
   useEffect(() => {
-    // Close download menu on scroll
+    // Close download menu on scroll. The page itself no longer scrolls at
+    // the window level — Layout.tsx keeps the header still and scrolls
+    // only the `<main data-tm-scroll-root>` region beneath it — so this
+    // listens there instead of on `window` (which would otherwise never fire).
     const handleScroll = () => {
       if (showDownloadMenu) {
         setShowDownloadMenu(null)
       }
     }
 
-    window.addEventListener('scroll', handleScroll)
-    return () => window.removeEventListener('scroll', handleScroll)
+    const scrollRoot = document.querySelector('[data-tm-scroll-root]') || window
+    scrollRoot.addEventListener('scroll', handleScroll)
+    return () => scrollRoot.removeEventListener('scroll', handleScroll)
   }, [showDownloadMenu])
 
   const loadData = useCallback(async () => {

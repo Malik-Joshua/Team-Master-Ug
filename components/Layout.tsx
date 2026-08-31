@@ -157,15 +157,28 @@ function LayoutContent({ children, pageTitle }: LayoutProps) {
 
   return (
     <div
-      className="tm-app min-h-screen flex"
+      className="tm-app h-screen flex overflow-hidden"
       style={{
         backgroundColor: 'var(--tm-bg, #F5F7FA)'
       }}
     >
       <Sidebar userRole={user.role} onLogout={handleLogout} clubSettings={clubSettings} userName={user.name} userAvatar={user.profile_picture_url} />
+      {/*
+        The margin here MUST match the sidebar's actual rendered width
+        (Sidebar.tsx: w-56 expanded / w-16 collapsed) exactly — the sidebar
+        itself is `fixed`, so it doesn't push this content over on its own.
+        This previously used ml-64 (256px) against a 224px-wide (w-56)
+        sidebar, leaving a permanent 32px gap of bare background between
+        the sidebar and the header/content. Now: ml-56 (224px) = w-56.
+
+        h-screen + overflow-hidden + flex-col here (rather than the whole
+        page scrolling) is what makes the header "still" — TopBar stays
+        flex-shrink-0 and pinned, while only the <main> region beneath it
+        scrolls independently.
+      */}
       <div
-        className={`flex-1 min-w-0 transition-all duration-300 ${
-          collapsed ? 'ml-0 lg:ml-16' : 'ml-0 lg:ml-64'
+        className={`flex-1 min-w-0 h-screen flex flex-col overflow-hidden transition-all duration-300 ${
+          collapsed ? 'ml-0 lg:ml-16' : 'ml-0 lg:ml-56'
         }`}
       >
         <TopBar
@@ -174,8 +187,10 @@ function LayoutContent({ children, pageTitle }: LayoutProps) {
           userRole={user.role}
           userAvatar={user.profile_picture_url}
         />
-        <main className="max-w-container mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-6 sm:py-8">
-          {children}
+        <main data-tm-scroll-root className="flex-1 overflow-y-auto">
+          <div className="max-w-container mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-6 sm:py-8">
+            {children}
+          </div>
         </main>
         <AIAssistant />
       </div>

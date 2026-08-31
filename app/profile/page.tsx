@@ -6,6 +6,7 @@ import { User, Mail, Phone, Shield, Camera, Save, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import RefreshButton from '@/components/RefreshButton'
 import RoleCard from '@/components/RoleCard'
+import ClubColorPicker from '@/components/ui/ClubColorPicker'
 
 
 export default function ProfilePage() {
@@ -29,6 +30,38 @@ export default function ProfilePage() {
   const [editingName, setEditingName] = useState(false)
   const [nameDraft, setNameDraft] = useState('')
   const [savingName, setSavingName] = useState(false)
+
+  // Club theme editing (admin only) — lets an admin re-skin the whole app
+  // (e.g. re-branding an existing test club's data for a new client demo)
+  // without re-running onboarding. Applied live everywhere Layout.tsx reads
+  // club_settings.primary_color.
+  const [editingTheme, setEditingTheme] = useState(false)
+  const [themeDraft, setThemeDraft] = useState('#0ea5e9')
+  const [savingTheme, setSavingTheme] = useState(false)
+
+  const handleSaveTheme = async () => {
+    setSavingTheme(true)
+    try {
+      const res = await fetch('/api/club/update-theme', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ primary_color: themeDraft }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to save theme')
+      setClub((prev: any) => ({ ...(prev || {}), primary_color: data.primary_color }))
+      setEditingTheme(false)
+      // The colour drives every page's CSS variables via Layout.tsx, which
+      // re-reads club_settings on mount — a reload is the simplest way to
+      // guarantee every already-mounted page (sidebar, topbar, etc.) picks
+      // up the new palette immediately rather than waiting for their own
+      // next navigation.
+      window.location.reload()
+    } catch (err: any) {
+      alert(`Error: ${err.message}`)
+      setSavingTheme(false)
+    }
+  }
 
   const handleSaveSlogan = async () => {
     setSavingSlogan(true)
@@ -161,7 +194,7 @@ export default function ProfilePage() {
         let clubError: any
         ;({ data: clubData, error: clubError } = await supabase
           .from('club_settings')
-          .select('club_nickname, club_slogan, badge_url, league')
+          .select('club_nickname, club_slogan, badge_url, league, primary_color')
           .order('updated_at', { ascending: false, nullsFirst: false })
           .order('created_at', { ascending: false })
           .limit(1)
@@ -169,7 +202,7 @@ export default function ProfilePage() {
         if (clubError?.message?.includes('club_slogan')) {
           const retry = await supabase
             .from('club_settings')
-            .select('club_nickname, badge_url, league')
+            .select('club_nickname, badge_url, league, primary_color')
             .order('updated_at', { ascending: false, nullsFirst: false })
             .order('created_at', { ascending: false })
             .limit(1)
@@ -263,7 +296,7 @@ export default function ProfilePage() {
       let clubError: any
       ;({ data: clubData, error: clubError } = await supabase
         .from('club_settings')
-        .select('club_nickname, club_slogan, badge_url, league')
+        .select('club_nickname, club_slogan, badge_url, league, primary_color')
         .order('updated_at', { ascending: false, nullsFirst: false })
         .order('created_at', { ascending: false })
         .limit(1)
@@ -271,7 +304,7 @@ export default function ProfilePage() {
       if (clubError?.message?.includes('club_slogan')) {
         const retry = await supabase
           .from('club_settings')
-          .select('club_nickname, badge_url, league')
+          .select('club_nickname, badge_url, league, primary_color')
           .order('updated_at', { ascending: false, nullsFirst: false })
           .order('created_at', { ascending: false })
           .limit(1)
@@ -457,6 +490,61 @@ export default function ProfilePage() {
               </div>
             )}
           </div>
+
+          {/* Club theme — admin only. Re-skins the whole app from a single
+              colour without re-running onboarding. This is the escape hatch
+              for re-branding an existing club's data (players, fixtures,
+              stats, squads all stay put) for a different client — e.g.
+              switching a test club over to a new prospect's colours ahead
+              of a demo. */}
+          {user.role === 'admin' && (
+            <div className="border-t border-tm-border px-5 py-4 sm:px-6">
+              {editingTheme ? (
+                <div className="space-y-3">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-tm-text-3">Club Theme</p>
+                  <ClubColorPicker value={themeDraft} onChange={setThemeDraft} />
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      onClick={handleSaveTheme}
+                      disabled={savingTheme}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-tm-secondary px-3 py-2 text-sm font-semibold text-tm-on-secondary transition-opacity hover:opacity-90 disabled:opacity-50"
+                    >
+                      <Save className="h-3.5 w-3.5" /> {savingTheme ? 'Applying…' : 'Apply theme'}
+                    </button>
+                    <button
+                      onClick={() => setEditingTheme(false)}
+                      disabled={savingTheme}
+                      className="rounded-lg border border-tm-border px-3 py-2 text-sm font-medium text-tm-text-1 transition-colors hover:bg-tm-surface-hover"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-tm-text-3">
+                    Applies instantly across the whole app — players, fixtures, stats, and squads are untouched.
+                  </p>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <span
+                      className="h-6 w-6 flex-shrink-0 rounded-full border border-tm-border"
+                      style={{ background: club?.primary_color || '#0ea5e9' }}
+                    />
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-tm-text-3">Club Theme</p>
+                      <p className="text-sm text-tm-text-1">{(club?.primary_color || '#0ea5e9').toUpperCase()}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => { setThemeDraft(club?.primary_color || '#0ea5e9'); setEditingTheme(true) }}
+                    className="flex-shrink-0 text-xs font-medium text-tm-text-3 underline decoration-dotted hover:text-tm-text-1"
+                  >
+                    Change theme
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="bg-tm-surface rounded-card shadow-soft border border-tm-border p-6 hover:shadow-medium transition-shadow">

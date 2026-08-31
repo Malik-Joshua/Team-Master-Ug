@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { checkRoleLimit, getRoleLimitErrorMessage, ROLE_LIMITS, type Role } from '@/lib/role-limits'
+import { sendWelcomeEmail } from '@/lib/email'
 
 export const dynamic = 'force-dynamic'
 
@@ -119,6 +120,7 @@ export async function POST(request: NextRequest) {
     const rolePrefixes: Record<string, string> = {
       player: 'PLR',
       coach: 'COA',
+      asst_coach: 'ACO',
       admin: 'ADM',
       data_admin: 'TMA',
       finance_admin: 'FNA',
@@ -215,13 +217,37 @@ export async function POST(request: NextRequest) {
       playerRecord = playerData
     }
 
+    // Email the new account holder their login details. Never let an email
+    // failure fail account creation — tempPassword still comes back in the
+    // response as a fallback the admin can hand over manually.
+    let emailSent = false
+    let emailError: string | undefined
+    if (!email.toLowerCase().endsWith('@roster.local')) {
+      const { data: club } = await supabaseAdmin
+        .from('club_settings')
+        .select('club_nickname')
+        .limit(1)
+        .maybeSingle()
+      const result = await sendWelcomeEmail({
+        to: email,
+        name,
+        role,
+        tempPassword,
+        clubName: club?.club_nickname,
+      })
+      emailSent = result.sent
+      emailError = result.error
+    }
+
     return NextResponse.json({
       success: true,
       message: `${role.charAt(0).toUpperCase() + role.slice(1)} created successfully`,
       data: {
         profile: profileData,
         player: playerRecord,
-        tempPassword, // In production, send this via email instead
+        tempPassword, // Still returned as a fallback in case the email didn't send
+        emailSent,
+        emailError,
         roleLimit: {
           current: (currentRoleCount || 0) + 1,
           limit: limitCheck.limit,

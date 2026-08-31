@@ -23,7 +23,6 @@ import {
   X,
   ChevronDown,
   Trophy,
-  Layers,
   Mail,
   Shield,
   HeartPulse,
@@ -43,12 +42,19 @@ const SPORTS = ['Rugby', 'Football', 'Basketball', 'Cricket', 'Athletics', 'Netb
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
+// "Analyst" was dropped — it was never a real role anywhere else in the
+// system (not in ROLE_LIMITS, no dashboard, no permission checks), so
+// offering it here only produced accounts that couldn't actually be
+// created. asst_coach IS real (see lib/role-limits.ts + the coach-parity
+// work in app/dashboard/page.tsx) — the assistant shares the Head Coach's
+// dashboard and gets notified whenever the Head Coach records a team
+// selection or match-day attendance, so the two never make conflicting
+// entries.
 const STAFF_ROLES = [
   { id: 'coach', label: 'Head Coach', icon: Shield },
   { id: 'asst_coach', label: 'Asst. Coach', icon: Shield },
   { id: 'physio', label: 'Physiotherapist', icon: HeartPulse },
   { id: 'data_admin', label: 'Team Manager', icon: Briefcase },
-  { id: 'analyst', label: 'Analyst', icon: Layers },
 ]
 
 /* ─── Shared input style ─────────────────────────────────────── */
@@ -112,8 +118,13 @@ export default function OnboardingPage() {
   const csvRef = useRef<HTMLInputElement>(null)
 
   /* Step 4 — Staff */
-  const [staffInvites, setStaffInvites] = useState<{ email: string; role: string }[]>([])
-  const [newStaff, setNewStaff] = useState({ email: '', role: 'coach' })
+  const [staffInvites, setStaffInvites] = useState<{ name: string; email: string; role: string }[]>([])
+  const [newStaff, setNewStaff] = useState({ name: '', email: '', role: 'coach' })
+  // Progress + per-invite result of the actual account-creation pass that
+  // runs in finish() — mirrors the squad-import progress UI in Step 3, so
+  // both async passes give the same "N/M, here's what failed" feedback.
+  const [savingStaff, setSavingStaff] = useState(false)
+  const [staffSaveProgress, setStaffSaveProgress] = useState<{ done: number; total: number; failed: { email: string; reason: string }[] } | null>(null)
 
   /* ─── Handlers ─── */
   function handleBadgeUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -239,9 +250,9 @@ export default function OnboardingPage() {
   }
 
   function addStaff() {
-    if (!newStaff.email.trim()) return
+    if (!newStaff.name.trim() || !newStaff.email.trim()) return
     setStaffInvites([...staffInvites, newStaff])
-    setNewStaff({ email: '', role: 'coach' })
+    setNewStaff({ name: '', email: '', role: 'coach' })
   }
 
   function removeStaff(i: number) {
@@ -395,6 +406,43 @@ export default function OnboardingPage() {
             console.warn('[Onboarding] Some players failed to import:', failed)
             // Not blocking — we still finish onboarding. The manager can
             // add/fix them from the Players screen using the same form.
+          }
+        }
+
+        // ── Create the staff accounts collected in Step 4 ──────────────────
+        //
+        // Each invite POSTs to /api/users/create, which creates the auth
+        // user + user_profiles row (+ players row if role were 'player',
+        // not applicable here) and — same endpoint the Staff screen will
+        // eventually use — attempts to email the new account its login
+        // details via Resend. If email delivery fails the account still
+        // gets created; the admin can hand over credentials manually from
+        // the Staff screen (the API always returns tempPassword too).
+        if (staffInvites.length > 0) {
+          setSavingStaff(true)
+          const failed: { email: string; reason: string }[] = []
+          let done = 0
+          setStaffSaveProgress({ done: 0, total: staffInvites.length, failed: [] })
+          for (const s of staffInvites) {
+            try {
+              const res = await fetch('/api/users/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: s.name, email: s.email, role: s.role }),
+              })
+              if (!res.ok) {
+                const j = await res.json().catch(() => ({} as any))
+                failed.push({ email: s.email, reason: j.error || `HTTP ${res.status}` })
+              }
+            } catch (e: any) {
+              failed.push({ email: s.email, reason: e?.message || 'Network error' })
+            }
+            done += 1
+            setStaffSaveProgress({ done, total: staffInvites.length, failed: [...failed] })
+          }
+          setSavingStaff(false)
+          if (failed.length > 0) {
+            console.warn('[Onboarding] Some staff invites failed:', failed)
           }
         }
 
@@ -865,26 +913,30 @@ export default function OnboardingPage() {
           <UserPlus className="w-5 h-5 text-sky-400" />
         </div>
         <h2 className="text-lg font-medium text-white mb-1">Invite your staff</h2>
-        <p className="text-[13px] text-gray-400 mb-6">Add coaches, physios, and managers by email. They&apos;ll receive an invitation to join your club on Team Master.</p>
+        <p className="text-[13px] text-gray-400 mb-6">Add coaches, physios, and managers by name and email. They&apos;ll get an account and a welcome email with their login details when you finish setup.</p>
 
         {/* Add staff row */}
-        <div className="flex gap-2 mb-4">
-          <div className="relative flex-1">
+        <div className="flex flex-col sm:flex-row gap-2 mb-4">
+          <input type="text" value={newStaff.name} onChange={(e) => setNewStaff({ ...newStaff, name: e.target.value })}
+            placeholder="Full name" className={`${inp} sm:flex-1`} />
+          <div className="relative sm:flex-1">
             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500" />
             <input type="email" value={newStaff.email} onChange={(e) => setNewStaff({ ...newStaff, email: e.target.value })}
               placeholder="staff@club.ug" className={`${inp} pl-8`} />
           </div>
-          <div className="relative">
-            <select value={newStaff.role} onChange={(e) => setNewStaff({ ...newStaff, role: e.target.value })}
-              className={`${inpRow} appearance-none pr-7 w-36`}>
-              {STAFF_ROLES.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
-            </select>
-            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500 pointer-events-none" />
+          <div className="flex gap-2">
+            <div className="relative flex-1 sm:flex-initial">
+              <select value={newStaff.role} onChange={(e) => setNewStaff({ ...newStaff, role: e.target.value })}
+                className={`${inpRow} appearance-none pr-7 w-full sm:w-36`}>
+                {STAFF_ROLES.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
+              </select>
+              <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500 pointer-events-none" />
+            </div>
+            <button type="button" onClick={addStaff}
+              className="px-3 py-2 bg-[#0ea5e9] rounded-lg text-white hover:bg-[#0284c7] transition-colors flex-shrink-0">
+              <Plus className="w-4 h-4" />
+            </button>
           </div>
-          <button type="button" onClick={addStaff}
-            className="px-3 py-2 bg-[#0ea5e9] rounded-lg text-white hover:bg-[#0284c7] transition-colors flex-shrink-0">
-            <Plus className="w-4 h-4" />
-          </button>
         </div>
 
         {/* Invite list */}
@@ -895,7 +947,7 @@ export default function OnboardingPage() {
               return (
                 <div key={i} className="flex items-center justify-between bg-[#16273d] rounded-lg px-3 py-2.5">
                   <div>
-                    <p className="text-[13px] text-white">{s.email}</p>
+                    <p className="text-[13px] text-white">{s.name} <span className="text-gray-500">· {s.email}</span></p>
                     <p className="text-[11px] text-gray-500">{roleLabel}</p>
                   </div>
                   <button type="button" onClick={() => removeStaff(i)}>
@@ -908,8 +960,28 @@ export default function OnboardingPage() {
         ) : (
           <div className="bg-[#16273d] rounded-lg p-4 text-center mb-4">
             <UserPlus className="w-6 h-6 text-gray-600 mx-auto mb-1" />
-            <p className="text-[13px] text-gray-500">No staff invited yet. Add emails above.</p>
+            <p className="text-[13px] text-gray-500">No staff invited yet. Add a name and email above.</p>
             <p className="text-[12px] text-gray-600 mt-0.5">You can skip this and invite staff from the dashboard later.</p>
+          </div>
+        )}
+
+        {/* Progress + result of the actual account-creation pass (runs
+            when the user clicks Finish) — same pattern as the squad
+            import progress in Step 3. */}
+        {staffSaveProgress && (
+          <div className="rounded-lg border border-[#27405c] bg-[#0f1d2f] px-3 py-2">
+            <div className="flex items-center justify-between text-[12px] text-gray-300 mb-1">
+              <span>Creating staff accounts…</span>
+              <span className="font-semibold text-white">{staffSaveProgress.done}/{staffSaveProgress.total}</span>
+            </div>
+            <div className="h-1.5 w-full rounded-full bg-[#16273d] overflow-hidden">
+              <div className="h-full bg-[#0ea5e9] transition-all" style={{ width: `${(staffSaveProgress.done / Math.max(1, staffSaveProgress.total)) * 100}%` }} />
+            </div>
+            {staffSaveProgress.failed.length > 0 && (
+              <p className="mt-2 text-[11px] text-red-300">
+                {staffSaveProgress.failed.length} could not be added — you can invite them again from the Staff screen after finishing.
+              </p>
+            )}
           </div>
         )}
       </div>
@@ -937,7 +1009,7 @@ export default function OnboardingPage() {
               : squadMode === 'manual' && manualPlayers.length > 0
                 ? `${manualPlayers.length} player(s) added`
                 : 'Squad — add players from the dashboard',
-            staffInvites.length > 0 ? `${staffInvites.length} staff invite(s) sent` : 'Staff — invite from the dashboard anytime',
+            staffInvites.length > 0 ? `${staffInvites.length} staff account(s) will be created and emailed` : 'Staff — invite from the dashboard anytime',
           ].map((item) => (
             <li key={item} className="flex items-center gap-2 py-2.5 border-b border-[#16273d] last:border-b-0">
               <Check className="w-4 h-4 text-[#0ea5e9] flex-shrink-0" />
@@ -1005,18 +1077,20 @@ export default function OnboardingPage() {
             </div>
           )}
 
-          {/* Done CTA — disabled while we're still POSTing players so the
-              page can't navigate away mid-import. */}
+          {/* Done CTA — disabled while we're still POSTing players/staff so
+              the page can't navigate away mid-import. */}
           {step === 4 && (
             <button
               type="button"
               onClick={finish}
-              disabled={savingSquad}
+              disabled={savingSquad || savingStaff}
               className="w-full flex items-center justify-center gap-1.5 px-5 py-3 bg-[#0ea5e9] rounded-lg text-sm font-medium text-white hover:bg-[#0284c7] transition-all duration-200 hover:shadow-[0_0_18px_rgba(14,165,233,0.45)] hover:scale-[1.01] active:scale-100 mt-4 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {savingSquad && squadSaveProgress
                 ? <>Adding players {squadSaveProgress.done}/{squadSaveProgress.total}…</>
-                : <>Go to dashboard <ArrowRight className="w-3.5 h-3.5" /></>}
+                : savingStaff && staffSaveProgress
+                  ? <>Creating staff accounts {staffSaveProgress.done}/{staffSaveProgress.total}…</>
+                  : <>Go to dashboard <ArrowRight className="w-3.5 h-3.5" /></>}
             </button>
           )}
         </div>

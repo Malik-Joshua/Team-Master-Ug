@@ -272,7 +272,7 @@ export default function FixturesPage() {
           .eq('user_id', authUser.id)
           .single()
 
-        if (!profile || (profile.role !== 'coach' && profile.role !== 'admin' && profile.role !== 'data_admin')) {
+        if (!profile || !['coach', 'asst_coach', 'admin', 'data_admin'].includes(profile.role)) {
           router.push('/dashboard')
           return
         }
@@ -355,7 +355,7 @@ export default function FixturesPage() {
             console.error('Error loading admin matches:', error)
             matchesData = []
           }
-        } else if (profile.role === 'data_admin' || profile.role === 'coach') {
+        } else if (profile.role === 'data_admin' || profile.role === 'coach' || profile.role === 'asst_coach') {
           // For data_admin and coach: load all matches so they can see newly created fixtures
           // Use API route with all=true parameter to get all matches (bypasses RLS)
           try {
@@ -498,7 +498,7 @@ export default function FixturesPage() {
         }
 
         if (matchesData.length > 0) {
-          if (profile.role === 'coach') {
+          if (profile.role === 'coach' || profile.role === 'asst_coach') {
             const nextUpcoming = matchesData.find((match) => !isActivityPast(match.match_date, null) && match.status !== 'played')
             if (nextUpcoming?.tournament_id) {
               // Auto-selecting a tournament game → select the whole tournament,
@@ -1229,6 +1229,17 @@ export default function FixturesPage() {
             })
           } catch (e) { console.warn('Staff absence notifications failed:', e) }
         }
+
+        // If the person saving is a Head Coach or Assistant Coach, let the
+        // OTHER one know match-day attendance was just recorded for this
+        // fixture — no-ops (server-side) for admin/data_admin callers.
+        try {
+          await fetch('/api/match-stats/notify-coach-entry', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ matchId: selectedMatchForStats, kind: 'match_attendance' }),
+          })
+        } catch (e) { console.warn('Coach cross-notify failed:', e) }
       }
 
       // Get selected team for this match (if exists)
@@ -1917,7 +1928,7 @@ export default function FixturesPage() {
     )
   }
 
-  if (!user || (user.role !== 'coach' && user.role !== 'admin' && user.role !== 'data_admin')) {
+  if (!user || !['coach', 'asst_coach', 'admin', 'data_admin'].includes(user.role)) {
     return null
   }
 

@@ -154,7 +154,7 @@ export default function DashboardPage() {
             // Load general statistics for all roles
             // For admin and coach, use API route to bypass RLS; for others, use direct queries
             try {
-              if (effectiveProfile.role === 'admin' || effectiveProfile.role === 'coach') {
+              if (effectiveProfile.role === 'admin' || effectiveProfile.role === 'coach' || effectiveProfile.role === 'asst_coach') {
                 // Use API route for admin/coach (bypasses RLS)
                 const response = await fetch('/api/admin/statistics')
                 if (response.ok) {
@@ -245,7 +245,7 @@ export default function DashboardPage() {
             }
             
             // Load real stats based on role
-            if (effectiveProfile.role === 'coach') {
+            if (effectiveProfile.role === 'coach' || effectiveProfile.role === 'asst_coach') {
               try {
                 const { db } = await import('@/lib/db-helpers')
                 const sessionCount = await db.getCoachTrainingSessionsCount(authUser.id)
@@ -476,7 +476,7 @@ export default function DashboardPage() {
             }
 
             // Load active injuries for coaches, admins, and team managers (read-only view)
-            if (effectiveProfile.role === 'coach' || effectiveProfile.role === 'admin' || effectiveProfile.role === 'data_admin') {
+            if (effectiveProfile.role === 'coach' || effectiveProfile.role === 'asst_coach' || effectiveProfile.role === 'admin' || effectiveProfile.role === 'data_admin') {
               try {
                 setLoadingActiveInjuries(true)
                 const response = await fetch('/api/admin/injuries', {
@@ -1380,7 +1380,7 @@ export default function DashboardPage() {
   }
 
   // Coach Dashboard
-  if (user.role === 'coach') {
+  if (user.role === 'coach' || user.role === 'asst_coach') {
     return (
       <Layout pageTitle="Coach Control Center">
         <div className="space-y-4 sm:space-y-6">

@@ -133,7 +133,7 @@ export default function GymPage() {
 
   useEffect(() => { loadData() }, [loadData])
 
-  const canManage = user?.role === 'coach' || user?.role === 'admin'
+  const canManage = user?.role === 'coach' || user?.role === 'asst_coach' || user?.role === 'admin'
 
   /* ── handlers ── */
   const handleCreate = async () => {

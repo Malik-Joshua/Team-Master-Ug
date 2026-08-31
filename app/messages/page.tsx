@@ -183,7 +183,7 @@ export default function MessagesPage() {
 
           // Fetch users for messaging based on communication rules
           // Include club_captain in the list
-          if (['coach', 'admin', 'data_admin', 'finance_admin', 'physio', 'club_captain'].includes(profile.role)) {
+          if (['coach', 'asst_coach', 'admin', 'data_admin', 'finance_admin', 'physio', 'club_captain'].includes(profile.role)) {
             // Use API route to fetch all users (bypasses RLS)
             try {
               const usersResponse = await fetch('/api/messages/users')
@@ -257,7 +257,7 @@ export default function MessagesPage() {
                     // Filter other roles by communication rules and exclude current user
                     setCoaches(allUsersList.filter((u: UserProfile) => 
                       u.user_id !== authUser.id &&
-                      u.role === 'coach' && allowedRecipientRoles.includes(u.role as UserRole)
+                      (u.role === 'coach' || u.role === 'asst_coach') && allowedRecipientRoles.includes(u.role as UserRole)
                     ))
                     setPhysios(allUsersList.filter((u: UserProfile) => 
                       u.user_id !== authUser.id &&
@@ -287,7 +287,7 @@ export default function MessagesPage() {
                     ))
                     setCoaches(allUsersList.filter((u: UserProfile) => 
                       u.user_id !== authUser.id &&
-                      u.role === 'coach' && allowedRecipientRoles.includes(u.role as UserRole)
+                      (u.role === 'coach' || u.role === 'asst_coach') && allowedRecipientRoles.includes(u.role as UserRole)
                     ))
                     setPhysios(allUsersList.filter((u: UserProfile) => 
                       u.user_id !== authUser.id &&
@@ -389,7 +389,7 @@ export default function MessagesPage() {
                   ))
                   setCoaches(allUsersList.filter((u: UserProfile) => 
                     u.user_id !== authUser.id &&
-                    u.role === 'coach' && allowedRecipientRoles.includes(u.role as UserRole)
+                    (u.role === 'coach' || u.role === 'asst_coach') && allowedRecipientRoles.includes(u.role as UserRole)
                   ))
                   setPhysios(allUsersList.filter((u: UserProfile) => 
                     u.user_id !== authUser.id &&
@@ -520,7 +520,7 @@ export default function MessagesPage() {
         u.role === 'player' && allowedRecipientRoles.includes(u.role as UserRole)
       ))
       setCoaches(allUsersData.filter((u: UserProfile) => 
-        u.role === 'coach' && allowedRecipientRoles.includes(u.role as UserRole)
+        (u.role === 'coach' || u.role === 'asst_coach') && allowedRecipientRoles.includes(u.role as UserRole)
       ))
       setPhysios(allUsersData.filter((u: UserProfile) => 
         u.role === 'physio' && allowedRecipientRoles.includes(u.role as UserRole)
@@ -935,8 +935,8 @@ export default function MessagesPage() {
           setMessages([formattedMessage, ...messages])
           alert('Message sent successfully!')
         }
-      } else if (user?.role === 'coach') {
-        // Coach can send to players or admins
+      } else if (user?.role === 'coach' || user?.role === 'asst_coach') {
+        // Coach (or Assistant Coach) can send to players or admins
         let recipientId: string | null = null
         let recipientRole: string | null = null
 
@@ -1951,8 +1951,8 @@ export default function MessagesPage() {
             <p className="text-[13px] text-tm-text-3">
               {user?.role === 'admin'
                 ? 'Send messages to all team members and staff'
-                : user?.role === 'coach' 
-                ? 'Communicate with players and administrators'
+                : (user?.role === 'coach' || user?.role === 'asst_coach')
+                ? 'Communicate with other coaches, players, physio, club captain, and team manager'
                 : user?.role === 'physio'
                 ? 'Communicate with injured players, administrators, and coaches'
                 : user?.role === 'club_captain'
@@ -2122,7 +2122,7 @@ export default function MessagesPage() {
                     </div>
                   )}
                 </>
-              ) : user?.role === 'coach' ? (
+              ) : (user?.role === 'coach' || user?.role === 'asst_coach') ? (
                 <>
                   <div>
                     <label className="block text-sm font-medium text-tm-text-3 mb-2">

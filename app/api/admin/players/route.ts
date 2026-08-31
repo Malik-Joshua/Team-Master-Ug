@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
       hasClubCaptainAccess = !!clubCaptainProfile
     }
 
-    if (!profile || (!['admin', 'coach', 'data_admin', 'physio', 'club_captain'].includes(profile.role) && !hasClubCaptainAccess)) {
+    if (!profile || (!['admin', 'coach', 'asst_coach', 'data_admin', 'physio', 'club_captain'].includes(profile.role) && !hasClubCaptainAccess)) {
       return NextResponse.json(
         { error: 'Unauthorized: Admin/Coach/Physio/Club Captain access required' },
         { status: 403 }

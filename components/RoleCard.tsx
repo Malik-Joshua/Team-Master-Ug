@@ -123,7 +123,7 @@ export default function RoleCard({ role, position }: RoleCardProps) {
     : position
 
   const key =
-    role === 'coach'
+    role === 'coach' || role === 'asst_coach'
       ? 'coach'
       : role === 'player' && normalizedPosition
       ? normalizedPosition
@@ -153,7 +153,7 @@ export default function RoleCard({ role, position }: RoleCardProps) {
       <div className="p-4 sm:p-5">
         {/* Personal framing above the self-contained card artwork */}
         <p className="text-center text-[11px] font-semibold uppercase tracking-wider text-tm-text-3">
-          {role === 'coach' ? 'Your role' : 'Your position'}
+          {role === 'coach' || role === 'asst_coach' ? 'Your role' : 'Your position'}
         </p>
 
         {/* Full-width landscape role card, framed in the club's primary colour.

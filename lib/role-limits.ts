@@ -5,6 +5,12 @@ export const ROLE_LIMITS = {
   data_admin: 2,
   player: 100,
   coach: 3,
+  // Assistant Coach: shares the Head Coach's dashboard and permissions
+  // (team selection, match-day attendance, stats entry). Whenever either
+  // one records a team selection or match-day attendance, the other coach
+  // role gets notified — see notifyOtherCoaches() in lib/notify-coaches.ts —
+  // so the two don't make conflicting entries for the same fixture.
+  asst_coach: 3,
   physio: 3,
   club_captain: 2, // Typically 1, but allow 2 for flexibility
 } as const
@@ -45,7 +51,7 @@ export function checkRoleLimit(currentCount: number, role: Role): {
  */
 export function getRoleLimitErrorMessage(role: Role, currentCount: number): string {
   const limit = getRoleLimit(role)
-  const roleName = role === 'data_admin' ? 'Team Manager' : role === 'finance_admin' ? 'Finance Admin' : role === 'club_captain' ? 'Club Captain' : role.charAt(0).toUpperCase() + role.slice(1)
+  const roleName = role === 'data_admin' ? 'Team Manager' : role === 'finance_admin' ? 'Finance Admin' : role === 'club_captain' ? 'Club Captain' : role === 'asst_coach' ? 'Assistant Coach' : role.charAt(0).toUpperCase() + role.slice(1)
   
   return `Cannot add more ${roleName}s. The limit is ${limit} and you currently have ${currentCount}. Please remove an existing ${roleName} or contact the system administrator.`
 }

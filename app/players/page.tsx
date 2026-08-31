@@ -156,7 +156,7 @@ export default function PlayersPage() {
         setUser(profile)
         
         // Fetch players - use API route for admin to bypass RLS, otherwise direct query
-        if (profile.role === 'admin' || profile.role === 'coach' || profile.role === 'data_admin') {
+        if (profile.role === 'admin' || profile.role === 'coach' || profile.role === 'asst_coach' || profile.role === 'data_admin') {
           try {
             console.log('Fetching players from API route for admin user...', profile.role)
             // For admin/coach, try API route first
@@ -262,11 +262,27 @@ export default function PlayersPage() {
         throw new Error(error.error || error.message || 'Failed to add player')
       }
 
+      const result = await response.json()
       const supabase = createClient()
       const { data: playersData } = await supabase.from('user_profiles').select('*').eq('role', 'player')
       if (playersData) setPlayers(playersData as Player[])
       setShowAddModal(false)
-      alert('Player added successfully!')
+
+      // The API attempts to email the player their login details. If that
+      // failed (no email provider configured, bad address, provider
+      // outage), fall back to showing the temp password here so the
+      // manager can still hand it over manually — the account exists
+      // either way, only the delivery method differs.
+      if (result?.data?.emailSent) {
+        alert('Player added successfully! A welcome email with their login details has been sent.')
+      } else {
+        const reason = result?.data?.emailError ? ` (${result.data.emailError})` : ''
+        alert(
+          `Player added successfully! Could not send a welcome email${reason}.\n\n` +
+          `Share these sign-in details with them directly:\n` +
+          `Email: ${playerForm.email}\nTemporary password: ${result?.data?.tempPassword || '(unavailable)'}`
+        )
+      }
     } catch (error: any) {
       console.error('Error adding player:', error)
       alert(`Error: ${error.message}`)
@@ -316,7 +332,7 @@ export default function PlayersPage() {
           .eq('user_id', authUser.id)
           .single()
         
-        if (profile && (profile.role === 'admin' || profile.role === 'coach' || profile.role === 'data_admin')) {
+        if (profile && (profile.role === 'admin' || profile.role === 'coach' || profile.role === 'asst_coach' || profile.role === 'data_admin')) {
           // Use API route for admin/coach/data_admin (same as initial load)
           try {
             const response = await fetch('/api/admin/players', {
@@ -414,7 +430,7 @@ export default function PlayersPage() {
               <Button variant="secondary" icon={RefreshCw} onClick={loadData}>
                 Refresh
               </Button>
-              {(user?.role === 'coach' || user?.role === 'admin' || user?.role === 'data_admin') && (
+              {(user?.role === 'coach' || user?.role === 'asst_coach' || user?.role === 'admin' || user?.role === 'data_admin') && (
                 <Button
                   icon={UserPlus}
                   onClick={() => {
@@ -523,7 +539,7 @@ export default function PlayersPage() {
                     <button onClick={() => { setSelectedPlayer(player); setShowViewModal(true) }} className="p-2 text-tm-secondary hover:bg-tm-surface-hover rounded-lg transition-colors" title="View Details">
                       <Eye className="w-4 h-4" />
                     </button>
-                    {(user?.role === 'coach' || user?.role === 'admin' || user?.role === 'data_admin') && (
+                    {(user?.role === 'coach' || user?.role === 'asst_coach' || user?.role === 'admin' || user?.role === 'data_admin') && (
                       <>
                         <button onClick={() => { setSelectedPlayer(player); const pos = positions.find(p => p.value === player.position); setPlayerForm({ name: player.name, email: player.email, phone: player.phone || '', position: player.position, category: (pos?.category === 'forwards' || pos?.category === 'backs') ? pos.category : ('forwards' as 'forwards' | 'backs'), jersey_number: '', date_of_birth: '', height_cm: '', weight_kg: '', status: player.status, benchPressPB: '', squatPB: '', deadliftPB: '', pullUpPB: '' }); setShowEditModal(true) }} className="p-2 text-info hover:bg-info/10 rounded-lg transition-colors" title="Edit Player">
                           <Edit className="w-4 h-4" />
@@ -618,7 +634,7 @@ export default function PlayersPage() {
                           <button onClick={() => { setSelectedPlayer(player); setShowViewModal(true) }} className="p-2 text-tm-secondary hover:bg-tm-surface-hover rounded-lg transition-colors" title="View Details">
                             <Eye className="w-4 h-4" />
                           </button>
-                          {(user?.role === 'coach' || user?.role === 'admin' || user?.role === 'data_admin') && (
+                          {(user?.role === 'coach' || user?.role === 'asst_coach' || user?.role === 'admin' || user?.role === 'data_admin') && (
                             <>
                               <button onClick={() => { setSelectedPlayer(player); const pos = positions.find(p => p.value === player.position); setPlayerForm({ name: player.name, email: player.email, phone: player.phone || '', position: player.position, category: (pos?.category === 'forwards' || pos?.category === 'backs') ? pos.category : ('forwards' as 'forwards' | 'backs'), jersey_number: '', date_of_birth: '', height_cm: '', weight_kg: '', status: player.status, benchPressPB: '', squatPB: '', deadliftPB: '', pullUpPB: '' }); setShowEditModal(true) }} className="p-2 text-info hover:bg-info/10 rounded-lg transition-colors" title="Edit Player">
                                 <Edit className="w-4 h-4" />

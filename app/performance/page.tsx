@@ -153,7 +153,7 @@ export default function PerformancePage() {
           await loadPerformanceResources(profile.role)
           setUser(profile)
 
-          if (profile.role === 'coach') {
+          if (profile.role === 'coach' || profile.role === 'asst_coach') {
             // Load coach-specific data
             try {
               const { db } = await import('@/lib/db-helpers')
@@ -913,7 +913,7 @@ export default function PerformancePage() {
                     Add multiple links that players can click on. Each link needs a label and URL.
                   </p>
                 </div>
-                {(user?.role === 'admin' || user?.role === 'coach') && (
+                {(user?.role === 'admin' || user?.role === 'coach' || user?.role === 'asst_coach') && (
                   <div className="flex items-center gap-2">
                     <input
                       type="checkbox"
@@ -963,7 +963,7 @@ export default function PerformancePage() {
   }
 
   // Coach Performance View
-  if (user.role === 'coach') {
+  if (user.role === 'coach' || user.role === 'asst_coach') {
     const coachPerformanceCards = [
       {
         title: 'Training Sessions',
@@ -1433,7 +1433,7 @@ export default function PerformancePage() {
                     Add multiple links that players can click on. Each link needs a label and URL.
                   </p>
                 </div>
-                {(user?.role === 'admin' || user?.role === 'coach') && (
+                {(user?.role === 'admin' || user?.role === 'coach' || user?.role === 'asst_coach') && (
                   <div className="flex items-center gap-2">
                     <input
                       type="checkbox"
@@ -1986,7 +1986,7 @@ export default function PerformancePage() {
                     Add multiple links that players can click on. Each link needs a label and URL.
                   </p>
                 </div>
-                {(user?.role === 'admin' || user?.role === 'coach') && (
+                {(user?.role === 'admin' || user?.role === 'coach' || user?.role === 'asst_coach') && (
                   <div className="flex items-center gap-2">
                     <input
                       type="checkbox"
@@ -2729,7 +2729,7 @@ export default function PerformancePage() {
                     Add multiple links that players can click on. Each link needs a label and URL.
                   </p>
                 </div>
-                {(user?.role === 'admin' || user?.role === 'coach') && (
+                {(user?.role === 'admin' || user?.role === 'coach' || user?.role === 'asst_coach') && (
                   <div className="flex items-center gap-2">
                     <input
                       type="checkbox"

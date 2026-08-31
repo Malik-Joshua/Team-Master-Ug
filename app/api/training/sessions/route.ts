@@ -22,7 +22,7 @@ export async function DELETE(request: NextRequest) {
       .eq('user_id', authUser.id)
       .single()
 
-    if (!profile || !['admin', 'coach'].includes(profile.role)) {
+    if (!profile || !['admin', 'coach', 'asst_coach'].includes(profile.role)) {
       return NextResponse.json(
         { error: 'Only admins and coaches can delete training sessions' },
         { status: 403 }
@@ -69,7 +69,10 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    if (profile.role === 'coach' && session.coach_id !== authUser.id) {
+    // Same ownership rule for both — an assistant coach can only delete
+    // their own sessions, not the Head Coach's (and vice versa). Only
+    // admins can delete any session regardless of who created it.
+    if ((profile.role === 'coach' || profile.role === 'asst_coach') && session.coach_id !== authUser.id) {
       return NextResponse.json(
         { error: 'Coaches can only delete their own training sessions' },
         { status: 403 }

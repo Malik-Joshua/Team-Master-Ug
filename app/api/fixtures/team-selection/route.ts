@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
+import { notifyOtherCoaches } from '@/lib/notify-coaches'
 
 export const dynamic = 'force-dynamic'
 
@@ -463,7 +464,7 @@ export async function POST(request: NextRequest) {
       .eq('user_id', authUser.id)
       .single()
 
-    if (!profile || (profile.role !== 'coach' && profile.role !== 'admin' && profile.role !== 'data_admin')) {
+    if (!profile || !['coach', 'asst_coach', 'admin', 'data_admin'].includes(profile.role)) {
       return NextResponse.json(
         { error: 'Only coaches, admins, and data managers can select teams' },
         { status: 403 }
@@ -686,6 +687,19 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // If a Head Coach or Assistant Coach saved this, let the OTHER one know
+    // a squad was just recorded for this fixture — keeps the two from
+    // overwriting each other's picks without realising it.
+    if (matchDetails) {
+      await notifyOtherCoaches({
+        actorUserId: authUser.id,
+        matchId,
+        opponent: matchDetails.opponent,
+        matchDate: matchDetails.match_date,
+        kind: 'team_selection',
+      })
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Team selection saved successfully',
@@ -725,7 +739,7 @@ export async function DELETE(request: NextRequest) {
       .eq('user_id', authUser.id)
       .single()
 
-    if (!profile || !['coach', 'admin', 'data_admin'].includes(profile.role)) {
+    if (!profile || !['coach', 'asst_coach', 'admin', 'data_admin'].includes(profile.role)) {
       return NextResponse.json({ error: 'Only coaches, admins, and data managers can clear a squad' }, { status: 403 })
     }
 

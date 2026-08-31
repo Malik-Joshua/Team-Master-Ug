@@ -235,7 +235,7 @@ export default function TrainingPage() {
           }
 
           // Fetch training sessions
-          if (profile.role === 'coach' || profile.role === 'data_admin' || profile.role === 'admin') {
+          if (profile.role === 'coach' || profile.role === 'asst_coach' || profile.role === 'data_admin' || profile.role === 'admin') {
             // Coaches, data admins, and admins see all training sessions
             const { data: sessionsData } = await supabase
               .from('training_sessions')
@@ -1142,7 +1142,7 @@ export default function TrainingPage() {
       }
 
       // Validate session selection
-      if (!selectedSessionId && (user?.role === 'coach' || user?.role === 'data_admin')) {
+      if (!selectedSessionId && (user?.role === 'coach' || user?.role === 'asst_coach' || user?.role === 'data_admin')) {
         alert('Please select a training session to record attendance for')
         return
       }
@@ -1668,9 +1668,9 @@ export default function TrainingPage() {
               </p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              {(user?.role === 'coach' || user?.role === 'data_admin') && (
+              {(user?.role === 'coach' || user?.role === 'asst_coach' || user?.role === 'data_admin') && (
                 <>
-                  {user?.role === 'coach' && (
+                  {(user?.role === 'coach' || user?.role === 'asst_coach') && (
                     <>
                       <button
                         onClick={() => setShowUploadForm(true)}
@@ -1767,7 +1767,7 @@ export default function TrainingPage() {
         </div>
 
         {/* ── Import modal (Schedule TXT/PDF  OR  Attendance CSV/Excel) ── */}
-        {showUploadForm && (user?.role === 'coach' || user?.role === 'data_admin') && (
+        {showUploadForm && (user?.role === 'coach' || user?.role === 'asst_coach' || user?.role === 'data_admin') && (
           <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4 z-50 backdrop-blur-sm">
             <div className="bg-tm-surface rounded-t-2xl sm:rounded-card shadow-large w-full sm:max-w-2xl border border-tm-border max-h-[92vh] flex flex-col">
 
@@ -2037,7 +2037,7 @@ export default function TrainingPage() {
         )}
 
         {/* Create Gym Schedule Modal for Coaches */}
-        {showGymScheduleForm && user?.role === 'coach' && (
+        {showGymScheduleForm && (user?.role === 'coach' || user?.role === 'asst_coach') && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
             <div className="bg-tm-surface rounded-card shadow-large max-w-2xl w-full border border-tm-border">
               <div className="p-6 border-b border-tm-border">

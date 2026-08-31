@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const resourceType = searchParams.get('type') // Optional filter by type
-    const includeInactive = profile.role === 'admin' || profile.role === 'coach' || profile.role === 'club_captain'
+    const includeInactive = profile.role === 'admin' || profile.role === 'coach' || profile.role === 'asst_coach' || profile.role === 'club_captain'
 
     // Build query using admin client - fetch resources first
     let query = supabaseAdmin
@@ -177,7 +177,7 @@ export async function POST(request: NextRequest) {
       .eq('user_id', authUser.id)
       .single()
 
-    if (!profile || (profile.role !== 'admin' && profile.role !== 'coach' && profile.role !== 'club_captain')) {
+    if (!profile || !['admin', 'coach', 'asst_coach', 'club_captain'].includes(profile.role)) {
       return NextResponse.json(
         { error: 'Only admins, coaches, and club captains can create performance resources' },
         { status: 403 }

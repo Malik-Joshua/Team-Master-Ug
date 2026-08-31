@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
       .eq('user_id', authUser.id)
       .single()
 
-    if (!profile || (profile.role !== 'data_admin' && profile.role !== 'admin' && profile.role !== 'coach')) {
+    if (!profile || !['data_admin', 'admin', 'coach', 'asst_coach'].includes(profile.role)) {
       return NextResponse.json(
         { error: 'Only data admins, coaches, and admins can create fixtures' },
         { status: 403 }

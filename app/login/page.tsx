@@ -391,6 +391,7 @@ export default function LoginPage() {
               {[
                 { label: 'Admin', role: 'admin' },
                 { label: 'Coach', role: 'coach' },
+                { label: 'Asst. Coach', role: 'asst_coach' },
                 { label: 'Player', role: 'player' },
                 { label: 'Physio', role: 'physio' },
                 { label: 'Club Captain', role: 'club_captain' },

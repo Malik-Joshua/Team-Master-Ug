@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
       .eq('user_id', authUser.id)
       .single()
 
-    if (!profile || (profile.role !== 'coach' && profile.role !== 'data_admin')) {
+    if (!profile || !['coach', 'asst_coach', 'data_admin'].includes(profile.role)) {
       return NextResponse.json(
         { error: 'Only coaches and data admins can record attendance' },
         { status: 403 }

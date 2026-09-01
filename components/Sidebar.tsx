@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { getDashboardPathForRole } from '@/lib/roleRoutes'
 import {
   LayoutDashboard,
   Users,
@@ -32,22 +33,28 @@ interface NavItem {
   href: string
   icon: React.ComponentType<{ className?: string }>
   roles?: string[]
+  // Which sidebar group this belongs under. Declared explicitly rather than
+  // inferred from array position: the list is filtered per role first, so
+  // slicing the *filtered* array at a fixed index put the MAIN/CLUB boundary
+  // in an arbitrary place for any role that doesn't see every item (and could
+  // leave a section header rendered with nothing under it).
+  section: 'main' | 'club'
 }
 
 const navigationItems: NavItem[] = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Players', href: '/players', icon: Users, roles: ['coach', 'asst_coach', 'data_admin', 'admin', 'club_captain'] },
-  { name: 'Performance', href: '/performance', icon: BarChart3 },
-  { name: 'Training', href: '/training', icon: Calendar, roles: ['player', 'coach', 'asst_coach', 'data_admin', 'admin', 'club_captain'] },
-  { name: 'Fixtures', href: '/fixtures', icon: Trophy, roles: ['coach', 'asst_coach', 'data_admin', 'admin', 'club_captain'] },
-  { name: 'Health & injuries', href: '/dashboard/physio', icon: HeartPulse, roles: ['physio', 'admin', 'coach', 'asst_coach', 'data_admin', 'club_captain'] },
-  { name: 'Gym & fitness', href: '/gym', icon: Dumbbell, roles: ['player', 'coach', 'asst_coach', 'data_admin', 'admin'] },
-  { name: 'Finance', href: '/finance', icon: DollarSign, roles: ['finance_admin', 'admin'] },
-  { name: 'Inventory', href: '/inventory', icon: Package, roles: ['data_admin', 'admin', 'physio', 'finance_admin', 'coach', 'asst_coach'] },
-  { name: 'Messages', href: '/messages', icon: MessageSquare },
-  { name: 'Reports', href: '/reports', icon: FileText, roles: ['data_admin', 'finance_admin', 'admin', 'club_captain'] },
-  { name: 'Staff', href: '/staff', icon: UserCircle, roles: ['admin'] },
-  { name: 'Settings', href: '/settings', icon: Settings },
+  { section: 'main', name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { section: 'main', name: 'Players', href: '/players', icon: Users, roles: ['coach', 'asst_coach', 'data_admin', 'admin', 'club_captain'] },
+  { section: 'main', name: 'Performance', href: '/performance', icon: BarChart3 },
+  { section: 'main', name: 'Training', href: '/training', icon: Calendar, roles: ['player', 'coach', 'asst_coach', 'data_admin', 'admin', 'club_captain'] },
+  { section: 'main', name: 'Fixtures', href: '/fixtures', icon: Trophy, roles: ['coach', 'asst_coach', 'data_admin', 'admin', 'club_captain'] },
+  { section: 'club', name: 'Health & injuries', href: '/dashboard/physio', icon: HeartPulse, roles: ['physio', 'admin', 'coach', 'asst_coach', 'data_admin', 'club_captain'] },
+  { section: 'club', name: 'Gym & fitness', href: '/gym', icon: Dumbbell, roles: ['player', 'coach', 'asst_coach', 'data_admin', 'admin'] },
+  { section: 'club', name: 'Finance', href: '/finance', icon: DollarSign, roles: ['finance_admin', 'admin'] },
+  { section: 'club', name: 'Inventory', href: '/inventory', icon: Package, roles: ['data_admin', 'admin', 'physio', 'finance_admin', 'coach', 'asst_coach'] },
+  { section: 'club', name: 'Messages', href: '/messages', icon: MessageSquare },
+  { section: 'club', name: 'Reports', href: '/reports', icon: FileText, roles: ['data_admin', 'finance_admin', 'admin', 'club_captain'] },
+  { section: 'club', name: 'Staff', href: '/staff', icon: UserCircle, roles: ['admin'] },
+  { section: 'club', name: 'Settings', href: '/settings', icon: Settings },
 ]
 
 interface ClubSettings {
@@ -74,19 +81,34 @@ export default function Sidebar({ userRole, onLogout, clubSettings, userName, us
   const [mobileOpen, setMobileOpen] = useState(false)
   const pathname = usePathname()
 
-  // "Dashboard" (/dashboard) needs an exact match — every role-specific
-  // dashboard (physio, admin, data_admin, club_captain...) lives one level
-  // under it as /dashboard/<role>, its own distinct nav item. A plain
-  // startsWith('/dashboard/') check would light up "Dashboard" AND that
-  // role's own item at the same time on every one of those pages, which is
-  // the "two cells illuminated at once" bug. Every other nav item keeps
-  // prefix matching, since their own sub-pages should still highlight them.
+  // The generic "/dashboard" needs an exact match rather than prefix
+  // matching: every role-specific dashboard lives one level under it at
+  // /dashboard/<role>, so a startsWith('/dashboard/') check would light up
+  // "Dashboard" AND that role's own item simultaneously — the "two cells
+  // illuminated at once" bug. Role-specific hrefs (including the resolved
+  // dashboardHref below) match exactly here anyway. Every other nav item
+  // keeps prefix matching so their own sub-pages still highlight them.
   const isNavItemActive = (href: string) =>
     href === '/dashboard' ? pathname === '/dashboard' : pathname === href || pathname?.startsWith(href + '/')
 
-  const filteredNavItems = navigationItems.filter(
-    (item) => !item.roles || item.roles.includes(userRole)
-  )
+  // Where this role's dashboard actually lives. Most roles don't render the
+  // generic /dashboard page at all — it mounts, sees the role, and pushes
+  // them to /dashboard/<role>. Linking "Dashboard" straight at the real
+  // destination skips that redirect bounce (an extra mount + data fetch) and,
+  // more importantly, makes the active highlight land on the right item.
+  const dashboardHref = getDashboardPathForRole(userRole)
+
+  const filteredNavItems = navigationItems
+    .map((item) => (item.href === '/dashboard' ? { ...item, href: dashboardHref } : item))
+    // Drop any item that now duplicates the dashboard link. This is the
+    // physio case: their dashboard IS /dashboard/physio, which also appears
+    // as the "Health & injuries" entry — so the sidebar showed two rows
+    // pointing at the same page, and clicking "Dashboard" looked broken
+    // because it just re-rendered the screen they were already on with the
+    // OTHER row highlighted. Other roles keep "Health & injuries" as a
+    // genuine, separate read-only view.
+    .filter((item, i, arr) => item.href !== dashboardHref || arr.findIndex((x) => x.href === dashboardHref) === i)
+    .filter((item) => !item.roles || item.roles.includes(userRole))
 
   // Get initials for avatar
   const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
@@ -124,57 +146,46 @@ export default function Sidebar({ userRole, onLogout, clubSettings, userName, us
         )}
       </Link>
 
-      {/* Navigation */}
+      {/* Navigation — grouped by each item's declared `section`. A heading is
+          only rendered when that section actually has items for this role, so
+          a role that sees nothing in a group (e.g. the physio, whose only
+          former "Club" entry was the Health & injuries link that IS their
+          dashboard) never gets a stranded heading with nothing under it. */}
       <nav className="flex-1 py-2.5 overflow-y-auto">
-        <div className="px-4 pt-3 pb-1 text-[10px] font-medium tracking-wider uppercase" style={{ color: 'var(--tm-sidebar-text-muted)' }}>Main</div>
-        {filteredNavItems.slice(0, 5).map((item) => {
-          const Icon = item.icon
-          const isActive = isNavItemActive(item.href)
+        {([
+          { key: 'main', label: 'Main' },
+          { key: 'club', label: 'Club' },
+        ] as const).map(({ key, label }) => {
+          const items = filteredNavItems.filter((item) => item.section === key)
+          if (items.length === 0) return null
           return (
-            <Link
-              key={item.name}
-              href={item.href}
-              onClick={() => isMobile && setMobileOpen(false)}
-              className={cn(
-                'flex items-center gap-2.5 px-3 py-2 mx-1 my-0.5 rounded-md text-xs transition-all duration-120',
-                isActive
-                  ? 'font-medium'
-                  : 'hover:text-white/80'
-              )}
-              title={collapsed && !isMobile ? item.name : undefined}
-              style={isActive ? { background: 'var(--tm-sidebar-active-bg)', color: 'var(--tm-sidebar-active-text)' } : { color: 'var(--tm-sidebar-text-muted)' }}
-            >
-              <Icon className="w-[17px] h-[17px] flex-shrink-0" />
-              {(!collapsed || isMobile) && (
-                <span>{item.name}</span>
-              )}
-            </Link>
-          )
-        })}
-
-        <div className="px-4 pt-3 pb-1 text-[10px] font-medium tracking-wider uppercase" style={{ color: 'var(--tm-sidebar-text-muted)' }}>Club</div>
-        {filteredNavItems.slice(5).map((item) => {
-          const Icon = item.icon
-          const isActive = isNavItemActive(item.href)
-          return (
-            <Link
-              key={item.name}
-              href={item.href}
-              onClick={() => isMobile && setMobileOpen(false)}
-              className={cn(
-                'flex items-center gap-2.5 px-3 py-2 mx-1 my-0.5 rounded-md text-xs transition-all duration-120',
-                isActive
-                  ? 'font-medium'
-                  : 'hover:text-white/80'
-              )}
-              title={collapsed && !isMobile ? item.name : undefined}
-              style={isActive ? { background: 'var(--tm-sidebar-active-bg)', color: 'var(--tm-sidebar-active-text)' } : { color: 'var(--tm-sidebar-text-muted)' }}
-            >
-              <Icon className="w-[17px] h-[17px] flex-shrink-0" />
-              {(!collapsed || isMobile) && (
-                <span>{item.name}</span>
-              )}
-            </Link>
+            <div key={key}>
+              <div className="px-4 pt-3 pb-1 text-[10px] font-medium tracking-wider uppercase" style={{ color: 'var(--tm-sidebar-text-muted)' }}>{label}</div>
+              {items.map((item) => {
+                const Icon = item.icon
+                const isActive = isNavItemActive(item.href)
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    onClick={() => isMobile && setMobileOpen(false)}
+                    className={cn(
+                      'flex items-center gap-2.5 px-3 py-2 mx-1 my-0.5 rounded-md text-xs transition-all duration-120',
+                      isActive
+                        ? 'font-medium'
+                        : 'hover:text-white/80'
+                    )}
+                    title={collapsed && !isMobile ? item.name : undefined}
+                    style={isActive ? { background: 'var(--tm-sidebar-active-bg)', color: 'var(--tm-sidebar-active-text)' } : { color: 'var(--tm-sidebar-text-muted)' }}
+                  >
+                    <Icon className="w-[17px] h-[17px] flex-shrink-0" />
+                    {(!collapsed || isMobile) && (
+                      <span>{item.name}</span>
+                    )}
+                  </Link>
+                )
+              })}
+            </div>
           )
         })}
       </nav>

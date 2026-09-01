@@ -4,7 +4,7 @@ import { createClient as createServiceClient } from '@supabase/supabase-js'
 
 export const dynamic = 'force-dynamic'
 
-const MANAGER_ROLES = ['admin', 'data_admin', 'finance_admin', 'coach']
+const MANAGER_ROLES = ['admin', 'data_admin', 'finance_admin', 'coach', 'asst_coach']
 const STATUSES = ['in_store', 'in_use', 'spoilt', 'lost']
 const TX_TYPES = ['issue', 'return', 'damage', 'loss', 'reconcile']
 

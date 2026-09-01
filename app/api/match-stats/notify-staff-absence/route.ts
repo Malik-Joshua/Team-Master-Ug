@@ -30,7 +30,7 @@ export const dynamic = 'force-dynamic'
 // is included because absent staff usually has payroll / bonus implications;
 // admin is the owner; data_admin is the team manager who covers scheduling.
 const RECIPIENT_ROLES = ['admin', 'data_admin', 'finance_admin'] as const
-const CALLER_ROLES = ['admin', 'data_admin', 'coach'] as const
+const CALLER_ROLES = ['admin', 'data_admin', 'coach', 'asst_coach'] as const
 
 type AbsenceRow = { staff_id: string }
 
@@ -76,6 +76,7 @@ export async function POST(request: NextRequest) {
 
     const roleLabel = (r?: string) =>
       r === 'coach' ? 'Coach'
+      : r === 'asst_coach' ? 'Assistant Coach'
       : r === 'physio' ? 'Physio'
       : r === 'data_admin' ? 'Team Manager'
       : r === 'admin' ? 'Owner'

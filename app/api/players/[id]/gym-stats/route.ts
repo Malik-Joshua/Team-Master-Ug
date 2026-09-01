@@ -119,7 +119,7 @@ export async function PATCH(
       .eq('user_id', authUser.id)
       .single()
 
-    if (!profile || !['admin', 'coach', 'data_admin'].includes(profile.role)) {
+    if (!profile || !['admin', 'coach', 'asst_coach', 'data_admin'].includes(profile.role)) {
       return NextResponse.json(
         { error: 'Unauthorized: Admin/Coach/Data Admin access required' },
         { status: 403 }

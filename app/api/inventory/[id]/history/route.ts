@@ -4,7 +4,7 @@ import { createClient as createServiceClient } from '@supabase/supabase-js'
 
 export const dynamic = 'force-dynamic'
 
-const VIEWER_ROLES = ['admin', 'data_admin', 'finance_admin', 'coach', 'physio']
+const VIEWER_ROLES = ['admin', 'data_admin', 'finance_admin', 'coach', 'asst_coach', 'physio']
 
 /**
  * GET /api/inventory/[id]/history

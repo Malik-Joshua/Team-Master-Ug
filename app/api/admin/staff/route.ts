@@ -5,7 +5,7 @@ import { createClient as createServiceClient } from '@supabase/supabase-js'
 export const dynamic = 'force-dynamic'
 
 /** Staff roles (non-player) */
-const STAFF_ROLES = ['admin', 'coach', 'data_admin', 'finance_admin', 'physio', 'club_captain']
+const STAFF_ROLES = ['admin', 'coach', 'asst_coach', 'data_admin', 'finance_admin', 'physio', 'club_captain']
 
 export async function GET(request: NextRequest) {
   try {

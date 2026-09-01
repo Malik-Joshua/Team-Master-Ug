@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
       .eq('user_id', authUser.id)
       .single()
 
-    const allowedRoles = ['admin', 'data_admin', 'physio', 'finance_admin', 'coach']
+    const allowedRoles = ['admin', 'data_admin', 'physio', 'finance_admin', 'coach', 'asst_coach']
     if (!profile || !allowedRoles.includes(profile.role)) {
       return NextResponse.json(
         { error: 'Unauthorized: Inventory access required' },

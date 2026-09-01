@@ -24,7 +24,7 @@ export const dynamic = 'force-dynamic'
  * happens to also be a staff member and the same person receives it once.
  */
 
-const STAFF_ROLES = ['admin', 'coach', 'data_admin']
+const STAFF_ROLES = ['admin', 'coach', 'asst_coach', 'data_admin']
 
 export async function POST(request: NextRequest) {
   try {

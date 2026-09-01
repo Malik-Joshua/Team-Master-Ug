@@ -4,7 +4,7 @@ import { createClient as createServiceClient } from '@supabase/supabase-js'
 
 export const dynamic = 'force-dynamic'
 
-const MANAGER_ROLES = ['admin', 'data_admin', 'finance_admin', 'coach']
+const MANAGER_ROLES = ['admin', 'data_admin', 'finance_admin', 'coach', 'asst_coach']
 
 async function authorizeManager(supabase: any) {
   const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()

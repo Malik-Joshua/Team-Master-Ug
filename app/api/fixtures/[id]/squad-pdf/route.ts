@@ -38,7 +38,7 @@ export async function GET(
       .eq('user_id', authUser.id)
       .single()
 
-    if (!profile || !['admin', 'data_admin', 'coach'].includes(profile.role)) {
+    if (!profile || !['admin', 'data_admin', 'coach', 'asst_coach'].includes(profile.role)) {
       return NextResponse.json(
         { error: 'Only team managers, coaches, and admins can download squad lists' },
         { status: 403 }

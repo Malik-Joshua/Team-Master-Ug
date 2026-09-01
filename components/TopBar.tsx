@@ -105,8 +105,14 @@ export default function TopBar({ title, userName, userRole, userAvatar }: TopBar
 
   const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
 
+  // `sticky top-0` keeps the header pinned while the DOCUMENT scrolls
+  // underneath it — deliberately NOT an inner scroll container (see the long
+  // note in Layout.tsx), because that approach broke mobile scrolling.
+  // z-20 sits above in-page sticky table headers (z-10) but below the sidebar
+  // (z-30), mobile drawer (z-40/50) and modals (z-50). The background must
+  // stay opaque so content doesn't bleed through as it scrolls beneath.
   return (
-    <header className="min-h-[60px] flex items-center pl-16 pr-4 sm:pr-6 lg:pl-6 py-2 gap-3 sm:gap-4 flex-shrink-0" style={{ background: 'var(--tm-surface)', borderBottom: '1px solid var(--tm-border)' }}>
+    <header className="sticky top-0 z-20 min-h-[60px] flex items-center pl-16 pr-4 sm:pr-6 lg:pl-6 py-2 gap-3 sm:gap-4 flex-shrink-0" style={{ background: 'var(--tm-surface)', borderBottom: '1px solid var(--tm-border)' }}>
       {/* Greeting */}
       <div className="flex-1 min-w-0">
         <h1 className="text-[14px] sm:text-[15px] font-medium mb-[1px] leading-tight line-clamp-2" style={{ color: 'var(--tm-text-1)' }}>{getGreeting()}, {userName} 👋</h1>

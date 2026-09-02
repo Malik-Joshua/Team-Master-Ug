@@ -499,9 +499,18 @@ export default function PlayersPage() {
               filteredPlayers.map((player) => (
                 <div key={player.id} className="p-4 space-y-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-tm-secondary flex items-center justify-center text-tm-on-secondary font-bold">
-                      {player.name.charAt(0).toUpperCase()}
-                    </div>
+                    {player.profile_picture_url ? (
+                      <img
+                        src={player.profile_picture_url}
+                        alt={player.name}
+                        className="w-10 h-10 rounded-full object-cover flex-shrink-0 border-2"
+                        style={{ borderColor: 'var(--acc, #5BA3D9)' }}
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-tm-secondary flex items-center justify-center text-tm-on-secondary font-bold">
+                        {player.name.charAt(0).toUpperCase()}
+                      </div>
+                    )}
                     <div>
                       <p className="font-semibold text-tm-text-1">{player.name}</p>
                       <p className="text-sm text-tm-text-3">{player.email}</p>
@@ -611,9 +620,18 @@ export default function PlayersPage() {
                     <tr key={player.id} className="hover:bg-tm-surface-hover transition-colors cursor-pointer">
                       <td className="px-6 py-4">
                         <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 rounded-full bg-tm-secondary flex items-center justify-center text-tm-on-secondary font-bold">
-                            {player.name.charAt(0).toUpperCase()}
-                          </div>
+                          {player.profile_picture_url ? (
+                            <img
+                              src={player.profile_picture_url}
+                              alt={player.name}
+                              className="w-10 h-10 rounded-full object-cover flex-shrink-0 border-2"
+                              style={{ borderColor: 'var(--acc, #5BA3D9)' }}
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-full bg-tm-secondary flex items-center justify-center text-tm-on-secondary font-bold">
+                              {player.name.charAt(0).toUpperCase()}
+                            </div>
+                          )}
                           <div>
                             <p className="font-medium text-tm-text-1">{player.name}</p>
                             <p className="text-sm text-tm-text-3">{player.email}</p>

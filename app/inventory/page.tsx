@@ -421,27 +421,36 @@ export default function InventoryPage() {
           <StatCard title="Needs Reconciling" value={overdueReconciliation} icon={ClipboardCheck} iconColor="bg-info" iconTextColor="text-white" description="Not checked in 30+ days" />
         </div>
 
-        {/* Search and Filters */}
-        <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-tm-text-3 w-5 h-5" />
+        {/* Search and Filters — matches the filter bar on the Players page
+            (search grows, selects sit at a fixed width beside it) rather than
+            an even 3-up grid, so the two short dropdowns don't stretch to a
+            third of the screen each.
+
+            The leading icons need `pointer-events-none z-10`: a native
+            <select> paints its own opaque background, so without the z-index
+            the icon is covered by it (and without pointer-events-none it
+            swallows clicks meant for the select). That was the bug where the
+            funnel icons appeared to bleed out from behind the dropdowns. */}
+        <div className="bg-tm-surface rounded-card p-4 sm:p-5 border border-tm-border shadow-soft">
+          <div className="flex flex-col md:flex-row gap-3">
+            <div className="flex-1 relative min-w-0">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-tm-text-3 w-[18px] h-[18px] pointer-events-none z-10" />
               <input
                 type="text" placeholder="Search items..." value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                className="tm-input pl-10"
               />
             </div>
             <div className="relative">
-              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-tm-text-3 w-5 h-5" />
-              <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)} className="w-full pl-10 pr-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary focus:border-primary transition-all bg-tm-surface text-tm-text-1">
+              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-tm-text-3 w-[18px] h-[18px] pointer-events-none z-10" />
+              <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)} className="tm-select pl-10 pr-8 appearance-none w-full md:w-52">
                 <option value="all">All Categories</option>
                 {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
               </select>
             </div>
             <div className="relative">
-              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-tm-text-3 w-5 h-5" />
-              <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="w-full pl-10 pr-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary focus:border-primary transition-all bg-tm-surface text-tm-text-1">
+              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-tm-text-3 w-[18px] h-[18px] pointer-events-none z-10" />
+              <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="tm-select pl-10 pr-8 appearance-none w-full md:w-48">
                 <option value="all">All Status</option>
                 <option value="in_stock">In Stock</option>
                 <option value="low_stock">Low Stock</option>
@@ -449,6 +458,22 @@ export default function InventoryPage() {
               </select>
             </div>
           </div>
+
+          {/* Active-filter summary — makes it obvious why the list is short
+              and gives a one-click way back to the full inventory. */}
+          {(searchQuery || filterCategory !== 'all' || filterStatus !== 'all') && (
+            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-tm-border pt-3">
+              <span className="text-xs text-tm-text-3">
+                Showing {filteredItems.length} of {items.length} items
+              </span>
+              <button
+                onClick={() => { setSearchQuery(''); setFilterCategory('all'); setFilterStatus('all') }}
+                className="ml-auto inline-flex items-center gap-1 rounded-md border border-tm-border bg-tm-surface-hover px-2.5 py-1 text-xs font-medium text-tm-text-1 transition-colors hover:border-primary hover:text-primary"
+              >
+                <X className="h-3 w-3" /> Clear filters
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Inventory list */}

@@ -862,6 +862,25 @@ export default function TrainingPage() {
 
       if (error) throw error
 
+      // Put each new session on the coach collaboration feed and alert the
+      // other coach(es), so the Head Coach and Assistant can review and
+      // discuss each other's scheduling instead of silently clashing.
+      // Non-blocking: the sessions are already saved.
+      for (const s of newSessions || []) {
+        try {
+          await fetch('/api/collaboration', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              kind: 'training_session',
+              referenceId: s.id,
+              subject: `Session #${s.session_number}`,
+              date: s.session_date,
+            }),
+          })
+        } catch (e) { console.warn('Collaboration feed post failed:', e) }
+      }
+
       // Refresh sessions list
       const { data: coachSessions } = await supabase
         .from('training_sessions')
@@ -936,6 +955,20 @@ export default function TrainingPage() {
         .single()
 
       if (error) throw error
+
+      // Feed + alert the other coach(es) — see the bulk-create path above.
+      try {
+        await fetch('/api/collaboration', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            kind: 'training_session',
+            referenceId: newSession.id,
+            subject: `Session #${newSession.session_number}`,
+            date: newSession.session_date,
+          }),
+        })
+      } catch (e) { console.warn('Collaboration feed post failed:', e) }
 
       // Get coach name for notification
       const { data: coachProfile } = await supabase

@@ -989,7 +989,7 @@ export default function FixturesPage() {
       setSevensName(''); setSevensDay2(''); setSevensOpponents(['', '', '']); setSevensSquad([])
       setFixtureForm({
         match_date: '', opponent: '', tournament_type: 'friendly', custom_tournament_type: '',
-        squad_size: '23', venue: '', notes: '', physio_id: '', team_manager_id: '', coach_id: '',
+        squad_size: '23', venue: '', notes: '', physio_id: '', team_manager_id: '', coach_id: '', asst_coach_id: '',
       })
     } catch (err: any) {
       alert(`Error: ${err.message}`)

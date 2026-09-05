@@ -3163,6 +3163,7 @@ export default function FixturesPage() {
                           physio_id: '',
                           team_manager_id: '',
                           coach_id: '',
+                          asst_coach_id: '',
                         })
                       }}
                       className="modal-close-btn"

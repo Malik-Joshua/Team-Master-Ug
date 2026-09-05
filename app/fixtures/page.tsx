@@ -1350,7 +1350,7 @@ export default function FixturesPage() {
       setPlayerStats({})
       setSelectedMatchForStats('')
       setReRecordingStats(false)
-      setMatchStaff({ coach: null, physio: null, team_manager: null })
+      setMatchStaff({ coach: null, asst_coach: null, physio: null, team_manager: null })
       setStaffAttendance({})
       
       // Reload matches so the just-saved fixture flips to the "Played"
@@ -2376,7 +2376,7 @@ export default function FixturesPage() {
                 })
                 setPlayerStats({})
                 setSelectedMatchForStats('')
-                setMatchStaff({ coach: null, physio: null, team_manager: null })
+                setMatchStaff({ coach: null, asst_coach: null, physio: null, team_manager: null })
                 setStaffAttendance({})
               }}
               className="modal-close-btn"
@@ -2811,7 +2811,7 @@ export default function FixturesPage() {
                 })
                 setPlayerStats({})
                 setSelectedMatchForStats('')
-                setMatchStaff({ coach: null, physio: null, team_manager: null })
+                setMatchStaff({ coach: null, asst_coach: null, physio: null, team_manager: null })
                 setStaffAttendance({})
               }}
               disabled={savingMatchStats}
@@ -3504,7 +3504,7 @@ export default function FixturesPage() {
                         })
                         setPlayerStats({})
                         setSelectedMatchForStats('')
-                        setMatchStaff({ coach: null, physio: null, team_manager: null })
+                        setMatchStaff({ coach: null, asst_coach: null, physio: null, team_manager: null })
                         setStaffAttendance({})
                       }}
                       className="modal-close-btn"
@@ -3941,7 +3941,7 @@ export default function FixturesPage() {
                         })
                         setPlayerStats({})
                         setSelectedMatchForStats('')
-                        setMatchStaff({ coach: null, physio: null, team_manager: null })
+                        setMatchStaff({ coach: null, asst_coach: null, physio: null, team_manager: null })
                         setStaffAttendance({})
                       }}
                       disabled={savingMatchStats}

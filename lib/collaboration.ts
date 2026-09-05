@@ -11,10 +11,9 @@ import { createClient as createServiceClient } from '@supabase/supabase-js'
  * match the required types of a Next.js Route".
  */
 
-// Coaching staff collaborate; management can read along.
-export const COLLAB_VIEW_ROLES = ['coach', 'asst_coach', 'admin', 'data_admin']
-// Only people who actually do the coaching work can post/react.
-export const COLLAB_AUTHOR_ROLES = ['coach', 'asst_coach', 'admin']
+// Only the head coach and assistant coach use the collaboration feed.
+export const COLLAB_VIEW_ROLES = ['coach', 'asst_coach']
+export const COLLAB_AUTHOR_ROLES = ['coach', 'asst_coach']
 
 export function adminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL

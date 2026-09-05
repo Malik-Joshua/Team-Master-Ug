@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic'
  */
 export async function POST(request: NextRequest) {
   try {
-    const auth = await requireCoachStaff(['coach', 'asst_coach', 'admin'])
+    const auth = await requireCoachStaff(['coach', 'asst_coach'])
     if ('error' in auth) return auth.error
 
     const { activityId, kind } = await request.json()

@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
   try {
     // Only the people who actually perform coaching actions can create feed
     // entries — management can read but not post activities.
-    const auth = await requireCoachStaff(['coach', 'asst_coach', 'admin'])
+    const auth = await requireCoachStaff(['coach', 'asst_coach'])
     if ('error' in auth) return auth.error
 
     const body = await request.json()

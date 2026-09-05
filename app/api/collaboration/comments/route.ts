@@ -3,7 +3,7 @@ import { adminClient, requireCoachStaff } from '@/lib/collaboration'
 
 export const dynamic = 'force-dynamic'
 
-const AUTHOR_ROLES = ['coach', 'asst_coach', 'admin']
+const AUTHOR_ROLES = ['coach', 'asst_coach']
 
 /**
  * Comments (and threaded replies) on a coaching activity.

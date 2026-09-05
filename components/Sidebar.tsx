@@ -52,7 +52,7 @@ const navigationItems: NavItem[] = [
   { section: 'club', name: 'Gym & fitness', href: '/gym', icon: Dumbbell, roles: ['player', 'coach', 'asst_coach', 'data_admin', 'admin'] },
   { section: 'club', name: 'Finance', href: '/finance', icon: DollarSign, roles: ['finance_admin', 'admin'] },
   { section: 'club', name: 'Inventory', href: '/inventory', icon: Package, roles: ['data_admin', 'admin', 'physio', 'finance_admin', 'coach', 'asst_coach'] },
-  { section: 'club', name: 'Collaboration', href: '/collaboration', icon: MessagesSquare, roles: ['coach', 'asst_coach', 'admin', 'data_admin'] },
+  { section: 'club', name: 'Collaboration', href: '/collaboration', icon: MessagesSquare, roles: ['coach', 'asst_coach'] },
   { section: 'club', name: 'Messages', href: '/messages', icon: MessageSquare },
   { section: 'club', name: 'Reports', href: '/reports', icon: FileText, roles: ['data_admin', 'finance_admin', 'admin', 'club_captain'] },
   { section: 'club', name: 'Staff', href: '/staff', icon: UserCircle, roles: ['admin'] },

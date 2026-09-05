@@ -98,37 +98,37 @@ ALTER TABLE coach_activities ENABLE ROW LEVEL SECURITY;
 ALTER TABLE activity_comments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE activity_reactions ENABLE ROW LEVEL SECURITY;
 
--- Coaching + management staff can read the feed and the discussion.
+-- Only the head coach and assistant coach can read or write the feed.
 DROP POLICY IF EXISTS "Coaching staff can view activities" ON coach_activities;
-CREATE POLICY "Coaching staff can view activities"
+CREATE POLICY "Coaches can view activities"
   ON coach_activities FOR SELECT
   USING (
     EXISTS (
       SELECT 1 FROM user_profiles
       WHERE user_id = auth.uid()
-        AND role IN ('coach', 'asst_coach', 'admin', 'data_admin')
+        AND role IN ('coach', 'asst_coach')
     )
   );
 
 DROP POLICY IF EXISTS "Coaching staff can view comments" ON activity_comments;
-CREATE POLICY "Coaching staff can view comments"
+CREATE POLICY "Coaches can view comments"
   ON activity_comments FOR SELECT
   USING (
     EXISTS (
       SELECT 1 FROM user_profiles
       WHERE user_id = auth.uid()
-        AND role IN ('coach', 'asst_coach', 'admin', 'data_admin')
+        AND role IN ('coach', 'asst_coach')
     )
   );
 
 DROP POLICY IF EXISTS "Coaching staff can view reactions" ON activity_reactions;
-CREATE POLICY "Coaching staff can view reactions"
+CREATE POLICY "Coaches can view reactions"
   ON activity_reactions FOR SELECT
   USING (
     EXISTS (
       SELECT 1 FROM user_profiles
       WHERE user_id = auth.uid()
-        AND role IN ('coach', 'asst_coach', 'admin', 'data_admin')
+        AND role IN ('coach', 'asst_coach')
     )
   );
 

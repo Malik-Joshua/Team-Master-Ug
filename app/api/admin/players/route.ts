@@ -4,6 +4,8 @@ import { createClient as createServiceClient } from '@supabase/supabase-js'
 
 export const dynamic = 'force-dynamic'
 
+const PLAYER_ROSTER_ROLES = ['admin', 'data_admin', 'coach', 'asst_coach']
+
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient()
@@ -23,23 +25,9 @@ export async function GET(request: NextRequest) {
       .eq('user_id', authUser.id)
       .single()
 
-    // Check if user has club captain access (either directly or via linked account)
-    let hasClubCaptainAccess = false
-    if (profile?.role === 'player') {
-      // Check if player has a linked club_captain account
-      const { data: clubCaptainProfile } = await supabase
-        .from('user_profiles')
-        .select('role')
-        .eq('role', 'club_captain')
-        .eq('linked_player_id', authUser.id)
-        .single()
-      
-      hasClubCaptainAccess = !!clubCaptainProfile
-    }
-
-    if (!profile || (!['admin', 'coach', 'asst_coach', 'data_admin', 'physio', 'club_captain'].includes(profile.role) && !hasClubCaptainAccess)) {
+    if (!profile || !PLAYER_ROSTER_ROLES.includes(profile.role)) {
       return NextResponse.json(
-        { error: 'Unauthorized: Admin/Coach/Physio/Club Captain access required' },
+        { error: 'Unauthorized: Owner, team manager, coach, or assistant coach access required' },
         { status: 403 }
       )
     }
@@ -138,6 +126,27 @@ export async function GET(request: NextRequest) {
       console.error('Error fetching match stats:', matchStatsError)
     }
 
+    // Load training attendance so the roster can show sessions attended
+    // alongside match performance. attendance_status uses single-letter
+    // codes: 'P' present, 'X' absent, 'A' authorised/justified, 'I' injured.
+    const { data: trainingAttendance, error: attendanceError } = await supabaseAdmin
+      .from('training_attendance')
+      .select('player_id, attendance_status')
+      .in('player_id', validPlayers.map((p: any) => p.user_id))
+
+    if (attendanceError) {
+      console.error('Error fetching training attendance:', attendanceError)
+    }
+
+    const attendanceByPlayer = new Map<string, { present: number; total: number }>()
+    ;(trainingAttendance || []).forEach((row: any) => {
+      if (!row.player_id) return
+      const entry = attendanceByPlayer.get(row.player_id) || { present: 0, total: 0 }
+      entry.total += 1
+      if (String(row.attendance_status).toUpperCase() === 'P') entry.present += 1
+      attendanceByPlayer.set(row.player_id, entry)
+    })
+
     const statsByPlayer = new Map<string, {
       matchIds: Set<string>
       tries: number
@@ -177,6 +186,8 @@ export async function GET(request: NextRequest) {
         games_played: playerStats ? playerStats.matchIds.size : 0,
         tries: playerStats ? playerStats.tries : 0,
         tackles: playerStats ? playerStats.tackles : 0,
+        sessions_attended: attendanceByPlayer.get(player.user_id)?.present ?? 0,
+        sessions_total: attendanceByPlayer.get(player.user_id)?.total ?? 0,
       }
     }) || []
 

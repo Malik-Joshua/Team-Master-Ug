@@ -44,7 +44,7 @@ interface NavItem {
 
 const navigationItems: NavItem[] = [
   { section: 'main', name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { section: 'main', name: 'Players', href: '/players', icon: Users, roles: ['coach', 'asst_coach', 'data_admin', 'admin', 'club_captain'] },
+  { section: 'main', name: 'Players', href: '/players', icon: Users, roles: ['coach', 'asst_coach', 'data_admin', 'admin'] },
   { section: 'main', name: 'Performance', href: '/performance', icon: BarChart3 },
   { section: 'main', name: 'Training', href: '/training', icon: Calendar, roles: ['player', 'coach', 'asst_coach', 'data_admin', 'admin', 'club_captain'] },
   { section: 'main', name: 'Fixtures', href: '/fixtures', icon: Trophy, roles: ['coach', 'asst_coach', 'data_admin', 'admin', 'club_captain'] },

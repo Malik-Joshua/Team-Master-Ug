@@ -69,6 +69,14 @@ export default function LoginPage() {
   const handleDevBypass = async (role: string) => {
     setError(null)
     setLoading(true)
+
+    // Use a full server-side authentication redirect for the manager account.
+    // This remains development-only and avoids browser credential/session issues.
+    if (role === 'data_admin') {
+      window.location.assign('/api/auth/dev-bypass-login?loginAs=data_admin')
+      return
+    }
+
     try {
       const response = await fetch('/api/auth/dev-bypass-login', {
         method: 'POST',
@@ -86,9 +94,9 @@ export default function LoginPage() {
 
       console.log(`[DevBypass] Logging in as ${role}:`, data)
       const supabase = createClient()
-      const { error: authError } = await supabase.auth.signInWithPassword({
-        email: data.email,
-        password: data.password
+      const { error: authError } = await supabase.auth.verifyOtp({
+        token_hash: data.tokenHash,
+        type: 'magiclink',
       })
 
       if (authError) {

@@ -13,9 +13,10 @@ import ModalScrollLock from './ModalScrollLock'
 interface LayoutProps {
   children: React.ReactNode
   pageTitle: string
+  transparentBackground?: boolean
 }
 
-function LayoutContent({ children, pageTitle }: LayoutProps) {
+function LayoutContent({ children, pageTitle, transparentBackground }: LayoutProps) {
   const { collapsed } = useSidebar()
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
@@ -159,7 +160,7 @@ function LayoutContent({ children, pageTitle }: LayoutProps) {
     <div
       className="tm-app min-h-screen flex"
       style={{
-        backgroundColor: 'var(--tm-bg, #F5F7FA)'
+        backgroundColor: transparentBackground ? 'transparent' : 'var(--tm-bg, #F5F7FA)'
       }}
     >
       <Sidebar userRole={user.role} onLogout={handleLogout} clubSettings={clubSettings} userName={user.name} userAvatar={user.profile_picture_url} />
@@ -207,10 +208,12 @@ function LayoutContent({ children, pageTitle }: LayoutProps) {
   )
 }
 
-export default function Layout({ children, pageTitle }: LayoutProps) {
+export default function Layout({ children, pageTitle, transparentBackground }: LayoutProps) {
   return (
     <SidebarProvider>
-      <LayoutContent pageTitle={pageTitle}>{children}</LayoutContent>
+      <LayoutContent pageTitle={pageTitle} transparentBackground={transparentBackground}>
+        {children}
+      </LayoutContent>
     </SidebarProvider>
   )
 }

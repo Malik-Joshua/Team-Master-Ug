@@ -8,11 +8,13 @@ import { Users, Search, Filter, UserPlus, Eye, Edit, AlertCircle, CheckCircle, X
 import { createClient } from '@/lib/supabase/client'
 import PlayerCard from '@/components/PlayerCard'
 
+const PLAYER_ROSTER_ROLES = ['admin', 'data_admin', 'coach', 'asst_coach'] as const
+
 interface Player {
   id: string
   user_id?: string
   name: string
-  position: string
+  position?: string
   status: string
   email: string
   phone?: string
@@ -21,6 +23,30 @@ interface Player {
   games_played?: number
   tries?: number
   tackles?: number
+  sessions_attended?: number
+  sessions_total?: number
+}
+
+// Training attendance as "sessions attended / sessions recorded", with the
+// attendance rate alongside. Shared by the desktop table, the mobile card
+// list, and the player detail modal so all three stay in sync.
+function formatPlayerPosition(position?: string) {
+  return position ? position.replace(/_/g, ' ') : 'Position not set'
+}
+
+function AttendanceStat({ player }: { player: Player }) {
+  const total = player.sessions_total || 0
+  const attended = player.sessions_attended || 0
+  if (total === 0) {
+    return <span className="text-tm-text-3">No data</span>
+  }
+  const rate = Math.round((attended / total) * 100)
+  return (
+    <span>
+      <span className="font-semibold text-tm-text-1">{attended}/{total}</span>
+      <span className="ml-1 text-xs text-tm-text-3">({rate}%)</span>
+    </span>
+  )
 }
 
 export default function PlayersPage() {
@@ -155,8 +181,8 @@ export default function PlayersPage() {
       if (profile) {
         setUser(profile)
         
-        // Fetch players - use API route for admin to bypass RLS, otherwise direct query
-        if (profile.role === 'admin' || profile.role === 'coach' || profile.role === 'asst_coach' || profile.role === 'data_admin') {
+        // The roster is a management feature for owners, team managers, and coaches.
+        if (PLAYER_ROSTER_ROLES.includes(profile.role as typeof PLAYER_ROSTER_ROLES[number])) {
           try {
             console.log('Fetching players from API route for admin user...', profile.role)
             // For admin/coach, try API route first
@@ -212,21 +238,6 @@ export default function PlayersPage() {
               if (profile.role === 'admin' && playersList.length > 0) {
                 await loadClubCaptainStatus(playersList)
               }
-            }
-          }
-        } else {
-          // For other roles, use direct query (they can only see their own data)
-          const { data: playersData } = await supabase
-            .from('user_profiles')
-            .select('*')
-            .eq('role', 'player')
-          if (playersData) {
-            const playersList = playersData as Player[]
-            setPlayers(playersList)
-            
-            // Load club captain status for all players (admin only)
-            if (profile.role === 'admin' && playersList.length > 0) {
-              await loadClubCaptainStatus(playersList)
             }
           }
         }
@@ -332,7 +343,7 @@ export default function PlayersPage() {
           .eq('user_id', authUser.id)
           .single()
         
-        if (profile && (profile.role === 'admin' || profile.role === 'coach' || profile.role === 'asst_coach' || profile.role === 'data_admin')) {
+        if (profile && PLAYER_ROSTER_ROLES.includes(profile.role as typeof PLAYER_ROSTER_ROLES[number])) {
           // Use API route for admin/coach/data_admin (same as initial load)
           try {
             const response = await fetch('/api/admin/players', {
@@ -390,12 +401,28 @@ export default function PlayersPage() {
 
   if (!user) return null
 
+  if (!PLAYER_ROSTER_ROLES.includes(user.role as typeof PLAYER_ROSTER_ROLES[number])) {
+    return (
+      <Layout pageTitle="Players">
+        <Card>
+          <div className="py-10 text-center">
+            <AlertCircle className="mx-auto mb-3 h-10 w-10 text-warning" />
+            <h2 className="text-lg font-semibold text-tm-text-1">Roster access restricted</h2>
+            <p className="mt-2 text-sm text-tm-text-3">
+              The player roster is available only to owners, team managers, coaches, and assistant coaches.
+            </p>
+          </div>
+        </Card>
+      </Layout>
+    )
+  }
+
   const activePlayers = players.filter((p) => p.status === 'active').length
   const injuredPlayers = players.filter((p) => p.status === 'injured').length
   const totalPlayers = players.length
 
   const filteredPlayers = players.filter((player) => {
-    const matchesSearch = player.name.toLowerCase().includes(searchTerm.toLowerCase()) || player.position.toLowerCase().includes(searchTerm.toLowerCase()) || player.email.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesSearch = player.name.toLowerCase().includes(searchTerm.toLowerCase()) || (player.position || '').toLowerCase().includes(searchTerm.toLowerCase()) || player.email.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesFilter = filterStatus === 'all' || player.status === filterStatus
     return matchesSearch && matchesFilter
   })
@@ -518,7 +545,7 @@ export default function PlayersPage() {
                   </div>
                   <div className="flex flex-wrap gap-2 text-xs">
                     <span className="px-2 py-1 rounded-full bg-tm-surface-hover text-tm-text-1 capitalize">
-                      {player.position.replace('_', ' ')}
+                      {formatPlayerPosition(player.position)}
                     </span>
                     <span className={`px-2 py-1 rounded-full font-medium ${
                       player.status === 'active'
@@ -530,7 +557,7 @@ export default function PlayersPage() {
                       {player.status}
                     </span>
                   </div>
-                  <div className="grid grid-cols-3 gap-3 text-sm text-tm-text-3">
+                  <div className="grid grid-cols-4 gap-3 text-sm text-tm-text-3">
                     <div>
                       <p className="text-xs text-tm-text-3">Games</p>
                       <p className="font-semibold text-tm-text-1">{player.games_played || 0}</p>
@@ -543,6 +570,10 @@ export default function PlayersPage() {
                       <p className="text-xs text-tm-text-3">Tackles</p>
                       <p className="font-semibold text-tm-text-1">{player.tackles || 0}</p>
                     </div>
+                    <div>
+                      <p className="text-xs text-tm-text-3">Attendance</p>
+                      <p className="font-semibold text-tm-text-1"><AttendanceStat player={player} /></p>
+                    </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <button onClick={() => { setSelectedPlayer(player); setShowViewModal(true) }} className="p-2 text-tm-secondary hover:bg-tm-surface-hover rounded-lg transition-colors" title="View Details">
@@ -550,7 +581,7 @@ export default function PlayersPage() {
                     </button>
                     {(user?.role === 'coach' || user?.role === 'asst_coach' || user?.role === 'admin' || user?.role === 'data_admin') && (
                       <>
-                        <button onClick={() => { setSelectedPlayer(player); const pos = positions.find(p => p.value === player.position); setPlayerForm({ name: player.name, email: player.email, phone: player.phone || '', position: player.position, category: (pos?.category === 'forwards' || pos?.category === 'backs') ? pos.category : ('forwards' as 'forwards' | 'backs'), jersey_number: '', date_of_birth: '', height_cm: '', weight_kg: '', status: player.status, benchPressPB: '', squatPB: '', deadliftPB: '', pullUpPB: '' }); setShowEditModal(true) }} className="p-2 text-info hover:bg-info/10 rounded-lg transition-colors" title="Edit Player">
+                        <button onClick={() => { setSelectedPlayer(player); const pos = positions.find(p => p.value === player.position); setPlayerForm({ name: player.name, email: player.email, phone: player.phone || '', position: player.position || '', category: (pos?.category === 'forwards' || pos?.category === 'backs') ? pos.category : ('forwards' as 'forwards' | 'backs'), jersey_number: '', date_of_birth: '', height_cm: '', weight_kg: '', status: player.status, benchPressPB: '', squatPB: '', deadliftPB: '', pullUpPB: '' }); setShowEditModal(true) }} className="p-2 text-info hover:bg-info/10 rounded-lg transition-colors" title="Edit Player">
                           <Edit className="w-4 h-4" />
                         </button>
                         <button onClick={async () => {
@@ -607,13 +638,14 @@ export default function PlayersPage() {
                   <th className="px-6 py-4 text-left text-xs font-bold text-tm-text-1 uppercase">Games</th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-tm-text-1 uppercase">Tries</th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-tm-text-1 uppercase">Tackles</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-tm-text-1 uppercase">Attendance</th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-tm-text-1 uppercase">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-tm-border">
                 {filteredPlayers.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center text-tm-text-3">No players found</td>
+                    <td colSpan={8} className="px-6 py-12 text-center text-tm-text-3">No players found</td>
                   </tr>
                 ) : (
                   filteredPlayers.map((player) => (
@@ -638,7 +670,7 @@ export default function PlayersPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-sm text-tm-text-3 capitalize">{player.position.replace('_', ' ')}</td>
+                      <td className="px-6 py-4 text-sm text-tm-text-3 capitalize">{formatPlayerPosition(player.position)}</td>
                       <td className="px-6 py-4">
                         <span className={`px-3 py-1 rounded-full text-xs font-medium ${player.status === 'active' ? 'bg-success/10 text-success' : player.status === 'injured' ? 'bg-[#E05757]/10 text-[#E05757]' : 'bg-warning/10 text-warning'}`}>
                           {player.status}
@@ -647,6 +679,7 @@ export default function PlayersPage() {
                       <td className="px-6 py-4 text-sm text-tm-text-3">{player.games_played || 0}</td>
                       <td className="px-6 py-4 text-sm text-tm-text-3">{player.tries || 0}</td>
                       <td className="px-6 py-4 text-sm text-tm-text-3">{player.tackles || 0}</td>
+                      <td className="px-6 py-4 text-sm"><AttendanceStat player={player} /></td>
                       <td className="px-6 py-4">
                         <div className="flex items-center space-x-2">
                           <button onClick={() => { setSelectedPlayer(player); setShowViewModal(true) }} className="p-2 text-tm-secondary hover:bg-tm-surface-hover rounded-lg transition-colors" title="View Details">
@@ -654,7 +687,7 @@ export default function PlayersPage() {
                           </button>
                           {(user?.role === 'coach' || user?.role === 'asst_coach' || user?.role === 'admin' || user?.role === 'data_admin') && (
                             <>
-                              <button onClick={() => { setSelectedPlayer(player); const pos = positions.find(p => p.value === player.position); setPlayerForm({ name: player.name, email: player.email, phone: player.phone || '', position: player.position, category: (pos?.category === 'forwards' || pos?.category === 'backs') ? pos.category : ('forwards' as 'forwards' | 'backs'), jersey_number: '', date_of_birth: '', height_cm: '', weight_kg: '', status: player.status, benchPressPB: '', squatPB: '', deadliftPB: '', pullUpPB: '' }); setShowEditModal(true) }} className="p-2 text-info hover:bg-info/10 rounded-lg transition-colors" title="Edit Player">
+                              <button onClick={() => { setSelectedPlayer(player); const pos = positions.find(p => p.value === player.position); setPlayerForm({ name: player.name, email: player.email, phone: player.phone || '', position: player.position || '', category: (pos?.category === 'forwards' || pos?.category === 'backs') ? pos.category : ('forwards' as 'forwards' | 'backs'), jersey_number: '', date_of_birth: '', height_cm: '', weight_kg: '', status: player.status, benchPressPB: '', squatPB: '', deadliftPB: '', pullUpPB: '' }); setShowEditModal(true) }} className="p-2 text-info hover:bg-info/10 rounded-lg transition-colors" title="Edit Player">
                                 <Edit className="w-4 h-4" />
                               </button>
                               <button onClick={async () => {
@@ -864,7 +897,7 @@ export default function PlayersPage() {
                 <PlayerCard
                   name={selectedPlayer.name}
                   photoUrl={selectedPlayer.profile_picture_url}
-                  position={selectedPlayer.position}
+                  position={selectedPlayer.position || ''}
                   number={selectedPlayer.jersey_number ?? null}
                   size="lg"
                   className="flex-shrink-0 drop-shadow-lg"
@@ -874,7 +907,7 @@ export default function PlayersPage() {
                      style={{ color: 'var(--t3, #506478)' }}>Position</p>
                   <p className="text-lg font-bold capitalize mb-1"
                      style={{ color: 'var(--t1, #EDF2F8)' }}>
-                    {selectedPlayer.position.replace(/_/g, ' ')}
+                    {formatPlayerPosition(selectedPlayer.position)}
                   </p>
                   {selectedPlayer.position === 'fly_half' && (
                     <p className="text-xs" style={{ color: 'var(--acc, #5BA3D9)' }}>
@@ -893,7 +926,7 @@ export default function PlayersPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4 pt-1 border-t border-tm-border">
+              <div className="grid grid-cols-4 gap-4 pt-1 border-t border-tm-border">
                 <div>
                   <p className="text-sm text-tm-text-3">Games Played</p>
                   <p className="font-semibold text-tm-text-1">{selectedPlayer.games_played || 0}</p>
@@ -905,6 +938,10 @@ export default function PlayersPage() {
                 <div>
                   <p className="text-sm text-tm-text-3">Tackles</p>
                   <p className="font-semibold text-tm-text-1">{selectedPlayer.tackles || 0}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-tm-text-3">Attendance</p>
+                  <p className="font-semibold text-tm-text-1"><AttendanceStat player={selectedPlayer} /></p>
                 </div>
               </div>
             </div>

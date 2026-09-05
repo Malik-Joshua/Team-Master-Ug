@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import RefreshButton from '@/components/RefreshButton'
 import RoleCard from '@/components/RoleCard'
 import ClubColorPicker from '@/components/ui/ClubColorPicker'
+import ProfileBackdrop from '@/components/ProfileBackdrop'
 
 
 export default function ProfilePage() {
@@ -317,10 +318,15 @@ export default function ProfilePage() {
   }
 
   return (
-    <Layout pageTitle="My Profile">
-      <div className="max-w-4xl mx-auto space-y-6">
-        {/* Role card — a morale boost reminding players/coaches why their role matters */}
-        <RoleCard role={user.role} position={position} />
+    <Layout pageTitle="My Profile" transparentBackground={true}>
+      <div className="relative min-h-screen">
+        <ProfileBackdrop />
+
+        {/* everything you already have — completely unchanged */}
+        <div className="relative z-10">
+          <div className="max-w-4xl mx-auto space-y-6">
+          {/* Role card — a morale boost reminding players/coaches why their role matters */}
+          <RoleCard role={user.role} position={position} />
 
         {/* Club membership card — shows the full club crest so members feel part of the club */}
         <div className="overflow-hidden rounded-card border border-tm-border bg-tm-surface shadow-soft">
@@ -768,6 +774,8 @@ export default function ProfilePage() {
               )}
             </div>
           </div>
+        </div>
+        </div>
         </div>
       </div>
     </Layout>

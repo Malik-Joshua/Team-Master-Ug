@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
 
@@ -65,10 +66,20 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Use the first user profile
+    // Use the first profile, but authenticate with the email from Supabase Auth.
+    // user_profiles.email can become stale when an account email is changed.
     const targetProfile = profiles[0]
+    const { data: authUserData, error: authUserError } = await supabaseAdmin.auth.admin.getUserById(targetProfile.user_id)
+    const authEmail = authUserData.user?.email
 
-    // Set password to a standard development bypass password
+    if (authUserError || !authEmail) {
+      return NextResponse.json(
+        { error: authUserError?.message || 'The selected profile has no matching Auth account' },
+        { status: 404 }
+      )
+    }
+
+    // Keep a known password for optional manual local testing.
     const devPassword = 'password123'
     const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
       targetProfile.user_id,
@@ -83,10 +94,26 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Generate a one-time token for the dev button instead of immediately
+    // signing in with the reset password. This avoids password propagation,
+    // browser autofill, and stale-profile-email failures.
+    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+      type: 'magiclink',
+      email: authEmail,
+    })
+
+    if (linkError || !linkData.properties?.hashed_token) {
+      return NextResponse.json(
+        { error: `Failed to create dev login token: ${linkError?.message || 'No token returned'}` },
+        { status: 500 }
+      )
+    }
+
     return NextResponse.json({
       success: true,
-      email: targetProfile.email,
+      email: authEmail,
       password: devPassword,
+      tokenHash: linkData.properties.hashed_token,
       name: targetProfile.name,
       role: targetProfile.role
     })
@@ -105,6 +132,38 @@ export async function GET(request: NextRequest) {
   if (process.env.NODE_ENV !== 'development') {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
+
+  // Complete Team Manager login on the server so the browser receives an
+  // authenticated session cookie before being redirected to the dashboard.
+  if (request.nextUrl.searchParams.get('loginAs') === 'data_admin') {
+    const prepareRequest = new NextRequest(request.url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role: 'data_admin' }),
+    })
+    const prepareResponse = await POST(prepareRequest)
+    const loginData = await prepareResponse.json()
+
+    if (!prepareResponse.ok) {
+      return NextResponse.json(loginData, { status: prepareResponse.status })
+    }
+
+    const supabase = await createClient()
+    const { error: verifyError } = await supabase.auth.verifyOtp({
+      token_hash: loginData.tokenHash,
+      type: 'magiclink',
+    })
+
+    if (verifyError) {
+      return NextResponse.json(
+        { error: `Failed to create manager session: ${verifyError.message}` },
+        { status: 500 }
+      )
+    }
+
+    return NextResponse.redirect(new URL('/dashboard/data-admin', request.url))
+  }
+
   // Get all available roles that have profiles in development
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL

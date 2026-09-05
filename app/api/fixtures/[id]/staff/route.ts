@@ -11,7 +11,7 @@ export async function PATCH(
 ) {
   try {
     const body = await request.json()
-    const { physio_id, team_manager_id, coach_id } = body
+    const { physio_id, team_manager_id, coach_id, asst_coach_id } = body
 
     const supabase = await createClient()
     const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
@@ -62,13 +62,14 @@ export async function PATCH(
     if (physio_id !== undefined) updateData.physio_id = physio_id || null
     if (team_manager_id !== undefined) updateData.team_manager_id = team_manager_id || null
     if (coach_id !== undefined) updateData.coach_id = coach_id || null
+    if (asst_coach_id !== undefined) updateData.asst_coach_id = asst_coach_id || null
 
     // Update match with staff assignments
     const { data: updatedMatch, error: updateError } = await supabaseAdmin
       .from('matches')
       .update(updateData)
       .eq('id', matchId)
-      .select('id, match_date, opponent, venue, tournament_type, physio_id, team_manager_id, coach_id, tournament_id')
+      .select('id, match_date, opponent, venue, tournament_type, physio_id, team_manager_id, coach_id, asst_coach_id, tournament_id')
       .single()
 
     if (updateError) {
@@ -126,6 +127,7 @@ export async function PATCH(
     if (updatedMatch.physio_id) staffIds.push(updatedMatch.physio_id)
     if (updatedMatch.team_manager_id) staffIds.push(updatedMatch.team_manager_id)
     if (updatedMatch.coach_id) staffIds.push(updatedMatch.coach_id)
+    if (updatedMatch.asst_coach_id) staffIds.push(updatedMatch.asst_coach_id)
 
     let responseData: any = { ...updatedMatch }
 
@@ -142,7 +144,8 @@ export async function PATCH(
           ...updatedMatch,
           physio: updatedMatch.physio_id ? { name: staffMap.get(updatedMatch.physio_id) || 'Unknown' } : null,
           team_manager: updatedMatch.team_manager_id ? { name: staffMap.get(updatedMatch.team_manager_id) || 'Unknown' } : null,
-          coach: updatedMatch.coach_id ? { name: staffMap.get(updatedMatch.coach_id) || 'Unknown' } : null
+          coach: updatedMatch.coach_id ? { name: staffMap.get(updatedMatch.coach_id) || 'Unknown' } : null,
+          asst_coach: updatedMatch.asst_coach_id ? { name: staffMap.get(updatedMatch.asst_coach_id) || 'Unknown' } : null,
         }
       }
     }

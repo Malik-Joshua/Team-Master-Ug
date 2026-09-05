@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { match_date, opponent, tournament_type, squad_size, venue, notes, physio_id, team_manager_id, coach_id } = body
+    const { match_date, opponent, tournament_type, squad_size, venue, notes, physio_id, team_manager_id, coach_id, asst_coach_id } = body
 
     // Validate required fields
     if (!match_date || !opponent) {
@@ -78,6 +78,7 @@ export async function POST(request: NextRequest) {
       physio_id: physio_id || null,
       team_manager_id: team_manager_id || null,
       coach_id: coach_id || null,
+      asst_coach_id: asst_coach_id || null,
       created_by: authUser.id,
     }
 
@@ -87,7 +88,7 @@ export async function POST(request: NextRequest) {
     ;({ data: match, error: matchError } = await supabaseAdmin
       .from('matches')
       .insert(insertPayload)
-      .select('id, match_date, opponent, venue, tournament_type, squad_size, physio_id, team_manager_id, coach_id')
+      .select('id, match_date, opponent, venue, tournament_type, squad_size, physio_id, team_manager_id, coach_id, asst_coach_id')
       .single())
 
     // squad_size is a newer column (migration 042). If it hasn't been applied
@@ -98,7 +99,7 @@ export async function POST(request: NextRequest) {
       const retry = await supabaseAdmin
         .from('matches')
         .insert(withoutSquadSize)
-        .select('id, match_date, opponent, venue, tournament_type, physio_id, team_manager_id, coach_id')
+        .select('id, match_date, opponent, venue, tournament_type, physio_id, team_manager_id, coach_id, asst_coach_id')
         .single()
       match = retry.data
       matchError = retry.error
@@ -120,13 +121,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create notifications for coaches about the new fixture
+    // Create notifications for coaches and assistant coaches about the new fixture
     try {
-      // Get all coaches
+      // Get all coaches and assistant coaches
       const { data: coaches, error: coachesError } = await supabaseAdmin
         .from('user_profiles')
         .select('user_id')
-        .eq('role', 'coach')
+        .in('role', ['coach', 'asst_coach'])
       
       if (!coachesError && coaches && coaches.length > 0) {
         const matchDate = new Date(match_date).toLocaleDateString('en-US', {

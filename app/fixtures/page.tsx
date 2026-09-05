@@ -165,10 +165,12 @@ export default function FixturesPage() {
     physio_id: '',
     team_manager_id: '',
     coach_id: '',
+    asst_coach_id: '',
   })
   const [availablePhysios, setAvailablePhysios] = useState<any[]>([])
   const [availableTeamManagers, setAvailableTeamManagers] = useState<any[]>([])
   const [availableCoaches, setAvailableCoaches] = useState<any[]>([])
+  const [availableAsstCoaches, setAvailableAsstCoaches] = useState<any[]>([])
   const [creatingFixture, setCreatingFixture] = useState(false)
   const [deletingFixtureId, setDeletingFixtureId] = useState<string | null>(null)
   // Sevens-tournament fields — shown only when tournament_type === 'sevens'.
@@ -212,10 +214,12 @@ export default function FixturesPage() {
   const [teamSelectionsForStats, setTeamSelectionsForStats] = useState<any[]>([])
   const [matchStaff, setMatchStaff] = useState<{
     coach: { id: string; name: string } | null
+    asst_coach: { id: string; name: string } | null
     physio: { id: string; name: string } | null
     team_manager: { id: string; name: string } | null
   }>({
     coach: null,
+    asst_coach: null,
     physio: null,
     team_manager: null,
   })
@@ -601,10 +605,12 @@ export default function FixturesPage() {
               const physios = usersData.users.filter((u: any) => u.role === 'physio')
               const teamManagers = usersData.users.filter((u: any) => u.role === 'data_admin')
               const coaches = usersData.users.filter((u: any) => u.role === 'coach')
-              console.log('Filtered staff:', { physios: physios.length, teamManagers: teamManagers.length, coaches: coaches.length })
+              const asstCoaches = usersData.users.filter((u: any) => u.role === 'asst_coach')
+              console.log('Filtered staff:', { physios: physios.length, teamManagers: teamManagers.length, coaches: coaches.length, asstCoaches: asstCoaches.length })
               setAvailablePhysios(physios)
               setAvailableTeamManagers(teamManagers)
               setAvailableCoaches(coaches)
+              setAvailableAsstCoaches(asstCoaches)
             }
           } else {
             console.error('Failed to fetch staff members:', usersResponse.status)
@@ -1033,6 +1039,7 @@ export default function FixturesPage() {
           physio_id: fixtureForm.physio_id || null,
           team_manager_id: fixtureForm.team_manager_id || null,
           coach_id: fixtureForm.coach_id || null,
+          asst_coach_id: fixtureForm.asst_coach_id || null,
         }),
       })
 
@@ -1055,6 +1062,7 @@ export default function FixturesPage() {
         physio_id: '',
         team_manager_id: '',
         coach_id: '',
+        asst_coach_id: '',
       })
       
       // Reload matches
@@ -1117,7 +1125,7 @@ export default function FixturesPage() {
           notes: '',
         })
         setPlayerStats({})
-        setMatchStaff({ coach: null, physio: null, team_manager: null })
+        setMatchStaff({ coach: null, asst_coach: null, physio: null, team_manager: null })
         setStaffAttendance({})
       }
     } catch (error: any) {
@@ -1196,7 +1204,7 @@ export default function FixturesPage() {
       if (matchError) throw matchError
 
       // Save staff attendance for this match
-      const assignedStaff = [matchStaff.coach, matchStaff.physio, matchStaff.team_manager].filter(Boolean) as Array<{
+      const assignedStaff = [matchStaff.coach, matchStaff.asst_coach, matchStaff.physio, matchStaff.team_manager].filter(Boolean) as Array<{
         id: string
         name: string
       }>
@@ -1657,6 +1665,9 @@ export default function FixturesPage() {
               coach: matchDetails?.coach_id
                 ? { id: matchDetails.coach_id, name: matchDetails.coach?.name || 'Coach' }
                 : null,
+              asst_coach: matchDetails?.asst_coach_id
+                ? { id: matchDetails.asst_coach_id, name: matchDetails.asst_coach?.name || 'Asst. Coach' }
+                : null,
               physio: matchDetails?.physio_id
                 ? { id: matchDetails.physio_id, name: matchDetails.physio?.name || 'Physio' }
                 : null,
@@ -1676,7 +1687,7 @@ export default function FixturesPage() {
               attendanceMap[row.staff_id] = row.attendance_status === 'P'
             })
 
-            ;[nextMatchStaff.coach, nextMatchStaff.physio, nextMatchStaff.team_manager].forEach((staff) => {
+            ;[nextMatchStaff.coach, nextMatchStaff.asst_coach, nextMatchStaff.physio, nextMatchStaff.team_manager].forEach((staff) => {
               if (staff && attendanceMap[staff.id] === undefined) {
                 attendanceMap[staff.id] = true
               }
@@ -1687,12 +1698,12 @@ export default function FixturesPage() {
         } catch (error) {
           console.error('Error loading team selection:', error)
           setTeamSelectionsForStats([])
-          setMatchStaff({ coach: null, physio: null, team_manager: null })
+          setMatchStaff({ coach: null, asst_coach: null, physio: null, team_manager: null })
           setStaffAttendance({})
         }
       } else {
         setTeamSelectionsForStats([])
-        setMatchStaff({ coach: null, physio: null, team_manager: null })
+        setMatchStaff({ coach: null, asst_coach: null, physio: null, team_manager: null })
         setStaffAttendance({})
       }
     }
@@ -2532,7 +2543,7 @@ export default function FixturesPage() {
           {/* Staff Attendance */}
           <div className="bg-tm-surface-hover rounded-lg p-4 border border-tm-border">
             <h3 className="text-lg font-semibold text-tm-text-1 mb-4">Staff Attendance</h3>
-            {(matchStaff.coach || matchStaff.physio || matchStaff.team_manager) ? (
+            {(matchStaff.coach || matchStaff.asst_coach || matchStaff.physio || matchStaff.team_manager) ? (
               <div className="space-y-3">
                 {matchStaff.coach && (
                   <label className="flex items-center gap-3 text-sm text-tm-text-1">
@@ -2548,6 +2559,22 @@ export default function FixturesPage() {
                       className="h-4 w-4 rounded border-tm-border text-primary focus:ring-primary"
                     />
                     Coach: {matchStaff.coach.name}
+                  </label>
+                )}
+                {matchStaff.asst_coach && (
+                  <label className="flex items-center gap-3 text-sm text-tm-text-1">
+                    <input
+                      type="checkbox"
+                      checked={staffAttendance[matchStaff.asst_coach.id] ?? true}
+                      onChange={(e) =>
+                        setStaffAttendance((prev) => ({
+                          ...prev,
+                          [matchStaff.asst_coach!.id]: e.target.checked,
+                        }))
+                      }
+                      className="h-4 w-4 rounded border-tm-border text-primary focus:ring-primary"
+                    />
+                    Asst. Coach: {matchStaff.asst_coach.name}
                   </label>
                 )}
                 {matchStaff.physio && (
@@ -3346,7 +3373,7 @@ export default function FixturesPage() {
                       <span>👥</span>
                       Assign Staff for Game Day
                     </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-tm-text-3 mb-2">
                           Physiotherapist
@@ -3398,6 +3425,23 @@ export default function FixturesPage() {
                           ))}
                         </select>
                       </div>
+                      <div>
+                        <label className="block text-sm font-medium text-tm-text-3 mb-2">
+                          Asst. Coach
+                        </label>
+                        <select
+                          value={fixtureForm.asst_coach_id}
+                          onChange={(e) => setFixtureForm({ ...fixtureForm, asst_coach_id: e.target.value })}
+                          className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                        >
+                          <option value="">Select asst. coach...</option>
+                          {availableAsstCoaches.map((ac) => (
+                            <option key={ac.user_id} value={ac.user_id}>
+                              {ac.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
                   </div>
 
@@ -3424,10 +3468,11 @@ export default function FixturesPage() {
                           physio_id: '',
                           team_manager_id: '',
                           coach_id: '',
+                          asst_coach_id: '',
                         })
-                      }}
-                      disabled={creatingFixture}
-                      className="px-6 py-3 bg-tm-surface-hover text-tm-text-1 rounded-[6px] hover:bg-tm-surface-hover transition-all duration-300 font-semibold disabled:opacity-50"
+                        }}
+                        disabled={creatingFixture}
+                        className="px-6 py-3 bg-tm-surface-hover text-tm-text-1 rounded-[6px] hover:bg-tm-surface-hover transition-all duration-300 font-semibold disabled:opacity-50"
                     >
                       Cancel
                     </button>
@@ -3628,7 +3673,7 @@ export default function FixturesPage() {
                   {/* Staff Attendance */}
                   <div className="bg-tm-surface-hover rounded-lg p-4 border border-tm-border">
                     <h3 className="text-lg font-semibold text-tm-text-1 mb-4">Staff Attendance</h3>
-                    {(matchStaff.coach || matchStaff.physio || matchStaff.team_manager) ? (
+                    {(matchStaff.coach || matchStaff.asst_coach || matchStaff.physio || matchStaff.team_manager) ? (
                       <div className="space-y-3">
                         {matchStaff.coach && (
                           <label className="flex items-center gap-3 text-sm text-tm-text-1">
@@ -3644,6 +3689,22 @@ export default function FixturesPage() {
                               className="h-4 w-4 rounded border-tm-border text-primary focus:ring-primary"
                             />
                             Coach: {matchStaff.coach.name}
+                          </label>
+                        )}
+                        {matchStaff.asst_coach && (
+                          <label className="flex items-center gap-3 text-sm text-tm-text-1">
+                            <input
+                              type="checkbox"
+                              checked={staffAttendance[matchStaff.asst_coach.id] ?? true}
+                              onChange={(e) =>
+                                setStaffAttendance((prev) => ({
+                                  ...prev,
+                                  [matchStaff.asst_coach!.id]: e.target.checked,
+                                }))
+                              }
+                              className="h-4 w-4 rounded border-tm-border text-primary focus:ring-primary"
+                            />
+                            Asst. Coach: {matchStaff.asst_coach.name}
                           </label>
                         )}
                         {matchStaff.physio && (

@@ -346,7 +346,7 @@ export async function GET(request: NextRequest) {
     // Get match details including staff assignments
     let { data: matchDetails } = await supabaseAdmin
       .from('matches')
-      .select('id, match_date, opponent, venue, tournament_type, notes, physio_id, team_manager_id, coach_id, tournament_id')
+      .select('id, match_date, opponent, venue, tournament_type, notes, physio_id, team_manager_id, coach_id, asst_coach_id, tournament_id')
       .eq('id', matchId)
       .single()
 
@@ -359,10 +359,10 @@ export async function GET(request: NextRequest) {
     // same tournament has one set, copy it in and persist so subsequent
     // reads (physio dashboard, coach dashboard, PDF exports, etc.) all
     // see it. Roles that are already set are left alone.
-    if (matchDetails?.tournament_id && (!matchDetails.physio_id || !matchDetails.team_manager_id || !matchDetails.coach_id)) {
+    if (matchDetails?.tournament_id && (!matchDetails.physio_id || !matchDetails.team_manager_id || !matchDetails.coach_id || !matchDetails.asst_coach_id)) {
       const { data: siblings } = await supabaseAdmin
         .from('matches')
-        .select('id, physio_id, team_manager_id, coach_id')
+        .select('id, physio_id, team_manager_id, coach_id, asst_coach_id')
         .eq('tournament_id', matchDetails.tournament_id)
         .neq('id', matchId)
       const fillIn: Record<string, string> = {}
@@ -370,6 +370,7 @@ export async function GET(request: NextRequest) {
         if (!matchDetails.physio_id && s.physio_id && !fillIn.physio_id) fillIn.physio_id = s.physio_id
         if (!matchDetails.team_manager_id && s.team_manager_id && !fillIn.team_manager_id) fillIn.team_manager_id = s.team_manager_id
         if (!matchDetails.coach_id && s.coach_id && !fillIn.coach_id) fillIn.coach_id = s.coach_id
+        if (!matchDetails.asst_coach_id && s.asst_coach_id && !fillIn.asst_coach_id) fillIn.asst_coach_id = s.asst_coach_id
       }
       if (Object.keys(fillIn).length > 0) {
         await supabaseAdmin.from('matches').update(fillIn).eq('id', matchId)
@@ -385,6 +386,7 @@ export async function GET(request: NextRequest) {
       if (matchDetails.physio_id) staffIds.push(matchDetails.physio_id)
       if (matchDetails.team_manager_id) staffIds.push(matchDetails.team_manager_id)
       if (matchDetails.coach_id) staffIds.push(matchDetails.coach_id)
+      if (matchDetails.asst_coach_id) staffIds.push(matchDetails.asst_coach_id)
 
       if (staffIds.length > 0) {
         const { data: staffProfiles } = await supabaseAdmin
@@ -398,7 +400,8 @@ export async function GET(request: NextRequest) {
             ...matchDetails,
             physio: matchDetails.physio_id ? { name: staffMap.get(matchDetails.physio_id) || 'Unknown' } : null,
             team_manager: matchDetails.team_manager_id ? { name: staffMap.get(matchDetails.team_manager_id) || 'Unknown' } : null,
-            coach: matchDetails.coach_id ? { name: staffMap.get(matchDetails.coach_id) || 'Unknown' } : null
+            coach: matchDetails.coach_id ? { name: staffMap.get(matchDetails.coach_id) || 'Unknown' } : null,
+            asst_coach: matchDetails.asst_coach_id ? { name: staffMap.get(matchDetails.asst_coach_id) || 'Unknown' } : null,
           }
         }
       }

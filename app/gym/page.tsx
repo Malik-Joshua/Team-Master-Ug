@@ -161,6 +161,13 @@ export default function GymPage() {
       if (rawRecorded) setRecordedSessionIds(new Set(JSON.parse(rawRecorded)))
     } catch { /* ignore */ }
 
+    // Eagerly populate metricFiles from localStorage so the archive shows
+    // even before (or instead of) the DB table existing.
+    try {
+      const rawFiles = localStorage.getItem(`gym_metric_file_records_${authUser.id}`)
+      if (rawFiles) setMetricFiles(JSON.parse(rawFiles))
+    } catch { /* ignore */ }
+
     try {
       const res = await fetch('/api/gym-schedules', { cache: 'no-store' })
       if (res.ok) setSchedules((await res.json()).schedules || [])
@@ -179,7 +186,16 @@ export default function GymPage() {
           fetch('/api/gym-metric-files', { cache: 'no-store' }),
         ])
         if (metricsRes.ok) setPlayerMetrics((await metricsRes.json()).metrics || [])
-        if (filesRes.ok) setMetricFiles((await filesRes.json()).files || [])
+        if (filesRes.ok) {
+          // DB records take precedence; merge over localStorage records
+          const dbFiles: any[] = (await filesRes.json()).files || []
+          setMetricFiles(prev => {
+            // Keep any localStorage-only records that don't have a DB counterpart
+            const dbIds = new Set(dbFiles.map((f: any) => f.id))
+            const localOnly = prev.filter((f: any) => f._local && !dbIds.has(f.id))
+            return [...dbFiles, ...localOnly]
+          })
+        }
       } catch (e) { console.error('Error loading squad gym metrics:', e) }
     }
 
@@ -210,6 +226,43 @@ export default function GymPage() {
         localStorage.setItem(
           `recorded_gym_sessions_${userIdRef.current}`,
           JSON.stringify([...next])
+        )
+      } catch { /* ignore */ }
+      return next
+    })
+  }
+
+  // Saves a file record to localStorage AND to metricFiles state so the
+  // archive shows up immediately without needing the DB table.
+  const saveLocalFileRecord = (record: {
+    session_id: string | null
+    file_name: string
+    metrics_captured: number
+    metrics_total: number
+    session_description?: string
+    session_date?: string
+  }) => {
+    const entry = {
+      id: `local_${Date.now()}`,
+      _local: true,
+      session_id: record.session_id,
+      file_name: record.file_name,
+      uploaded_at: new Date().toISOString(),
+      metrics_captured: record.metrics_captured,
+      metrics_total: record.metrics_total,
+      download_url: null,
+      uploader: null,
+      session: record.session_description
+        ? { description: record.session_description, schedule_date: record.session_date ?? '' }
+        : null,
+    }
+    setMetricFiles(prev => {
+      const next = [entry, ...prev]
+      try {
+        const localOnly = next.filter((f: any) => f._local)
+        localStorage.setItem(
+          `gym_metric_file_records_${userIdRef.current}`,
+          JSON.stringify(localOnly)
         )
       } catch { /* ignore */ }
       return next
@@ -380,9 +433,24 @@ export default function GymPage() {
 
       const result = await res.json()
 
-      // Mark this session as recorded immediately in localStorage —
-      // works even if the gym_metric_files DB table hasn't been migrated yet.
+      // Persist to localStorage immediately — works even without DB migration.
       if (uploadSessionId) markSessionRecorded(uploadSessionId)
+
+      // Find the session details for the archive label
+      const sessionCtx = uploadSessionId
+        ? schedules.find((s: any) => s.id === uploadSessionId)
+        : null
+
+      if (uploadFile) {
+        saveLocalFileRecord({
+          session_id: uploadSessionId,
+          file_name: uploadFile.name,
+          metrics_captured: result.uploaded ?? 0,
+          metrics_total: result.total ?? previewMetrics.length,
+          session_description: sessionCtx?.description,
+          session_date: sessionCtx?.schedule_date,
+        })
+      }
 
       setShowUpload(false)
       setUploadFile(null)

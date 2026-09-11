@@ -164,6 +164,18 @@ export default function TrainingPage() {
   const [savingSchedule, setSavingSchedule] = useState(false)
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null)
 
+  // ── Training attendance file archive (localStorage-backed) ──────────────
+  const [dismissedTrainingSessions, setDismissedTrainingSessions] = useState<Set<string>>(new Set())
+  const [recordedTrainingSessions, setRecordedTrainingSessions] = useState<Set<string>>(new Set())
+  const [trainingFiles, setTrainingFiles] = useState<any[]>([])
+  const [trainingFileFilter, setTrainingFileFilter] = useState<string>('all')
+  const [trainingUploadSessionId, setTrainingUploadSessionId] = useState<string | null>(null)
+  const [showTrainingFileUpload, setShowTrainingFileUpload] = useState(false)
+  const [trainingUploadFile, setTrainingUploadFile] = useState<File | null>(null)
+  const [trainingUploadError, setTrainingUploadError] = useState<string | null>(null)
+  const [trainingFileUploading, setTrainingFileUploading] = useState(false)
+  const trainingUserIdRef = useRef<string | null>(null)
+
   const loadData = useCallback(async () => {
       const supabase = createClient()
       const { data: { user: authUser } } = await supabase.auth.getUser()
@@ -182,7 +194,18 @@ export default function TrainingPage() {
 
         if (profile) {
           setUser(profile)
-          
+
+          // Load training session localStorage state
+          trainingUserIdRef.current = authUser.id
+          try {
+            const rawDismissed = localStorage.getItem(`dismissed_training_sessions_${authUser.id}`)
+            if (rawDismissed) setDismissedTrainingSessions(new Set(JSON.parse(rawDismissed)))
+            const rawRecorded = localStorage.getItem(`recorded_training_sessions_${authUser.id}`)
+            if (rawRecorded) setRecordedTrainingSessions(new Set(JSON.parse(rawRecorded)))
+            const rawFiles = localStorage.getItem(`training_file_records_${authUser.id}`)
+            if (rawFiles) setTrainingFiles(JSON.parse(rawFiles))
+          } catch { /* ignore */ }
+
           // Fetch all registered players using API route to bypass RLS
           try {
             const playersResponse = await fetch('/api/admin/players')
@@ -928,19 +951,18 @@ export default function TrainingPage() {
         return
       }
 
-      // Get the next session number for this coach
+      // Get the next session number across all sessions
       const { data: existingSessions } = await supabase
         .from('training_sessions')
         .select('session_number')
-        .eq('coach_id', authUser.id)
         .order('session_number', { ascending: false })
         .limit(1)
 
-      const nextSessionNumber = existingSessions && existingSessions.length > 0 
-        ? existingSessions[0].session_number + 1 
+      const nextSessionNumber = existingSessions && existingSessions.length > 0
+        ? existingSessions[0].session_number + 1
         : 1
 
-      // Create the training session
+      // Create the training session (data_admin uses their own user_id as coach_id)
       const { data: newSession, error } = await supabase
         .from('training_sessions')
         .insert({
@@ -1269,6 +1291,75 @@ export default function TrainingPage() {
       alert(`Error saving attendance: ${error.message}`)
     }
   }
+
+  // ── Training file archive helpers ──────────────────────────────────────
+  const dismissTrainingSession = (id: string) => {
+    setDismissedTrainingSessions(prev => {
+      const next = new Set(prev)
+      next.add(id)
+      try { localStorage.setItem(`dismissed_training_sessions_${trainingUserIdRef.current}`, JSON.stringify([...next])) } catch { /* ignore */ }
+      return next
+    })
+  }
+
+  const markTrainingSessionRecorded = (id: string) => {
+    setRecordedTrainingSessions(prev => {
+      const next = new Set(prev)
+      next.add(id)
+      try { localStorage.setItem(`recorded_training_sessions_${trainingUserIdRef.current}`, JSON.stringify([...next])) } catch { /* ignore */ }
+      return next
+    })
+  }
+
+  const saveLocalTrainingFileRecord = (record: {
+    session_id: string | null
+    file_name: string
+    session_title?: string
+    session_date?: string
+  }) => {
+    const entry = {
+      id: `local_${Date.now()}`,
+      _local: true,
+      session_id: record.session_id,
+      file_name: record.file_name,
+      uploaded_at: new Date().toISOString(),
+      download_url: null,
+      session: record.session_title
+        ? { title: record.session_title, date: record.session_date ?? '' }
+        : null,
+    }
+    setTrainingFiles(prev => {
+      const next = [entry, ...prev]
+      try { localStorage.setItem(`training_file_records_${trainingUserIdRef.current}`, JSON.stringify(next.filter((f: any) => f._local))) } catch { /* ignore */ }
+      return next
+    })
+  }
+
+  const handleTrainingFileUpload = () => {
+    if (!trainingUploadFile) { setTrainingUploadError('Please select a file'); return }
+    setTrainingFileUploading(true)
+    setTrainingUploadError(null)
+    try {
+      const sessionCtx = trainingUploadSessionId
+        ? sessions.find(s => s.id === trainingUploadSessionId)
+        : null
+      if (trainingUploadSessionId) markTrainingSessionRecorded(trainingUploadSessionId)
+      saveLocalTrainingFileRecord({
+        session_id: trainingUploadSessionId,
+        file_name: trainingUploadFile.name,
+        session_title: sessionCtx?.title ?? sessionCtx?.description ?? undefined,
+        session_date: sessionCtx?.date ?? undefined,
+      })
+      setShowTrainingFileUpload(false)
+      setTrainingUploadFile(null)
+      setTrainingUploadSessionId(null)
+    } catch (e: any) {
+      setTrainingUploadError(e.message)
+    } finally {
+      setTrainingFileUploading(false)
+    }
+  }
+  // ───────────────────────────────────────────────────────────────────────────
 
   const getCodeColor = (code: AttendanceCode) => {
     switch (code) {
@@ -1728,18 +1819,24 @@ export default function TrainingPage() {
                       </button>
                     </>
                   )}
-                  {/* Manager attendance import (coach reaches the same flow via
-                      the dual-mode "Import Schedule" modal, so this button is
-                      scoped to the manager to avoid two identical import
-                      buttons in the coach's header). */}
+                  {/* Manager: create schedule + import attendance */}
                   {user?.role === 'data_admin' && (
-                    <button
-                      onClick={() => { setAttendanceOnly(true); setShowUploadForm(true) }}
-                      className="bg-info text-white px-4 py-2.5 rounded-[6px] text-sm font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center whitespace-nowrap"
-                    >
-                      <Upload className="w-4 h-4 mr-2" />
-                      Import Attendance
-                    </button>
+                    <>
+                      <button
+                        onClick={() => setShowScheduleForm(true)}
+                        className="bg-secondary text-tm-on-secondary px-4 py-2.5 rounded-[6px] text-sm font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center whitespace-nowrap"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Create Schedule
+                      </button>
+                      <button
+                        onClick={() => { setAttendanceOnly(true); setShowUploadForm(true) }}
+                        className="bg-info text-white px-4 py-2.5 rounded-[6px] text-sm font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center whitespace-nowrap"
+                      >
+                        <Upload className="w-4 h-4 mr-2" />
+                        Import Attendance
+                      </button>
+                    </>
                   )}
                   <button
                     onClick={handleSave}
@@ -2580,6 +2677,260 @@ export default function TrainingPage() {
               </div>
             ))}
           </div>
+          </div>
+        )}
+
+        {/* ── Past training sessions (with Upload Attendance + Dismiss) ── */}
+        {(user?.role === 'coach' || user?.role === 'asst_coach' || user?.role === 'data_admin') && (() => {
+          const now = new Date()
+          const pastSessions = sessions
+            .filter(s => {
+              const d = new Date(s.date)
+              d.setHours(23, 59, 59, 999)
+              return d < now && !dismissedTrainingSessions.has(s.id)
+            })
+            .slice(0, 10)
+          if (pastSessions.length === 0) return null
+          const recordedCount = pastSessions.filter(s =>
+            recordedTrainingSessions.has(s.id) || trainingFiles.some(f => f.session_id === s.id)
+          ).length
+          return (
+            <div className="mt-6">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-[16px] font-medium text-tm-text-1">Past training sessions</h2>
+                <span className="text-xs text-tm-text-3">{recordedCount} of {pastSessions.length} attendance recorded</span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {pastSessions.map(session => {
+                  const hasRecord = recordedTrainingSessions.has(session.id) || trainingFiles.some(f => f.session_id === session.id)
+                  const sessionDate = new Date(session.date)
+                  return (
+                    <div key={session.id} className="bg-tm-surface rounded-card border border-tm-border overflow-hidden">
+                      {/* Header */}
+                      <div className={`p-4 flex items-center justify-between ${hasRecord ? 'bg-green-500/10' : 'bg-amber-400/10'}`}>
+                        <div>
+                          <p className="text-xs text-tm-text-3">Past session</p>
+                          <p className="text-base font-bold text-tm-text-1">
+                            {sessionDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {hasRecord
+                            ? <CheckCircle2 className="h-5 w-5 text-green-500" />
+                            : <AlertCircle className="h-5 w-5 text-amber-400" />}
+                          <button
+                            onClick={() => dismissTrainingSession(session.id)}
+                            title="Dismiss"
+                            className="rounded-full p-1 text-tm-text-3 hover:text-tm-text-1 hover:bg-tm-surface-hover transition-colors"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                      {/* Body */}
+                      <div className="p-4 space-y-1">
+                        <p className="font-semibold text-sm text-tm-text-1">{session.title || session.description || `Session #${session.id.slice(0,6)}`}</p>
+                        {session.location && <p className="text-xs text-tm-text-3 flex items-center gap-1"><MapPin className="h-3 w-3" />{session.location}</p>}
+                        <p className={`text-xs font-semibold mt-1 ${hasRecord ? 'text-green-500' : 'text-amber-400'}`}>
+                          {hasRecord ? '✓ Attendance recorded' : '⚠ Attendance not yet recorded'}
+                        </p>
+                      </div>
+                      {/* Actions */}
+                      <div className="flex gap-2 border-t border-tm-border px-4 py-3">
+                        {!hasRecord && (
+                          <button
+                            onClick={() => { setTrainingUploadSessionId(session.id); setTrainingUploadFile(null); setTrainingUploadError(null); setShowTrainingFileUpload(true) }}
+                            className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors"
+                            style={{ background: 'rgba(45,184,138,0.12)', color: '#2DB88A' }}
+                          >
+                            <Upload className="h-3.5 w-3.5" /> Upload Attendance
+                          </button>
+                        )}
+                        {hasRecord && (
+                          <button
+                            onClick={() => dismissTrainingSession(session.id)}
+                            className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-tm-text-3 hover:text-tm-text-1 ml-auto"
+                            style={{ background: 'var(--tm-surface-hover)' }}
+                          >
+                            <X className="h-3.5 w-3.5" /> Dismiss
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })()}
+
+        {/* ── Uploaded attendance files archive ── */}
+        {(user?.role === 'coach' || user?.role === 'asst_coach' || user?.role === 'data_admin') && (
+          <div className="mt-6">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+              <h2 className="text-[16px] font-medium text-tm-text-1 flex items-center gap-2">
+                <FileSpreadsheet className="h-4 w-4" /> Uploaded attendance files
+                <span className="text-xs font-normal text-tm-text-3">({(() => {
+                  const f = trainingFiles.filter(f => {
+                    if (trainingFileFilter === 'all') return true
+                    if (trainingFileFilter === 'unsorted') return !f.session_id
+                    return f.session_id === trainingFileFilter
+                  })
+                  return f.length
+                })()} files)</span>
+              </h2>
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-tm-text-3 whitespace-nowrap">Filter by session:</label>
+                <div className="relative">
+                  <select
+                    value={trainingFileFilter}
+                    onChange={e => setTrainingFileFilter(e.target.value)}
+                    className="text-xs bg-tm-surface border border-tm-border rounded-md pl-2 pr-6 py-1.5 text-tm-text-1 appearance-none cursor-pointer"
+                  >
+                    <option value="all">All sessions</option>
+                    <option value="unsorted">No session linked</option>
+                    {sessions.map(s => (
+                      <option key={s.id} value={s.id}>
+                        {new Date(s.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} — {s.title || s.description || `Session #${s.id.slice(0,6)}`}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 h-3 w-3 text-tm-text-3 pointer-events-none" />
+                </div>
+              </div>
+            </div>
+            {(() => {
+              const filtered = trainingFiles.filter(f => {
+                if (trainingFileFilter === 'all') return true
+                if (trainingFileFilter === 'unsorted') return !f.session_id
+                return f.session_id === trainingFileFilter
+              })
+              return filtered.length === 0 ? (
+                <div className="bg-tm-surface rounded-card border border-tm-border p-8 text-center">
+                  <FileSpreadsheet className="mx-auto mb-2 h-10 w-10 text-tm-text-3" />
+                  <p className="text-sm font-medium text-tm-text-1">
+                    {trainingFileFilter === 'all' ? 'No attendance files uploaded yet' : 'No files for this session'}
+                  </p>
+                  <p className="text-xs text-tm-text-3 mt-1">
+                    {trainingFileFilter === 'all'
+                      ? 'Upload attendance files from session cards below and they will appear here.'
+                      : 'Try selecting a different session or "All sessions".'}
+                  </p>
+                </div>
+              ) : (
+                <div className="bg-tm-surface rounded-card border border-tm-border overflow-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-tm-surface-hover border-b border-tm-border">
+                      <tr>
+                        <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide text-tm-text-2">File</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide text-tm-text-2">Session</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide text-tm-text-2">Uploaded</th>
+                        <th className="px-4 py-3"></th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-tm-border">
+                      {filtered.map((f, i) => (
+                        <tr key={f.id} className={i % 2 === 0 ? 'bg-tm-surface' : 'bg-tm-surface-hover'}>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <FileSpreadsheet className="h-4 w-4 text-green-500 shrink-0" />
+                              <span className="text-xs font-medium text-tm-text-1 truncate max-w-[180px]" title={f.file_name}>{f.file_name}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-xs text-tm-text-3">
+                            {f.session?.title || f.session?.description
+                              ? <>{f.session?.date ? new Date(f.session.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) + ' — ' : ''}{f.session?.title || f.session?.description}</>
+                              : <span className="italic">No session</span>}
+                          </td>
+                          <td className="px-4 py-3 text-xs text-tm-text-3">
+                            {new Date(f.uploaded_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          </td>
+                          <td className="px-4 py-3">
+                            {f.download_url && (
+                              <a
+                                href={f.download_url}
+                                download={f.file_name}
+                                className="flex items-center gap-1 text-xs font-medium rounded-md px-2.5 py-1.5"
+                                style={{ background: 'var(--acc-dim,rgba(91,163,217,0.10))', color: 'var(--acc,#5BA3D9)' }}
+                              >
+                                <Download className="h-3.5 w-3.5" /> Download
+                              </a>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            })()}
+          </div>
+        )}
+
+        {/* ── Training file upload modal ── */}
+        {showTrainingFileUpload && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+            <div className="w-full max-w-md rounded-[10px] border border-tm-border bg-tm-surface shadow-xl">
+              <div className="flex items-center justify-between p-5 border-b border-tm-border">
+                <div>
+                  <h3 className="font-semibold text-tm-text-1 flex items-center gap-2">
+                    <Upload className="h-4 w-4 text-tm-secondary" />
+                    Upload attendance file
+                  </h3>
+                  {trainingUploadSessionId && (() => {
+                    const s = sessions.find(x => x.id === trainingUploadSessionId)
+                    return s ? <p className="text-xs text-tm-text-3 mt-0.5">{new Date(s.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })} — {s.title || s.description || 'Training session'}</p> : null
+                  })()}
+                </div>
+                <button onClick={() => { setShowTrainingFileUpload(false); setTrainingUploadFile(null); setTrainingUploadError(null) }} className="modal-close-btn">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="p-5 space-y-4">
+                <label className="flex flex-col items-center justify-center gap-3 border-2 border-dashed border-tm-border rounded-xl p-6 cursor-pointer hover:border-primary hover:bg-tm-surface-hover transition-all">
+                  <Upload className="h-8 w-8 text-tm-text-3" />
+                  <span className="text-sm font-medium text-tm-text-2">
+                    {trainingUploadFile ? trainingUploadFile.name : 'Tap to choose a CSV or Excel file'}
+                  </span>
+                  {trainingUploadFile && <span className="text-xs text-tm-text-3">{(trainingUploadFile.size / 1024).toFixed(1)} KB</span>}
+                  <input
+                    type="file"
+                    accept=".csv,.xlsx,.xls"
+                    className="sr-only"
+                    onChange={e => { setTrainingUploadFile(e.target.files?.[0] || null); setTrainingUploadError(null) }}
+                  />
+                </label>
+                <div className="rounded-md bg-tm-surface-hover p-3">
+                  <p className="text-xs font-semibold text-tm-text-3 mb-1 uppercase tracking-wide">Expected format</p>
+                  <p className="text-[11px] font-mono text-tm-text-2">
+                    player_name, status, notes<br />
+                    Patrick Allan, P<br />
+                    John Smith, A, sick
+                  </p>
+                  <p className="text-[10px] text-tm-text-3 mt-1">P Present · A Absent · X Excused · I Injured</p>
+                </div>
+                {trainingUploadError && (
+                  <div className="rounded-md bg-[#E05757]/10 p-3">
+                    <p className="text-sm text-[#E05757]">{trainingUploadError}</p>
+                  </div>
+                )}
+              </div>
+              <div className="flex justify-end gap-2 p-5 border-t border-tm-border">
+                <button
+                  onClick={() => { setShowTrainingFileUpload(false); setTrainingUploadFile(null); setTrainingUploadError(null) }}
+                  className="px-4 py-2 rounded-md text-sm font-medium border border-tm-border text-tm-text-1 hover:bg-tm-surface-hover"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleTrainingFileUpload}
+                  disabled={trainingFileUploading || !trainingUploadFile}
+                  className="px-4 py-2 rounded-md text-sm font-semibold bg-tm-secondary text-tm-on-secondary disabled:opacity-50 flex items-center gap-2"
+                >
+                  {trainingFileUploading ? <><div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" /> Saving…</> : <><Save className="h-4 w-4" /> Save file</>}
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>

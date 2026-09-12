@@ -28,28 +28,61 @@ export async function GET(_request: NextRequest) {
       { auth: { autoRefreshToken: false, persistSession: false } }
     )
 
+    // Fetch files + linked session info.
+    // Do NOT try to join user_profiles via the uploaded_by FK — that FK points
+    // to auth.users, not user_profiles, so PostgREST can't traverse it.
+    // We fetch uploader names in a separate query below.
     const { data: files, error } = await supabaseAdmin
       .from('gym_metric_files')
-      .select('*, session:gym_schedules(description, schedule_date), uploader:user_profiles!gym_metric_files_uploaded_by_fkey(name)')
+      .select('*, session:gym_schedules(description, schedule_date)')
       .order('uploaded_at', { ascending: false })
 
     if (error) {
+      console.error('gym_metric_files fetch error:', error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    // Generate signed URLs for each file (valid 1 hour)
+    // Fetch uploader names from user_profiles (uploaded_by = user_profiles.user_id)
+    const uploaderIds = [...new Set(
+      (files ?? []).map((f: any) => f.uploaded_by).filter(Boolean)
+    )] as string[]
+
+    let uploaderMap: Record<string, string> = {}
+    if (uploaderIds.length > 0) {
+      const { data: uploaders } = await supabaseAdmin
+        .from('user_profiles')
+        .select('user_id, name')
+        .in('user_id', uploaderIds)
+      uploaders?.forEach((u: any) => { uploaderMap[u.user_id] = u.name })
+    }
+
+    // Generate signed download URLs (only when storage_path is set)
     const filesWithUrls = await Promise.all(
       (files ?? []).map(async (f: any) => {
-        const { data: urlData } = await supabaseAdmin.storage
-          .from('gym-metric-files')
-          .createSignedUrl(f.storage_path, 3600)
-        return { ...f, download_url: urlData?.signedUrl ?? null }
+        let download_url: string | null = null
+        if (f.storage_path) {
+          try {
+            const { data: urlData } = await supabaseAdmin.storage
+              .from('gym-metric-files')
+              .createSignedUrl(f.storage_path, 3600)
+            download_url = urlData?.signedUrl ?? null
+          } catch {
+            // Non-fatal — just skip the download link
+          }
+        }
+        return {
+          ...f,
+          download_url,
+          uploader: f.uploaded_by
+            ? { name: uploaderMap[f.uploaded_by] ?? null }
+            : null,
+        }
       })
     )
 
     return NextResponse.json({ files: filesWithUrls })
   } catch (error: any) {
-    console.error('Error fetching gym metric files:', error)
+    console.error('Error in GET gym-metric-files:', error)
     return NextResponse.json(
       { error: error.message || 'Failed to fetch metric files' },
       { status: 500 }

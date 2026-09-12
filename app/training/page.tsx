@@ -2704,9 +2704,13 @@ export default function TrainingPage() {
             })
             .slice(0, 10)
           if (pastSessions.length === 0) return null
-          const recordedCount = pastSessions.filter(s =>
-            recordedTrainingSessions.has(s.id) || trainingFiles.some(f => f.session_id === s.id)
-          ).length
+          // A session is "recorded" if the DB has attendance rows for it (shared
+          // across all accounts) OR if this user marked it locally as a fallback.
+          const isRecorded = (s: any) =>
+            sessionSummaries.some(sum => sum.sessionId === s.id && sum.total > 0)
+            || recordedTrainingSessions.has(s.id)
+            || trainingFiles.some(f => f.session_id === s.id)
+          const recordedCount = pastSessions.filter(isRecorded).length
           return (
             <div className="mt-6">
               <div className="flex items-center justify-between mb-3">
@@ -2715,7 +2719,9 @@ export default function TrainingPage() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {pastSessions.map(session => {
-                  const hasRecord = recordedTrainingSessions.has(session.id) || trainingFiles.some(f => f.session_id === session.id)
+                  const hasRecord = isRecorded(session)
+                  // Show the actual attendance numbers from the DB if available
+                  const summary = sessionSummaries.find(s => s.sessionId === session.id)
                   const sessionDate = new Date(session.date)
                   return (
                     <div key={session.id} className="bg-tm-surface rounded-card border border-tm-border overflow-hidden">
@@ -2741,18 +2747,40 @@ export default function TrainingPage() {
                         </div>
                       </div>
                       {/* Body */}
-                      <div className="p-4 space-y-1">
+                      <div className="p-4 space-y-2">
                         <p className="font-semibold text-sm text-tm-text-1">{session.title || session.description || `Session #${session.id.slice(0,6)}`}</p>
                         {session.location && <p className="text-xs text-tm-text-3 flex items-center gap-1"><MapPin className="h-3 w-3" />{session.location}</p>}
-                        <p className={`text-xs font-semibold mt-1 ${hasRecord ? 'text-green-500' : 'text-amber-400'}`}>
-                          {hasRecord ? '✓ Attendance recorded' : '⚠ Attendance not yet recorded'}
-                        </p>
+                        {summary && summary.total > 0 ? (
+                          <div className="grid grid-cols-4 gap-1 pt-1">
+                            {[
+                              { label: 'Present', val: summary.present, cls: 'text-green-500' },
+                              { label: 'Absent',  val: summary.absent,  cls: 'text-[#E05757]' },
+                              { label: 'Excused', val: summary.justified, cls: 'text-tm-text-3' },
+                              { label: 'Injured', val: summary.injured, cls: 'text-amber-400' },
+                            ].map(({ label, val, cls }) => (
+                              <div key={label} className="text-center">
+                                <p className={`text-sm font-bold ${cls}`}>{val}</p>
+                                <p className="text-[10px] text-tm-text-3">{label}</p>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className={`text-xs font-semibold ${hasRecord ? 'text-green-500' : 'text-amber-400'}`}>
+                            {hasRecord ? '✓ Attendance recorded' : '⚠ Not yet recorded'}
+                          </p>
+                        )}
                       </div>
                       {/* Actions */}
                       <div className="flex gap-2 border-t border-tm-border px-4 py-3">
                         {!hasRecord && (
                           <button
-                            onClick={() => { setTrainingUploadSessionId(session.id); setTrainingUploadFile(null); setTrainingUploadError(null); setShowTrainingFileUpload(true) }}
+                            onClick={() => {
+                              // Open the proper CSV import flow with this session pre-selected
+                              setCsvSessionId(session.id)
+                              setAttendanceOnly(true)
+                              setUploadFile(null)
+                              setShowUploadForm(true)
+                            }}
                             className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors"
                             style={{ background: 'rgba(45,184,138,0.12)', color: '#2DB88A' }}
                           >

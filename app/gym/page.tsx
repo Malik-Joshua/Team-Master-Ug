@@ -730,14 +730,22 @@ export default function GymPage() {
           <div>
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-sm font-medium text-tm-text-1">Past gym sessions</h2>
-              <span className="text-xs text-tm-text-3">{pastSessions.filter(s => metricFiles.some(f => f.session_id === s.id) || recordedSessionIds.has(s.id)).length} of {pastSessions.length} recorded</span>
+              <span className="text-xs text-tm-text-3">{pastSessions.filter(s => {
+                  const d = new Date(s.schedule_date)
+                  return metricFiles.some(f => f.session_id === s.id)
+                    || recordedSessionIds.has(s.id)
+                    || playerMetrics.some(m => m.gym_stats_updated_at && new Date(m.gym_stats_updated_at) >= d)
+                }).length} of {pastSessions.length} recorded</span>
             </div>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
               {pastSessions.map((schedule) => {
                 const scheduleDate = new Date(schedule.schedule_date)
-                // hasFile: true if DB has a record OR localStorage marks it recorded
+                // hasFile: DB file record (requires migration 053) OR localStorage
+                // fallback OR any player's gym_stats were updated on/after this
+                // session date (DB-shared signal that works without migration).
                 const hasFile = metricFiles.some(f => f.session_id === schedule.id)
                   || recordedSessionIds.has(schedule.id)
+                  || playerMetrics.some(m => m.gym_stats_updated_at && new Date(m.gym_stats_updated_at) >= scheduleDate)
                 return (
                   <Card key={schedule.id} padded={false}>
                     {/* Header */}

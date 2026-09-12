@@ -142,6 +142,8 @@ export default function GymPage() {
     deadlift_pb: number | null
     squat_pb: number | null
   }> | null>(null)
+  const [rawFileRows, setRawFileRows] = useState<string[][] | null>(null)
+  const [viewingFile, setViewingFile] = useState<any | null>(null)
 
   const loadData = useCallback(async () => {
     const supabase = createClient()
@@ -241,6 +243,7 @@ export default function GymPage() {
     metrics_total: number
     session_description?: string
     session_date?: string
+    rows?: string[][]
   }) => {
     const entry = {
       id: `local_${Date.now()}`,
@@ -255,6 +258,7 @@ export default function GymPage() {
       session: record.session_description
         ? { description: record.session_description, schedule_date: record.session_date ?? '' }
         : null,
+      rows: record.rows ? record.rows.slice(0, 300) : undefined,
     }
     setMetricFiles(prev => {
       const next = [entry, ...prev]
@@ -340,6 +344,7 @@ export default function GymPage() {
       setUploadFile(file)
       setUploadError(null)
       setPreviewMetrics(null)
+      setRawFileRows(null)
     }
   }
 
@@ -382,6 +387,7 @@ export default function GymPage() {
         .filter((r): r is NonNullable<typeof r> => r !== null)
 
       if (parsed.length === 0) throw new Error('No player rows found. Check that the file has data below the header row.')
+      setRawFileRows(rows)
       setPreviewMetrics(parsed)
     } catch (e: any) {
       setUploadError(e.message)
@@ -449,7 +455,9 @@ export default function GymPage() {
           metrics_total: result.total ?? previewMetrics.length,
           session_description: sessionCtx?.description,
           session_date: sessionCtx?.schedule_date,
+          rows: rawFileRows ?? undefined,
         })
+        setRawFileRows(null)
       }
 
       setShowUpload(false)
@@ -895,6 +903,15 @@ export default function GymPage() {
                             </td>
                             <td className="px-4 py-3 text-xs text-tm-text-3">{f.uploader?.name ?? '—'}</td>
                             <td className="px-4 py-3">
+                              <button
+                                onClick={() => setViewingFile(f)}
+                                className="flex items-center gap-1 text-xs font-medium rounded-md px-2.5 py-1.5 transition-colors"
+                                style={{ background: 'rgba(45,184,138,0.12)', color: '#2DB88A' }}
+                              >
+                                <Eye className="h-3.5 w-3.5" /> View
+                              </button>
+                            </td>
+                            <td className="px-4 py-3">
                               {f.download_url && (
                                 <a
                                   href={f.download_url}
@@ -952,6 +969,72 @@ export default function GymPage() {
               >
                 Skip for now
               </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── FILE VIEWER modal ── */}
+      {viewingFile && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-4xl max-h-[90vh] flex flex-col rounded-[10px] border border-tm-border bg-tm-surface shadow-xl">
+            {/* Header */}
+            <div className="flex items-center justify-between p-5 border-b border-tm-border flex-shrink-0">
+              <div>
+                <h3 className="font-semibold text-tm-text-1 flex items-center gap-2">
+                  <FileSpreadsheet className="h-4 w-4 text-tm-secondary" />
+                  {viewingFile.file_name}
+                </h3>
+                {viewingFile.session?.description && (
+                  <p className="text-xs text-tm-text-3 mt-0.5">
+                    {viewingFile.session.schedule_date
+                      ? new Date(viewingFile.session.schedule_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) + ' — '
+                      : ''}
+                    {viewingFile.session.description}
+                  </p>
+                )}
+              </div>
+              <button onClick={() => setViewingFile(null)} className="modal-close-btn">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            {/* Content */}
+            <div className="overflow-auto flex-1 p-2">
+              {viewingFile.rows && viewingFile.rows.length > 0 ? (
+                <table className="w-full text-xs border-collapse">
+                  <thead className="bg-tm-surface-hover sticky top-0">
+                    <tr>
+                      {viewingFile.rows[0].map((h: string, i: number) => (
+                        <th key={i} className="text-left px-3 py-2 font-semibold text-tm-text-2 border border-tm-border whitespace-nowrap">{h || `Col ${i+1}`}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {viewingFile.rows.slice(1).map((row: string[], ri: number) => (
+                      <tr key={ri} className={ri % 2 === 0 ? 'bg-tm-surface' : 'bg-tm-surface-hover'}>
+                        {row.map((cell: string, ci: number) => (
+                          <td key={ci} className="px-3 py-2 text-tm-text-1 border border-tm-border whitespace-nowrap">{cell}</td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="p-8 text-center">
+                  <p className="text-sm text-tm-text-3">No preview available for this file.</p>
+                  <p className="text-xs text-tm-text-3 mt-1">Files uploaded before this update don't have stored content. Re-upload the file to enable viewing.</p>
+                </div>
+              )}
+            </div>
+            {/* Footer */}
+            <div className="flex justify-between items-center p-4 border-t border-tm-border flex-shrink-0">
+              <span className="text-xs text-tm-text-3">
+                {viewingFile.rows ? `${viewingFile.rows.length - 1} data rows` : 'No data stored'}
+                {viewingFile.rows && viewingFile.rows.length >= 300 ? ' (preview capped at 300 rows)' : ''}
+              </span>
+              <button onClick={() => setViewingFile(null)} className="px-4 py-2 rounded-md text-sm font-medium border border-tm-border text-tm-text-1 hover:bg-tm-surface-hover">
+                Close
+              </button>
             </div>
           </div>
         </div>

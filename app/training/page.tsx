@@ -175,6 +175,7 @@ export default function TrainingPage() {
   const [trainingUploadError, setTrainingUploadError] = useState<string | null>(null)
   const [trainingFileUploading, setTrainingFileUploading] = useState(false)
   const trainingUserIdRef = useRef<string | null>(null)
+  const [viewingTrainingFile, setViewingTrainingFile] = useState<any | null>(null)
 
   const loadData = useCallback(async () => {
       const supabase = createClient()
@@ -1316,6 +1317,7 @@ export default function TrainingPage() {
     file_name: string
     session_title?: string
     session_date?: string
+    rows?: string[][]
   }) => {
     const entry = {
       id: `local_${Date.now()}`,
@@ -1327,6 +1329,7 @@ export default function TrainingPage() {
       session: record.session_title
         ? { title: record.session_title, date: record.session_date ?? '' }
         : null,
+      rows: record.rows ? record.rows.slice(0, 300) : undefined,
     }
     setTrainingFiles(prev => {
       const next = [entry, ...prev]
@@ -1335,11 +1338,17 @@ export default function TrainingPage() {
     })
   }
 
-  const handleTrainingFileUpload = () => {
+  const handleTrainingFileUpload = async () => {
     if (!trainingUploadFile) { setTrainingUploadError('Please select a file'); return }
     setTrainingFileUploading(true)
     setTrainingUploadError(null)
     try {
+      // Parse the file so we can show its content in-app
+      let rows: string[][] | undefined
+      try {
+        rows = await readTabularFile(trainingUploadFile)
+      } catch { rows = undefined }
+
       const sessionCtx = trainingUploadSessionId
         ? sessions.find(s => s.id === trainingUploadSessionId)
         : null
@@ -1349,6 +1358,7 @@ export default function TrainingPage() {
         file_name: trainingUploadFile.name,
         session_title: sessionCtx?.title ?? sessionCtx?.description ?? undefined,
         session_date: sessionCtx?.date ?? undefined,
+        rows,
       })
       setShowTrainingFileUpload(false)
       setTrainingUploadFile(null)
@@ -2846,6 +2856,15 @@ export default function TrainingPage() {
                             {new Date(f.uploaded_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                           </td>
                           <td className="px-4 py-3">
+                            <button
+                              onClick={() => setViewingTrainingFile(f)}
+                              className="flex items-center gap-1 text-xs font-medium rounded-md px-2.5 py-1.5 transition-colors"
+                              style={{ background: 'rgba(45,184,138,0.12)', color: '#2DB88A' }}
+                            >
+                              View
+                            </button>
+                          </td>
+                          <td className="px-4 py-3">
                             {f.download_url && (
                               <a
                                 href={f.download_url}
@@ -2864,6 +2883,72 @@ export default function TrainingPage() {
                 </div>
               )
             })()}
+          </div>
+        )}
+
+        {/* ── Training file viewer modal ── */}
+        {viewingTrainingFile && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+            <div className="w-full max-w-4xl max-h-[90vh] flex flex-col rounded-[10px] border border-tm-border bg-tm-surface shadow-xl">
+              {/* Header */}
+              <div className="flex items-center justify-between p-5 border-b border-tm-border flex-shrink-0">
+                <div>
+                  <h3 className="font-semibold text-tm-text-1 flex items-center gap-2">
+                    <FileSpreadsheet className="w-4 h-4 text-secondary" />
+                    {viewingTrainingFile.file_name}
+                  </h3>
+                  {viewingTrainingFile.session?.title || viewingTrainingFile.session?.description ? (
+                    <p className="text-xs text-tm-text-3 mt-0.5">
+                      {viewingTrainingFile.session?.date
+                        ? new Date(viewingTrainingFile.session.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) + ' — '
+                        : ''}
+                      {viewingTrainingFile.session?.title || viewingTrainingFile.session?.description}
+                    </p>
+                  ) : null}
+                </div>
+                <button onClick={() => setViewingTrainingFile(null)} className="modal-close-btn">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              {/* Content */}
+              <div className="overflow-auto flex-1 p-2">
+                {viewingTrainingFile.rows && viewingTrainingFile.rows.length > 0 ? (
+                  <table className="w-full text-xs border-collapse">
+                    <thead className="bg-tm-surface-hover sticky top-0">
+                      <tr>
+                        {viewingTrainingFile.rows[0].map((h: string, i: number) => (
+                          <th key={i} className="text-left px-3 py-2 font-semibold text-tm-text-2 border border-tm-border whitespace-nowrap">{h || `Col ${i+1}`}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {viewingTrainingFile.rows.slice(1).map((row: string[], ri: number) => (
+                        <tr key={ri} className={ri % 2 === 0 ? 'bg-tm-surface' : 'bg-tm-surface-hover'}>
+                          {row.map((cell: string, ci: number) => (
+                            <td key={ci} className="px-3 py-2 text-tm-text-1 border border-tm-border whitespace-nowrap">{cell}</td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <div className="p-8 text-center">
+                    <p className="text-sm text-tm-text-3">No preview available for this file.</p>
+                    <p className="text-xs text-tm-text-3 mt-1">Files uploaded before this update don&apos;t have stored content. Re-upload the file to enable viewing.</p>
+                  </div>
+                )}
+              </div>
+              {/* Footer */}
+              <div className="flex justify-between items-center p-4 border-t border-tm-border flex-shrink-0">
+                <span className="text-xs text-tm-text-3">
+                  {viewingTrainingFile.rows ? `${viewingTrainingFile.rows.length - 1} data rows` : 'No data stored'}
+                  {viewingTrainingFile.rows && viewingTrainingFile.rows.length >= 300 ? ' (preview capped at 300 rows)' : ''}
+                </span>
+                <button onClick={() => setViewingTrainingFile(null)} className="px-4 py-2 rounded-md text-sm font-medium border border-tm-border text-tm-text-1 hover:bg-tm-surface-hover">
+                  Close
+                </button>
+              </div>
+            </div>
           </div>
         )}
 

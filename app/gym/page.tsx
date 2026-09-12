@@ -244,6 +244,7 @@ export default function GymPage() {
     session_description?: string
     session_date?: string
     rows?: string[][]
+    uploader_name?: string
   }) => {
     const entry = {
       id: `local_${Date.now()}`,
@@ -254,7 +255,7 @@ export default function GymPage() {
       metrics_captured: record.metrics_captured,
       metrics_total: record.metrics_total,
       download_url: null,
-      uploader: null,
+      uploader: record.uploader_name ? { name: record.uploader_name } : null,
       session: record.session_description
         ? { description: record.session_description, schedule_date: record.session_date ?? '' }
         : null,
@@ -456,8 +457,8 @@ export default function GymPage() {
           session_description: sessionCtx?.description,
           session_date: sessionCtx?.schedule_date,
           rows: rawFileRows ?? undefined,
+          uploader_name: user?.name ?? undefined,
         })
-        setRawFileRows(null)
       }
 
       setShowUpload(false)

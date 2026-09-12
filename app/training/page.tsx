@@ -1318,6 +1318,7 @@ export default function TrainingPage() {
     session_title?: string
     session_date?: string
     rows?: string[][]
+    uploader_name?: string
   }) => {
     const entry = {
       id: `local_${Date.now()}`,
@@ -1326,6 +1327,7 @@ export default function TrainingPage() {
       file_name: record.file_name,
       uploaded_at: new Date().toISOString(),
       download_url: null,
+      uploader_name: record.uploader_name ?? null,
       session: record.session_title
         ? { title: record.session_title, date: record.session_date ?? '' }
         : null,
@@ -1359,6 +1361,7 @@ export default function TrainingPage() {
         session_title: sessionCtx?.title ?? sessionCtx?.description ?? undefined,
         session_date: sessionCtx?.date ?? undefined,
         rows,
+        uploader_name: user?.name ?? undefined,
       })
       setShowTrainingFileUpload(false)
       setTrainingUploadFile(null)
@@ -2834,7 +2837,8 @@ export default function TrainingPage() {
                       <tr>
                         <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide text-tm-text-2">File</th>
                         <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide text-tm-text-2">Session</th>
-                        <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide text-tm-text-2">Uploaded</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide text-tm-text-2">Uploaded by</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide text-tm-text-2">Date</th>
                         <th className="px-4 py-3"></th>
                       </tr>
                     </thead>
@@ -2851,6 +2855,9 @@ export default function TrainingPage() {
                             {f.session?.title || f.session?.description
                               ? <>{f.session?.date ? new Date(f.session.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) + ' — ' : ''}{f.session?.title || f.session?.description}</>
                               : <span className="italic">No session</span>}
+                          </td>
+                          <td className="px-4 py-3 text-xs text-tm-text-1 font-medium">
+                            {f.uploader_name ?? <span className="text-tm-text-3">—</span>}
                           </td>
                           <td className="px-4 py-3 text-xs text-tm-text-3">
                             {new Date(f.uploaded_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}

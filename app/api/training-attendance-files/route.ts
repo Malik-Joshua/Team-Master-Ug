@@ -109,26 +109,42 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const fileValues = {
+    const baseFileValues = {
       session_id,
       file_name,
       uploaded_by: authUser.id,
-      rows: Array.isArray(rows) ? rows.slice(0, 300) : null,
       uploaded_at: new Date().toISOString(),
     }
-
-    const query = existing
-      ? supabaseAdmin.from('training_attendance_files').update(fileValues).eq('id', existing.id)
-      : supabaseAdmin.from('training_attendance_files').insert(fileValues)
-
-    const { data, error } = await query.select().single()
-
-    if (error) {
-      console.error('training_attendance_files insert error:', error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+    const fileValues = {
+      ...baseFileValues,
+      rows: Array.isArray(rows) ? rows.slice(0, 300) : null,
     }
 
-    return NextResponse.json({ success: true, file: data })
+    const saveFileRecord = async (values: typeof fileValues | typeof baseFileValues) => {
+      const query = existing
+        ? supabaseAdmin.from('training_attendance_files').update(values).eq('id', existing.id)
+        : supabaseAdmin.from('training_attendance_files').insert(values)
+      return query.select().single()
+    }
+
+    let result = await saveFileRecord(fileValues)
+
+    // Migration 056 adds `rows`. Keep attendance uploads functional while that
+    // migration is pending or while Supabase is refreshing its schema cache.
+    if (
+      result.error &&
+      (result.error.code === 'PGRST204' || result.error.message.includes("'rows' column"))
+    ) {
+      console.warn('training_attendance_files.rows is unavailable; saving metadata only')
+      result = await saveFileRecord(baseFileValues)
+    }
+
+    if (result.error) {
+      console.error('training_attendance_files save error:', result.error)
+      return NextResponse.json({ error: result.error.message }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true, file: result.data })
   } catch (error: any) {
     console.error('POST training-attendance-files error:', error)
     return NextResponse.json({ error: error.message || 'Failed to save' }, { status: 500 })

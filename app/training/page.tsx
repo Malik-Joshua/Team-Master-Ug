@@ -175,6 +175,9 @@ export default function TrainingPage() {
   const [trainingUploadError, setTrainingUploadError] = useState<string | null>(null)
   const [trainingFileUploading, setTrainingFileUploading] = useState(false)
   const trainingUserIdRef = useRef<string | null>(null)
+  // Captures file info when a CSV is applied to the grid (uploadFile is
+  // cleared at that point, so we snapshot it here before it's gone).
+  const [pendingFileRecord, setPendingFileRecord] = useState<{ file_name: string; session_id: string } | null>(null)
   const [viewingTrainingFile, setViewingTrainingFile] = useState<any | null>(null)
 
   const loadData = useCallback(async () => {
@@ -206,6 +209,22 @@ export default function TrainingPage() {
             const rawFiles = localStorage.getItem(`training_file_records_${authUser.id}`)
             if (rawFiles) setTrainingFiles(JSON.parse(rawFiles))
           } catch { /* ignore */ }
+
+          // Fetch shared training attendance file records from DB
+          if (['coach', 'asst_coach', 'data_admin', 'admin', 'finance_admin'].includes(profile.role)) {
+            try {
+              const filesRes = await fetch('/api/training-attendance-files', { cache: 'no-store' })
+              if (filesRes.ok) {
+                const dbFiles = (await filesRes.json()).files || []
+                setTrainingFiles(prev => {
+                  // DB records take precedence; keep any local-only extras
+                  const dbIds = new Set(dbFiles.map((f: any) => f.id))
+                  const localOnly = prev.filter((f: any) => f._local && !dbIds.has(f.id))
+                  return [...dbFiles, ...localOnly]
+                })
+              }
+            } catch { /* non-fatal */ }
+          }
 
           // Fetch all registered players using API route to bypass RLS
           try {
@@ -782,6 +801,10 @@ export default function TrainingPage() {
     }
     setAttendance(prev => ({ ...prev, ...updates }))
     setSelectedSessionId(csvSessionId)
+    // Snapshot the file name + session before uploadFile is cleared
+    if (uploadFile && csvSessionId) {
+      setPendingFileRecord({ file_name: uploadFile.name, session_id: csvSessionId })
+    }
     // Close and reset
     setShowUploadForm(false)
     setUploadFile(null)
@@ -1287,6 +1310,48 @@ export default function TrainingPage() {
       }
 
       alert('Attendance saved successfully!')
+
+      // If this save came from a CSV import, save the file record to the DB
+      // so all accounts see it in the "Uploaded attendance files" archive.
+      if (pendingFileRecord) {
+        const sessionCtx = sessions.find(s => s.id === pendingFileRecord.session_id)
+        // 1. Save to DB (cross-account)
+        try {
+          const fileRes = await fetch('/api/training-attendance-files', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              session_id: pendingFileRecord.session_id,
+              file_name: pendingFileRecord.file_name,
+            }),
+          })
+          if (fileRes.ok) {
+            const { file: savedFile } = await fileRes.json()
+            // Optimistically add to local state with enriched info
+            const enriched = {
+              ...savedFile,
+              uploader_name: user?.name ?? null,
+              session: sessionCtx
+                ? { title: sessionCtx.title ?? sessionCtx.description, date: sessionCtx.date }
+                : null,
+            }
+            setTrainingFiles(prev => [enriched, ...prev.filter(f => f.id !== enriched.id)])
+          }
+        } catch { /* non-fatal */ }
+        // 2. Also mark in localStorage as fallback
+        markTrainingSessionRecorded(pendingFileRecord.session_id)
+        saveLocalTrainingFileRecord({
+          session_id: pendingFileRecord.session_id,
+          file_name: pendingFileRecord.file_name,
+          session_title: sessionCtx?.title ?? sessionCtx?.description ?? undefined,
+          session_date: sessionCtx?.date ?? undefined,
+          uploader_name: user?.name ?? undefined,
+        })
+        setPendingFileRecord(null)
+      }
+
+      // Refresh session summaries so past-session cards update immediately.
+      await loadData()
     } catch (error: any) {
       console.error('Error saving attendance:', error)
       alert(`Error saving attendance: ${error.message}`)

@@ -24,9 +24,9 @@ export async function GET(request: NextRequest) {
       .eq('user_id', authUser.id)
       .single()
 
-    if (!profile || !['admin', 'coach', 'data_admin', 'club_captain'].includes(profile.role)) {
+    if (!profile || !['admin', 'coach', 'asst_coach', 'data_admin', 'club_captain'].includes(profile.role)) {
       return NextResponse.json(
-        { error: 'Unauthorized: Admin, Coach, Data Admin, or Club Captain access required' },
+        { error: 'Unauthorized: Admin, Coach, Assistant Coach, Data Admin, or Club Captain access required' },
         { status: 403 }
       )
     }
@@ -253,12 +253,26 @@ export async function POST(request: NextRequest) {
       // This is a warning, not an error, as the foreign key is on players table
     }
 
-    // Get session_id from first record
+    // All records must belong to one session and the authenticated user.
     const sessionId = validatedRecords[0]?.session_id
     if (!sessionId) {
       return NextResponse.json(
         { error: 'Session ID is required' },
         { status: 400 }
+      )
+    }
+
+    if (validatedRecords.some(record => record.session_id !== sessionId)) {
+      return NextResponse.json(
+        { error: 'All attendance records must belong to the same session' },
+        { status: 400 }
+      )
+    }
+
+    if (validatedRecords.some(record => record.recorded_by !== authUser.id)) {
+      return NextResponse.json(
+        { error: 'recorded_by must match the authenticated user' },
+        { status: 403 }
       )
     }
 
@@ -310,7 +324,42 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Delete existing attendance for this session
+    // Do not allow one concerned account to overwrite attendance recorded by
+    // another. The original recorder may correct and re-save their own session.
+    const { data: existingAttendance, error: existingAttendanceError } = await supabaseAdmin
+      .from('training_attendance')
+      .select('recorded_by')
+      .eq('session_id', sessionId)
+
+    if (existingAttendanceError) {
+      return NextResponse.json(
+        { error: `Failed to check existing attendance: ${existingAttendanceError.message}` },
+        { status: 500 }
+      )
+    }
+
+    const otherRecorder = existingAttendance?.find(record => record.recorded_by !== authUser.id)
+    if (otherRecorder) {
+      const otherRecorderId = otherRecorder.recorded_by
+      const { data: recorder } = otherRecorderId
+        ? await supabaseAdmin
+            .from('user_profiles')
+            .select('name')
+            .eq('user_id', otherRecorderId)
+            .maybeSingle()
+        : { data: null }
+
+      return NextResponse.json(
+        {
+          error: `Attendance for this session was already recorded by ${recorder?.name || 'another user'}.`,
+          recorded_by: otherRecorderId,
+          recorder_name: recorder?.name || null,
+        },
+        { status: 409 }
+      )
+    }
+
+    // Replace the authenticated recorder's existing attendance for this session.
     const { error: deleteError } = await supabaseAdmin
       .from('training_attendance')
       .delete()

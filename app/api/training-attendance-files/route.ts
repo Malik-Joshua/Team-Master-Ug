@@ -80,21 +80,48 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
 
     const body = await request.json()
-    const { session_id, file_name } = body
+    const { session_id, file_name, rows } = body
 
+    if (!session_id) return NextResponse.json({ error: 'session_id is required' }, { status: 400 })
     if (!file_name) return NextResponse.json({ error: 'file_name is required' }, { status: 400 })
+    if (rows !== undefined && (!Array.isArray(rows) || rows.length > 300)) {
+      return NextResponse.json({ error: 'rows must be an array containing at most 300 rows' }, { status: 400 })
+    }
 
     const supabaseAdmin = await getAdminClient()
 
-    const { data, error } = await supabaseAdmin
+    // One shared archive record per session. Retrying users may update their own
+    // record, but another account cannot replace the original uploader.
+    const { data: existing, error: existingError } = await supabaseAdmin
       .from('training_attendance_files')
-      .insert({
-        session_id: session_id || null,
-        file_name,
-        uploaded_by: authUser.id,
-      })
-      .select()
-      .single()
+      .select('*')
+      .eq('session_id', session_id)
+      .maybeSingle()
+
+    if (existingError) {
+      return NextResponse.json({ error: existingError.message }, { status: 500 })
+    }
+
+    if (existing && existing.uploaded_by !== authUser.id) {
+      return NextResponse.json(
+        { error: 'A file has already been recorded for this session', file: existing },
+        { status: 409 }
+      )
+    }
+
+    const fileValues = {
+      session_id,
+      file_name,
+      uploaded_by: authUser.id,
+      rows: Array.isArray(rows) ? rows.slice(0, 300) : null,
+      uploaded_at: new Date().toISOString(),
+    }
+
+    const query = existing
+      ? supabaseAdmin.from('training_attendance_files').update(fileValues).eq('id', existing.id)
+      : supabaseAdmin.from('training_attendance_files').insert(fileValues)
+
+    const { data, error } = await query.select().single()
 
     if (error) {
       console.error('training_attendance_files insert error:', error)

@@ -177,7 +177,12 @@ export default function TrainingPage() {
   const trainingUserIdRef = useRef<string | null>(null)
   // Captures file info when a CSV is applied to the grid (uploadFile is
   // cleared at that point, so we snapshot it here before it's gone).
-  const [pendingFileRecord, setPendingFileRecord] = useState<{ file_name: string; session_id: string } | null>(null)
+  const [pendingFileRecord, setPendingFileRecord] = useState<{
+    file_name: string
+    session_id: string
+    rows: string[][]
+  } | null>(null)
+  const [savingDirectly, setSavingDirectly] = useState(false)
   const [viewingTrainingFile, setViewingTrainingFile] = useState<any | null>(null)
 
   const loadData = useCallback(async () => {
@@ -716,9 +721,9 @@ export default function TrainingPage() {
       const normaliseStatus = (raw: string): AttendanceCode | null => {
         const s = raw.trim().toUpperCase()
         if (s === 'P' || s.startsWith('PRES')) return 'P'
-        if (s === 'A' || s.startsWith('ABS'))  return 'A'
-        if (s === 'X' || s.startsWith('EXC') || s.startsWith('JUST')) return 'X'
-        if (s === 'I' || s.startsWith('INJ'))  return 'I'
+        if (s === 'A' || s.startsWith('EXC') || s.startsWith('JUST')) return 'A'
+        if (s === 'X' || s.startsWith('ABS') || s.startsWith('UNEXC')) return 'X'
+        if (s === 'I' || s.startsWith('INJ')) return 'I'
         return null
       }
 
@@ -803,7 +808,14 @@ export default function TrainingPage() {
     setSelectedSessionId(csvSessionId)
     // Snapshot the file name + session before uploadFile is cleared
     if (uploadFile && csvSessionId) {
-      setPendingFileRecord({ file_name: uploadFile.name, session_id: csvSessionId })
+      setPendingFileRecord({
+        file_name: uploadFile.name,
+        session_id: csvSessionId,
+        rows: [
+          ['Player', 'Status', 'Notes'],
+          ...csvRows.map(row => [row.name, row.status ?? '', row.notes]),
+        ].slice(0, 300),
+      })
     }
     // Close and reset
     setShowUploadForm(false)
@@ -821,8 +833,9 @@ export default function TrainingPage() {
     setCsvRows([])
     setUploadProgress(0)
     setUploadStep('')
-    setUploading(false)
     setAttendanceOnly(false)
+    setCsvSessionId('')
+    setUploading(false)
   }
   // ─────────────────────────────────────────────────────────────────────────
 
@@ -1240,12 +1253,6 @@ export default function TrainingPage() {
         }
       }
 
-      // Delete existing attendance for this session
-      await supabase
-        .from('training_attendance')
-        .delete()
-        .eq('session_id', sessionId)
-
       // Prepare attendance records - only include valid attendance codes
       const attendanceRecords = players
         .map(player => {
@@ -1323,6 +1330,7 @@ export default function TrainingPage() {
             body: JSON.stringify({
               session_id: pendingFileRecord.session_id,
               file_name: pendingFileRecord.file_name,
+              rows: pendingFileRecord.rows,
             }),
           })
           if (fileRes.ok) {
@@ -1346,6 +1354,7 @@ export default function TrainingPage() {
           session_title: sessionCtx?.title ?? sessionCtx?.description ?? undefined,
           session_date: sessionCtx?.date ?? undefined,
           uploader_name: user?.name ?? undefined,
+          rows: pendingFileRecord.rows,
         })
         setPendingFileRecord(null)
       }
@@ -1358,6 +1367,80 @@ export default function TrainingPage() {
     }
   }
 
+  // ── Direct attendance save (used when uploading from a past-session card) ─
+  const saveAttendanceDirectly = async () => {
+    if (!csvSessionId) { alert('Please select a session'); return }
+    const matchedRows = csvRows.filter(r => r.matchedPlayer && r.status)
+    if (matchedRows.length === 0) {
+      alert('No matched players found. Check the CSV format and make sure player names match the roster.')
+      return
+    }
+    setSavingDirectly(true)
+    try {
+      const supabase = createClient()
+      const { data: { user: authUser } } = await supabase.auth.getUser()
+      if (!authUser) { alert('Please log in'); return }
+
+      const attendanceRecords = matchedRows.map(row => ({
+        session_id: csvSessionId,
+        player_id: row.matchedPlayer!.id,
+        attendance_status: row.status! as 'P' | 'A' | 'X' | 'I',
+        recorded_by: authUser.id,
+      }))
+
+      const response = await fetch('/api/training/attendance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ attendanceRecords }),
+      })
+      if (!response.ok) {
+        const err = await response.json()
+        throw new Error(err.error || 'Failed to save attendance')
+      }
+
+      // Save file record to DB so all accounts see it
+      const fileName = uploadFile?.name
+      if (fileName) {
+        const previewRows = [
+          ['Player', 'Status', 'Notes'],
+          ...csvRows.map(row => [row.name, row.status ?? '', row.notes]),
+        ].slice(0, 300)
+        const fileRes = await fetch('/api/training-attendance-files', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            session_id: csvSessionId,
+            file_name: fileName,
+            rows: previewRows,
+          }),
+        })
+        if (!fileRes.ok) {
+          const fileError = await fileRes.json()
+          throw new Error(fileError.error || 'Attendance was saved, but the uploaded file could not be archived')
+        }
+
+        const { file: savedFile } = await fileRes.json()
+        const sessionCtx = sessions.find(s => s.id === csvSessionId)
+        const enriched = {
+          ...savedFile,
+          uploader_name: user?.name ?? null,
+          session: sessionCtx
+            ? { title: sessionCtx.title ?? sessionCtx.description, date: sessionCtx.date }
+            : null,
+        }
+        setTrainingFiles(prev => [enriched, ...prev.filter(f => f.id !== enriched.id)])
+        markTrainingSessionRecorded(csvSessionId)
+      }
+
+      resetUploadModal()
+      await loadData()
+      alert(`Attendance saved! ${matchedRows.length} of ${csvRows.length} players recorded.`)
+    } catch (err: any) {
+      alert(`Error saving attendance: ${err.message}`)
+    } finally {
+      setSavingDirectly(false)
+    }
+  }
   // ── Training file archive helpers ──────────────────────────────────────
   const dismissTrainingSession = (id: string) => {
     setDismissedTrainingSessions(prev => {
@@ -2223,17 +2306,34 @@ export default function TrainingPage() {
                 )}
                 {showCsvPreview && !uploading && (
                   <div className="flex gap-3">
-                    <button
-                      onClick={applyCSVToGrid}
-                      disabled={!csvSessionId || csvRows.filter(r => r.matchedPlayer && r.status).length === 0}
-                      className="flex-1 px-4 py-2.5 bg-success text-white rounded-[6px] font-semibold text-sm hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
-                    >
-                      <UserCheck className="w-4 h-4" />
-                      Apply {csvRows.filter(r => r.matchedPlayer && r.status).length} players to grid
-                    </button>
+                    {attendanceOnly ? (
+                      // Past-session flow: save directly to DB in one step
+                      <button
+                        onClick={saveAttendanceDirectly}
+                        disabled={savingDirectly || !csvSessionId || csvRows.filter(r => r.matchedPlayer && r.status).length === 0}
+                        className="flex-1 px-4 py-2.5 bg-success text-white rounded-[6px] font-semibold text-sm hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
+                      >
+                        {savingDirectly ? (
+                          <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Saving…</>
+                        ) : (
+                          <><Save className="w-4 h-4" /> Save attendance — {csvRows.filter(r => r.matchedPlayer && r.status).length} players</>
+                        )}
+                      </button>
+                    ) : (
+                      // Coach live-grid flow: apply then save separately
+                      <button
+                        onClick={applyCSVToGrid}
+                        disabled={!csvSessionId || csvRows.filter(r => r.matchedPlayer && r.status).length === 0}
+                        className="flex-1 px-4 py-2.5 bg-success text-white rounded-[6px] font-semibold text-sm hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
+                      >
+                        <UserCheck className="w-4 h-4" />
+                        Apply {csvRows.filter(r => r.matchedPlayer && r.status).length} players to grid
+                      </button>
+                    )}
                     <button
                       onClick={resetUploadModal}
-                      className="px-4 py-2.5 bg-tm-surface-hover text-tm-text-1 rounded-[6px] font-semibold text-sm hover:opacity-80 transition-all border border-tm-border"
+                      disabled={savingDirectly}
+                      className="px-4 py-2.5 bg-tm-surface-hover text-tm-text-1 rounded-[6px] font-semibold text-sm hover:opacity-80 transition-all border border-tm-border disabled:opacity-50"
                     >
                       Cancel
                     </button>
@@ -2785,8 +2885,8 @@ export default function TrainingPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {pastSessions.map(session => {
                   const hasRecord = isRecorded(session)
-                  // Show the actual attendance numbers from the DB if available
                   const summary = sessionSummaries.find(s => s.sessionId === session.id)
+                  const fileRecord = trainingFiles.find(f => f.session_id === session.id)
                   const sessionDate = new Date(session.date)
                   return (
                     <div key={session.id} className="bg-tm-surface rounded-card border border-tm-border overflow-hidden">
@@ -2832,6 +2932,14 @@ export default function TrainingPage() {
                         ) : (
                           <p className={`text-xs font-semibold ${hasRecord ? 'text-green-500' : 'text-amber-400'}`}>
                             {hasRecord ? '✓ Attendance recorded' : '⚠ Not yet recorded'}
+                          </p>
+                        )}
+                        {fileRecord?.uploader_name && (
+                          <p className="text-[11px] text-tm-text-3 pt-1">
+                            Recorded by <span className="font-medium text-tm-text-2">{fileRecord.uploader_name}</span>
+                            {fileRecord.uploaded_at
+                              ? ` · ${new Date(fileRecord.uploaded_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`
+                              : ''}
                           </p>
                         )}
                       </div>
@@ -3090,9 +3198,9 @@ export default function TrainingPage() {
                   <p className="text-[11px] font-mono text-tm-text-2">
                     player_name, status, notes<br />
                     Patrick Allan, P<br />
-                    John Smith, A, sick
+                    John Smith, A, excused
                   </p>
-                  <p className="text-[10px] text-tm-text-3 mt-1">P Present · A Absent · X Excused · I Injured</p>
+                  <p className="text-[10px] text-tm-text-3 mt-1">P Present · A Justified absence · X Unjustified absence · I Injured</p>
                 </div>
                 {trainingUploadError && (
                   <div className="rounded-md bg-[#E05757]/10 p-3">

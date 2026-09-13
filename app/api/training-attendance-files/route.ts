@@ -150,3 +150,44 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: error.message || 'Failed to save' }, { status: 500 })
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const supabase = await createClient()
+    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
+    if (authError || !authUser) return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+
+    const { data: profile } = await supabase
+      .from('user_profiles').select('role').eq('user_id', authUser.id).single()
+    if (!profile || !ALLOWED_ROLES.includes(profile.role))
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+
+    const { id } = await request.json()
+    if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 })
+
+    const supabaseAdmin = await getAdminClient()
+
+    const { data: existing } = await supabaseAdmin
+      .from('training_attendance_files')
+      .select('uploaded_by')
+      .eq('id', id)
+      .maybeSingle()
+
+    if (!existing) return NextResponse.json({ error: 'File not found' }, { status: 404 })
+    if (existing.uploaded_by !== authUser.id && profile.role !== 'admin') {
+      return NextResponse.json({ error: 'Only the uploader or an admin can delete this file' }, { status: 403 })
+    }
+
+    const { error: deleteError } = await supabaseAdmin
+      .from('training_attendance_files')
+      .delete()
+      .eq('id', id)
+
+    if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 500 })
+
+    return NextResponse.json({ success: true })
+  } catch (error: any) {
+    console.error('DELETE training-attendance-files error:', error)
+    return NextResponse.json({ error: error.message || 'Failed to delete' }, { status: 500 })
+  }
+}

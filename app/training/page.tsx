@@ -184,6 +184,7 @@ export default function TrainingPage() {
   } | null>(null)
   const [savingDirectly, setSavingDirectly] = useState(false)
   const [viewingTrainingFile, setViewingTrainingFile] = useState<any | null>(null)
+  const [deletingTrainingFileId, setDeletingTrainingFileId] = useState<string | null>(null)
 
   const loadData = useCallback(async () => {
       const supabase = createClient()
@@ -1442,6 +1443,54 @@ export default function TrainingPage() {
     }
   }
   // ── Training file archive helpers ──────────────────────────────────────
+  const downloadTrainingFileFromRows = (f: any) => {
+    const rows: string[][] = f.rows
+    if (!rows || rows.length === 0) return
+    const csv = rows.map((r: string[]) =>
+      r.map((c: string) => `"${(c ?? '').replace(/"/g, '""')}"`).join(',')
+    ).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = f.file_name || 'attendance.csv'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
+  const handleDeleteTrainingFile = async (f: any) => {
+    if (!window.confirm(`Delete "${f.file_name}" from the archive? The saved attendance records will not be affected.`)) return
+    setDeletingTrainingFileId(f.id)
+    try {
+      if (f._local) {
+        setTrainingFiles(prev => {
+          const next = prev.filter((x: any) => x.id !== f.id)
+          try {
+            localStorage.setItem(
+              `training_file_records_${trainingUserIdRef.current}`,
+              JSON.stringify(next.filter((x: any) => x._local))
+            )
+          } catch { /* ignore */ }
+          return next
+        })
+        return
+      }
+      const res = await fetch('/api/training-attendance-files', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: f.id }),
+      })
+      if (!res.ok) throw new Error((await res.json()).error || 'Delete failed')
+      setTrainingFiles(prev => prev.filter((x: any) => x.id !== f.id))
+    } catch (e: any) {
+      alert(`Could not delete file: ${e.message}`)
+    } finally {
+      setDeletingTrainingFileId(null)
+    }
+  }
+
   const dismissTrainingSession = (id: string) => {
     setDismissedTrainingSessions(prev => {
       const next = new Set(prev)
@@ -1965,13 +2014,6 @@ export default function TrainingPage() {
                         Import Schedule
                       </button>
                       <button
-                        onClick={() => setShowScheduleForm(true)}
-                        className="bg-secondary text-tm-on-secondary px-4 py-2.5 rounded-[6px] text-sm font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center whitespace-nowrap"
-                      >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Create Schedule
-                      </button>
-                      <button
                         onClick={() => setShowGymScheduleForm(true)}
                         className="bg-warning text-white px-4 py-2.5 rounded-[6px] text-sm font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center whitespace-nowrap"
                       >
@@ -1980,24 +2022,15 @@ export default function TrainingPage() {
                       </button>
                     </>
                   )}
-                  {/* Manager: create schedule + import attendance */}
+                  {/* Manager: import attendance only */}
                   {user?.role === 'data_admin' && (
-                    <>
-                      <button
-                        onClick={() => setShowScheduleForm(true)}
-                        className="bg-secondary text-tm-on-secondary px-4 py-2.5 rounded-[6px] text-sm font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center whitespace-nowrap"
-                      >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Create Schedule
-                      </button>
-                      <button
-                        onClick={() => { setAttendanceOnly(true); setShowUploadForm(true) }}
-                        className="bg-info text-white px-4 py-2.5 rounded-[6px] text-sm font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center whitespace-nowrap"
-                      >
-                        <Upload className="w-4 h-4 mr-2" />
-                        Import Attendance
-                      </button>
-                    </>
+                    <button
+                      onClick={() => { setAttendanceOnly(true); setShowUploadForm(true) }}
+                      className="bg-info text-white px-4 py-2.5 rounded-[6px] text-sm font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center whitespace-nowrap"
+                    >
+                      <Upload className="w-4 h-4 mr-2" />
+                      Import Attendance
+                    </button>
                   )}
                   <button
                     onClick={handleSave}
@@ -2008,51 +2041,7 @@ export default function TrainingPage() {
                   </button>
                 </>
               )}
-              <div className="relative export-menu-container">
-                <button
-                  onClick={() => setShowExportMenu(!showExportMenu)}
-                  disabled={exporting || sessions.length === 0}
-                  className="bg-tm-surface text-tm-text-1 px-4 py-2.5 rounded-[6px] text-sm font-semibold hover:bg-tm-surface-hover hover:border-primary hover:text-primary transition-all duration-300 inline-flex items-center border border-tm-border disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-                >
-                  {exporting ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
-                      Exporting...
-                    </>
-                  ) : (
-                    <>
-                      <Download className="w-4 h-4 mr-2" />
-                      Export
-                      <ChevronDown className="w-4 h-4 ml-2" />
-                    </>
-                  )}
-                </button>
-                {showExportMenu && !exporting && (
-                  <div className="absolute right-0 mt-2 w-48 bg-tm-surface rounded-lg shadow-lg border border-tm-border z-50">
-                    <button
-                      onClick={() => handleExportTraining('pdf')}
-                      className="w-full text-left px-4 py-3 hover:bg-tm-surface-hover transition-colors flex items-center space-x-2 rounded-t-lg text-tm-text-1"
-                    >
-                      <FileText className="w-4 h-4 text-primary" />
-                      <span className="text-tm-text-1">Export as PDF</span>
-                    </button>
-                    <button
-                      onClick={() => handleExportTraining('excel')}
-                      className="w-full text-left px-4 py-3 hover:bg-tm-surface-hover transition-colors flex items-center space-x-2 text-tm-text-1"
-                    >
-                      <FileSpreadsheet className="w-4 h-4 text-success" />
-                      <span className="text-tm-text-1">Export as Excel</span>
-                    </button>
-                    <button
-                      onClick={() => handleExportTraining('csv')}
-                      className="w-full text-left px-4 py-3 hover:bg-tm-surface-hover transition-colors flex items-center space-x-2 rounded-b-lg text-tm-text-1"
-                    >
-                      <FileText className="w-4 h-4 text-info" />
-                      <span className="text-tm-text-1">Export as CSV</span>
-              </button>
-                  </div>
-                )}
-              </div>
+
             </div>
           </div>
         </div>
@@ -3073,7 +3062,7 @@ export default function TrainingPage() {
                             </button>
                           </td>
                           <td className="px-4 py-3">
-                            {f.download_url && (
+                            {f.download_url ? (
                               <a
                                 href={f.download_url}
                                 download={f.file_name}
@@ -3082,7 +3071,26 @@ export default function TrainingPage() {
                               >
                                 <Download className="h-3.5 w-3.5" /> Download
                               </a>
-                            )}
+                            ) : f.rows?.length > 0 ? (
+                              <button
+                                onClick={() => downloadTrainingFileFromRows(f)}
+                                className="flex items-center gap-1 text-xs font-medium rounded-md px-2.5 py-1.5"
+                                style={{ background: 'var(--acc-dim,rgba(91,163,217,0.10))', color: 'var(--acc,#5BA3D9)' }}
+                              >
+                                <Download className="h-3.5 w-3.5" /> Download
+                              </button>
+                            ) : null}
+                          </td>
+                          <td className="px-4 py-3">
+                            <button
+                              onClick={() => handleDeleteTrainingFile(f)}
+                              disabled={deletingTrainingFileId === f.id}
+                              className="flex items-center gap-1 text-xs font-medium rounded-md px-2.5 py-1.5 transition-colors disabled:opacity-50"
+                              style={{ background: 'rgba(224,87,87,0.10)', color: '#E05757' }}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                              {deletingTrainingFileId === f.id ? '…' : 'Delete'}
+                            </button>
                           </td>
                         </tr>
                       ))}

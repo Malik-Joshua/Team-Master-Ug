@@ -144,6 +144,7 @@ export default function GymPage() {
   }> | null>(null)
   const [rawFileRows, setRawFileRows] = useState<string[][] | null>(null)
   const [viewingFile, setViewingFile] = useState<any | null>(null)
+  const [deletingFileId, setDeletingFileId] = useState<string | null>(null)
 
   const loadData = useCallback(async () => {
     const supabase = createClient()
@@ -272,6 +273,55 @@ export default function GymPage() {
       } catch { /* ignore */ }
       return next
     })
+  }
+
+  const downloadFileFromRows = (f: any) => {
+    const rows: string[][] = f.rows
+    if (!rows || rows.length === 0) return
+    const csv = rows.map((r: string[]) =>
+      r.map((c: string) => `"${(c ?? '').replace(/"/g, '""')}"`).join(',')
+    ).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = f.file_name || 'metrics.csv'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
+  const handleDeleteMetricFile = async (f: any) => {
+    if (!window.confirm(`Delete "${f.file_name}" from the archive? The saved gym metrics will not be affected.`)) return
+    setDeletingFileId(f.id)
+    try {
+      if (f._local) {
+        // Local-only record — remove from state and localStorage
+        setMetricFiles(prev => {
+          const next = prev.filter((x: any) => x.id !== f.id)
+          try {
+            localStorage.setItem(
+              `gym_metric_file_records_${userIdRef.current}`,
+              JSON.stringify(next.filter((x: any) => x._local))
+            )
+          } catch { /* ignore */ }
+          return next
+        })
+        return
+      }
+      const res = await fetch('/api/gym-metric-files', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: f.id }),
+      })
+      if (!res.ok) throw new Error((await res.json()).error || 'Delete failed')
+      setMetricFiles(prev => prev.filter((x: any) => x.id !== f.id))
+    } catch (e: any) {
+      alert(`Could not delete file: ${e.message}`)
+    } finally {
+      setDeletingFileId(null)
+    }
   }
 
   const canManage = user?.role === 'coach' || user?.role === 'asst_coach' || user?.role === 'admin' || user?.role === 'data_admin' || user?.role === 'finance_admin'
@@ -433,6 +483,7 @@ export default function GymPage() {
           session_id: uploadSessionId ?? null,
           file_name: uploadFile?.name ?? null,
           storage_path: storagePath,
+          rows: rawFileRows ?? null,
         }),
       })
 
@@ -921,7 +972,7 @@ export default function GymPage() {
                               </button>
                             </td>
                             <td className="px-4 py-3">
-                              {f.download_url && (
+                              {f.download_url ? (
                                 <a
                                   href={f.download_url}
                                   download={f.file_name}
@@ -930,7 +981,26 @@ export default function GymPage() {
                                 >
                                   <Download className="h-3.5 w-3.5" /> Download
                                 </a>
-                              )}
+                              ) : f.rows?.length > 0 ? (
+                                <button
+                                  onClick={() => downloadFileFromRows(f)}
+                                  className="flex items-center gap-1 text-xs font-medium rounded-md px-2.5 py-1.5 transition-colors"
+                                  style={{ background: 'var(--acc-dim,rgba(91,163,217,0.10))', color: 'var(--acc,#5BA3D9)' }}
+                                >
+                                  <Download className="h-3.5 w-3.5" /> Download
+                                </button>
+                              ) : null}
+                            </td>
+                            <td className="px-4 py-3">
+                              <button
+                                onClick={() => handleDeleteMetricFile(f)}
+                                disabled={deletingFileId === f.id}
+                                className="flex items-center gap-1 text-xs font-medium rounded-md px-2.5 py-1.5 transition-colors disabled:opacity-50"
+                                style={{ background: 'rgba(224,87,87,0.10)', color: '#E05757' }}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                                {deletingFileId === f.id ? '…' : 'Delete'}
+                              </button>
                             </td>
                           </tr>
                         ))}

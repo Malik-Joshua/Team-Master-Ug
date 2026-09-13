@@ -89,3 +89,63 @@ export async function GET(_request: NextRequest) {
     )
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const supabase = await createClient()
+    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
+    if (authError || !authUser) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('role')
+      .eq('user_id', authUser.id)
+      .single()
+
+    if (!profile || !['admin', 'coach', 'asst_coach', 'data_admin', 'finance_admin'].includes(profile.role)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+    }
+
+    const { id } = await request.json()
+    if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 })
+
+    const supabaseAdmin = createServiceClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    )
+
+    // Only the uploader or an admin may delete
+    const { data: existing } = await supabaseAdmin
+      .from('gym_metric_files')
+      .select('uploaded_by, storage_path')
+      .eq('id', id)
+      .maybeSingle()
+
+    if (!existing) return NextResponse.json({ error: 'File not found' }, { status: 404 })
+    if (existing.uploaded_by !== authUser.id && profile.role !== 'admin') {
+      return NextResponse.json({ error: 'Only the uploader or an admin can delete this file' }, { status: 403 })
+    }
+
+    // Remove from storage bucket if a path was recorded
+    if (existing.storage_path) {
+      await supabaseAdmin.storage.from('gym-metric-files').remove([existing.storage_path])
+    }
+
+    const { error: deleteError } = await supabaseAdmin
+      .from('gym_metric_files')
+      .delete()
+      .eq('id', id)
+
+    if (deleteError) {
+      return NextResponse.json({ error: deleteError.message }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (error: any) {
+    console.error('Error in DELETE gym-metric-files:', error)
+    return NextResponse.json({ error: error.message || 'Failed to delete' }, { status: 500 })
+  }
+}

@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { metrics, session_id, file_name, storage_path } = body
+    const { metrics, session_id, file_name, storage_path, rows } = body
 
     console.log('Bulk upload request received:', { metricsCount: metrics?.length, metrics })
 
@@ -121,14 +121,25 @@ export async function POST(request: NextRequest) {
     // if the Storage bucket isn't set up yet — that's fine, the record still
     // lets the UI mark the session as "metrics recorded").
     if (file_name) {
-      const { error: fileRecordError } = await supabaseAdmin.from('gym_metric_files').insert({
+      const baseRecord = {
         session_id: session_id || null,
         file_name,
         storage_path: storage_path || null,
         uploaded_by: authUser.id,
         metrics_captured: uploaded,
         metrics_total: metrics.length,
-      })
+      }
+      // Try with rows first; fall back without it if migration 057 is pending.
+      let fileRecordError = (await supabaseAdmin.from('gym_metric_files').insert({
+        ...baseRecord,
+        rows: Array.isArray(rows) ? rows.slice(0, 300) : null,
+      })).error
+      if (
+        fileRecordError &&
+        (fileRecordError.code === 'PGRST204' || fileRecordError.message.includes("'rows' column"))
+      ) {
+        fileRecordError = (await supabaseAdmin.from('gym_metric_files').insert(baseRecord)).error
+      }
       if (fileRecordError) {
         console.warn('Could not record file in gym_metric_files:', fileRecordError.message)
       }

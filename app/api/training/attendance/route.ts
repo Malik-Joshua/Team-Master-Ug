@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
-import { isActivityPast } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -298,30 +297,43 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if the session time has passed
-    if (isActivityPast(trainingSession.session_date, trainingSession.session_time || null)) {
-      // If session is already marked as completed, allow attendance entry (for historical records)
-      if (trainingSession.status === 'completed') {
-        // Allow attendance entry for completed sessions (historical data entry)
-        // But warn the user
-        console.log('Recording attendance for past training session:', sessionId)
-      } else {
-        // If session time has passed but not marked as completed, mark it first
-        await supabaseAdmin
-          .from('training_sessions')
-          .update({ status: 'completed' })
-          .eq('id', sessionId)
-      }
-    } else {
-      // Session hasn't occurred yet - prevent attendance entry
+    // Gate attendance on the session DATE, not the exact start hour. The stored
+    // time has no timezone, so comparing it against the server clock (UTC) made
+    // same-day sessions look hours in the future and wrongly blocked recording.
+    // A session is recordable once its date is today or earlier.
+    // Use local timezone for comparison to avoid UTC timezone issues in deployed environments.
+    const sessionDate = new Date(trainingSession.session_date)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0) // Reset to start of day for accurate comparison
+    sessionDate.setHours(0, 0, 0, 0) // Reset to start of day for accurate comparison
+
+    const isFutureSession = sessionDate > today
+
+    console.log('Date comparison:', {
+      sessionDate: sessionDate.toISOString(),
+      today: today.toISOString(),
+      isFutureSession,
+      session_date: trainingSession.session_date,
+      session_time: trainingSession.session_time
+    })
+
+    if (isFutureSession) {
       return NextResponse.json(
-        { 
-          error: 'Cannot record attendance for a training session that has not yet occurred. The session is scheduled for a future date/time.',
+        {
+          error: 'Cannot record attendance for a training session that has not yet occurred. The session is scheduled for a future date.',
           session_date: trainingSession.session_date,
-          session_time: trainingSession.session_time
+          session_time: trainingSession.session_time,
         },
         { status: 400 }
       )
+    }
+
+    // Mark the session completed the first time attendance is recorded.
+    if (trainingSession.status !== 'completed') {
+      await supabaseAdmin
+        .from('training_sessions')
+        .update({ status: 'completed' })
+        .eq('id', sessionId)
     }
 
     // Do not allow one concerned account to overwrite attendance recorded by

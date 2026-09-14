@@ -939,6 +939,20 @@ export default function TrainingPage() {
     setCsvSessionId('')
     setUploading(false)
   }
+
+  // Opens the attendance import modal from a clean state so a previous run
+  // (rows, preview, progress) can never leak into the new upload.
+  const openAttendanceImport = (sessionId?: string) => {
+    setUploadFile(null)
+    setShowCsvPreview(false)
+    setCsvRows([])
+    setUploadProgress(0)
+    setUploadStep('')
+    setUploading(false)
+    setAttendanceOnly(true)
+    setCsvSessionId(sessionId || '')
+    setShowUploadForm(true)
+  }
   // ─────────────────────────────────────────────────────────────────────────
 
   const handleFileUpload = async () => {
@@ -2804,11 +2818,7 @@ export default function TrainingPage() {
                 <p className="text-sm text-tm-text-3">Choose which training session you want to record attendance for</p>
               </div>
               <button
-                onClick={() => {
-                  setAttendanceOnly(true)
-                  if (selectedSessionId) setCsvSessionId(selectedSessionId)
-                  setShowUploadForm(true)
-                }}
+                onClick={() => openAttendanceImport(selectedSessionId)}
                 className="bg-info text-white px-4 py-2.5 rounded-[6px] text-sm font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center justify-center whitespace-nowrap"
               >
                 <Upload className="w-4 h-4 mr-2" />
@@ -3046,13 +3056,7 @@ export default function TrainingPage() {
                       <div className="flex gap-2 border-t border-tm-border px-4 py-3">
                         {!hasRecord && (
                           <button
-                            onClick={() => {
-                              // Open the proper CSV import flow with this session pre-selected
-                              setCsvSessionId(session.id)
-                              setAttendanceOnly(true)
-                              setUploadFile(null)
-                              setShowUploadForm(true)
-                            }}
+                            onClick={() => openAttendanceImport(session.id)}
                             className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors"
                             style={{ background: 'rgba(45,184,138,0.12)', color: '#2DB88A' }}
                           >

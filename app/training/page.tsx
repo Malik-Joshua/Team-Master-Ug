@@ -989,32 +989,18 @@ export default function TrainingPage() {
         return
       }
 
-      // Get the next session number across all sessions
-      const { data: existingSessions } = await supabase
-        .from('training_sessions')
-        .select('session_number')
-        .order('session_number', { ascending: false })
-        .limit(1)
-
-      const nextSessionNumber = existingSessions && existingSessions.length > 0
-        ? existingSessions[0].session_number + 1
-        : 1
-
-      // Create the training session (data_admin uses their own user_id as coach_id)
-      const { data: newSession, error } = await supabase
-        .from('training_sessions')
-        .insert({
-          session_number: nextSessionNumber,
-          session_date: scheduleForm.session_date,
-          session_time: scheduleForm.session_time || null,
-          location: scheduleForm.location || null,
-          description: scheduleForm.description || null,
-          coach_id: authUser.id,
-        })
-        .select()
-        .single()
-
-      if (error) throw error
+      // Create through the server API so coach, assistant coach, and manager
+      // accounts all use the same validated flow without client-side RLS issues.
+      const createResponse = await fetch('/api/training/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(scheduleForm),
+      })
+      const createResult = await createResponse.json()
+      if (!createResponse.ok) {
+        throw new Error(createResult.error || 'Failed to create training session')
+      }
+      const newSession = createResult.session
 
       // Feed + alert the other coach(es) — see the bulk-create path above.
       try {
@@ -1070,31 +1056,10 @@ export default function TrainingPage() {
         // Don't fail the whole operation if notifications fail
       }
 
-      // Refresh sessions list - load all sessions for coach/data_admin/admin
-      const { data: allSessions } = await supabase
-        .from('training_sessions')
-        .select(`
-          *,
-          coach:user_profiles!training_sessions_coach_id_fkey(name)
-        `)
-        .order('session_date', { ascending: true })
-
-      if (allSessions) {
-        const formattedSessions: TrainingSession[] = allSessions.map((s: any) => ({
-          id: s.id,
-          date: s.session_date,
-          title: s.description || `Training Session ${s.session_number}`,
-          session_time: s.session_time,
-          location: s.location,
-          description: s.description,
-          coach_name: s.coach?.name || 'Coach',
-        }))
-        setSessions(formattedSessions)
-      }
-
       setScheduleForm({ session_date: '', session_time: '', location: '', description: '' })
       setShowScheduleForm(false)
-      alert('Training schedule created successfully! All users have been notified.')
+      await loadData()
+      alert('Training session created successfully! All users have been notified.')
     } catch (error: any) {
       console.error('Error creating schedule:', error)
       alert(`Error creating schedule: ${error.message}`)
@@ -2457,13 +2422,13 @@ export default function TrainingPage() {
           </div>
         )}
 
-        {/* Create Training Schedule Modal for Coaches */}
-        {showScheduleForm && user?.role === 'coach' && (
+        {/* Create Training Session modal */}
+        {showScheduleForm && ['coach', 'asst_coach', 'data_admin'].includes(user?.role || '') && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
             <div className="bg-tm-surface rounded-card shadow-large max-w-2xl w-full border border-tm-border">
               <div className="p-6 border-b border-tm-border">
                 <div className="flex justify-between items-center">
-                  <h2 className="text-2xl font-bold text-tm-text-1">Create Training Schedule</h2>
+                  <h2 className="text-2xl font-bold text-tm-text-1">Create Training Session</h2>
                   <button
                     onClick={() => {
                       setShowScheduleForm(false)
@@ -2496,10 +2461,9 @@ export default function TrainingPage() {
                     Training Time <span className="text-xs text-tm-text-3">(e.g., 18:00, 6:00 PM, 2:30 PM)</span>
                   </label>
                   <input
-                    type="text"
+                    type="time"
                     value={scheduleForm.session_time}
                     onChange={(e) => setScheduleForm({ ...scheduleForm, session_time: e.target.value })}
-                    placeholder="e.g., 18:00 or 6:00 PM"
                     className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                   />
                 </div>
@@ -2535,7 +2499,7 @@ export default function TrainingPage() {
                     disabled={savingSchedule}
                     className="flex-1 px-6 py-3 bg-tm-secondary text-tm-on-secondary rounded-[6px] hover:opacity-90 transition-all duration-300 font-semibold shadow-soft hover:shadow-medium disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {savingSchedule ? 'Creating...' : 'Create Schedule'}
+                    {savingSchedule ? 'Creating...' : 'Create Training Session'}
                   </button>
                   <button
                     onClick={() => {

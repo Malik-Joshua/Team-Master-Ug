@@ -4,6 +4,89 @@ import { createClient as createServiceClient } from '@supabase/supabase-js'
 
 export const dynamic = 'force-dynamic'
 
+export async function POST(request: NextRequest) {
+  try {
+    const supabase = await createClient()
+    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !authUser) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('role')
+      .eq('user_id', authUser.id)
+      .single()
+
+    if (!profile || !['coach', 'asst_coach', 'data_admin'].includes(profile.role)) {
+      return NextResponse.json(
+        { error: 'Only coaches, assistant coaches, and team managers can create training sessions' },
+        { status: 403 }
+      )
+    }
+
+    const body = await request.json()
+    const { session_date, session_time, location, description } = body
+
+    if (!session_date || !/^\d{4}-\d{2}-\d{2}$/.test(session_date)) {
+      return NextResponse.json({ error: 'A valid training date is required' }, { status: 400 })
+    }
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!supabaseUrl || !supabaseServiceKey) {
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+    }
+
+    const supabaseAdmin = createServiceClient(supabaseUrl, supabaseServiceKey, {
+      auth: { autoRefreshToken: false, persistSession: false }
+    })
+
+    const { data: latestSession, error: numberError } = await supabaseAdmin
+      .from('training_sessions')
+      .select('session_number')
+      .order('session_number', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (numberError) {
+      return NextResponse.json(
+        { error: `Failed to determine the next session number: ${numberError.message}` },
+        { status: 500 }
+      )
+    }
+
+    const { data: newSession, error: insertError } = await supabaseAdmin
+      .from('training_sessions')
+      .insert({
+        session_number: (latestSession?.session_number || 0) + 1,
+        session_date,
+        session_time: session_time || null,
+        location: location?.trim() || null,
+        description: description?.trim() || null,
+        coach_id: authUser.id,
+      })
+      .select()
+      .single()
+
+    if (insertError) {
+      return NextResponse.json(
+        { error: `Failed to create training session: ${insertError.message}` },
+        { status: 500 }
+      )
+    }
+
+    return NextResponse.json({ success: true, session: newSession }, { status: 201 })
+  } catch (error: any) {
+    console.error('Create training session error:', error)
+    return NextResponse.json(
+      { error: error.message || 'An unexpected error occurred' },
+      { status: 500 }
+    )
+  }
+}
+
 export async function DELETE(request: NextRequest) {
   try {
     const supabase = await createClient()

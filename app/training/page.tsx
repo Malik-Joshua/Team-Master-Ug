@@ -1670,6 +1670,32 @@ export default function TrainingPage() {
     }
   }
 
+  const trainingTimeParts = (() => {
+    if (!scheduleForm.session_time) return { hour: '', minute: '', period: 'AM' as 'AM' | 'PM' }
+    const [hourValue, minute = '00'] = scheduleForm.session_time.split(':')
+    const hour24 = Number(hourValue)
+    return {
+      hour: String(hour24 % 12 || 12),
+      minute,
+      period: (hour24 >= 12 ? 'PM' : 'AM') as 'AM' | 'PM',
+    }
+  })()
+
+  const updateTrainingTime = (hour: string, minute: string, period: 'AM' | 'PM') => {
+    if (!hour) {
+      setScheduleForm(prev => ({ ...prev, session_time: '' }))
+      return
+    }
+    const hour12 = Number(hour)
+    const hour24 = period === 'PM'
+      ? (hour12 % 12) + 12
+      : hour12 % 12
+    setScheduleForm(prev => ({
+      ...prev,
+      session_time: `${String(hour24).padStart(2, '0')}:${minute || '00'}`,
+    }))
+  }
+
   if (loading) {
     return (
       <Layout pageTitle="Training">
@@ -2458,14 +2484,44 @@ export default function TrainingPage() {
                 <div>
                   <label className="block text-sm font-medium text-tm-text-3 mb-2">
                     <Clock className="w-4 h-4 inline mr-2" />
-                    Training Time <span className="text-xs text-tm-text-3">(e.g., 18:00, 6:00 PM, 2:30 PM)</span>
+                    Training Time
                   </label>
-                  <input
-                    type="time"
-                    value={scheduleForm.session_time}
-                    onChange={(e) => setScheduleForm({ ...scheduleForm, session_time: e.target.value })}
-                    className="w-full px-4 py-2 border-2 border-tm-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
-                  />
+                  <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
+                    <select
+                      aria-label="Training hour"
+                      value={trainingTimeParts.hour}
+                      onChange={(e) => updateTrainingTime(e.target.value, trainingTimeParts.minute || '00', trainingTimeParts.period)}
+                      className="w-full px-4 py-2.5 border-2 border-tm-border bg-tm-surface text-tm-text-1 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                    >
+                      <option value="">Hour</option>
+                      {Array.from({ length: 12 }, (_, index) => String(index + 1)).map(hour => (
+                        <option key={hour} value={hour}>{hour}</option>
+                      ))}
+                    </select>
+                    <select
+                      aria-label="Training minute"
+                      value={trainingTimeParts.minute}
+                      disabled={!trainingTimeParts.hour}
+                      onChange={(e) => updateTrainingTime(trainingTimeParts.hour, e.target.value, trainingTimeParts.period)}
+                      className="w-full px-4 py-2.5 border-2 border-tm-border bg-tm-surface text-tm-text-1 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all disabled:opacity-50"
+                    >
+                      <option value="" disabled>Minute</option>
+                      {Array.from({ length: 60 }, (_, index) => String(index).padStart(2, '0')).map(minute => (
+                        <option key={minute} value={minute}>{minute}</option>
+                      ))}
+                    </select>
+                    <select
+                      aria-label="AM or PM"
+                      value={trainingTimeParts.period}
+                      disabled={!trainingTimeParts.hour}
+                      onChange={(e) => updateTrainingTime(trainingTimeParts.hour, trainingTimeParts.minute || '00', e.target.value as 'AM' | 'PM')}
+                      className="px-4 py-2.5 border-2 border-tm-border bg-tm-surface text-tm-text-1 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all disabled:opacity-50"
+                    >
+                      <option value="AM">AM</option>
+                      <option value="PM">PM</option>
+                    </select>
+                  </div>
+                  <p className="mt-1.5 text-xs text-tm-text-3">Select the hour, minute, and AM or PM.</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-tm-text-3 mb-2">

@@ -842,23 +842,54 @@ export default function TrainingPage() {
       setUploadProgress(50)
       await sleep(300)
 
-      // Step 3 — match names to roster
+      // Step 3 — match names to roster.
+      // Always work from a guaranteed-fresh roster: if the in-memory list is
+      // empty (e.g. the modal was opened before players finished loading) the
+      // matcher would mark everyone "Not found", so refetch before matching.
       setUploadStep('Matching players to roster…')
+      let roster = players
+      if (roster.length === 0) {
+        try {
+          const rosterRes = await fetch('/api/admin/players', { cache: 'no-store' })
+          if (rosterRes.ok) {
+            const rosterData = await rosterRes.json()
+            if (Array.isArray(rosterData.players)) {
+              roster = rosterData.players.map((p: any) => ({
+                id: p.user_id || p.id,
+                name: p.name || 'Unknown',
+                position: p.position || 'N/A',
+              }))
+              setPlayers(roster)
+            }
+          }
+        } catch (err) {
+          console.error('Could not refresh roster for matching:', err)
+        }
+      }
+
+      const normaliseName = (value: string) =>
+        value.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim()
+
       const matched = []
       for (let i = 0; i < rawRows.length; i++) {
         const row = rawRows[i]
-        const nameLower = row.name.toLowerCase()
+        const nameLower = normaliseName(row.name)
 
         // Exact match first
-        let player = players.find(p => p.name.toLowerCase() === nameLower) ?? null
+        let player = roster.find(p => normaliseName(p.name) === nameLower) ?? null
         let confidence: 'exact' | 'fuzzy' | 'none' = player ? 'exact' : 'none'
 
-        // Fuzzy: every word in the CSV name appears somewhere in the player name
-        if (!player) {
-          const words = nameLower.split(/\s+/).filter(Boolean)
-          player = players.find(p => {
-            const pn = p.name.toLowerCase()
-            return words.length > 0 && words.every(w => pn.includes(w))
+        // Fuzzy: every word in the CSV name appears in the player name, or vice
+        // versa (handles "Allan" vs "Allan Karuhanga" and reordered names).
+        if (!player && nameLower) {
+          const words = nameLower.split(' ').filter(Boolean)
+          player = roster.find(p => {
+            const pn = normaliseName(p.name)
+            const pnWords = pn.split(' ').filter(Boolean)
+            return (
+              words.every(w => pn.includes(w)) ||
+              pnWords.every(w => nameLower.includes(w))
+            )
           }) ?? null
           if (player) confidence = 'fuzzy'
         }

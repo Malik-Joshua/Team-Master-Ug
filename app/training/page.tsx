@@ -21,6 +21,7 @@ interface TrainingSession {
   date: string
   title: string
   session_time?: string
+  session_end_time?: string
   location?: string
   description?: string
   coach_name?: string
@@ -102,6 +103,100 @@ function AttendanceDropdown({ value, onChange }: { value: AttendanceCode; onChan
   )
 }
 
+function TimeDropdowns({
+  value,
+  onChange,
+  label,
+}: {
+  value: string
+  onChange: (value: string) => void
+  label: string
+}) {
+  const parts = (() => {
+    if (!value) return { hour: '', minute: '', period: 'AM' as 'AM' | 'PM' }
+    const [hourValue, minute = '00'] = value.split(':')
+    const hour24 = Number(hourValue)
+    return {
+      hour: String(hour24 % 12 || 12),
+      minute,
+      period: (hour24 >= 12 ? 'PM' : 'AM') as 'AM' | 'PM',
+    }
+  })()
+
+  const update = (hour: string, minute: string, period: 'AM' | 'PM') => {
+    if (!hour) {
+      onChange('')
+      return
+    }
+    const hour12 = Number(hour)
+    const hour24 = period === 'PM' ? (hour12 % 12) + 12 : hour12 % 12
+    onChange(`${String(hour24).padStart(2, '0')}:${minute || '00'}`)
+  }
+
+  return (
+    <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
+      <select
+        aria-label={`${label} hour`}
+        value={parts.hour}
+        onChange={(e) => update(e.target.value, parts.minute || '00', parts.period)}
+        className="w-full px-4 py-2.5 border-2 border-tm-border bg-tm-surface text-tm-text-1 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+      >
+        <option value="">Hour</option>
+        {Array.from({ length: 12 }, (_, index) => String(index + 1)).map(hour => (
+          <option key={hour} value={hour}>{hour}</option>
+        ))}
+      </select>
+      <select
+        aria-label={`${label} minute`}
+        value={parts.minute}
+        disabled={!parts.hour}
+        onChange={(e) => update(parts.hour, e.target.value, parts.period)}
+        className="w-full px-4 py-2.5 border-2 border-tm-border bg-tm-surface text-tm-text-1 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all disabled:opacity-50"
+      >
+        <option value="" disabled>Minute</option>
+        {Array.from({ length: 60 }, (_, index) => String(index).padStart(2, '0')).map(minute => (
+          <option key={minute} value={minute}>{minute}</option>
+        ))}
+      </select>
+      <select
+        aria-label={`${label} AM or PM`}
+        value={parts.period}
+        disabled={!parts.hour}
+        onChange={(e) => update(parts.hour, parts.minute || '00', e.target.value as 'AM' | 'PM')}
+        className="px-4 py-2.5 border-2 border-tm-border bg-tm-surface text-tm-text-1 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all disabled:opacity-50"
+      >
+        <option value="AM">AM</option>
+        <option value="PM">PM</option>
+      </select>
+    </div>
+  )
+}
+
+function formatSessionTime(time?: string) {
+  if (!time) return ''
+  const [hourValue, minute = '00'] = time.split(':')
+  const hour24 = Number(hourValue)
+  return `${hour24 % 12 || 12}:${minute} ${hour24 >= 12 ? 'PM' : 'AM'}`
+}
+
+function getSessionDuration(start?: string, end?: string) {
+  if (!start || !end) return ''
+  const [startHour, startMinute] = start.split(':').map(Number)
+  const [endHour, endMinute] = end.split(':').map(Number)
+  const totalMinutes = endHour * 60 + endMinute - (startHour * 60 + startMinute)
+  if (totalMinutes <= 0) return ''
+  const hours = Math.floor(totalMinutes / 60)
+  const minutes = totalMinutes % 60
+  return [hours ? `${hours}h` : '', minutes ? `${minutes}m` : ''].filter(Boolean).join(' ')
+}
+
+function formatSessionTimeRange(start?: string, end?: string) {
+  if (!start) return ''
+  if (!end) return formatSessionTime(start)
+  const duration = getSessionDuration(start, end)
+  return `${formatSessionTime(start)} – ${formatSessionTime(end)}${duration ? ` (${duration})` : ''}`
+}
+
 export default function TrainingPage() {
   const [user, setUser] = useState<any>(null)
   const [players, setPlayers] = useState<Player[]>([])
@@ -114,6 +209,7 @@ export default function TrainingPage() {
   const [scheduleForm, setScheduleForm] = useState({
     session_date: '',
     session_time: '',
+    session_end_time: '',
     location: '',
     description: '',
   })
@@ -148,6 +244,7 @@ export default function TrainingPage() {
     sessionId: string
     sessionDate: string
     sessionTime?: string
+    sessionEndTime?: string
     location?: string
     description?: string
     drills?: string
@@ -300,6 +397,7 @@ export default function TrainingPage() {
                 date: s.session_date,
                 title: s.description || `Training Session ${s.session_number}`,
                 session_time: s.session_time,
+                session_end_time: s.session_end_time,
                 location: s.location,
                 description: s.description,
                 coach_name: s.coach?.name || 'Coach',
@@ -335,6 +433,7 @@ export default function TrainingPage() {
                     sessionId: session.id,
                     sessionDate: session.session_date,
                     sessionTime: session.session_time,
+                    sessionEndTime: session.session_end_time,
                     location: session.location,
                     description: session.description,
                     drills: session.description, // Using description as drills/activities
@@ -367,6 +466,7 @@ export default function TrainingPage() {
                 date: s.session_date,
                 title: s.description || `Training Session ${s.session_number}`,
                 session_time: s.session_time,
+                session_end_time: s.session_end_time,
                 location: s.location,
                 description: s.description,
                 coach_name: s.coach?.name || 'Coach',
@@ -424,6 +524,7 @@ export default function TrainingPage() {
                 date: s.session_date,
                 title: s.description || `Training Session ${s.session_number}`,
                 session_time: s.session_time,
+                session_end_time: s.session_end_time,
                 location: s.location,
                 description: s.description,
               }))
@@ -955,6 +1056,7 @@ export default function TrainingPage() {
           date: s.session_date,
           title: s.description || `Training Session ${s.session_number}`,
           session_time: s.session_time,
+          session_end_time: s.session_end_time,
           location: s.location,
           description: s.description,
         }))
@@ -986,6 +1088,14 @@ export default function TrainingPage() {
 
       if (!scheduleForm.session_date) {
         alert('Please select a date for the training session')
+        return
+      }
+      if (!scheduleForm.session_time || !scheduleForm.session_end_time) {
+        alert('Please select both a start time and finish time')
+        return
+      }
+      if (scheduleForm.session_end_time <= scheduleForm.session_time) {
+        alert('Finish time must be later than start time')
         return
       }
 
@@ -1044,7 +1154,7 @@ export default function TrainingPage() {
           
           await db.createNotificationForUsers(userIds, {
             title: 'New Training Session Scheduled',
-            message: `${coachName} has scheduled a new training session on ${sessionDate}${scheduleForm.session_time ? ` at ${scheduleForm.session_time}` : ''}${scheduleForm.location ? ` - ${scheduleForm.location}` : ''}`,
+            message: `${coachName} has scheduled a new training session on ${sessionDate} from ${formatSessionTime(scheduleForm.session_time)} to ${formatSessionTime(scheduleForm.session_end_time)}${scheduleForm.location ? ` - ${scheduleForm.location}` : ''}`,
             type: 'info',
             action_url: '/training',
             reference_id: newSession.id,
@@ -1056,7 +1166,7 @@ export default function TrainingPage() {
         // Don't fail the whole operation if notifications fail
       }
 
-      setScheduleForm({ session_date: '', session_time: '', location: '', description: '' })
+      setScheduleForm({ session_date: '', session_time: '', session_end_time: '', location: '', description: '' })
       setShowScheduleForm(false)
       await loadData()
       alert('Training session created successfully! All users have been notified.')
@@ -1670,31 +1780,6 @@ export default function TrainingPage() {
     }
   }
 
-  const trainingTimeParts = (() => {
-    if (!scheduleForm.session_time) return { hour: '', minute: '', period: 'AM' as 'AM' | 'PM' }
-    const [hourValue, minute = '00'] = scheduleForm.session_time.split(':')
-    const hour24 = Number(hourValue)
-    return {
-      hour: String(hour24 % 12 || 12),
-      minute,
-      period: (hour24 >= 12 ? 'PM' : 'AM') as 'AM' | 'PM',
-    }
-  })()
-
-  const updateTrainingTime = (hour: string, minute: string, period: 'AM' | 'PM') => {
-    if (!hour) {
-      setScheduleForm(prev => ({ ...prev, session_time: '' }))
-      return
-    }
-    const hour12 = Number(hour)
-    const hour24 = period === 'PM'
-      ? (hour12 % 12) + 12
-      : hour12 % 12
-    setScheduleForm(prev => ({
-      ...prev,
-      session_time: `${String(hour24).padStart(2, '0')}:${minute || '00'}`,
-    }))
-  }
 
   if (loading) {
     return (
@@ -1790,7 +1875,7 @@ export default function TrainingPage() {
                           {session.session_time && (
                             <div className="flex items-center text-tm-text-3">
                               <Clock className="w-4 h-4 mr-2" />
-                              <span className="text-sm font-medium">{session.session_time}</span>
+                              <span className="text-sm font-medium">{formatSessionTimeRange(session.session_time, session.session_end_time)}</span>
                             </div>
                           )}
                           {session.location && (
@@ -2451,14 +2536,14 @@ export default function TrainingPage() {
         {/* Create Training Session modal */}
         {showScheduleForm && ['coach', 'asst_coach', 'data_admin'].includes(user?.role || '') && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-            <div className="bg-tm-surface rounded-card shadow-large max-w-2xl w-full border border-tm-border">
+            <div className="bg-tm-surface rounded-card shadow-large max-w-2xl max-h-[90vh] overflow-y-auto w-full border border-tm-border">
               <div className="p-6 border-b border-tm-border">
                 <div className="flex justify-between items-center">
                   <h2 className="text-2xl font-bold text-tm-text-1">Create Training Session</h2>
                   <button
                     onClick={() => {
                       setShowScheduleForm(false)
-                      setScheduleForm({ session_date: '', session_time: '', location: '', description: '' })
+                      setScheduleForm({ session_date: '', session_time: '', session_end_time: '', location: '', description: '' })
                     }}
                     className="modal-close-btn"
                   >
@@ -2484,44 +2569,31 @@ export default function TrainingPage() {
                 <div>
                   <label className="block text-sm font-medium text-tm-text-3 mb-2">
                     <Clock className="w-4 h-4 inline mr-2" />
-                    Training Time
+                    Start Time <span className="text-[#E05757]">*</span>
                   </label>
-                  <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
-                    <select
-                      aria-label="Training hour"
-                      value={trainingTimeParts.hour}
-                      onChange={(e) => updateTrainingTime(e.target.value, trainingTimeParts.minute || '00', trainingTimeParts.period)}
-                      className="w-full px-4 py-2.5 border-2 border-tm-border bg-tm-surface text-tm-text-1 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
-                    >
-                      <option value="">Hour</option>
-                      {Array.from({ length: 12 }, (_, index) => String(index + 1)).map(hour => (
-                        <option key={hour} value={hour}>{hour}</option>
-                      ))}
-                    </select>
-                    <select
-                      aria-label="Training minute"
-                      value={trainingTimeParts.minute}
-                      disabled={!trainingTimeParts.hour}
-                      onChange={(e) => updateTrainingTime(trainingTimeParts.hour, e.target.value, trainingTimeParts.period)}
-                      className="w-full px-4 py-2.5 border-2 border-tm-border bg-tm-surface text-tm-text-1 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all disabled:opacity-50"
-                    >
-                      <option value="" disabled>Minute</option>
-                      {Array.from({ length: 60 }, (_, index) => String(index).padStart(2, '0')).map(minute => (
-                        <option key={minute} value={minute}>{minute}</option>
-                      ))}
-                    </select>
-                    <select
-                      aria-label="AM or PM"
-                      value={trainingTimeParts.period}
-                      disabled={!trainingTimeParts.hour}
-                      onChange={(e) => updateTrainingTime(trainingTimeParts.hour, trainingTimeParts.minute || '00', e.target.value as 'AM' | 'PM')}
-                      className="px-4 py-2.5 border-2 border-tm-border bg-tm-surface text-tm-text-1 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all disabled:opacity-50"
-                    >
-                      <option value="AM">AM</option>
-                      <option value="PM">PM</option>
-                    </select>
-                  </div>
-                  <p className="mt-1.5 text-xs text-tm-text-3">Select the hour, minute, and AM or PM.</p>
+                  <TimeDropdowns
+                    label="Start time"
+                    value={scheduleForm.session_time}
+                    onChange={(value) => setScheduleForm(prev => ({ ...prev, session_time: value }))}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-tm-text-3 mb-2">
+                    <Clock className="w-4 h-4 inline mr-2" />
+                    Finish Time <span className="text-[#E05757]">*</span>
+                  </label>
+                  <TimeDropdowns
+                    label="Finish time"
+                    value={scheduleForm.session_end_time}
+                    onChange={(value) => setScheduleForm(prev => ({ ...prev, session_end_time: value }))}
+                  />
+                  {scheduleForm.session_time && scheduleForm.session_end_time && (
+                    <p className={`mt-2 text-xs font-medium ${scheduleForm.session_end_time > scheduleForm.session_time ? 'text-green-500' : 'text-[#E05757]'}`}>
+                      {scheduleForm.session_end_time > scheduleForm.session_time
+                        ? `Duration: ${getSessionDuration(scheduleForm.session_time, scheduleForm.session_end_time)}`
+                        : 'Finish time must be later than start time.'}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-tm-text-3 mb-2">
@@ -2552,7 +2624,7 @@ export default function TrainingPage() {
                 <div className="flex gap-3 pt-4">
                   <button
                     onClick={handleCreateSchedule}
-                    disabled={savingSchedule}
+                    disabled={savingSchedule || !scheduleForm.session_date || !scheduleForm.session_time || !scheduleForm.session_end_time || scheduleForm.session_end_time <= scheduleForm.session_time}
                     className="flex-1 px-6 py-3 bg-tm-secondary text-tm-on-secondary rounded-[6px] hover:opacity-90 transition-all duration-300 font-semibold shadow-soft hover:shadow-medium disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {savingSchedule ? 'Creating...' : 'Create Training Session'}
@@ -2560,7 +2632,7 @@ export default function TrainingPage() {
                   <button
                     onClick={() => {
                       setShowScheduleForm(false)
-                      setScheduleForm({ session_date: '', session_time: '', location: '', description: '' })
+                      setScheduleForm({ session_date: '', session_time: '', session_end_time: '', location: '', description: '' })
                     }}
                     className="px-6 py-3 bg-tm-surface-hover text-tm-text-1 rounded-[6px] hover:bg-tm-surface-hover transition-all duration-300 font-semibold"
                   >
@@ -2626,7 +2698,7 @@ export default function TrainingPage() {
                         {summary.sessionTime && (
                           <div className="flex items-center">
                             <Clock className="w-3 h-3 mr-1" />
-                            {summary.sessionTime}
+                            {formatSessionTimeRange(summary.sessionTime, summary.sessionEndTime)}
                           </div>
                         )}
                         {summary.location && (
@@ -2778,7 +2850,7 @@ export default function TrainingPage() {
                     day: 'numeric', 
                     year: 'numeric' 
                   })}
-                  {session.session_time ? ` at ${session.session_time}` : ''}
+                  {session.session_time ? ` at ${formatSessionTimeRange(session.session_time, session.session_end_time)}` : ''}
                   {session.location ? ` - ${session.location}` : ''}
                   {session.description ? `: ${session.description}` : ''}
                 </option>
@@ -2869,7 +2941,7 @@ export default function TrainingPage() {
                 </p>
                 {session.session_time && (
                   <p className="text-xs text-tm-text-3 mt-1">
-                    {session.session_time}
+                    {formatSessionTimeRange(session.session_time, session.session_end_time)}
                   </p>
                 )}
                 {session.location && (

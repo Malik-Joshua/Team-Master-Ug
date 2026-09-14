@@ -27,10 +27,19 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { session_date, session_time, location, description } = body
+    const { session_date, session_time, session_end_time, location, description } = body
 
     if (!session_date || !/^\d{4}-\d{2}-\d{2}$/.test(session_date)) {
       return NextResponse.json({ error: 'A valid training date is required' }, { status: 400 })
+    }
+    if (!session_time || !session_end_time) {
+      return NextResponse.json({ error: 'Start time and finish time are required' }, { status: 400 })
+    }
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(session_time) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(session_end_time)) {
+      return NextResponse.json({ error: 'Start time and finish time must be valid times' }, { status: 400 })
+    }
+    if (session_end_time <= session_time) {
+      return NextResponse.json({ error: 'Finish time must be later than start time' }, { status: 400 })
     }
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -62,7 +71,8 @@ export async function POST(request: NextRequest) {
       .insert({
         session_number: (latestSession?.session_number || 0) + 1,
         session_date,
-        session_time: session_time || null,
+        session_time,
+        session_end_time,
         location: location?.trim() || null,
         description: description?.trim() || null,
         coach_id: authUser.id,

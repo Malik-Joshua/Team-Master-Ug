@@ -2014,6 +2014,13 @@ export default function TrainingPage() {
                         Import Schedule
                       </button>
                       <button
+                        onClick={() => setShowScheduleForm(true)}
+                        className="bg-secondary text-tm-on-secondary px-4 py-2.5 rounded-[6px] text-sm font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center whitespace-nowrap"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Create Training Session
+                      </button>
+                      <button
                         onClick={() => setShowGymScheduleForm(true)}
                         className="bg-warning text-white px-4 py-2.5 rounded-[6px] text-sm font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center whitespace-nowrap"
                       >
@@ -2022,15 +2029,24 @@ export default function TrainingPage() {
                       </button>
                     </>
                   )}
-                  {/* Manager: import attendance only */}
+                  {/* Manager: create training session + import attendance */}
                   {user?.role === 'data_admin' && (
-                    <button
-                      onClick={() => { setAttendanceOnly(true); setShowUploadForm(true) }}
-                      className="bg-info text-white px-4 py-2.5 rounded-[6px] text-sm font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center whitespace-nowrap"
-                    >
-                      <Upload className="w-4 h-4 mr-2" />
-                      Import Attendance
-                    </button>
+                    <>
+                      <button
+                        onClick={() => setShowScheduleForm(true)}
+                        className="bg-secondary text-tm-on-secondary px-4 py-2.5 rounded-[6px] text-sm font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center whitespace-nowrap"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Create Training Session
+                      </button>
+                      <button
+                        onClick={() => { setAttendanceOnly(true); setShowUploadForm(true) }}
+                        className="bg-info text-white px-4 py-2.5 rounded-[6px] text-sm font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center whitespace-nowrap"
+                      >
+                        <Upload className="w-4 h-4 mr-2" />
+                        Import Attendance
+                      </button>
+                    </>
                   )}
                   <button
                     onClick={handleSave}

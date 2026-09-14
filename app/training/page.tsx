@@ -2105,24 +2105,15 @@ export default function TrainingPage() {
                       </button>
                     </>
                   )}
-                  {/* Manager: create training session + import attendance */}
+                  {/* Manager: create training session */}
                   {user?.role === 'data_admin' && (
-                    <>
-                      <button
-                        onClick={() => setShowScheduleForm(true)}
-                        className="bg-secondary text-tm-on-secondary px-4 py-2.5 rounded-[6px] text-sm font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center whitespace-nowrap"
-                      >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Create Training Session
-                      </button>
-                      <button
-                        onClick={() => { setAttendanceOnly(true); setShowUploadForm(true) }}
-                        className="bg-info text-white px-4 py-2.5 rounded-[6px] text-sm font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center whitespace-nowrap"
-                      >
-                        <Upload className="w-4 h-4 mr-2" />
-                        Import Attendance
-                      </button>
-                    </>
+                    <button
+                      onClick={() => setShowScheduleForm(true)}
+                      className="bg-secondary text-tm-on-secondary px-4 py-2.5 rounded-[6px] text-sm font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center whitespace-nowrap"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create Training Session
+                    </button>
                   )}
                   <button
                     onClick={handleSave}
@@ -2807,11 +2798,22 @@ export default function TrainingPage() {
         {/* Session Selection for Attendance - Coach and Data Admin */}
         {(user?.role === 'coach' || user?.role === 'data_admin') && sessions.length > 0 && (
           <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col gap-3 mb-4 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <h2 className="text-xl font-bold text-tm-text-1 mb-2">Select Training Session for Attendance</h2>
                 <p className="text-sm text-tm-text-3">Choose which training session you want to record attendance for</p>
               </div>
+              <button
+                onClick={() => {
+                  setAttendanceOnly(true)
+                  if (selectedSessionId) setCsvSessionId(selectedSessionId)
+                  setShowUploadForm(true)
+                }}
+                className="bg-info text-white px-4 py-2.5 rounded-[6px] text-sm font-semibold hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center justify-center whitespace-nowrap"
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                Import Attendance
+              </button>
             </div>
             <select
               value={selectedSessionId}

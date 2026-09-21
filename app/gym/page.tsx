@@ -1125,7 +1125,10 @@ export default function GymPage() {
               ) : (
                 <div className="p-8 text-center">
                   <p className="text-sm text-tm-text-3">No preview available for this file.</p>
-                  <p className="text-xs text-tm-text-3 mt-1">Files uploaded before this update don&apos;t have stored content. Re-upload the file to enable viewing.</p>
+                  <p className="text-xs text-tm-text-3 mt-1">
+                    This file was uploaded before content storage was enabled, so its rows were never captured.
+                    Its metrics are already applied to the squad table. Re-upload the file to enable in-app viewing and download.
+                  </p>
                 </div>
               )}
             </div>

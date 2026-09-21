@@ -3355,6 +3355,7 @@ export default function TrainingPage() {
                 <span className="text-xs text-tm-text-3">
                   {viewingTrainingFile.rows ? `${viewingTrainingFile.rows.length - 1} data rows` : 'No data stored'}
                   {viewingTrainingFile.rows && viewingTrainingFile.rows.length >= 300 ? ' (preview capped at 300 rows)' : ''}
+                  {viewingTrainingFile.rows_rebuilt ? ' · rebuilt from saved attendance records' : ''}
                 </span>
                 <button onClick={() => setViewingTrainingFile(null)} className="px-4 py-2 rounded-md text-sm font-medium border border-tm-border text-tm-text-1 hover:bg-tm-surface-hover">
                   Close

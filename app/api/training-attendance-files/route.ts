@@ -51,14 +51,63 @@ export async function GET(_request: NextRequest) {
       uploaders?.forEach((u: any) => { uploaderMap[u.user_id] = u.name })
     }
 
-    const enriched = (files ?? []).map((f: any) => ({
-      ...f,
-      uploader_name: f.uploaded_by ? (uploaderMap[f.uploaded_by] ?? null) : null,
-      // Normalise session shape so the UI can use f.session?.title / f.session?.date
-      session: f.session
-        ? { title: f.session.description, date: f.session.session_date }
-        : null,
-    }))
+    // Legacy records (uploaded before content storage existed) have no `rows`.
+    // Rebuild a viewable table from the attendance actually saved for that
+    // session so the archive is never a dead end.
+    const legacySessionIds = [...new Set(
+      (files ?? [])
+        .filter((f: any) => f.session_id && !(Array.isArray(f.rows) && f.rows.length))
+        .map((f: any) => f.session_id)
+    )] as string[]
+
+    const rebuiltRows: Record<string, string[][]> = {}
+    if (legacySessionIds.length > 0) {
+      const { data: attendance } = await supabaseAdmin
+        .from('training_attendance')
+        .select('session_id, player_id, attendance_status, notes')
+        .in('session_id', legacySessionIds)
+
+      const playerIds = [...new Set((attendance ?? []).map((a: any) => a.player_id))] as string[]
+      const nameMap: Record<string, string> = {}
+      if (playerIds.length > 0) {
+        const { data: players } = await supabaseAdmin
+          .from('user_profiles').select('user_id, name').in('user_id', playerIds)
+        players?.forEach((p: any) => { nameMap[p.user_id] = p.name })
+      }
+
+      const statusLabel: Record<string, string> = {
+        P: 'P — Present', A: 'A — Justified Absence', X: 'X — Unjustified Absence', I: 'I — Injured',
+      }
+      for (const a of attendance ?? []) {
+        if (!rebuiltRows[a.session_id]) rebuiltRows[a.session_id] = [['Player', 'Status', 'Notes']]
+        rebuiltRows[a.session_id].push([
+          nameMap[a.player_id] ?? 'Unknown player',
+          statusLabel[a.attendance_status] ?? a.attendance_status,
+          a.notes ?? '',
+        ])
+      }
+      // Sort players alphabetically beneath the header row
+      for (const id of Object.keys(rebuiltRows)) {
+        const [header, ...body] = rebuiltRows[id]
+        body.sort((x, y) => x[0].localeCompare(y[0]))
+        rebuiltRows[id] = [header, ...body]
+      }
+    }
+
+    const enriched = (files ?? []).map((f: any) => {
+      const hasStoredRows = Array.isArray(f.rows) && f.rows.length > 0
+      const rebuilt = !hasStoredRows && f.session_id ? rebuiltRows[f.session_id] : undefined
+      return {
+        ...f,
+        rows: hasStoredRows ? f.rows : (rebuilt ?? null),
+        rows_rebuilt: !hasStoredRows && !!rebuilt,
+        uploader_name: f.uploaded_by ? (uploaderMap[f.uploaded_by] ?? null) : null,
+        // Normalise session shape so the UI can use f.session?.title / f.session?.date
+        session: f.session
+          ? { title: f.session.description, date: f.session.session_date }
+          : null,
+      }
+    })
 
     return NextResponse.json({ files: enriched })
   } catch (error: any) {

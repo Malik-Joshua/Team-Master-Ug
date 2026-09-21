@@ -324,7 +324,8 @@ export default function GymPage() {
     }
   }
 
-  const canManage = user?.role === 'coach' || user?.role === 'asst_coach' || user?.role === 'admin' || user?.role === 'data_admin' || user?.role === 'finance_admin'
+  const canManage = user?.role === 'coach' || user?.role === 'asst_coach' || user?.role === 'data_admin' || user?.role === 'finance_admin'
+  const canView = user?.role === 'admin' || canManage
 
   /* ── handlers ── */
   const handleCreate = async () => {
@@ -597,8 +598,8 @@ export default function GymPage() {
           </StatGrid>
         )}
 
-        {/* Squad gym metrics — coaches / managers */}
-        {canManage && (
+        {/* Squad gym metrics — coaches / managers / admin */}
+        {canView && (
           <div>
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-sm font-medium text-tm-text-1 flex items-center gap-2">
@@ -776,8 +777,8 @@ export default function GymPage() {
           )}
         </div>
 
-        {/* Past sessions — coaches/managers, with "Record Metrics" + dismiss */}
-        {canManage && pastSessions.length > 0 && (
+        {/* Past sessions — coaches/managers/admin, with "Record Metrics" + dismiss */}
+        {canView && pastSessions.length > 0 && (
           <div>
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-sm font-medium text-tm-text-1">Past gym sessions</h2>
@@ -876,8 +877,8 @@ export default function GymPage() {
           </div>
         )}
 
-        {/* Metric Files archive — coaches/managers */}
-        {canManage && (
+        {/* Metric Files archive — coaches/managers/admin */}
+        {canView && (
           <div>
             <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
               <h2 className="text-sm font-medium text-tm-text-1 flex items-center gap-2">

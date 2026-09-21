@@ -193,10 +193,33 @@ export default function GymPage() {
           // DB records take precedence; merge over localStorage records
           const dbFiles: any[] = (await filesRes.json()).files || []
           setMetricFiles(prev => {
-            // Keep any localStorage-only records that don't have a DB counterpart
-            const dbIds = new Set(dbFiles.map((f: any) => f.id))
-            const localOnly = prev.filter((f: any) => f._local && !dbIds.has(f.id))
-            return [...dbFiles, ...localOnly]
+            const sameFile = (a: any, b: any) =>
+              (a.session_id ?? null) === (b.session_id ?? null) && a.file_name === b.file_name
+            const locals = prev.filter((f: any) => f._local)
+
+            // De-duplicate DB records for the same session+file (keep the
+            // newest, but prefer any copy that already has stored rows), and
+            // carry `rows` over from a matching localStorage record when the DB
+            // copy has none (e.g. migration 057 not yet applied).
+            const merged: any[] = []
+            for (const dbFile of dbFiles) {
+              const existingIdx = merged.findIndex(m => sameFile(m, dbFile))
+              const localMatch = locals.find(l => sameFile(l, dbFile))
+              const withRows = dbFile.rows?.length
+                ? dbFile
+                : localMatch?.rows?.length
+                  ? { ...dbFile, rows: localMatch.rows }
+                  : dbFile
+              if (existingIdx === -1) {
+                merged.push(withRows)
+              } else if (withRows.rows?.length && !merged[existingIdx].rows?.length) {
+                merged[existingIdx] = withRows
+              }
+            }
+
+            // Keep localStorage-only records that have no DB counterpart at all.
+            const localOnly = locals.filter(l => !merged.some(m => sameFile(m, l)))
+            return [...merged, ...localOnly]
           })
         }
       } catch (e) { console.error('Error loading squad gym metrics:', e) }

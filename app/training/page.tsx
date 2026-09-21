@@ -263,6 +263,9 @@ export default function TrainingPage() {
 
   // ── Training attendance file archive (localStorage-backed) ──────────────
   const [dismissedTrainingSessions, setDismissedTrainingSessions] = useState<Set<string>>(new Set())
+  // Dismissed "Training Sessions Summary" cards (per user, persisted locally).
+  const [dismissedSummaryCards, setDismissedSummaryCards] = useState<Set<string>>(new Set())
+  const [showDismissedSummaries, setShowDismissedSummaries] = useState(false)
   const [recordedTrainingSessions, setRecordedTrainingSessions] = useState<Set<string>>(new Set())
   const [trainingFiles, setTrainingFiles] = useState<any[]>([])
   const [trainingFileFilter, setTrainingFileFilter] = useState<string>('all')
@@ -307,6 +310,8 @@ export default function TrainingPage() {
           try {
             const rawDismissed = localStorage.getItem(`dismissed_training_sessions_${authUser.id}`)
             if (rawDismissed) setDismissedTrainingSessions(new Set(JSON.parse(rawDismissed)))
+            const rawDismissedSummaries = localStorage.getItem(`dismissed_training_summaries_${authUser.id}`)
+            if (rawDismissedSummaries) setDismissedSummaryCards(new Set(JSON.parse(rawDismissedSummaries)))
             const rawRecorded = localStorage.getItem(`recorded_training_sessions_${authUser.id}`)
             if (rawRecorded) setRecordedTrainingSessions(new Set(JSON.parse(rawRecorded)))
             const rawFiles = localStorage.getItem(`training_file_records_${authUser.id}`)
@@ -1620,6 +1625,28 @@ export default function TrainingPage() {
     })
   }
 
+  const persistDismissedSummaries = (next: Set<string>) => {
+    try { localStorage.setItem(`dismissed_training_summaries_${trainingUserIdRef.current}`, JSON.stringify([...next])) } catch { /* ignore */ }
+  }
+
+  const dismissSummaryCard = (id: string) => {
+    setDismissedSummaryCards(prev => {
+      const next = new Set(prev)
+      next.add(id)
+      persistDismissedSummaries(next)
+      return next
+    })
+  }
+
+  const restoreSummaryCard = (id: string) => {
+    setDismissedSummaryCards(prev => {
+      const next = new Set(prev)
+      next.delete(id)
+      persistDismissedSummaries(next)
+      return next
+    })
+  }
+
   const markTrainingSessionRecorded = (id: string) => {
     setRecordedTrainingSessions(prev => {
       const next = new Set(prev)
@@ -2684,9 +2711,21 @@ export default function TrainingPage() {
         {['admin', 'coach', 'data_admin'].includes(user?.role || '') && (
           <div className="space-y-4">
             <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
-              <h2 className="text-2xl font-bold text-tm-text-1 mb-4">Training Sessions Summary</h2>
-              <p className="text-tm-text-3 mb-6">Overview of all training sessions with attendance and activities</p>
-              
+              <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-tm-text-1 mb-2">Training Sessions Summary</h2>
+                  <p className="text-tm-text-3">Overview of all training sessions with attendance and activities</p>
+                </div>
+                {dismissedSummaryCards.size > 0 && (
+                  <button
+                    onClick={() => setShowDismissedSummaries(v => !v)}
+                    className="text-xs font-medium text-tm-text-3 hover:text-tm-text-1 underline underline-offset-2"
+                  >
+                    {showDismissedSummaries ? 'Hide dismissed' : `Show dismissed (${dismissedSummaryCards.size})`}
+                  </button>
+                )}
+              </div>
+
               {sessionSummaries.length === 0 ? (
                 <div className="text-center py-12">
                   <Calendar className="w-16 h-16 text-tm-text-3 mx-auto mb-4" />
@@ -2695,10 +2734,14 @@ export default function TrainingPage() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {sessionSummaries.map((summary) => (
+                {sessionSummaries
+                  .filter(summary => showDismissedSummaries || !dismissedSummaryCards.has(summary.sessionId))
+                  .map((summary) => {
+                  const isDismissed = dismissedSummaryCards.has(summary.sessionId)
+                  return (
                   <div
                     key={summary.sessionId}
-                    className="bg-tm-surface rounded-lg border border-tm-border shadow-soft p-5 hover:shadow-medium transition-all"
+                    className={`bg-tm-surface rounded-lg border border-tm-border shadow-soft p-5 hover:shadow-medium transition-all ${isDismissed ? 'opacity-60' : ''}`}
                   >
                     {/* Session Header */}
                     <div className="mb-4 pb-4 border-b border-tm-border">
@@ -2728,6 +2771,13 @@ export default function TrainingPage() {
                               )}
                             </button>
                           )}
+                          <button
+                            onClick={() => isDismissed ? restoreSummaryCard(summary.sessionId) : dismissSummaryCard(summary.sessionId)}
+                            className="p-1.5 rounded-lg text-tm-text-3 hover:text-tm-text-1 hover:bg-tm-surface-hover transition-all"
+                            title={isDismissed ? 'Restore card' : 'Dismiss card'}
+                          >
+                            {isDismissed ? <CheckCircle2 className="w-4 h-4" /> : <X className="w-4 h-4" />}
+                          </button>
                         </div>
                       </div>
                       <div className="flex flex-wrap gap-2 text-xs text-tm-text-3">
@@ -2788,7 +2838,8 @@ export default function TrainingPage() {
                       </div>
                     </div>
                   </div>
-                ))}
+                  )
+                })}
                 </div>
               )}
             </div>

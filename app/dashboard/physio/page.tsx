@@ -335,7 +335,15 @@ export default function PhysioDashboard() {
     loadData()
   }, [loadData])
 
+  // Only the physio and the team manager may record, edit, or clear injuries.
+  // Admins get a read-only view of injury management.
+  const canRecordInjury = user?.role === 'physio' || user?.role === 'data_admin'
+
   const handleSaveInjury = async () => {
+    if (!canRecordInjury) {
+      alert('Only the physio and team manager can record injuries')
+      return
+    }
     if (!injuryForm.player_id || !injuryForm.injury_date || !injuryForm.cause || !injuryForm.diagnosis || !injuryForm.action_taken) {
       alert('Please fill in all required fields (Player, Date, Cause, Diagnosis, Action Taken)')
       return
@@ -484,6 +492,10 @@ export default function PhysioDashboard() {
   }
 
   const handleClearInjury = async (injuryId: string) => {
+    if (!canRecordInjury) {
+      alert('Only the physio and team manager can clear injuries')
+      return
+    }
     if (!confirm('Are you sure you want to clear this injury?')) return
 
     try {
@@ -564,28 +576,30 @@ export default function PhysioDashboard() {
           </div>
           <div className="flex flex-wrap gap-2 sm:gap-3">
             <RefreshButton onRefresh={loadData} />
-            <button
-              onClick={() => {
-                setEditingInjury(null)
-                setInjuryForm({
-                  player_id: '',
-                  injury_date: new Date().toISOString().split('T')[0],
-                  cause: '',
-                  diagnosis: '',
-                  action_taken: '',
-                  further_treatment: '',
-                  medication: '',
-                  return_to_training_date: '',
-                  return_to_play_date: '',
-                  notes: '',
-                })
-                setShowInjuryForm(true)
-              }}
-              className="flex items-center space-x-2 px-4 py-2 bg-primary text-tm-on-secondary rounded-[6px] font-semibold hover:opacity-90 transition-colors"
-            >
-              <Plus className="w-5 h-5" />
-              <span>Record New Injury</span>
-            </button>
+            {canRecordInjury && (
+              <button
+                onClick={() => {
+                  setEditingInjury(null)
+                  setInjuryForm({
+                    player_id: '',
+                    injury_date: new Date().toISOString().split('T')[0],
+                    cause: '',
+                    diagnosis: '',
+                    action_taken: '',
+                    further_treatment: '',
+                    medication: '',
+                    return_to_training_date: '',
+                    return_to_play_date: '',
+                    notes: '',
+                  })
+                  setShowInjuryForm(true)
+                }}
+                className="flex items-center space-x-2 px-4 py-2 bg-primary text-tm-on-secondary rounded-[6px] font-semibold hover:opacity-90 transition-colors"
+              >
+                <Plus className="w-5 h-5" />
+                <span>Record New Injury</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -865,7 +879,7 @@ export default function PhysioDashboard() {
                         )}
                       </div>
                     </div>
-                    {injury.status === 'active' && (
+                    {injury.status === 'active' && canRecordInjury && (
                       <div className="flex items-center gap-2 flex-shrink-0 sm:ml-4">
                         <button
                           onClick={() => handleEditInjury(injury)}
@@ -891,7 +905,7 @@ export default function PhysioDashboard() {
         </div>
       </div>
 
-      {showInjuryForm && (
+      {showInjuryForm && canRecordInjury && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-tm-surface rounded-card shadow-soft max-w-3xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-tm-border">

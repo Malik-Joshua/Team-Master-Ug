@@ -91,10 +91,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Only coaches and admins can create gym schedules
-    if (!['coach', 'asst_coach', 'admin'].includes(profile.role)) {
+    // Coaches, the assistant coach, the team manager and finance run gym
+    // sessions day to day — the club admin is read-only here (mirrors
+    // canManage/canView in app/gym/page.tsx; keep both in sync).
+    if (!['coach', 'asst_coach', 'data_admin', 'finance_admin'].includes(profile.role)) {
       return NextResponse.json(
-        { error: 'Only coaches and admins can create gym schedules' },
+        { error: 'Only coaches, the team manager and finance can create gym schedules' },
         { status: 403 }
       )
     }
@@ -222,8 +224,8 @@ export async function PUT(request: NextRequest) {
     if (authError || !authUser) return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
 
     const { data: profile } = await supabase.from('user_profiles').select('role').eq('user_id', authUser.id).single()
-    if (!profile || (!['coach', 'asst_coach', 'admin'].includes(profile.role))) {
-      return NextResponse.json({ error: 'Only coaches and admins can edit gym schedules' }, { status: 403 })
+    if (!profile || (!['coach', 'asst_coach', 'data_admin', 'finance_admin'].includes(profile.role))) {
+      return NextResponse.json({ error: 'Only coaches, the team manager and finance can edit gym schedules' }, { status: 403 })
     }
 
     const body = await request.json()
@@ -263,8 +265,8 @@ export async function DELETE(request: NextRequest) {
     if (authError || !authUser) return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
 
     const { data: profile } = await supabase.from('user_profiles').select('role').eq('user_id', authUser.id).single()
-    if (!profile || (!['coach', 'asst_coach', 'admin'].includes(profile.role))) {
-      return NextResponse.json({ error: 'Only coaches and admins can delete gym schedules' }, { status: 403 })
+    if (!profile || (!['coach', 'asst_coach', 'data_admin', 'finance_admin'].includes(profile.role))) {
+      return NextResponse.json({ error: 'Only coaches, the team manager and finance can delete gym schedules' }, { status: 403 })
     }
 
     const { searchParams } = new URL(request.url)

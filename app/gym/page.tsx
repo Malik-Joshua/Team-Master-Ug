@@ -6,6 +6,7 @@ import ConceptStatCard from '@/components/ConceptStatCard'
 import { PageHeader, Button, Card, StatGrid } from '@/components/ui'
 import { Dumbbell, Activity, Clock, MapPin, Plus, X, Save, RefreshCw, Eye, Pencil, Trash2, AlertTriangle, Upload, Loader2, ScanLine, CheckCircle2, Users, ClipboardList, Download, FileSpreadsheet, ChevronDown } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import TimeDropdowns from '@/components/ui/TimeDropdowns'
 import { readTabularFile } from '@/lib/tabular-import'
 
 interface GymStats {
@@ -66,36 +67,34 @@ function SessionFormFields({
 }) {
   return (
     <div className="space-y-4 p-5">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div>
-          <label className="tm-label">Date *</label>
-          <input type="date" value={form.schedule_date}
-            onChange={e => onFieldChange('schedule_date', e.target.value)}
-            className="tm-input" style={inputStyle} />
-        </div>
-        <div>
-          <label className="tm-label">Start time</label>
-          <input type="time" value={form.schedule_time}
-            onChange={e => onFieldChange('schedule_time', e.target.value)}
-            className="tm-input" style={inputStyle} />
-        </div>
+      <div>
+        <label className="tm-label">Date *</label>
+        <input type="date" value={form.schedule_date}
+          onChange={e => onFieldChange('schedule_date', e.target.value)}
+          className="tm-input" style={inputStyle} />
       </div>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div>
-          <label className="tm-label">Finish time</label>
-          <input type="time" value={form.schedule_end_time}
-            onChange={e => onFieldChange('schedule_end_time', e.target.value)}
-            className="tm-input" style={inputStyle} />
-        </div>
-        <div className="flex items-end">
-          {form.schedule_time && form.schedule_end_time && (
-            <p className={`text-xs font-medium pb-2.5 ${form.schedule_end_time > form.schedule_time ? 'text-green-500' : 'text-[#E05757]'}`}>
-              {form.schedule_end_time > form.schedule_time
-                ? `Duration: ${sessionDuration(form.schedule_time, form.schedule_end_time)}`
-                : 'Finish time must be later than start time.'}
-            </p>
-          )}
-        </div>
+      <div>
+        <label className="tm-label">Start time</label>
+        <TimeDropdowns
+          label="Start time"
+          value={form.schedule_time}
+          onChange={value => onFieldChange('schedule_time', value)}
+        />
+      </div>
+      <div>
+        <label className="tm-label">Finish time</label>
+        <TimeDropdowns
+          label="Finish time"
+          value={form.schedule_end_time}
+          onChange={value => onFieldChange('schedule_end_time', value)}
+        />
+        {form.schedule_time && form.schedule_end_time && (
+          <p className={`mt-2 text-xs font-medium ${form.schedule_end_time > form.schedule_time ? 'text-green-500' : 'text-[#E05757]'}`}>
+            {form.schedule_end_time > form.schedule_time
+              ? `Duration: ${sessionDuration(form.schedule_time, form.schedule_end_time)}`
+              : 'Finish time must be later than start time.'}
+          </p>
+        )}
       </div>
       <div>
         <label className="tm-label">Location</label>

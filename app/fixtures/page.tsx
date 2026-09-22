@@ -10,6 +10,9 @@ import { db } from '@/lib/db-helpers'
 import { isActivityPast } from '@/lib/utils'
 import TeamPitchView from '@/components/TeamPitchView'
 import Papa from 'papaparse'
+import { useNow } from '@/hooks/useNow'
+import { isMatchDayToday } from '@/lib/session-live'
+import LiveNowBadge from '@/components/ui/LiveNowBadge'
 import * as XLSX from 'xlsx'
 
 // Rugby position metadata used to group the squad roster by playing position.
@@ -128,6 +131,9 @@ interface PlayerStats {
 
 export default function FixturesPage() {
   const router = useRouter()
+  // Ticks every 30s so fixture cards can flip a "Match day" live badge on
+  // as soon as midnight passes into the match's date, without a refresh.
+  const now = useNow()
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [matches, setMatches] = useState<Match[]>([])
@@ -2996,11 +3002,16 @@ export default function FixturesPage() {
                   const canEnterStats = isWithinStatsWindow(match.match_date)
                   const squadInfo = previousSquads.find((s) => s.match_id === match.id)
                   const hasSquad = !!squadInfo
+                  // Matches only store a date, not a kickoff time, so this is
+                  // the closest signal to "happening now" we can show — see
+                  // lib/session-live.ts for why it's date-only rather than a
+                  // precise time window like gym/training sessions get.
+                  const isMatchDay = isUpcoming && isMatchDayToday(match.match_date, now)
 
                   return (
                     <div
                       key={match.id}
-                      className="border-2 border-tm-border rounded-lg p-4 hover:border-primary/50 transition-all"
+                      className={`border-2 rounded-lg p-4 transition-all ${isMatchDay ? 'border-green-500 ring-1 ring-green-500' : 'border-tm-border hover:border-primary/50'}`}
                     >
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div className="flex-1 min-w-0">
@@ -3018,6 +3029,7 @@ export default function FixturesPage() {
                             }`}>
                               {isUpcoming ? 'Upcoming' : 'Played'}
                             </span>
+                            {isMatchDay && <LiveNowBadge label="MATCH DAY" />}
                             {/* Stats-recorded chip: shows up the moment the
                                 manager saves stats (we set status='played'
                                 at save time), so the badge and this chip
@@ -4013,10 +4025,12 @@ export default function FixturesPage() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {matchSummaries.filter((s) => !hiddenSummaryIds.has(s.matchId)).map((summary) => (
+                {matchSummaries.filter((s) => !hiddenSummaryIds.has(s.matchId)).map((summary) => {
+                  const isMatchDay = summary.isUpcoming && isMatchDayToday(summary.matchDate, now)
+                  return (
                   <div
                     key={summary.matchId}
-                    className="bg-tm-surface rounded-lg border border-tm-border shadow-soft p-5 hover:shadow-medium transition-all"
+                    className={`bg-tm-surface rounded-lg border shadow-soft p-5 hover:shadow-medium transition-all ${isMatchDay ? 'border-green-500 ring-1 ring-green-500' : 'border-tm-border'}`}
                   >
                     {/* Match Header */}
                     <div className="mb-4 pb-4 border-b border-tm-border">
@@ -4025,6 +4039,7 @@ export default function FixturesPage() {
                           vs {summary.opponent}
                         </h3>
                         <div className="flex items-center gap-2">
+                          {isMatchDay && <LiveNowBadge label="MATCH DAY" />}
                           <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
                             summary.isUpcoming
                               ? 'bg-success/15 text-success'
@@ -4128,7 +4143,8 @@ export default function FixturesPage() {
                       </div>
                     )}
                   </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </div>

@@ -8,6 +8,10 @@ import { Dumbbell, Activity, Clock, MapPin, Plus, X, Save, RefreshCw, Eye, Penci
 import { createClient } from '@/lib/supabase/client'
 import TimeDropdowns from '@/components/ui/TimeDropdowns'
 import { readTabularFile } from '@/lib/tabular-import'
+import { downloadUploadedFile } from '@/lib/file-download'
+import { useNow } from '@/hooks/useNow'
+import { isSessionLiveNow } from '@/lib/session-live'
+import LiveNowBadge from '@/components/ui/LiveNowBadge'
 
 interface GymStats {
   benchPressPB: number | null
@@ -144,6 +148,9 @@ export default function GymPage() {
   const [user, setUser]           = useState<any>(null)
   const [loading, setLoading]     = useState(true)
   const [schedules, setSchedules] = useState<any[]>([])
+  // Ticks every 30s so session cards can show a live "LIVE NOW" badge for
+  // the exact window it's actually running, without needing a page refresh.
+  const now = useNow()
   const [gymStats, setGymStats]           = useState<GymStats | null>(null)
   const [playerMetrics, setPlayerMetrics]   = useState<PlayerGymMetric[]>([])
   const [metricFiles, setMetricFiles]       = useState<any[]>([])
@@ -339,21 +346,20 @@ export default function GymPage() {
     })
   }
 
-  const downloadFileFromRows = (f: any) => {
-    const rows: string[][] = f.rows
-    if (!rows || rows.length === 0) return
-    const csv = rows.map((r: string[]) =>
-      r.map((c: string) => `"${(c ?? '').replace(/"/g, '""')}"`).join(',')
-    ).join('\n')
-    const blob = new Blob([csv], { type: 'text/csv' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = f.file_name || 'metrics.csv'
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
+  const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null)
+  const handleDownloadFile = async (f: any) => {
+    setDownloadingFileId(f.id)
+    try {
+      await downloadUploadedFile({
+        downloadUrl: f.download_url,
+        rows: f.rows,
+        fileName: f.file_name || 'metrics.csv',
+      })
+    } catch (err: any) {
+      alert(err?.message || 'Could not download this file.')
+    } finally {
+      setDownloadingFileId(null)
+    }
   }
 
   const handleDeleteMetricFile = async (f: any) => {
@@ -607,7 +613,9 @@ export default function GymPage() {
 
   if (!user) return null
 
-  const now = new Date()
+  // `now` comes from the useNow() tick declared above — reusing it here
+  // means this expiry check also refreshes every 30s instead of only on
+  // an unrelated re-render, on top of driving the LIVE NOW badge below.
   const todayStr = now.toDateString()
 
   // A session is "expired" if its date is before today (date-only comparison)
@@ -745,10 +753,14 @@ export default function GymPage() {
                 const scheduleDate = new Date(schedule.schedule_date)
                 const isToday    = scheduleDate.toDateString() === new Date().toDateString()
                 const isTomorrow = scheduleDate.toDateString() === new Date(Date.now() + 86400000).toDateString()
+                const isLive = isSessionLiveNow(schedule.schedule_date, schedule.schedule_time, schedule.schedule_end_time, now)
                 return (
                   <Card key={schedule.id} padded={false}>
-                    {/* Colour header */}
-                    <div className={`${isToday ? 'bg-tm-secondary text-tm-on-secondary' : isTomorrow ? 'bg-info text-white' : 'bg-tm-surface-hover text-tm-text-1'} p-4`}>
+                    {/* Colour header — green + pulsing ring while the session
+                        is actually in progress (between its start and finish
+                        time), overriding the usual today/tomorrow colouring
+                        so it's unmistakable at a glance. */}
+                    <div className={`${isLive ? 'bg-green-600 text-white ring-2 ring-green-400 ring-inset' : isToday ? 'bg-tm-secondary text-tm-on-secondary' : isTomorrow ? 'bg-info text-white' : 'bg-tm-surface-hover text-tm-text-1'} p-4`}>
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-sm font-medium opacity-90">
@@ -758,7 +770,7 @@ export default function GymPage() {
                             {scheduleDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                           </p>
                         </div>
-                        <Activity className="h-8 w-8 opacity-80" />
+                        {isLive ? <LiveNowBadge /> : <Activity className="h-8 w-8 opacity-80" />}
                       </div>
                     </div>
 
@@ -1038,24 +1050,17 @@ export default function GymPage() {
                               </button>
                             </td>
                             <td className="px-4 py-3">
-                              {f.download_url ? (
-                                <a
-                                  href={f.download_url}
-                                  download={f.file_name}
-                                  className="flex items-center gap-1 text-xs font-medium rounded-md px-2.5 py-1.5 transition-colors"
-                                  style={{ background: 'var(--acc-dim,rgba(91,163,217,0.10))', color: 'var(--acc,#5BA3D9)' }}
-                                >
-                                  <Download className="h-3.5 w-3.5" /> Download
-                                </a>
-                              ) : f.rows?.length > 0 ? (
+                              {(f.download_url || f.rows?.length > 0) && (
                                 <button
-                                  onClick={() => downloadFileFromRows(f)}
-                                  className="flex items-center gap-1 text-xs font-medium rounded-md px-2.5 py-1.5 transition-colors"
+                                  onClick={() => handleDownloadFile(f)}
+                                  disabled={downloadingFileId === f.id}
+                                  className="flex items-center gap-1 text-xs font-medium rounded-md px-2.5 py-1.5 transition-colors disabled:opacity-50"
                                   style={{ background: 'var(--acc-dim,rgba(91,163,217,0.10))', color: 'var(--acc,#5BA3D9)' }}
                                 >
-                                  <Download className="h-3.5 w-3.5" /> Download
+                                  <Download className="h-3.5 w-3.5" />
+                                  {downloadingFileId === f.id ? 'Downloading…' : 'Download'}
                                 </button>
-                              ) : null}
+                              )}
                             </td>
                             <td className="px-4 py-3">
                               <button

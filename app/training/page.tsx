@@ -8,6 +8,10 @@ import RefreshButton from '@/components/RefreshButton'
 import TimeDropdowns from '@/components/ui/TimeDropdowns'
 import { generatePDFReport, generateExcelReport, generateCSVReport, downloadBlob, type ReportData } from '@/lib/report-export'
 import { readTabularFile } from '@/lib/tabular-import'
+import { downloadUploadedFile } from '@/lib/file-download'
+import { useNow } from '@/hooks/useNow'
+import { isSessionLiveNow } from '@/lib/session-live'
+import LiveNowBadge from '@/components/ui/LiveNowBadge'
 
 interface Player {
   id: string
@@ -130,6 +134,9 @@ function formatSessionTimeRange(start?: string, end?: string) {
 }
 
 export default function TrainingPage() {
+  // Ticks every 30s so session cards can show a live "LIVE NOW" badge for
+  // the exact window a session is actually running, without a page refresh.
+  const now = useNow()
   const [user, setUser] = useState<any>(null)
   const [players, setPlayers] = useState<Player[]>([])
   const [sessions, setSessions] = useState<TrainingSession[]>([])
@@ -1500,21 +1507,20 @@ export default function TrainingPage() {
     }
   }
   // ── Training file archive helpers ──────────────────────────────────────
-  const downloadTrainingFileFromRows = (f: any) => {
-    const rows: string[][] = f.rows
-    if (!rows || rows.length === 0) return
-    const csv = rows.map((r: string[]) =>
-      r.map((c: string) => `"${(c ?? '').replace(/"/g, '""')}"`).join(',')
-    ).join('\n')
-    const blob = new Blob([csv], { type: 'text/csv' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = f.file_name || 'attendance.csv'
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
+  const [downloadingTrainingFileId, setDownloadingTrainingFileId] = useState<string | null>(null)
+  const handleDownloadTrainingFile = async (f: any) => {
+    setDownloadingTrainingFileId(f.id)
+    try {
+      await downloadUploadedFile({
+        downloadUrl: f.download_url,
+        rows: f.rows,
+        fileName: f.file_name || 'attendance.csv',
+      })
+    } catch (err: any) {
+      alert(err?.message || 'Could not download this file.')
+    } finally {
+      setDownloadingTrainingFileId(null)
+    }
   }
 
   const handleDeleteTrainingFile = async (f: any) => {
@@ -1850,24 +1856,26 @@ export default function TrainingPage() {
                 const sessionDate = new Date(session.date)
                 const isToday = sessionDate.toDateString() === new Date().toDateString()
                 const isTomorrow = sessionDate.toDateString() === new Date(Date.now() + 86400000).toDateString()
-                
+                const isLive = isSessionLiveNow(session.date, session.session_time, session.session_end_time, now)
+
                 return (
                   <div
                     key={session.id}
-                    className="bg-tm-surface rounded-card border border-tm-border shadow-soft hover:shadow-medium transition-all duration-300 overflow-hidden"
+                    className={`bg-tm-surface rounded-card border shadow-soft hover:shadow-medium transition-all duration-300 overflow-hidden ${isLive ? 'border-green-500 ring-1 ring-green-500' : 'border-tm-border'}`}
                   >
-                    {/* Date Header */}
-                    <div className="bg-tm-surface-hover border-b border-tm-border p-4 text-tm-text-1">
+                    {/* Date Header — green + pulsing badge while this
+                        session is actually in progress. */}
+                    <div className={`border-b p-4 ${isLive ? 'bg-green-600 text-white border-green-500' : 'bg-tm-surface-hover border-tm-border text-tm-text-1'}`}>
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className={`text-sm font-medium ${isToday ? 'text-tm-secondary' : isTomorrow ? 'text-info' : 'text-tm-text-3'}`}>
+                          <p className={`text-sm font-medium ${isLive ? 'text-white/90' : isToday ? 'text-tm-secondary' : isTomorrow ? 'text-info' : 'text-tm-text-3'}`}>
                             {isToday ? 'Today' : isTomorrow ? 'Tomorrow' : sessionDate.toLocaleDateString('en-US', { weekday: 'long' })}
                           </p>
-                          <p className="text-2xl font-bold text-tm-text-1">
+                          <p className={`text-2xl font-bold ${isLive ? 'text-white' : 'text-tm-text-1'}`}>
                             {sessionDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                           </p>
                         </div>
-                        <Calendar className="w-8 h-8 text-tm-text-3" />
+                        {isLive ? <LiveNowBadge /> : <Calendar className="w-8 h-8 text-tm-text-3" />}
                       </div>
                     </div>
 
@@ -1959,14 +1967,16 @@ export default function TrainingPage() {
                   const scheduleDate = new Date(schedule.schedule_date)
                   const isToday = scheduleDate.toDateString() === new Date().toDateString()
                   const isTomorrow = scheduleDate.toDateString() === new Date(Date.now() + 86400000).toDateString()
-                  
+                  const isLive = isSessionLiveNow(schedule.schedule_date, schedule.schedule_time, schedule.schedule_end_time, now)
+
                   return (
                     <div
                       key={schedule.id}
-                      className="bg-tm-surface rounded-card border border-tm-border shadow-soft hover:shadow-medium transition-all duration-300 overflow-hidden"
+                      className={`bg-tm-surface rounded-card border shadow-soft hover:shadow-medium transition-all duration-300 overflow-hidden ${isLive ? 'border-green-500 ring-1 ring-green-500' : 'border-tm-border'}`}
                     >
-                      {/* Date Header */}
-                      <div className={`${isToday ? 'bg-tm-secondary text-tm-on-secondary' : isTomorrow ? 'bg-info text-white' : 'bg-purple-600 text-white'} p-4`}>
+                      {/* Date Header — green + pulsing badge while this
+                          session is actually in progress. */}
+                      <div className={`${isLive ? 'bg-green-600 text-white' : isToday ? 'bg-tm-secondary text-tm-on-secondary' : isTomorrow ? 'bg-info text-white' : 'bg-purple-600 text-white'} p-4`}>
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="text-sm font-medium opacity-90">
@@ -1976,7 +1986,7 @@ export default function TrainingPage() {
                               {scheduleDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                             </p>
                           </div>
-                          <Activity className="w-8 h-8 opacity-80" />
+                          {isLive ? <LiveNowBadge /> : <Activity className="w-8 h-8 opacity-80" />}
                         </div>
                       </div>
 
@@ -3190,24 +3200,17 @@ export default function TrainingPage() {
                             </button>
                           </td>
                           <td className="px-4 py-3">
-                            {f.download_url ? (
-                              <a
-                                href={f.download_url}
-                                download={f.file_name}
-                                className="flex items-center gap-1 text-xs font-medium rounded-md px-2.5 py-1.5"
-                                style={{ background: 'var(--acc-dim,rgba(91,163,217,0.10))', color: 'var(--acc,#5BA3D9)' }}
-                              >
-                                <Download className="h-3.5 w-3.5" /> Download
-                              </a>
-                            ) : f.rows?.length > 0 ? (
+                            {(f.download_url || f.rows?.length > 0) && (
                               <button
-                                onClick={() => downloadTrainingFileFromRows(f)}
-                                className="flex items-center gap-1 text-xs font-medium rounded-md px-2.5 py-1.5"
+                                onClick={() => handleDownloadTrainingFile(f)}
+                                disabled={downloadingTrainingFileId === f.id}
+                                className="flex items-center gap-1 text-xs font-medium rounded-md px-2.5 py-1.5 disabled:opacity-50"
                                 style={{ background: 'var(--acc-dim,rgba(91,163,217,0.10))', color: 'var(--acc,#5BA3D9)' }}
                               >
-                                <Download className="h-3.5 w-3.5" /> Download
+                                <Download className="h-3.5 w-3.5" />
+                                {downloadingTrainingFileId === f.id ? 'Downloading…' : 'Download'}
                               </button>
-                            ) : null}
+                            )}
                           </td>
                           <td className="px-4 py-3">
                             <button

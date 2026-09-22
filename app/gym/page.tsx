@@ -27,9 +27,34 @@ interface PlayerGymMetric {
   gym_stats_updated_at: string | null
 }
 
-const EMPTY_FORM = { schedule_date: '', schedule_time: '', location: '', description: '', exercises: '' }
+const EMPTY_FORM = { schedule_date: '', schedule_time: '', schedule_end_time: '', location: '', description: '', exercises: '' }
 
-/* ─── Shared modal form fields ───────────────────────────────────────────── */
+/* ─── Time helpers ───────────────────────────────────────────────────── */
+function formatTime12(time?: string | null) {
+  if (!time) return ''
+  const [h, m = '00'] = time.split(':')
+  const hour24 = Number(h)
+  return `${hour24 % 12 || 12}:${m.slice(0, 2)} ${hour24 >= 12 ? 'PM' : 'AM'}`
+}
+
+function sessionDuration(start?: string | null, end?: string | null) {
+  if (!start || !end) return ''
+  const [sh, sm] = start.split(':').map(Number)
+  const [eh, em] = end.split(':').map(Number)
+  const mins = eh * 60 + em - (sh * 60 + sm)
+  if (mins <= 0) return ''
+  const h = Math.floor(mins / 60), m = mins % 60
+  return [h ? `${h}h` : '', m ? `${m}m` : ''].filter(Boolean).join(' ')
+}
+
+function formatTimeRange(start?: string | null, end?: string | null) {
+  if (!start) return ''
+  if (!end) return formatTime12(start)
+  const d = sessionDuration(start, end)
+  return `${formatTime12(start)} – ${formatTime12(end)}${d ? ` (${d})` : ''}`
+}
+
+/* ─── Shared modal form fields ───────────────────────────────────────── */
 const inputStyle = { color: 'var(--tm-text-1)', WebkitTextFillColor: 'var(--tm-text-1)' } as const
 
 function SessionFormFields({
@@ -49,10 +74,27 @@ function SessionFormFields({
             className="tm-input" style={inputStyle} />
         </div>
         <div>
-          <label className="tm-label">Time</label>
+          <label className="tm-label">Start time</label>
           <input type="time" value={form.schedule_time}
             onChange={e => onFieldChange('schedule_time', e.target.value)}
             className="tm-input" style={inputStyle} />
+        </div>
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
+          <label className="tm-label">Finish time</label>
+          <input type="time" value={form.schedule_end_time}
+            onChange={e => onFieldChange('schedule_end_time', e.target.value)}
+            className="tm-input" style={inputStyle} />
+        </div>
+        <div className="flex items-end">
+          {form.schedule_time && form.schedule_end_time && (
+            <p className={`text-xs font-medium pb-2.5 ${form.schedule_end_time > form.schedule_time ? 'text-green-500' : 'text-[#E05757]'}`}>
+              {form.schedule_end_time > form.schedule_time
+                ? `Duration: ${sessionDuration(form.schedule_time, form.schedule_end_time)}`
+                : 'Finish time must be later than start time.'}
+            </p>
+          )}
         </div>
       </div>
       <div>
@@ -375,7 +417,8 @@ export default function GymPage() {
     setSelected(schedule)
     setEditForm({
       schedule_date: schedule.schedule_date?.slice(0, 10) ?? '',
-      schedule_time: schedule.schedule_time ?? '',
+      schedule_time: schedule.schedule_time?.slice(0, 5) ?? '',
+      schedule_end_time: schedule.schedule_end_time?.slice(0, 5) ?? '',
       location:      schedule.location ?? '',
       description:   schedule.description ?? '',
       exercises:     schedule.exercises ?? '',
@@ -733,7 +776,7 @@ export default function GymPage() {
                           {schedule.schedule_time && (
                             <div className="flex items-center text-tm-text-3">
                               <Clock className="mr-2 h-4 w-4" />
-                              <span className="text-sm font-medium">{schedule.schedule_time}</span>
+                              <span className="text-sm font-medium">{formatTimeRange(schedule.schedule_time, schedule.schedule_end_time)}</span>
                             </div>
                           )}
                           {schedule.location && (
@@ -1157,7 +1200,7 @@ export default function GymPage() {
               <Button variant="outline" onClick={() => { setShowCreate(false); setCreateForm(EMPTY_FORM) }} disabled={saving}>
                 Cancel
               </Button>
-              <Button icon={Save} onClick={handleCreate} disabled={saving || !createForm.schedule_date || !createForm.description}>
+              <Button icon={Save} onClick={handleCreate} disabled={saving || !createForm.schedule_date || !createForm.description || (!!createForm.schedule_time && !!createForm.schedule_end_time && createForm.schedule_end_time <= createForm.schedule_time)}>
                 {saving ? 'Saving…' : 'Create session'}
               </Button>
             </>
@@ -1310,7 +1353,7 @@ Douglas Komakech,12,68,103,115`}
               {selected.schedule_time && (
                 <div>
                   <p className="text-xs font-medium text-tm-text-3 mb-1">Time</p>
-                  <p className="text-sm font-semibold text-tm-text-1">{selected.schedule_time}</p>
+                  <p className="text-sm font-semibold text-tm-text-1">{formatTimeRange(selected.schedule_time, selected.schedule_end_time)}</p>
                 </div>
               )}
               {selected.location && (
@@ -1353,7 +1396,7 @@ Douglas Komakech,12,68,103,115`}
               <Button variant="outline" onClick={() => { setShowEdit(false); setSelected(null) }} disabled={saving}>
                 Cancel
               </Button>
-              <Button icon={Save} onClick={handleEdit} disabled={saving || !editForm.schedule_date || !editForm.description}>
+              <Button icon={Save} onClick={handleEdit} disabled={saving || !editForm.schedule_date || !editForm.description || (!!editForm.schedule_time && !!editForm.schedule_end_time && editForm.schedule_end_time <= editForm.schedule_time)}>
                 {saving ? 'Saving…' : 'Save changes'}
               </Button>
             </>
@@ -1381,7 +1424,7 @@ Douglas Komakech,12,68,103,115`}
               <p className="text-sm font-semibold text-tm-text-1 mb-1">{selected.description}</p>
               <p className="text-sm text-tm-text-3">
                 {new Date(selected.schedule_date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-                {selected.schedule_time ? ` at ${selected.schedule_time}` : ''}
+                {selected.schedule_time ? ` at ${formatTimeRange(selected.schedule_time, selected.schedule_end_time)}` : ''}
               </p>
               <p className="mt-3 text-xs text-[#E05757]">This cannot be undone.</p>
             </div>

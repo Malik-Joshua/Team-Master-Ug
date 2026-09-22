@@ -100,7 +100,11 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { schedule_date, schedule_time, location, description, exercises } = body
+    const { schedule_date, schedule_time, schedule_end_time, location, description, exercises } = body
+
+    if (schedule_time && schedule_end_time && schedule_end_time <= schedule_time) {
+      return NextResponse.json({ error: 'Finish time must be later than start time' }, { status: 400 })
+    }
 
     // Validate required fields
     if (!schedule_date || !description) {
@@ -134,6 +138,7 @@ export async function POST(request: NextRequest) {
       .insert({
         schedule_date,
         schedule_time: schedule_time || null,
+        schedule_end_time: schedule_end_time || null,
         location: location || null,
         description,
         exercises: exercises || null,
@@ -222,9 +227,12 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { id, schedule_date, schedule_time, location, description, exercises } = body
+    const { id, schedule_date, schedule_time, schedule_end_time, location, description, exercises } = body
     if (!id || !schedule_date || !description) {
       return NextResponse.json({ error: 'id, schedule_date and description are required' }, { status: 400 })
+    }
+    if (schedule_time && schedule_end_time && schedule_end_time <= schedule_time) {
+      return NextResponse.json({ error: 'Finish time must be later than start time' }, { status: 400 })
     }
 
     const supabaseAdmin = createServiceClient(
@@ -235,7 +243,7 @@ export async function PUT(request: NextRequest) {
 
     const { data, error } = await supabaseAdmin
       .from('gym_schedules')
-      .update({ schedule_date, schedule_time: schedule_time || null, location: location || null, description, exercises: exercises || null })
+      .update({ schedule_date, schedule_time: schedule_time || null, schedule_end_time: schedule_end_time || null, location: location || null, description, exercises: exercises || null })
       .eq('id', id)
       .select('*, coach:user_profiles!gym_schedules_created_by_fkey(name)')
       .single()

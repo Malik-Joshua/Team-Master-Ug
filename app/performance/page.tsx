@@ -295,27 +295,55 @@ export default function PerformancePage() {
             }
           } else {
             // Load player-specific match stats - only count games where stats have been entered
+            //
+            // A club_captain account has its OWN, separate auth login from
+            // the player it's linked to (a distinct system-generated
+            // email — see app/api/players/[id]/club-captain) — so
+            // authUser.id here is the CAPTAIN's own id, never the id
+            // match_stats is actually recorded against. Without this, a
+            // captain viewing their own performance always saw all-zero
+            // stats regardless of what their linked player had actually
+            // done, because the query was filtering by an id that
+            // match_stats never contains. Fall back to linked_player_id
+            // when present so the captain sees THEIR (linked player's)
+            // real numbers.
+            const statsPlayerId = profile.linked_player_id || authUser.id
             try {
               const { data: matchStats } = await supabase
                 .from('match_stats')
                 .select('match_id, tries_scored, tackles_made, minutes_played, matches:matches (opponent, tournament_type, match_date, result)')
-                .eq('player_id', authUser.id)
+                .eq('player_id', statsPlayerId)
 
               if (matchStats && matchStats.length > 0) {
                 // Count unique matches (games played) - only games with stats entered count
                 const uniqueMatchIds = new Set(matchStats.map(stat => stat.match_id))
                 const totalMatches = uniqueMatchIds.size
-                
+
                 const totalTries = matchStats.reduce((sum, stat) => sum + (stat.tries_scored || 0), 0)
                 const totalTackles = matchStats.reduce((sum, stat) => sum + (stat.tackles_made || 0), 0)
                 const totalMinutes = matchStats.reduce((sum, stat) => sum + (stat.minutes_played || 0), 0)
+
+                // Win rate — the TEAM's win rate across the matches THIS
+                // viewer actually featured in (per the card's own caption,
+                // "Team win rate in your matches"), not a personal win/loss
+                // record. This used to be hardcoded to 0 regardless of the
+                // club's actual results — dedupe by match_id first so a
+                // match with multiple stat rows (shouldn't normally happen,
+                // one row per player per match, but defends against it)
+                // isn't double-counted.
+                const resultByMatchId = new Map<string, string | null>()
+                matchStats.forEach((stat: any) => {
+                  resultByMatchId.set(stat.match_id, stat.matches?.result ?? null)
+                })
+                const winsCount = Array.from(resultByMatchId.values()).filter((r) => r === 'win').length
+                const winRate = totalMatches > 0 ? Math.round((winsCount / totalMatches) * 100) : 0
 
                 setPlayerStats({
                   totalMatches: totalMatches, // Count unique matches, not total stats records
                   totalTries,
                   totalTackles,
                   avgMinutes: totalMatches > 0 ? Math.round(totalMinutes / totalMatches) : 0,
-                  winRate: 0,
+                  winRate,
                 })
 
                 const recent = matchStats

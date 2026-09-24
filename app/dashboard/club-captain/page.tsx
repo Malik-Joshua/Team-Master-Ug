@@ -5,7 +5,7 @@ import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
 import BirthdayAlert from '@/components/BirthdayAlert'
 import DisciplineAlerts from '@/components/DisciplineAlerts'
-import { Users, Activity, Calendar, Trophy, MapPin, Eye, AlertCircle, Dumbbell, Clock } from 'lucide-react'
+import { Users, Activity, Calendar, Trophy, MapPin, Eye, AlertCircle, Dumbbell, Clock, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import RefreshButton from '@/components/RefreshButton'
 import Link from 'next/link'
@@ -37,6 +37,16 @@ export default function ClubCaptainDashboard() {
   const [loadingBestMetrics, setLoadingBestMetrics] = useState(false)
   const [topPerformers, setTopPerformers] = useState<any[]>([])
 
+  // Dismiss state for the "Recent Training Schedules" / "Recent Gym
+  // Schedules" cards — purely a per-user view preference (localStorage,
+  // keyed by this user's id), so dismissing here never touches the
+  // underlying session/schedule data other roles rely on. Two independent
+  // sets since a captain might want to clear one list without the other.
+  const [dismissedTrainingCards, setDismissedTrainingCards] = useState<Set<string>>(new Set())
+  const [dismissedGymCards, setDismissedGymCards] = useState<Set<string>>(new Set())
+  const [showDismissedTraining, setShowDismissedTraining] = useState(false)
+  const [showDismissedGym, setShowDismissedGym] = useState(false)
+
   const loadData = useCallback(async () => {
     const supabase = createClient()
     const { data: { user: authUser } } = await supabase.auth.getUser()
@@ -45,6 +55,16 @@ export default function ClubCaptainDashboard() {
       setLoading(false)
       return
     }
+
+    // Restore this user's dismissed-card preferences (per-browser, not
+    // synced across devices — matches the pattern used for the equivalent
+    // "dismissed summary cards" feature on /training).
+    try {
+      const rawTraining = localStorage.getItem(`dismissed_captain_training_${authUser.id}`)
+      if (rawTraining) setDismissedTrainingCards(new Set(JSON.parse(rawTraining)))
+      const rawGym = localStorage.getItem(`dismissed_captain_gym_${authUser.id}`)
+      if (rawGym) setDismissedGymCards(new Set(JSON.parse(rawGym)))
+    } catch { /* ignore malformed/absent localStorage state */ }
 
     if (authUser) {
       // First, get the current user's profile
@@ -275,6 +295,40 @@ export default function ClubCaptainDashboard() {
     } finally {
       setLoadingTeamSelection(false)
     }
+  }
+
+  // Dismiss/restore for the Recent Training/Gym Schedule cards — a purely
+  // local view preference (no backend write), so it can never disagree with
+  // what other roles see for the same schedules.
+  const dismissTrainingCard = (id: string) => {
+    setDismissedTrainingCards((prev) => {
+      const next = new Set(prev).add(id)
+      try { localStorage.setItem(`dismissed_captain_training_${user?.user_id}`, JSON.stringify([...next])) } catch { /* ignore */ }
+      return next
+    })
+  }
+  const restoreTrainingCard = (id: string) => {
+    setDismissedTrainingCards((prev) => {
+      const next = new Set(prev)
+      next.delete(id)
+      try { localStorage.setItem(`dismissed_captain_training_${user?.user_id}`, JSON.stringify([...next])) } catch { /* ignore */ }
+      return next
+    })
+  }
+  const dismissGymCard = (id: string) => {
+    setDismissedGymCards((prev) => {
+      const next = new Set(prev).add(id)
+      try { localStorage.setItem(`dismissed_captain_gym_${user?.user_id}`, JSON.stringify([...next])) } catch { /* ignore */ }
+      return next
+    })
+  }
+  const restoreGymCard = (id: string) => {
+    setDismissedGymCards((prev) => {
+      const next = new Set(prev)
+      next.delete(id)
+      try { localStorage.setItem(`dismissed_captain_gym_${user?.user_id}`, JSON.stringify([...next])) } catch { /* ignore */ }
+      return next
+    })
   }
 
   if (loading) {
@@ -772,23 +826,37 @@ export default function ClubCaptainDashboard() {
         {recentTrainingSchedules.length > 0 && (
           <div className="bg-tm-surface rounded-card border border-tm-border shadow-soft">
             <div className="p-6 border-b border-tm-border">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-2">
                 <h3 className="text-xl font-bold text-tm-text-1 flex items-center gap-2">
                   <Calendar className="w-5 h-5 text-primary" />
                   Recent Training Schedules
                 </h3>
-                <Link
-                  href="/training"
-                  className="text-primary hover:underline text-sm font-medium"
-                >
-                  View All →
-                </Link>
+                <div className="flex items-center gap-3">
+                  {dismissedTrainingCards.size > 0 && (
+                    <button
+                      onClick={() => setShowDismissedTraining((v) => !v)}
+                      className="text-xs font-medium text-tm-text-3 hover:text-tm-text-1 underline underline-offset-2"
+                    >
+                      {showDismissedTraining ? 'Hide dismissed' : `Show dismissed (${dismissedTrainingCards.size})`}
+                    </button>
+                  )}
+                  <Link
+                    href="/training"
+                    className="text-primary hover:underline text-sm font-medium"
+                  >
+                    View All →
+                  </Link>
+                </div>
               </div>
             </div>
             <div className="p-6">
               <div className="space-y-3">
-                {recentTrainingSchedules.map((session: any) => (
-                  <div key={session.id} className="border border-tm-border rounded-lg p-4 hover:bg-tm-surface-hover/50 transition-colors">
+                {recentTrainingSchedules
+                  .filter((session: any) => showDismissedTraining || !dismissedTrainingCards.has(session.id))
+                  .map((session: any) => {
+                    const isDismissed = dismissedTrainingCards.has(session.id)
+                    return (
+                  <div key={session.id} className={`border border-tm-border rounded-lg p-4 hover:bg-tm-surface-hover/50 transition-colors ${isDismissed ? 'opacity-60' : ''}`}>
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
@@ -823,9 +891,17 @@ export default function ClubCaptainDashboard() {
                           )}
                         </div>
                       </div>
+                      <button
+                        onClick={() => isDismissed ? restoreTrainingCard(session.id) : dismissTrainingCard(session.id)}
+                        className="p-1.5 rounded-lg text-tm-text-3 hover:text-tm-text-1 hover:bg-tm-surface-hover transition-all flex-shrink-0"
+                        title={isDismissed ? 'Restore card' : 'Dismiss card'}
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
-                ))}
+                    )
+                  })}
               </div>
             </div>
           </div>
@@ -835,23 +911,37 @@ export default function ClubCaptainDashboard() {
         {recentGymSchedules.length > 0 && (
           <div className="bg-tm-surface rounded-card border border-tm-border shadow-soft">
             <div className="p-6 border-b border-tm-border">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-2">
                 <h3 className="text-xl font-bold text-tm-text-1 flex items-center gap-2">
                   <Activity className="w-5 h-5 text-secondary" />
                   Recent Gym Schedules
                 </h3>
-                <Link
-                  href="/training"
-                  className="text-secondary hover:underline text-sm font-medium"
-                >
-                  View All →
-                </Link>
+                <div className="flex items-center gap-3">
+                  {dismissedGymCards.size > 0 && (
+                    <button
+                      onClick={() => setShowDismissedGym((v) => !v)}
+                      className="text-xs font-medium text-tm-text-3 hover:text-tm-text-1 underline underline-offset-2"
+                    >
+                      {showDismissedGym ? 'Hide dismissed' : `Show dismissed (${dismissedGymCards.size})`}
+                    </button>
+                  )}
+                  <Link
+                    href="/training"
+                    className="text-secondary hover:underline text-sm font-medium"
+                  >
+                    View All →
+                  </Link>
+                </div>
               </div>
             </div>
             <div className="p-6">
               <div className="space-y-3">
-                {recentGymSchedules.map((schedule: any) => (
-                  <div key={schedule.id} className="border border-tm-border rounded-lg p-4 hover:bg-tm-surface-hover/50 transition-colors">
+                {recentGymSchedules
+                  .filter((schedule: any) => showDismissedGym || !dismissedGymCards.has(schedule.id))
+                  .map((schedule: any) => {
+                    const isDismissed = dismissedGymCards.has(schedule.id)
+                    return (
+                  <div key={schedule.id} className={`border border-tm-border rounded-lg p-4 hover:bg-tm-surface-hover/50 transition-colors ${isDismissed ? 'opacity-60' : ''}`}>
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
@@ -887,9 +977,17 @@ export default function ClubCaptainDashboard() {
                           )}
                         </div>
                       </div>
+                      <button
+                        onClick={() => isDismissed ? restoreGymCard(schedule.id) : dismissGymCard(schedule.id)}
+                        className="p-1.5 rounded-lg text-tm-text-3 hover:text-tm-text-1 hover:bg-tm-surface-hover transition-all flex-shrink-0"
+                        title={isDismissed ? 'Restore card' : 'Dismiss card'}
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
-                ))}
+                    )
+                  })}
               </div>
             </div>
           </div>

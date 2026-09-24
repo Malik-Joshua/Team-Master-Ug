@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
+import { getCurrentSeasonStart } from '@/lib/season'
 
 export const dynamic = 'force-dynamic'
 
@@ -102,10 +103,25 @@ export async function GET(request: NextRequest) {
     const totalPlayed = matches?.filter(m => m.result).length || 0
     const winRate = totalPlayed > 0 ? Math.round((wins / totalPlayed) * 100) : 0
 
-    // Get top performers with accurate stats (service role, bypass RLS)
+    // Get top performers with accurate stats (service role, bypass RLS).
+    //
+    // Ranked PER SEASON, not all-time — a season is a rolling 12-month
+    // window starting at club_settings.season_start_month (see
+    // lib/season.ts). Without this, a club that's played for years just
+    // accumulates one permanent, unchanging leaderboard; scoping it to the
+    // current season resets the competition every year, which is the whole
+    // point of tracking a "season" at all.
     let topPerformers: any[] = []
     try {
-      const [{ data: players }, { data: allMatchStats }, { data: attendance }] = await Promise.all([
+      const { data: clubSettings } = await supabaseAdmin
+        .from('club_settings')
+        .select('season_start_month')
+        .order('updated_at', { ascending: false, nullsFirst: false })
+        .limit(1)
+        .maybeSingle()
+      const seasonStart = getCurrentSeasonStart(clubSettings?.season_start_month)
+
+      const [{ data: players }, { data: allMatchStats }, { data: attendance }, { data: seasonMatches }, { data: seasonSessions }] = await Promise.all([
         supabaseAdmin
           .from('user_profiles')
           .select('user_id, name, status')
@@ -115,8 +131,24 @@ export async function GET(request: NextRequest) {
           .select('match_id, player_id, tries_scored, tackles_made, minutes_played'),
         supabaseAdmin
           .from('training_attendance')
-          .select('player_id, attendance_status'),
+          .select('session_id, player_id, attendance_status'),
+        // Matches / sessions that fall inside the CURRENT season — used to
+        // filter match_stats / training_attendance down to season-only
+        // below, since neither of those tables stores a date itself.
+        supabaseAdmin
+          .from('matches')
+          .select('id')
+          .gte('match_date', seasonStart),
+        supabaseAdmin
+          .from('training_sessions')
+          .select('id')
+          .gte('session_date', seasonStart),
       ])
+
+      const seasonMatchIds = new Set((seasonMatches || []).map((m: any) => m.id))
+      const seasonSessionIds = new Set((seasonSessions || []).map((s: any) => s.id))
+      const seasonMatchStats = (allMatchStats || []).filter((stat: any) => seasonMatchIds.has(stat.match_id))
+      const seasonAttendance = (attendance || []).filter((att: any) => seasonSessionIds.has(att.session_id))
 
       if (players && players.length > 0) {
         const playerIds = players.map((p) => p.user_id)
@@ -133,8 +165,8 @@ export async function GET(request: NextRequest) {
         }
 
         const performers = players.map((player) => {
-          const playerStats = (allMatchStats || []).filter((stat: any) => stat.player_id === player.user_id)
-          const playerAttendance = (attendance || []).filter((att: any) => att.player_id === player.user_id)
+          const playerStats = seasonMatchStats.filter((stat: any) => stat.player_id === player.user_id)
+          const playerAttendance = seasonAttendance.filter((att: any) => att.player_id === player.user_id)
 
           const totalMatches = new Set(playerStats.map((stat: any) => stat.match_id)).size
           const totalTries = playerStats.reduce((sum: number, stat: any) => sum + (stat.tries_scored || 0), 0)

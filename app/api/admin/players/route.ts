@@ -4,7 +4,11 @@ import { createClient as createServiceClient } from '@supabase/supabase-js'
 
 export const dynamic = 'force-dynamic'
 
-const PLAYER_ROSTER_ROLES = ['admin', 'data_admin', 'coach', 'asst_coach']
+// club_captain gets read-only access to the roster (their dashboard shows
+// "Total Players" and other team-wide summaries) — without it here, that
+// fetch 403s, the dashboard's catch block swallows the error silently, and
+// the card just shows 0.
+const PLAYER_ROSTER_ROLES = ['admin', 'data_admin', 'coach', 'asst_coach', 'club_captain']
 
 export async function GET(request: NextRequest) {
   try {

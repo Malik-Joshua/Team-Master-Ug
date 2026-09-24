@@ -705,24 +705,39 @@ export default function PhysioDashboard() {
         )}
 
         <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-4">
-          <StatCard
-            title="Training Sessions Attended"
-            value={trainingSessionsAttended}
-            icon={CalendarDays}
-            iconColor="bg-primary"
-            iconTextColor="text-tm-on-secondary"
-            description="Total training sessions"
-            href="/training"
-          />
-          <StatCard
-            title="Games Attended"
-            value={gamesAttended}
-            icon={Trophy}
-            iconColor="bg-secondary"
-            iconTextColor="text-tm-on-secondary"
-            description="Total matches attended"
-            href="/fixtures"
-          />
+          {/* "Training Sessions Attended" and "Games Attended" are actually
+              club-wide totals (db.getTotalTrainingSessions /
+              db.getTotalMatches) — the same number for whoever is looking,
+              not a personal attendance count. That's fine as a "how active
+              is the club" glance for the physio themselves, but reads as a
+              wrong/meaningless personal stat for anyone else who reaches
+              this page — the sidebar's "Health & Injuries" link grants
+              admin, coach, asst_coach, data_admin and club_captain read
+              access here (intentionally, for the injuries list below), and
+              this page has no role gate blocking the page itself, only
+              individual actions. So: only the physio sees these two: */}
+          {user?.role === 'physio' && (
+            <>
+              <StatCard
+                title="Training Sessions Attended"
+                value={trainingSessionsAttended}
+                icon={CalendarDays}
+                iconColor="bg-primary"
+                iconTextColor="text-tm-on-secondary"
+                description="Total training sessions"
+                href="/training"
+              />
+              <StatCard
+                title="Games Attended"
+                value={gamesAttended}
+                icon={Trophy}
+                iconColor="bg-secondary"
+                iconTextColor="text-tm-on-secondary"
+                description="Total matches attended"
+                href="/fixtures"
+              />
+            </>
+          )}
           <StatCard
             title="Active Injuries"
             value={activeInjuries.length}

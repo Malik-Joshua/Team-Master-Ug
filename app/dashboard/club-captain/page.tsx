@@ -36,6 +36,7 @@ export default function ClubCaptainDashboard() {
   const [bestGymMetrics, setBestGymMetrics] = useState<any>(null)
   const [loadingBestMetrics, setLoadingBestMetrics] = useState(false)
   const [topPerformers, setTopPerformers] = useState<any[]>([])
+  const [seasonLabel, setSeasonLabel] = useState<string>('')
 
   // Dismiss state for the "Recent Training Schedules" / "Recent Gym
   // Schedules" cards — purely a per-user view preference (localStorage,
@@ -134,6 +135,7 @@ export default function ClubCaptainDashboard() {
             setMatchesCount(statsData.totalMatches || 0)
             setTrainingSessionsCount(statsData.totalTrainingSessions || 0)
             setTopPerformers(statsData.topPerformers || [])
+            setSeasonLabel(statsData.seasonLabel || '')
           }
         } catch (statsError) {
           console.error('Error fetching statistics:', statsError)
@@ -784,6 +786,9 @@ export default function ClubCaptainDashboard() {
           <div className="bg-tm-surface rounded-card border border-tm-border shadow-soft overflow-hidden">
             <div className="p-6 border-b border-tm-border">
               <h3 className="text-xl font-bold text-tm-text-1">Top Performers</h3>
+              {seasonLabel && (
+                <p className="text-sm text-tm-text-2 mt-1">Rankings for {seasonLabel} — resets every season</p>
+              )}
             </div>
             <div className="overflow-x-auto">
               <table className="w-full">

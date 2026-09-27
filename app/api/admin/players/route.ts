@@ -29,7 +29,27 @@ export async function GET(request: NextRequest) {
       .eq('user_id', authUser.id)
       .single()
 
-    if (!profile || !PLAYER_ROSTER_ROLES.includes(profile.role)) {
+    // A club captain's OWN login is always their real PLAYER account (see
+    // app/api/players/[id]/club-captain — the "club_captain" profile row is
+    // a separate, never-logged-into system account that only exists to
+    // mark who's captain; the person always signs in as themselves). So
+    // when a captain reaches this route, `profile.role` here resolves to
+    // 'player', not 'club_captain' — the flat PLAYER_ROSTER_ROLES check
+    // above can never see them. Same lookup already used successfully in
+    // /api/admin/statistics and /api/admin/injuries: if this is a player,
+    // check whether a club_captain profile is linked to them.
+    let hasClubCaptainAccess = false
+    if (profile?.role === 'player') {
+      const { data: clubCaptainProfile } = await supabase
+        .from('user_profiles')
+        .select('role')
+        .eq('role', 'club_captain')
+        .eq('linked_player_id', authUser.id)
+        .maybeSingle()
+      hasClubCaptainAccess = !!clubCaptainProfile
+    }
+
+    if (!profile || (!PLAYER_ROSTER_ROLES.includes(profile.role) && !hasClubCaptainAccess)) {
       return NextResponse.json(
         { error: 'Unauthorized: Owner, team manager, coach, or assistant coach access required' },
         { status: 403 }

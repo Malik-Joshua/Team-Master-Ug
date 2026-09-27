@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
-import { getCurrentSeasonStart } from '@/lib/season'
+import { getCurrentSeasonStart, getCurrentSeasonLabel } from '@/lib/season'
 
 export const dynamic = 'force-dynamic'
 
@@ -112,6 +112,7 @@ export async function GET(request: NextRequest) {
     // current season resets the competition every year, which is the whole
     // point of tracking a "season" at all.
     let topPerformers: any[] = []
+    let seasonLabel = getCurrentSeasonLabel(null)
     try {
       const { data: clubSettings } = await supabaseAdmin
         .from('club_settings')
@@ -120,6 +121,7 @@ export async function GET(request: NextRequest) {
         .limit(1)
         .maybeSingle()
       const seasonStart = getCurrentSeasonStart(clubSettings?.season_start_month)
+      seasonLabel = getCurrentSeasonLabel(clubSettings?.season_start_month)
 
       const [{ data: players }, { data: allMatchStats }, { data: attendance }, { data: seasonMatches }, { data: seasonSessions }] = await Promise.all([
         supabaseAdmin
@@ -222,6 +224,7 @@ export async function GET(request: NextRequest) {
       avgMinutes,
       winRate,
       topPerformers,
+      seasonLabel,
     })
   } catch (error: any) {
     console.error('Error fetching admin statistics:', error)

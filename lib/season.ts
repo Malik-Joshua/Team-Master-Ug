@@ -38,3 +38,31 @@ export function getCurrentSeasonStart(seasonStartMonth: string | null | undefine
 
   return `${seasonYear}-${String(startMonth + 1).padStart(2, '0')}-01`
 }
+
+const MONTH_LABELS = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+]
+
+/**
+ * Human-readable label for the CURRENT season, e.g. "2026 Season" when it
+ * starts in January (a plain calendar year reads cleaner than "Jan 2026 –
+ * Dec 2026"), or "Jun 2026 – May 2027" for any other start month. Used to
+ * caption season-scoped rankings (e.g. the Top Performers card) so it's
+ * clear which window the numbers cover, since the leaderboard resets every
+ * year rather than staying all-time.
+ */
+export function getCurrentSeasonLabel(seasonStartMonth: string | null | undefined, now: Date = new Date()): string {
+  const seasonStart = getCurrentSeasonStart(seasonStartMonth, now)
+  const [yearStr, monthStr] = seasonStart.split('-')
+  const startYear = parseInt(yearStr, 10)
+  const startMonth = parseInt(monthStr, 10) - 1 // 0-indexed
+
+  if (startMonth === 0) {
+    return `${startYear} Season`
+  }
+
+  const endYear = startYear + 1
+  const endMonth = (startMonth + 11) % 12 // the month right before startMonth, one year later
+  return `${MONTH_LABELS[startMonth]} ${startYear} – ${MONTH_LABELS[endMonth]} ${endYear}`
+}

@@ -261,7 +261,10 @@ export default function DashboardPage() {
             if (effectiveProfile.role === 'coach' || effectiveProfile.role === 'asst_coach') {
               try {
                 const { db } = await import('@/lib/db-helpers')
-                const sessionCount = await db.getCoachTrainingSessionsCount(authUser.id)
+                // Sessions this coach was marked present at, not sessions they
+                // own — a coach can run a session someone else scheduled, and
+                // can miss one they scheduled themselves.
+                const sessionCount = await db.getStaffTrainingSessionsAttended(authUser.id)
                 const sessions = await db.getCoachTrainingSessions(authUser.id)
                 const { count: matchAttendanceCount } = await supabase
                   .from('match_staff_attendance')

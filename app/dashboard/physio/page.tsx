@@ -76,6 +76,36 @@ export default function PhysioDashboard() {
   const [teamSelection, setTeamSelection] = useState<any>(null)
   const [loadingTeamSelection, setLoadingTeamSelection] = useState(false)
   const [sendInjuryMessage, setSendInjuryMessage] = useState(false)
+  // Per-user, localStorage-backed dismiss so injury cards that pile up can be
+  // cleared from view without touching the underlying record (same pattern as
+  // the club-captain dashboard's training/gym cards).
+  const [dismissedInjuryIds, setDismissedInjuryIds] = useState<Set<string>>(new Set())
+  const [showDismissedInjuries, setShowDismissedInjuries] = useState(false)
+
+  const persistDismissedInjuries = (next: Set<string>, userId?: string) => {
+    try {
+      if (userId) {
+        localStorage.setItem(`dismissed_injuries_${userId}`, JSON.stringify([...next]))
+      }
+    } catch {}
+  }
+
+  const dismissInjuryCard = (id: string) => {
+    setDismissedInjuryIds((prev) => {
+      const next = new Set(prev).add(id)
+      persistDismissedInjuries(next, user?.user_id)
+      return next
+    })
+  }
+
+  const restoreInjuryCard = (id: string) => {
+    setDismissedInjuryIds((prev) => {
+      const next = new Set(prev)
+      next.delete(id)
+      persistDismissedInjuries(next, user?.user_id)
+      return next
+    })
+  }
 
   const loadInjuries = async () => {
     const supabase = createClient()
@@ -99,44 +129,41 @@ export default function PhysioDashboard() {
       let playerNamesMap: Record<string, string> = {}
       
       if (playerIds.length > 0) {
+        // Resolve player_id -> name. This previously "fell back" to building a
+        // service-role Supabase client here, but SUPABASE_SERVICE_ROLE_KEY is
+        // server-only (no NEXT_PUBLIC_ prefix), so it is always undefined in
+        // the browser — the fallback was dead code, and it only ran on a
+        // thrown exception anyway, never on a non-ok response. So a 403 from
+        // the API left this map empty and every card read "Unknown Player".
+        // Handle the non-ok case explicitly and fall back to a normal
+        // RLS-scoped query instead.
+        const applyProfiles = (rows: any[] | null | undefined) => {
+          rows?.forEach((row: any) => {
+            playerNamesMap[row.user_id] = row.name
+          })
+        }
+
         try {
-          // Use API route to fetch players (bypasses RLS)
           const playersResponse = await fetch('/api/admin/players', { cache: 'no-store' })
           if (playersResponse.ok) {
             const playersData = await playersResponse.json()
-            if (playersData.players && playersData.players.length > 0) {
-              playersData.players.forEach((player: any) => {
-                playerNamesMap[player.user_id] = player.name
-              })
-            }
+            applyProfiles(playersData.players)
+          } else {
+            console.error('Players API returned', playersResponse.status, '- falling back to direct query')
+            const { data: playerProfiles } = await supabase
+              .from('user_profiles')
+              .select('user_id, name')
+              .in('user_id', playerIds)
+            applyProfiles(playerProfiles)
           }
         } catch (apiError) {
           console.error('Error fetching players from API:', apiError)
-          // Fallback: try direct query with service role
           try {
-            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-            const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-            
-            if (supabaseUrl && supabaseServiceKey) {
-              const { createClient: createServiceClient } = await import('@supabase/supabase-js')
-              const supabaseAdmin = createServiceClient(supabaseUrl, supabaseServiceKey, {
-                auth: {
-                  autoRefreshToken: false,
-                  persistSession: false
-                }
-              })
-              
-              const { data: playerProfiles } = await supabaseAdmin
-                .from('user_profiles')
-                .select('user_id, name')
-                .in('user_id', playerIds)
-              
-              if (playerProfiles) {
-                playerProfiles.forEach((profile: any) => {
-                  playerNamesMap[profile.user_id] = profile.name
-                })
-              }
-            }
+            const { data: playerProfiles } = await supabase
+              .from('user_profiles')
+              .select('user_id, name')
+              .in('user_id', playerIds)
+            applyProfiles(playerProfiles)
           } catch (fallbackError) {
             console.error('Error in fallback player name fetch:', fallbackError)
           }
@@ -178,6 +205,16 @@ export default function PhysioDashboard() {
 
     if (profile) {
       setUser(profile)
+
+      // Restore this user's dismissed injury cards
+      if (typeof window !== 'undefined') {
+        try {
+          const stored = localStorage.getItem(`dismissed_injuries_${authUser.id}`)
+          if (stored) {
+            setDismissedInjuryIds(new Set(JSON.parse(stored)))
+          }
+        } catch {}
+      }
 
           // Fetch players using API route to get all registered players
           try {
@@ -266,7 +303,9 @@ export default function PhysioDashboard() {
       // Load training sessions and games attended
       try {
         const { db } = await import('@/lib/db-helpers')
-        const sessionsCount = await db.getTotalTrainingSessions()
+        // Sessions this physio was marked present at — not every session the
+        // club has ever held, which is what this used to show.
+        const sessionsCount = await db.getStaffTrainingSessionsAttended(authUser.id)
         setTrainingSessionsAttended(sessionsCount)
         const { count: attendedMatches } = await supabase
           .from('match_staff_attendance')
@@ -544,9 +583,10 @@ export default function PhysioDashboard() {
 
   const activeInjuries = injuries.filter(i => i.status === 'active')
   const clearedInjuries = injuries.filter(i => i.status === 'cleared' || i.status === 'healed')
-  const filteredInjuries = filterStatus === 'all' 
-    ? injuries 
+  const filteredInjuries = (filterStatus === 'all'
+    ? injuries
     : injuries.filter(i => i.status === filterStatus)
+  ).filter(i => showDismissedInjuries || !dismissedInjuryIds.has(i.id))
 
   const averageHealingTime = clearedInjuries.length > 0
     ? Math.round(clearedInjuries.reduce((sum, i) => sum + (i.healing_duration || 0), 0) / clearedInjuries.length)
@@ -760,6 +800,14 @@ export default function PhysioDashboard() {
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-tm-text-1">Injury Records</h2>
             <div className="flex items-center space-x-2">
+              {dismissedInjuryIds.size > 0 && (
+                <button
+                  onClick={() => setShowDismissedInjuries((prev) => !prev)}
+                  className="text-xs text-tm-text-3 hover:text-tm-text-1 underline mr-1"
+                >
+                  {showDismissedInjuries ? 'Hide dismissed' : `Show dismissed (${dismissedInjuryIds.size})`}
+                </button>
+              )}
               <button
                 onClick={() => setFilterStatus('all')}
                 className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
@@ -797,10 +845,12 @@ export default function PhysioDashboard() {
             {filteredInjuries.length === 0 ? (
               <div className="text-center py-12 text-tm-text-3">
                 <AlertCircle className="w-12 h-12 mx-auto mb-4 text-tm-text-3" />
-                <p>No injuries found</p>
+                <p>{dismissedInjuryIds.size > 0 ? 'No injuries to show — all dismissed' : 'No injuries found'}</p>
               </div>
             ) : (
-              filteredInjuries.map((injury) => (
+              filteredInjuries.map((injury) => {
+                const isDismissed = dismissedInjuryIds.has(injury.id)
+                return (
                 <div
                   key={injury.id}
                   className={`p-4 rounded-lg border-2 transition-all ${
@@ -809,7 +859,7 @@ export default function PhysioDashboard() {
                       : injury.status === 'cleared'
                       ? 'border-success bg-success/10'
                       : 'border-tm-border bg-tm-surface'
-                  }`}
+                  } ${isDismissed ? 'opacity-60' : ''}`}
                 >
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                     <div className="flex-1 min-w-0">
@@ -894,27 +944,37 @@ export default function PhysioDashboard() {
                         )}
                       </div>
                     </div>
-                    {injury.status === 'active' && canRecordInjury && (
-                      <div className="flex items-center gap-2 flex-shrink-0 sm:ml-4">
-                        <button
-                          onClick={() => handleEditInjury(injury)}
-                          className="p-2 text-info hover:bg-info/10 rounded-lg transition-colors"
-                          title="Edit Injury"
-                        >
-                          <Edit className="w-5 h-5" />
-                        </button>
-                        <button
-                          onClick={() => handleClearInjury(injury.id)}
-                          className="p-2 text-success hover:bg-success/10 rounded-lg transition-colors"
-                          title="Clear Injury"
-                        >
-                          <CheckCircle className="w-5 h-5" />
-                        </button>
-                      </div>
-                    )}
+                    <div className="flex items-center gap-2 flex-shrink-0 sm:ml-4">
+                      {injury.status === 'active' && canRecordInjury && (
+                        <>
+                          <button
+                            onClick={() => handleEditInjury(injury)}
+                            className="p-2 text-info hover:bg-info/10 rounded-lg transition-colors"
+                            title="Edit Injury"
+                          >
+                            <Edit className="w-5 h-5" />
+                          </button>
+                          <button
+                            onClick={() => handleClearInjury(injury.id)}
+                            className="p-2 text-success hover:bg-success/10 rounded-lg transition-colors"
+                            title="Clear Injury"
+                          >
+                            <CheckCircle className="w-5 h-5" />
+                          </button>
+                        </>
+                      )}
+                      <button
+                        onClick={() => (isDismissed ? restoreInjuryCard(injury.id) : dismissInjuryCard(injury.id))}
+                        className="p-2 text-tm-text-3 hover:text-tm-text-1 hover:bg-tm-surface-hover rounded-lg transition-colors"
+                        title={isDismissed ? 'Restore this card' : 'Dismiss this card'}
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
-              ))
+                )
+              })
             )}
           </div>
         </div>

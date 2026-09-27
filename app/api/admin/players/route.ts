@@ -8,7 +8,12 @@ export const dynamic = 'force-dynamic'
 // "Total Players" and other team-wide summaries) — without it here, that
 // fetch 403s, the dashboard's catch block swallows the error silently, and
 // the card just shows 0.
-const PLAYER_ROSTER_ROLES = ['admin', 'data_admin', 'coach', 'asst_coach', 'club_captain']
+//
+// physio likewise needs the roster: the "Record New Injury" form populates
+// its player dropdown from here, and the injury cards resolve player_id ->
+// name from the same response. Without it the physio got a 403, leaving the
+// dropdown empty and every injury card labelled "Unknown Player".
+const PLAYER_ROSTER_ROLES = ['admin', 'data_admin', 'coach', 'asst_coach', 'club_captain', 'physio']
 
 export async function GET(request: NextRequest) {
   try {

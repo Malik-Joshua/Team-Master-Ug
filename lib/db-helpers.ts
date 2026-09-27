@@ -280,27 +280,63 @@ export const db = {
   },
 
   // Coach Performance Operations
+  //
+  // Both of these used to filter `matches.created_by = coachId`, i.e. matches
+  // the coach CREATED — which is not attendance at all. A coach who attended
+  // every game but had the manager create the fixtures showed 0. Attendance
+  // is tracked in match_staff_attendance (recorded on the game-day stats
+  // form), so count from there, restricted to games actually played. This
+  // matches what app/dashboard/page.tsx already does for the same stat.
   async getCoachMatchesAttended(coachId: string) {
     const supabase = createClient()
     const { count, error } = await supabase
-      .from('matches')
-      .select('*', { count: 'exact', head: true })
-      .eq('created_by', coachId)
-    
+      .from('match_staff_attendance')
+      .select('match_id, matches!inner(status)', { count: 'exact', head: true })
+      .eq('staff_id', coachId)
+      .eq('attendance_status', 'P')
+      .eq('matches.status', 'played')
+
     if (error) throw error
+    return count || 0
+  },
+
+  // Training sessions a STAFF member was actually marked present at, from
+  // training_staff_attendance (migration 060). Before that table existed every
+  // caller approximated this differently — coaches counted sessions they
+  // owned, the physio counted every session in the club — so none of them
+  // reflected attendance. Returns 0 rather than throwing when the migration
+  // hasn't been run yet, so dashboards render instead of erroring.
+  async getStaffTrainingSessionsAttended(staffId: string) {
+    const supabase = createClient()
+    const { count, error } = await supabase
+      .from('training_staff_attendance')
+      .select('*', { count: 'exact', head: true })
+      .eq('staff_id', staffId)
+      .eq('attendance_status', 'P')
+
+    if (error) {
+      if (error.code === 'PGRST205' || error.code === '42P01') return 0
+      throw error
+    }
     return count || 0
   },
 
   async getCoachMatches(coachId: string) {
     const supabase = createClient()
     const { data, error } = await supabase
-      .from('matches')
-      .select('*')
-      .eq('created_by', coachId)
-      .order('match_date', { ascending: false })
-    
+      .from('match_staff_attendance')
+      .select('matches!inner(*)')
+      .eq('staff_id', coachId)
+      .eq('attendance_status', 'P')
+
     if (error) throw error
-    return data || []
+
+    return (data || [])
+      .map((row: any) => row.matches)
+      .filter(Boolean)
+      .sort((a: any, b: any) =>
+        new Date(b.match_date).getTime() - new Date(a.match_date).getTime()
+      )
   },
 
   async getTotalMatches() {

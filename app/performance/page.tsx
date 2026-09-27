@@ -1046,7 +1046,7 @@ export default function PerformancePage() {
         value: coachStats.matchesAttended,
         icon: Trophy,
         color: 'bg-secondary',
-        description: 'Matches as coach',
+        description: 'Games marked present',
       },
       {
         title: 'Team Tries',

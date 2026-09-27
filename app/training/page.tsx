@@ -144,6 +144,13 @@ export default function TrainingPage() {
   const [loading, setLoading] = useState(true)
   const [selectedSession, setSelectedSession] = useState<number>(1)
   const [selectedSessionId, setSelectedSessionId] = useState<string>('') // For attendance session selection
+  // Staff attendance at training. Players are tracked in training_attendance;
+  // staff were never tracked at all, which is why every "training sessions
+  // attended" stat for staff was an approximation. Recorded here alongside
+  // player attendance so those stats have a real source.
+  const [trainingStaff, setTrainingStaff] = useState<{ user_id: string; name: string; role: string }[]>([])
+  const [staffAttendance, setStaffAttendance] = useState<Record<string, boolean>>({})
+  const [staffAttendanceUnavailable, setStaffAttendanceUnavailable] = useState(false)
   const [showScheduleForm, setShowScheduleForm] = useState(false)
   const [scheduleForm, setScheduleForm] = useState({
     session_date: '',
@@ -483,6 +490,19 @@ export default function TrainingPage() {
   useEffect(() => {
     loadData()
   }, [loadData])
+
+  // Keep the staff attendance panel in sync with the chosen session, including
+  // when the session is set programmatically (e.g. from the import flow).
+  useEffect(() => {
+    if (!user) return
+    if (user.role !== 'coach' && user.role !== 'asst_coach' && user.role !== 'data_admin') return
+    if (!selectedSessionId) {
+      setStaffAttendance({})
+      return
+    }
+    loadStaffAttendanceForSession(selectedSessionId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSessionId, user?.role])
 
   useEffect(() => {
     // Close export menu when clicking outside
@@ -1276,6 +1296,38 @@ export default function TrainingPage() {
     }
   }
 
+  // Load the staff roster plus any staff attendance already recorded for this
+  // session. Staff default to present so the common case (everyone turned up)
+  // needs no clicks — the coach only unticks the absentees.
+  const loadStaffAttendanceForSession = async (sessionId: string) => {
+    try {
+      const url = sessionId
+        ? `/api/training/staff-attendance?sessionId=${encodeURIComponent(sessionId)}`
+        : '/api/training/staff-attendance'
+      const response = await fetch(url, { cache: 'no-store' })
+      if (!response.ok) {
+        console.error('Staff attendance API returned', response.status)
+        return
+      }
+
+      const data = await response.json()
+      const staff = data.staff || []
+      setTrainingStaff(staff)
+      setStaffAttendanceUnavailable(!!data.tableMissing)
+
+      const recorded: Record<string, string> = data.attendance || {}
+      const next: Record<string, boolean> = {}
+      staff.forEach((member: any) => {
+        next[member.user_id] = recorded[member.user_id]
+          ? recorded[member.user_id] === 'P'
+          : true
+      })
+      setStaffAttendance(next)
+    } catch (err) {
+      console.error('Error loading staff attendance:', err)
+    }
+  }
+
   const calculateTotals = (playerId: string) => {
     const totals = { P: 0, A: 0, X: 0, I: 0 }
     for (let i = 1; i <= sessions.length; i++) {
@@ -1381,7 +1433,39 @@ export default function TrainingPage() {
         throw new Error(errorData.error || 'Failed to save attendance')
       }
 
-      alert('Attendance saved successfully!')
+      // Save staff attendance alongside the players'. Deliberately non-fatal:
+      // player attendance is already committed at this point, so a problem
+      // here (e.g. migration 060 not run yet) must not surface as a failed
+      // save or the coach would re-enter the whole sheet.
+      let staffSaveFailed = false
+      if (trainingStaff.length > 0) {
+        try {
+          const staffRecords = trainingStaff.map((member) => ({
+            staff_id: member.user_id,
+            attendance_status: staffAttendance[member.user_id] === false ? 'A' : 'P',
+          }))
+          const staffResponse = await fetch('/api/training/staff-attendance', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId, records: staffRecords }),
+          })
+          if (!staffResponse.ok) {
+            staffSaveFailed = true
+            const staffError = await staffResponse.json().catch(() => ({}))
+            if (staffError.tableMissing) setStaffAttendanceUnavailable(true)
+            console.error('Failed to save staff attendance:', staffError)
+          }
+        } catch (staffError) {
+          staffSaveFailed = true
+          console.error('Error saving staff attendance:', staffError)
+        }
+      }
+
+      alert(
+        staffSaveFailed
+          ? 'Player attendance saved. Staff attendance could not be saved — see console for details.'
+          : 'Attendance saved successfully!'
+      )
 
       // If this save came from a CSV import, save the file record to the DB
       // so all accounts see it in the "Uploaded attendance files" archive.
@@ -2958,6 +3042,67 @@ export default function TrainingPage() {
                 </table>
               </div>
             ) : null}
+
+            {/* ── Staff attendance: the last step before saving the sheet ── */}
+            {(user?.role === 'coach' || user?.role === 'asst_coach' || user?.role === 'data_admin')
+              && selectedSessionId
+              && trainingStaff.length > 0 && (
+              <div className="border-t border-tm-border p-6">
+                <div className="flex flex-col gap-1 mb-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h3 className="text-lg font-bold text-tm-text-1">Staff Attendance</h3>
+                    <p className="text-sm text-tm-text-3">
+                      Tick the staff who attended this session. Saved together with player attendance.
+                    </p>
+                  </div>
+                  <span className="text-sm font-semibold text-tm-text-1 whitespace-nowrap">
+                    {Object.values(staffAttendance).filter(Boolean).length} of {trainingStaff.length} present
+                  </span>
+                </div>
+
+                {staffAttendanceUnavailable && (
+                  <div className="mb-4 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-tm-text-1">
+                    Staff attendance storage isn&apos;t set up yet — run migration
+                    <code className="mx-1 px-1 rounded bg-tm-surface-hover text-xs">060_training_staff_attendance.sql</code>
+                    in the Supabase SQL editor. Player attendance still saves normally.
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {trainingStaff.map((member) => {
+                    const present = staffAttendance[member.user_id] !== false
+                    return (
+                      <label
+                        key={member.user_id}
+                        className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                          present
+                            ? 'border-success/50 bg-success/10'
+                            : 'border-tm-border bg-tm-surface-hover'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={present}
+                          onChange={(e) =>
+                            setStaffAttendance((prev) => ({
+                              ...prev,
+                              [member.user_id]: e.target.checked,
+                            }))
+                          }
+                          className="h-4 w-4 rounded border-tm-border text-primary focus:ring-primary"
+                        />
+                        <span className="min-w-0">
+                          <span className="block text-sm font-medium text-tm-text-1 truncate">{member.name}</span>
+                          <span className="block text-xs text-tm-text-3 capitalize">
+                            {member.role.replace(/_/g, ' ')}
+                          </span>
+                        </span>
+                      </label>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

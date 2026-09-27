@@ -64,6 +64,7 @@ export default function DashboardPage() {
   const [stats, setStats] = useState({
     totalPlayers: 0,
     activePlayers: 0,
+    injuredPlayers: 0,
     totalMatches: 0,
     totalTries: 0,
     totalTackles: 0,
@@ -164,6 +165,7 @@ export default function DashboardPage() {
                     ...prev,
                     totalPlayers: data.totalPlayers || 0,
                     activePlayers: data.activePlayers || 0,
+                    injuredPlayers: data.injuredPlayers || 0,
                     totalMatches: data.totalMatches || 0,
                     totalTries: data.totalTries || 0,
                     totalTackles: data.totalTackles || 0,
@@ -189,7 +191,16 @@ export default function DashboardPage() {
                   .select('*', { count: 'exact', head: true })
                   .eq('role', 'player')
                   .eq('status', 'active')
-                
+
+                // Distinct players with a currently-active injury record —
+                // see app/api/admin/statistics/route.ts for why this replaced
+                // the old totalPlayers-activePlayers approximation.
+                const { data: activeInjuriesRows } = await supabase
+                  .from('injuries')
+                  .select('player_id')
+                  .eq('status', 'active')
+                const injuredPlayersCount = new Set((activeInjuriesRows || []).map((i: any) => i.player_id)).size
+
                 // Get total matches count
                 const { count: totalMatchesCount } = await supabase
                   .from('matches')
@@ -232,6 +243,7 @@ export default function DashboardPage() {
                   ...prev,
                   totalPlayers: totalPlayersCount || 0,
                   activePlayers: activePlayersCount || 0,
+                  injuredPlayers: injuredPlayersCount,
                   totalMatches: totalMatchesCount || 0,
                   totalTries,
                   totalTackles,
@@ -1408,7 +1420,7 @@ export default function DashboardPage() {
             />
             <StatCard
               title="Injured Players"
-              value={stats.totalPlayers - stats.activePlayers}
+              value={stats.injuredPlayers}
               icon={AlertCircle}
               iconColor="bg-[#E05757]"
               iconTextColor="text-white"

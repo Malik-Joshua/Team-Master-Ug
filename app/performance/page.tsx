@@ -88,6 +88,12 @@ export default function PerformancePage() {
   // Performance Resources (for players and admins/coaches)
   const [performanceResources, setPerformanceResources] = useState<any[]>([])
   const [loadingResources, setLoadingResources] = useState(false)
+  // Per-user, localStorage-backed dismiss so a player can clear resource
+  // cards that pile up over time without deleting the underlying resource
+  // (mirrors the dismiss pattern on the club-captain dashboard's Recent
+  // Training/Gym Schedule cards).
+  const [dismissedResourceIds, setDismissedResourceIds] = useState<Set<string>>(new Set())
+  const [showDismissedResources, setShowDismissedResources] = useState(false)
   const [showResourceModal, setShowResourceModal] = useState(false)
   const [editingResource, setEditingResource] = useState<any>(null)
   const [resourceForm, setResourceForm] = useState({
@@ -127,6 +133,31 @@ export default function PerformancePage() {
     }
   }, [selectedResourceType])
 
+  const dismissResourceCard = (id: string) => {
+    setDismissedResourceIds((prev) => {
+      const next = new Set(prev).add(id)
+      try {
+        if (user?.user_id) {
+          localStorage.setItem(`dismissed_performance_resources_${user.user_id}`, JSON.stringify([...next]))
+        }
+      } catch {}
+      return next
+    })
+  }
+
+  const restoreResourceCard = (id: string) => {
+    setDismissedResourceIds((prev) => {
+      const next = new Set(prev)
+      next.delete(id)
+      try {
+        if (user?.user_id) {
+          localStorage.setItem(`dismissed_performance_resources_${user.user_id}`, JSON.stringify([...next]))
+        }
+      } catch {}
+      return next
+    })
+  }
+
   const loadData = useCallback(async () => {
       setLoading(true)
       
@@ -147,6 +178,16 @@ export default function PerformancePage() {
           .select('*')
           .eq('user_id', authUser.id)
           .single()
+
+        // Load this player's dismissed-resource-card preferences
+        if (profile && typeof window !== 'undefined') {
+          try {
+            const stored = localStorage.getItem(`dismissed_performance_resources_${authUser.id}`)
+            if (stored) {
+              setDismissedResourceIds(new Set(JSON.parse(stored)))
+            }
+          } catch {}
+        }
 
         // Load performance resources
         if (profile) {
@@ -2516,6 +2557,14 @@ export default function PerformancePage() {
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-tm-text-1">Performance Resources</h2>
             <div className="flex items-center gap-3">
+              {dismissedResourceIds.size > 0 && (
+                <button
+                  onClick={() => setShowDismissedResources((prev) => !prev)}
+                  className="text-xs text-tm-text-3 hover:text-tm-text-1 underline"
+                >
+                  {showDismissedResources ? 'Hide dismissed' : `Show dismissed (${dismissedResourceIds.size})`}
+                </button>
+              )}
               <select
                 value={selectedResourceType}
                 onChange={(e) => setSelectedResourceType(e.target.value)}
@@ -2534,22 +2583,34 @@ export default function PerformancePage() {
             <div className="text-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
             </div>
-          ) : performanceResources.length === 0 ? (
+          ) : performanceResources.filter((r) => showDismissedResources || !dismissedResourceIds.has(r.id)).length === 0 ? (
             <div className="text-center py-12">
               <FileText className="w-16 h-16 text-tm-text-3 mx-auto mb-4" />
-              <p className="text-tm-text-3">No performance resources available yet</p>
+              <p className="text-tm-text-3">
+                {performanceResources.length === 0 ? 'No performance resources available yet' : 'No resources to show — all dismissed'}
+              </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {performanceResources.map((resource) => {
+              {performanceResources
+                .filter((r) => showDismissedResources || !dismissedResourceIds.has(r.id))
+                .map((resource) => {
                 const typeInfo = getResourceTypeInfo(resource.resource_type)
                 const Icon = typeInfo.icon
+                const isDismissed = dismissedResourceIds.has(resource.id)
                 return (
                   <div
                     key={resource.id}
-                    className="border border-tm-border rounded-lg p-6 hover:shadow-md transition-shadow"
+                    className={`border border-tm-border rounded-lg p-6 hover:shadow-md transition-shadow relative ${isDismissed ? 'opacity-60' : ''}`}
                   >
-                    <div className="flex items-start justify-between mb-4">
+                    <button
+                      onClick={() => (isDismissed ? restoreResourceCard(resource.id) : dismissResourceCard(resource.id))}
+                      className="absolute top-4 right-4 text-tm-text-3 hover:text-tm-text-1 p-1 rounded hover:bg-tm-surface-hover transition-colors"
+                      title={isDismissed ? 'Restore this card' : 'Dismiss this card'}
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                    <div className="flex items-start justify-between mb-4 pr-8">
                       <div className="flex items-center gap-3">
                         <div className={`${typeInfo.color} p-3 rounded-lg`}>
                           <Icon className="w-5 h-5 text-white" />

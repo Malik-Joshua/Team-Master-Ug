@@ -87,6 +87,27 @@ export default function PlayersPage() {
   const [savingGymMetrics, setSavingGymMetrics] = useState(false)
   const [clubCaptainStatus, setClubCaptainStatus] = useState<Record<string, boolean>>({})
   const [togglingClubCaptain, setTogglingClubCaptain] = useState<string | null>(null)
+  // Distinct players with a currently-active injury record (from the real
+  // `injuries` table the physio maintains) — NOT the same as
+  // user_profiles.status === 'injured', which is a separate, manually-set
+  // field that can drift out of sync with actual injury records.
+  const [activeInjuryPlayerIds, setActiveInjuryPlayerIds] = useState<Set<string>>(new Set())
+
+  useEffect(() => {
+    const loadActiveInjuries = async () => {
+      try {
+        const response = await fetch('/api/admin/injuries', { cache: 'no-store' })
+        if (response.ok) {
+          const data = await response.json()
+          const ids = new Set<string>((data.injuries || []).map((i: any) => i.player_id).filter(Boolean))
+          setActiveInjuryPlayerIds(ids)
+        }
+      } catch (error) {
+        console.error('Error fetching active injuries:', error)
+      }
+    }
+    loadActiveInjuries()
+  }, [])
 
   // Load club captain status for players
   const loadClubCaptainStatus = async (playersList: Player[]) => {
@@ -418,7 +439,7 @@ export default function PlayersPage() {
   }
 
   const activePlayers = players.filter((p) => p.status === 'active').length
-  const injuredPlayers = players.filter((p) => p.status === 'injured').length
+  const injuredPlayers = players.filter((p) => activeInjuryPlayerIds.has(p.user_id || p.id)).length
   const totalPlayers = players.length
 
   const filteredPlayers = players.filter((player) => {

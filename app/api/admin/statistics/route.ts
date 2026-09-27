@@ -75,6 +75,7 @@ export async function GET(request: NextRequest) {
       { count: totalTrainingSessionsCount },
       { data: matchStats },
       { data: matches },
+      { data: activeInjuries },
     ] = await Promise.all([
       supabaseAdmin.from('user_profiles').select('*', { count: 'exact', head: true }),
       supabaseAdmin.from('user_profiles').select('*', { count: 'exact', head: true }).eq('role', 'player'),
@@ -86,7 +87,17 @@ export async function GET(request: NextRequest) {
       supabaseAdmin.from('training_sessions').select('*', { count: 'exact', head: true }),
       supabaseAdmin.from('match_stats').select('tries_scored, tackles_made, minutes_played'),
       supabaseAdmin.from('matches').select('result'),
+      // "Injured Players" used to be `totalPlayers - activePlayers`, derived
+      // from user_profiles.status — a general-purpose field an admin can set
+      // to 'injured'/'inactive'/'suspended' for any reason, on the Players
+      // page. It has zero connection to the actual `injuries` table the
+      // physio maintains, so it drifted out of sync with real injury
+      // records. Count distinct players with a currently-active injury
+      // record instead, so this stat reflects the physio's actual data.
+      supabaseAdmin.from('injuries').select('player_id').eq('status', 'active'),
     ])
+
+    const injuredPlayersCount = new Set((activeInjuries || []).map((i: any) => i.player_id)).size
 
     const totalRevenue = transactions?.filter(t => t.type === 'revenue')
       .reduce((sum, t) => sum + parseFloat(t.amount?.toString() || '0'), 0) || 0
@@ -213,6 +224,7 @@ export async function GET(request: NextRequest) {
       totalUsers: totalUsersCount || 0,
       totalPlayers: totalPlayersCount || 0,
       activePlayers: activePlayersCount || 0,
+      injuredPlayers: injuredPlayersCount,
       totalStaff: totalStaffCount || 0,
       totalRevenue: Math.round(totalRevenue),
       totalExpenses: Math.round(totalExpenses),

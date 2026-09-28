@@ -45,24 +45,22 @@ const MONTH_LABELS = [
 ]
 
 /**
- * Human-readable label for the CURRENT season, e.g. "2026 Season" when it
- * starts in January (a plain calendar year reads cleaner than "Jan 2026 –
- * Dec 2026"), or "Jun 2026 – May 2027" for any other start month. Used to
- * caption season-scoped rankings (e.g. the Top Performers card) so it's
- * clear which window the numbers cover, since the leaderboard resets every
- * year rather than staying all-time.
+ * Human-readable label for the CURRENT season, e.g. "Monday, September 28,
+ * 2026 · Season 2026". Displays the current date and the season year so the
+ * Top Performers card is clear on both when the rankings were calculated and
+ * which season they cover.
  */
 export function getCurrentSeasonLabel(seasonStartMonth: string | null | undefined, now: Date = new Date()): string {
   const seasonStart = getCurrentSeasonStart(seasonStartMonth, now)
-  const [yearStr, monthStr] = seasonStart.split('-')
-  const startYear = parseInt(yearStr, 10)
-  const startMonth = parseInt(monthStr, 10) - 1 // 0-indexed
+  const [yearStr] = seasonStart.split('-')
+  const seasonYear = parseInt(yearStr, 10)
 
-  if (startMonth === 0) {
-    return `${startYear} Season`
-  }
+  const dayName = now.toLocaleDateString('en-US', { weekday: 'long' })
+  const formattedDate = now.toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  })
 
-  const endYear = startYear + 1
-  const endMonth = (startMonth + 11) % 12 // the month right before startMonth, one year later
-  return `${MONTH_LABELS[startMonth]} ${startYear} – ${MONTH_LABELS[endMonth]} ${endYear}`
+  return `${dayName}, ${formattedDate} · Season ${seasonYear}`
 }

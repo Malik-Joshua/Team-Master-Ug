@@ -1783,10 +1783,12 @@ export default function DashboardPage() {
           {/* Top Performers */}
           <div className="bg-tm-surface rounded-card border border-tm-border shadow-soft overflow-hidden">
             <div className="p-4 sm:p-6 border-b border-tm-border">
-              <h3 className="text-lg sm:text-xl font-bold text-tm-text-1">Top Performers</h3>
-              {seasonLabel && (
-                <p className="text-sm text-tm-text-2 mt-1">Rankings for {seasonLabel} — resets every season</p>
-              )}
+              <div>
+                <h3 className="text-lg sm:text-xl font-bold text-tm-text-1">Top Performers</h3>
+                {seasonLabel && (
+                  <p className="text-sm text-tm-text-2 mt-1">{seasonLabel}</p>
+                )}
+              </div>
             </div>
             {/* Mobile card layout */}
             <div className="md:hidden p-4 space-y-3">

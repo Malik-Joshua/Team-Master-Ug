@@ -218,6 +218,10 @@ export default function FixturesPage() {
   // Club slogan — shown on the "Team selection saved" header to hype the squad.
   const [clubSlogan, setClubSlogan] = useState<string | null>(null)
   const [teamSelectionsForStats, setTeamSelectionsForStats] = useState<any[]>([])
+  // Available staff roster for matching. When no staff is assigned to the
+  // match in the fixtures table, this allows the coach to still record who
+  // attended, so the "Matches Attended" stats are accurate.
+  const [availableStaff, setAvailableStaff] = useState<{ id: string; name: string; role: string }[]>([])
   const [matchStaff, setMatchStaff] = useState<{
     coach: { id: string; name: string } | null
     asst_coach: { id: string; name: string } | null
@@ -1209,13 +1213,15 @@ export default function FixturesPage() {
 
       if (matchError) throw matchError
 
-      // Save staff attendance for this match
-      const assignedStaff = [matchStaff.coach, matchStaff.asst_coach, matchStaff.physio, matchStaff.team_manager].filter(Boolean) as Array<{
-        id: string
-        name: string
-      }>
-      if (assignedStaff.length > 0) {
-        const attendanceRecords = assignedStaff.map((staff) => ({
+      // Save staff attendance for this match. If no staff was pre-assigned to
+      // the match in the fixtures table, use the full available staff roster
+      // (coaches, physio, managers) so attendance is still recorded.
+      const staffToRecord = (matchStaff.coach || matchStaff.asst_coach || matchStaff.physio || matchStaff.team_manager)
+        ? [matchStaff.coach, matchStaff.asst_coach, matchStaff.physio, matchStaff.team_manager].filter((s): s is { id: string; name: string } => !!s)
+        : availableStaff.map(s => ({ id: s.id, name: s.name }))
+
+      if (staffToRecord.length > 0) {
+        const attendanceRecords = staffToRecord.map((staff) => ({
           match_id: selectedMatchForStats,
           staff_id: staff.id,
           attendance_status: staffAttendance[staff.id] === false ? 'A' : 'P',
@@ -1700,6 +1706,23 @@ export default function FixturesPage() {
             })
 
             setStaffAttendance(attendanceMap)
+          }
+
+          // Also fetch available staff roster, in case none are assigned to this
+          // match in the fixtures table. This way coaches can still record who
+          // attended, even for matches created without pre-assigned staff.
+          try {
+            const { data: staff, error: staffError } = await supabase
+              .from('user_profiles')
+              .select('user_id, name, role')
+              .in('role', ['coach', 'asst_coach', 'physio', 'data_admin'])
+              .order('name', { ascending: true })
+
+            if (!staffError && staff) {
+              setAvailableStaff(staff.map(s => ({ id: s.user_id, name: s.name, role: s.role })))
+            }
+          } catch (e) {
+            console.error('Error loading available staff:', e)
           }
         } catch (error) {
           console.error('Error loading team selection:', error)
@@ -2548,76 +2571,48 @@ export default function FixturesPage() {
 
           {/* Staff Attendance */}
           <div className="bg-tm-surface-hover rounded-lg p-4 border border-tm-border">
-            <h3 className="text-lg font-semibold text-tm-text-1 mb-4">Staff Attendance</h3>
-            {(matchStaff.coach || matchStaff.asst_coach || matchStaff.physio || matchStaff.team_manager) ? (
-              <div className="space-y-3">
-                {matchStaff.coach && (
-                  <label className="flex items-center gap-3 text-sm text-tm-text-1">
-                    <input
-                      type="checkbox"
-                      checked={staffAttendance[matchStaff.coach.id] ?? true}
-                      onChange={(e) =>
-                        setStaffAttendance((prev) => ({
-                          ...prev,
-                          [matchStaff.coach!.id]: e.target.checked,
-                        }))
-                      }
-                      className="h-4 w-4 rounded border-tm-border text-primary focus:ring-primary"
-                    />
-                    Coach: {matchStaff.coach.name}
-                  </label>
-                )}
-                {matchStaff.asst_coach && (
-                  <label className="flex items-center gap-3 text-sm text-tm-text-1">
-                    <input
-                      type="checkbox"
-                      checked={staffAttendance[matchStaff.asst_coach.id] ?? true}
-                      onChange={(e) =>
-                        setStaffAttendance((prev) => ({
-                          ...prev,
-                          [matchStaff.asst_coach!.id]: e.target.checked,
-                        }))
-                      }
-                      className="h-4 w-4 rounded border-tm-border text-primary focus:ring-primary"
-                    />
-                    Asst. Coach: {matchStaff.asst_coach.name}
-                  </label>
-                )}
-                {matchStaff.physio && (
-                  <label className="flex items-center gap-3 text-sm text-tm-text-1">
-                    <input
-                      type="checkbox"
-                      checked={staffAttendance[matchStaff.physio.id] ?? true}
-                      onChange={(e) =>
-                        setStaffAttendance((prev) => ({
-                          ...prev,
-                          [matchStaff.physio!.id]: e.target.checked,
-                        }))
-                      }
-                      className="h-4 w-4 rounded border-tm-border text-primary focus:ring-primary"
-                    />
-                    Physio: {matchStaff.physio.name}
-                  </label>
-                )}
-                {matchStaff.team_manager && (
-                  <label className="flex items-center gap-3 text-sm text-tm-text-1">
-                    <input
-                      type="checkbox"
-                      checked={staffAttendance[matchStaff.team_manager.id] ?? true}
-                      onChange={(e) =>
-                        setStaffAttendance((prev) => ({
-                          ...prev,
-                          [matchStaff.team_manager!.id]: e.target.checked,
-                        }))
-                      }
-                      className="h-4 w-4 rounded border-tm-border text-primary focus:ring-primary"
-                    />
-                    Team Manager: {matchStaff.team_manager.name}
-                  </label>
-                )}
+            <div className="flex flex-col gap-1 mb-4 sm:flex-row sm:items-center sm:justify-between">
+              <h3 className="text-lg font-semibold text-tm-text-1">Staff Attendance</h3>
+              <span className="text-sm font-semibold text-tm-text-1 whitespace-nowrap">
+                {Object.values(staffAttendance).filter(Boolean).length} of {availableStaff.length} present
+              </span>
+            </div>
+            {availableStaff.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {availableStaff.map((staff) => {
+                  const present = staffAttendance[staff.id] !== false
+                  return (
+                    <label
+                      key={staff.id}
+                      className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                        present
+                          ? 'border-success/50 bg-success/10'
+                          : 'border-tm-border bg-tm-surface'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={present}
+                        onChange={(e) =>
+                          setStaffAttendance((prev) => ({
+                            ...prev,
+                            [staff.id]: e.target.checked,
+                          }))
+                        }
+                        className="h-4 w-4 rounded border-tm-border text-primary focus:ring-primary"
+                      />
+                      <span className="min-w-0">
+                        <span className="block text-sm font-medium text-tm-text-1 truncate">{staff.name}</span>
+                        <span className="block text-xs text-tm-text-3 capitalize">
+                          {staff.role.replace(/_/g, ' ')}
+                        </span>
+                      </span>
+                    </label>
+                  )
+                })}
               </div>
             ) : (
-              <p className="text-sm text-tm-text-3">No staff assigned to this fixture.</p>
+              <p className="text-sm text-tm-text-3">Loading staff roster...</p>
             )}
             <p className="text-xs text-tm-text-3 mt-3">
               Uncheck a staff member if they were not available on match day.

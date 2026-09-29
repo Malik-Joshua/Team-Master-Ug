@@ -212,6 +212,16 @@ export async function sendWelcomeEmail(
   const gmailAvailable = !!getGmailTransport()
   const resendAvailable = !!getResendClient()
 
+  // Compact, value-free config snapshot. Surfaced in the error when nothing
+  // sends so it's obvious (from the on-screen message / logs) whether the
+  // running deployment actually received each env var — the usual cause of
+  // "email won't send in prod but works locally" is a missing/unscoped var.
+  const diag =
+    `[config: RESEND_API_KEY=${!!process.env.RESEND_API_KEY}, ` +
+    `RESEND_FROM_EMAIL=${process.env.RESEND_FROM_EMAIL ? 'set' : 'unset'}, ` +
+    `GMAIL_USER=${!!process.env.GMAIL_USER}, ` +
+    `GMAIL_APP_PASSWORD=${!!process.env.GMAIL_APP_PASSWORD}]`
+
   // Build the attempt order.
   const providers: { name: string; run: () => Promise<{ sent: boolean; error?: string }> }[] = []
   if (resendCanReachAnyone() && resendAvailable) {
@@ -223,7 +233,7 @@ export async function sendWelcomeEmail(
   }
 
   if (providers.length === 0) {
-    return { sent: false, error: 'No email provider configured (set GMAIL_USER/GMAIL_APP_PASSWORD or a verified RESEND_API_KEY).' }
+    return { sent: false, error: `No email provider configured. ${diag}` }
   }
 
   const errors: string[] = []
@@ -233,7 +243,11 @@ export async function sendWelcomeEmail(
     errors.push(`${provider.name}: ${result.error}`)
   }
 
-  return { sent: false, error: errors.join(' | ') }
+  // Note when a provider was skipped entirely because it wasn't configured —
+  // e.g. Gmail creds missing in prod means only 'resend:' shows up here.
+  if (!gmailAvailable) errors.push('gmail: skipped (GMAIL_USER/GMAIL_APP_PASSWORD not seen by this deployment)')
+
+  return { sent: false, error: `${errors.join(' | ')} ${diag}` }
 }
 
 function escapeHtml(s: string): string {

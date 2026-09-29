@@ -47,10 +47,19 @@ function getGmailTransport(): Transporter | null {
   const user = process.env.GMAIL_USER
   const pass = process.env.GMAIL_APP_PASSWORD
   if (!user || !pass) return null
+  // Explicit 587/STARTTLS over IPv4 rather than the `service: 'gmail'`
+  // shorthand, which defaults to port 465 (implicit SSL). 465 was observed
+  // timing out / IPv6-unreachable in some environments while 587 connected
+  // reliably — 587 is the more firewall-friendly of Gmail's two ports.
   return nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false,
+    requireTLS: true,
+    family: 4, // force IPv4 — IPv6 route to Gmail was unreachable in some envs
+    connectionTimeout: 15000,
     auth: { user, pass: pass.replace(/\s+/g, '') }, // App Passwords display with spaces; strip them
-  })
+  } as Parameters<typeof nodemailer.createTransport>[0])
 }
 
 // True when a real verified Resend domain is configured, i.e. Resend can

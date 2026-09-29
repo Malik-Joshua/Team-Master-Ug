@@ -1,25 +1,32 @@
 import { Resend } from 'resend'
+import nodemailer, { type Transporter } from 'nodemailer'
 
 /**
  * Transactional email — currently just the "your account was created"
  * welcome email fired when a manager/admin adds a player or staff member
  * (one-off manual add, onboarding CSV import, or the staff invite form).
  *
- * Provider: Resend. Free tier (3,000/mo, 100/day) comfortably covers a
- * single club's onboarding + roster-churn volume.
+ * Two providers, tried in order:
+ *   1. Resend — preferred, but it will ONLY deliver to arbitrary recipients
+ *      once you've verified a sending domain; before that it silently limits
+ *      delivery to the account owner's own address. Free tier 3,000/mo.
+ *   2. Gmail SMTP (via nodemailer) — fallback for when there's no verified
+ *      Resend domain yet. Sends from a normal Gmail account using an App
+ *      Password, reaching ANY recipient immediately with no DNS setup
+ *      (~500/day limit). See SETUP_GMAIL_EMAIL.md.
  *
  * Design goals:
- *   - Never throw. A missing/invalid API key or a Resend outage should
+ *   - Never throw. A missing/invalid key or a provider outage should
  *     degrade to "account created, no email sent" — never block account
  *     creation, which is the actual thing the manager is waiting on.
- *   - Callers get back a simple { sent: boolean, error?: string } so the
- *     API route can decide whether to still show the temp password in
+ *   - Callers get back { sent: boolean, error?: string, via?: string } so
+ *     the API route can decide whether to still show the temp password in
  *     the response (fallback for when the email didn't go out).
  */
 
 // Constructed lazily (not at module load) so a missing key doesn't crash
 // the route in dev/CI before anyone's tried to send anything.
-function getClient(): Resend | null {
+function getResendClient(): Resend | null {
   const key = process.env.RESEND_API_KEY
   if (!key) return null
   return new Resend(key)
@@ -31,6 +38,31 @@ function getClient(): Resend | null {
 // before going live, or Resend will reject sends to anyone but the account
 // owner's own verified email.
 const FROM = process.env.RESEND_FROM_EMAIL || 'TeamMaster <onboarding@resend.dev>'
+
+// Gmail SMTP fallback. GMAIL_USER is the full address (you@gmail.com);
+// GMAIL_APP_PASSWORD is a 16-char Google App Password (NOT the normal
+// account password — requires 2-Step Verification enabled on the account).
+// Both must be present for the fallback to be used.
+function getGmailTransport(): Transporter | null {
+  const user = process.env.GMAIL_USER
+  const pass = process.env.GMAIL_APP_PASSWORD
+  if (!user || !pass) return null
+  return nodemailer.createTransport({
+    service: 'gmail',
+    auth: { user, pass: pass.replace(/\s+/g, '') }, // App Passwords display with spaces; strip them
+  })
+}
+
+// True when a real verified Resend domain is configured, i.e. Resend can
+// deliver to arbitrary recipients. We treat a missing RESEND_FROM_EMAIL, or
+// the sandbox onboarding@resend.dev sender, as "not domain-verified" — so the
+// Gmail fallback is used to reach real players/staff instead of silently
+// failing to deliver to anyone but the Resend account owner.
+function resendCanReachAnyone(): boolean {
+  const from = process.env.RESEND_FROM_EMAIL?.trim()
+  if (!from) return false
+  return !/@resend\.dev>?\s*$/i.test(from)
+}
 
 export interface WelcomeEmailParams {
   to: string
@@ -52,17 +84,15 @@ const ROLE_LABEL: Record<string, string> = {
   analyst: 'Analyst',
 }
 
-/**
- * Sends the "your TeamMaster account is ready" email with a login link and
- * temporary password. Returns { sent: false, error } instead of throwing on
- * any failure — see file header for why.
- */
-export async function sendWelcomeEmail(params: WelcomeEmailParams): Promise<{ sent: boolean; error?: string }> {
-  const client = getClient()
-  if (!client) {
-    return { sent: false, error: 'RESEND_API_KEY is not configured — email not sent.' }
-  }
+interface EmailContent {
+  subject: string
+  html: string
+  text: string
+}
 
+// Builds the shared welcome-email content so both providers send an
+// identical message.
+function buildWelcomeContent(params: WelcomeEmailParams): EmailContent {
   const loginUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/login`
   const roleLabel = ROLE_LABEL[params.role] || 'Team Member'
   const club = params.clubName?.trim() || 'your club'
@@ -108,13 +138,19 @@ Sign in: ${loginUrl}
 
 Please change your password after your first sign-in (Settings → Account).`
 
+  return { subject, html, text }
+}
+
+async function sendViaResend(to: string, content: EmailContent): Promise<{ sent: boolean; error?: string }> {
+  const client = getResendClient()
+  if (!client) return { sent: false, error: 'RESEND_API_KEY is not configured' }
   try {
     const { error } = await client.emails.send({
       from: FROM,
-      to: params.to,
-      subject,
-      html,
-      text,
+      to,
+      subject: content.subject,
+      html: content.html,
+      text: content.text,
     })
     if (error) {
       console.error('[email] Resend send failed:', error)
@@ -122,9 +158,73 @@ Please change your password after your first sign-in (Settings → Account).`
     }
     return { sent: true }
   } catch (err: any) {
-    console.error('[email] Unexpected error sending welcome email:', err)
-    return { sent: false, error: err?.message || 'Unexpected error sending email' }
+    console.error('[email] Unexpected error sending via Resend:', err)
+    return { sent: false, error: err?.message || 'Unexpected error sending via Resend' }
   }
+}
+
+async function sendViaGmail(to: string, content: EmailContent): Promise<{ sent: boolean; error?: string }> {
+  const transport = getGmailTransport()
+  if (!transport) return { sent: false, error: 'GMAIL_USER / GMAIL_APP_PASSWORD not configured' }
+  const fromName = process.env.RESEND_FROM_EMAIL?.split('<')[0]?.trim() || 'Team Master'
+  try {
+    await transport.sendMail({
+      from: `${fromName} <${process.env.GMAIL_USER}>`,
+      to,
+      subject: content.subject,
+      html: content.html,
+      text: content.text,
+    })
+    return { sent: true }
+  } catch (err: any) {
+    console.error('[email] Gmail SMTP send failed:', err)
+    return { sent: false, error: err?.message || 'Gmail SMTP rejected the send' }
+  }
+}
+
+/**
+ * Sends the "your TeamMaster account is ready" email with a login link and
+ * temporary password.
+ *
+ * Provider order is chosen so a real recipient actually receives it:
+ *   - If Resend has a verified domain, prefer Resend, fall back to Gmail.
+ *   - Otherwise (Resend on sandbox or unconfigured) prefer Gmail — the
+ *     Resend sandbox can only reach the account owner, so it would silently
+ *     fail to deliver to real players/staff.
+ *
+ * Returns { sent, error?, via? } instead of throwing on any failure — see
+ * file header for why.
+ */
+export async function sendWelcomeEmail(
+  params: WelcomeEmailParams
+): Promise<{ sent: boolean; error?: string; via?: string }> {
+  const content = buildWelcomeContent(params)
+
+  const gmailAvailable = !!getGmailTransport()
+  const resendAvailable = !!getResendClient()
+
+  // Build the attempt order.
+  const providers: { name: string; run: () => Promise<{ sent: boolean; error?: string }> }[] = []
+  if (resendCanReachAnyone() && resendAvailable) {
+    providers.push({ name: 'resend', run: () => sendViaResend(params.to, content) })
+    if (gmailAvailable) providers.push({ name: 'gmail', run: () => sendViaGmail(params.to, content) })
+  } else {
+    if (gmailAvailable) providers.push({ name: 'gmail', run: () => sendViaGmail(params.to, content) })
+    if (resendAvailable) providers.push({ name: 'resend', run: () => sendViaResend(params.to, content) })
+  }
+
+  if (providers.length === 0) {
+    return { sent: false, error: 'No email provider configured (set GMAIL_USER/GMAIL_APP_PASSWORD or a verified RESEND_API_KEY).' }
+  }
+
+  const errors: string[] = []
+  for (const provider of providers) {
+    const result = await provider.run()
+    if (result.sent) return { sent: true, via: provider.name }
+    errors.push(`${provider.name}: ${result.error}`)
+  }
+
+  return { sent: false, error: errors.join(' | ') }
 }
 
 function escapeHtml(s: string): string {

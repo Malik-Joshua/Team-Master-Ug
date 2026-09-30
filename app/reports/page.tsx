@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
-import { FileText, Download, Filter, Calendar, BarChart3, TrendingUp, Users, Trophy, ChevronDown, FileSpreadsheet, Trash2, X } from 'lucide-react'
+import { FileText, Filter, Calendar, BarChart3, TrendingUp, Users, Trophy, FileSpreadsheet, Trash2, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import RefreshButton from '@/components/RefreshButton'
 import { generatePDFReport, generateExcelReport, generateCSVReport, downloadBlob, type ReportData } from '@/lib/report-export'
@@ -28,7 +28,6 @@ export default function ReportsPage() {
     dateTo: '',
   })
   const [downloadingReport, setDownloadingReport] = useState<string | null>(null)
-  const [showDownloadMenu, setShowDownloadMenu] = useState<string | null>(null)
   const [players, setPlayers] = useState<Array<{ id: string; name: string }>>([])
   const [matches, setMatches] = useState<Array<{ id: string; opponent: string; match_date: string }>>([])
   const [trainingSessions, setTrainingSessions] = useState<Array<{ id: string; session_date: string; description?: string }>>([])
@@ -37,36 +36,6 @@ export default function ReportsPage() {
     selectedMatch: '',
     selectedTrainingSession: '',
   })
-
-  useEffect(() => {
-    // Close download menu when clicking outside
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement
-      if (showDownloadMenu && !target.closest('.download-menu-container')) {
-        setShowDownloadMenu(null)
-      }
-    }
-
-    if (showDownloadMenu) {
-      document.addEventListener('mousedown', handleClickOutside)
-      return () => document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [showDownloadMenu])
-
-  useEffect(() => {
-    // Close download menu on scroll. The document itself is the scroll
-    // container again (Layout.tsx pins the header with `position: sticky`
-    // rather than using an inner scroll container), so this listens on
-    // `window`.
-    const handleScroll = () => {
-      if (showDownloadMenu) {
-        setShowDownloadMenu(null)
-      }
-    }
-
-    window.addEventListener('scroll', handleScroll)
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [showDownloadMenu])
 
   const loadData = useCallback(async () => {
       const supabase = createClient()
@@ -1564,7 +1533,6 @@ export default function ReportsPage() {
       }
 
       await downloadBlob(blob, filename)
-      setShowDownloadMenu(null)
       alert(`${format.toUpperCase()} report ready — check your downloads or share sheet.`)
     } catch (error: any) {
       console.error('Error downloading report:', error)
@@ -1900,7 +1868,11 @@ export default function ReportsPage() {
               <p className="text-tm-text-3">Generate your first report using the options above</p>
             </div>
           ) : (
-            <div className="divide-y divide-tm-border">
+            // Scrollable so a long list of generated reports stays navigable
+            // without pushing the rest of the page down. Caps at ~5 rows tall
+            // then scrolls internally. Now safe to clip overflow because the
+            // download controls are inline (no absolute dropdown to cut off).
+            <div className="divide-y divide-tm-border max-h-[32rem] overflow-y-auto">
               {filteredReports.map((report) => {
                 const Icon = getReportTypeIcon(report.type)
                 const typeColor = getReportTypeColor(report.type)
@@ -1934,51 +1906,43 @@ export default function ReportsPage() {
                           <Trash2 className="w-4 h-4" />
                         </button>
                         {report.status === 'ready' && (
-                          <div className="relative download-menu-container">
-                          <button
-                              onClick={() => setShowDownloadMenu(showDownloadMenu === report.id ? null : report.id)}
-                              disabled={downloadingReport === report.id}
-                              className="px-4 py-2 bg-tm-secondary text-tm-on-secondary rounded-[6px] font-medium hover:opacity-90 transition-all duration-300 shadow-soft hover:shadow-medium inline-flex items-center disabled:opacity-50"
-                          >
-                              {downloadingReport === report.id ? (
-                                <>
-                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                                  Downloading...
-                                </>
-                              ) : (
-                                <>
-                            <Download className="w-4 h-4 mr-2" />
-                            Download
-                                  <ChevronDown className="w-4 h-4 ml-2" />
-                                </>
-                              )}
-                            </button>
-                            {showDownloadMenu === report.id && (
-                              <div className="absolute right-0 mt-2 w-48 bg-tm-surface rounded-lg shadow-xl border border-tm-border z-50 overflow-hidden">
-                                <button
-                                  onClick={() => handleDownload(report, 'pdf')}
-                                  className="w-full text-left px-4 py-3 hover:bg-tm-surface-hover transition-colors flex items-center space-x-2 text-tm-text-1"
-                                >
-                                  <FileText className="w-4 h-4 text-primary" />
-                                  <span className="text-tm-text-1">Download as PDF</span>
-                                </button>
-                                <button
-                                  onClick={() => handleDownload(report, 'excel')}
-                                  className="w-full text-left px-4 py-3 hover:bg-tm-surface-hover transition-colors flex items-center space-x-2 text-tm-text-1 border-t border-tm-border"
-                                >
-                                  <FileSpreadsheet className="w-4 h-4 text-success" />
-                                  <span className="text-tm-text-1">Download as Excel</span>
-                                </button>
-                                <button
-                                  onClick={() => handleDownload(report, 'csv')}
-                                  className="w-full text-left px-4 py-3 hover:bg-tm-surface-hover transition-colors flex items-center space-x-2 text-tm-text-1 border-t border-tm-border"
-                                >
-                                  <FileText className="w-4 h-4 text-info" />
-                                  <span className="text-tm-text-1">Download as CSV</span>
-                          </button>
-                              </div>
-                            )}
-                          </div>
+                          // Inline one-click format buttons rather than a
+                          // dropdown menu. A dropdown is absolutely positioned
+                          // and gets clipped once the reports list is made
+                          // scrollable (overflow-y-auto), which was the
+                          // "overlay/obstruction" problem. These buttons live
+                          // in normal flow, so they never get clipped and each
+                          // download is a single click.
+                          downloadingReport === report.id ? (
+                            <div className="flex items-center gap-2 text-info px-2">
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-info"></div>
+                              <span className="text-sm font-medium">Downloading…</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1.5 sm:gap-2">
+                              <button
+                                onClick={() => handleDownload(report, 'pdf')}
+                                className="px-3 py-2 rounded-[6px] text-xs sm:text-sm font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors inline-flex items-center gap-1.5"
+                                title="Download as PDF"
+                              >
+                                <FileText className="w-4 h-4" /> PDF
+                              </button>
+                              <button
+                                onClick={() => handleDownload(report, 'excel')}
+                                className="px-3 py-2 rounded-[6px] text-xs sm:text-sm font-medium bg-success/10 text-success hover:bg-success/20 transition-colors inline-flex items-center gap-1.5"
+                                title="Download as Excel"
+                              >
+                                <FileSpreadsheet className="w-4 h-4" /> Excel
+                              </button>
+                              <button
+                                onClick={() => handleDownload(report, 'csv')}
+                                className="px-3 py-2 rounded-[6px] text-xs sm:text-sm font-medium bg-info/10 text-info hover:bg-info/20 transition-colors inline-flex items-center gap-1.5"
+                                title="Download as CSV"
+                              >
+                                <FileText className="w-4 h-4" /> CSV
+                              </button>
+                            </div>
+                          )
                         )}
                         {report.status === 'generating' && (
                           <div className="flex items-center space-x-2 text-info">

@@ -87,6 +87,64 @@ export default function PlayersPage() {
   const [savingGymMetrics, setSavingGymMetrics] = useState(false)
   const [clubCaptainStatus, setClubCaptainStatus] = useState<Record<string, boolean>>({})
   const [togglingClubCaptain, setTogglingClubCaptain] = useState<string | null>(null)
+  // Suspend / fire / reinstate a player — admin lifecycle controls mirroring
+  // the Staff screen.
+  const [confirmAction, setConfirmAction] = useState<{ player: Player; action: 'suspend' | 'fire' | 'reinstate' } | null>(null)
+  const [processingAction, setProcessingAction] = useState(false)
+
+  const renderLifecycleButtons = (player: Player) => {
+    const status = player.status
+    const fired = status === 'fired'
+    const suspended = status === 'suspended' || status === 'inactive'
+    return (
+      <>
+        {!fired && !suspended && (
+          <>
+            <button onClick={() => setConfirmAction({ player, action: 'suspend' })} className="px-2.5 py-1.5 rounded-md text-xs font-medium bg-warning/15 text-warning hover:bg-warning/25 transition-colors" title="Suspend player">Suspend</button>
+            <button onClick={() => setConfirmAction({ player, action: 'fire' })} className="px-2.5 py-1.5 rounded-md text-xs font-medium bg-secondary/15 text-secondary hover:bg-secondary/25 transition-colors" title="Fire player">Fire</button>
+          </>
+        )}
+        {suspended && (
+          <>
+            <button onClick={() => setConfirmAction({ player, action: 'reinstate' })} className="px-2.5 py-1.5 rounded-md text-xs font-medium bg-success/15 text-success hover:bg-success/25 transition-colors" title="Reinstate player">Reinstate</button>
+            <button onClick={() => setConfirmAction({ player, action: 'fire' })} className="px-2.5 py-1.5 rounded-md text-xs font-medium bg-secondary/15 text-secondary hover:bg-secondary/25 transition-colors" title="Fire player">Fire</button>
+          </>
+        )}
+        {fired && (
+          <button onClick={() => setConfirmAction({ player, action: 'reinstate' })} className="px-2.5 py-1.5 rounded-md text-xs font-medium bg-success/15 text-success hover:bg-success/25 transition-colors" title="Reinstate player">Reinstate</button>
+        )}
+      </>
+    )
+  }
+
+  const applyPlayerAction = async () => {
+    if (!confirmAction) return
+    const { player, action } = confirmAction
+    setProcessingAction(true)
+    try {
+      const res = await fetch('/api/admin/players', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: player.user_id || player.id, action }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        alert(data.error || 'Failed to update player status')
+        return
+      }
+      // Reflect the new status locally so the badge/actions update immediately.
+      setPlayers((prev) => prev.map((p) =>
+        (p.user_id || p.id) === (player.user_id || player.id)
+          ? { ...p, status: data.status }
+          : p
+      ))
+      setConfirmAction(null)
+    } catch (err: any) {
+      alert(`Error: ${err.message}`)
+    } finally {
+      setProcessingAction(false)
+    }
+  }
   // Distinct players with a currently-active injury record (from the real
   // `injuries` table the physio maintains) — NOT the same as
   // user_profiles.status === 'injured', which is a separate, manually-set
@@ -644,6 +702,7 @@ export default function PlayersPage() {
                         )}
                       </button>
                     )}
+                    {user?.role === 'admin' && renderLifecycleButtons(player)}
                   </div>
                 </div>
               ))
@@ -750,6 +809,7 @@ export default function PlayersPage() {
                               )}
                             </button>
                           )}
+                          {user?.role === 'admin' && renderLifecycleButtons(player)}
                         </div>
                       </td>
                     </tr>
@@ -1093,6 +1153,36 @@ export default function PlayersPage() {
               >
                 <Save className="w-4 h-4 mr-2" />
                 {savingGymMetrics ? 'Saving...' : 'Save Metrics'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Suspend / Fire / Reinstate confirmation */}
+      {confirmAction && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4">
+          <div className="bg-tm-surface rounded-card shadow-large max-w-md w-full border border-tm-border">
+            <div className="p-6 border-b border-tm-border">
+              <h3 className="text-xl font-bold text-tm-text-1">
+                {confirmAction.action === 'suspend' ? 'Suspend Player' : confirmAction.action === 'fire' ? 'Fire Player' : 'Reinstate Player'}
+              </h3>
+            </div>
+            <div className="p-6 text-sm text-tm-text-2 leading-relaxed">
+              {confirmAction.action === 'suspend' && <>Are you sure you want to <strong className="text-tm-text-1">suspend</strong> <strong className="text-tm-text-1">{confirmAction.player.name}</strong>? They will lose access to the system until reinstated.</>}
+              {confirmAction.action === 'fire' && <>Are you sure you want to <strong className="text-tm-text-1">permanently fire</strong> <strong className="text-tm-text-1">{confirmAction.player.name}</strong>? Their account will be disabled immediately.</>}
+              {confirmAction.action === 'reinstate' && <>Reinstate <strong className="text-tm-text-1">{confirmAction.player.name}</strong>? They will regain access to the system.</>}
+            </div>
+            <div className="p-6 border-t border-tm-border flex justify-end gap-3">
+              <button onClick={() => setConfirmAction(null)} disabled={processingAction} className="px-5 py-2 border border-tm-border rounded-[6px] font-semibold text-tm-text-1 hover:bg-tm-surface-hover transition-colors disabled:opacity-50">Cancel</button>
+              <button
+                onClick={applyPlayerAction}
+                disabled={processingAction}
+                className={`px-5 py-2 rounded-[6px] font-semibold text-white transition-colors disabled:opacity-50 ${
+                  confirmAction.action === 'reinstate' ? 'bg-success hover:opacity-90' : confirmAction.action === 'suspend' ? 'bg-warning hover:opacity-90' : 'bg-secondary hover:opacity-90'
+                }`}
+              >
+                {processingAction ? 'Working…' : confirmAction.action === 'suspend' ? 'Suspend' : confirmAction.action === 'fire' ? 'Fire' : 'Reinstate'}
               </button>
             </div>
           </div>

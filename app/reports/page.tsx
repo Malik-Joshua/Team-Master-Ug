@@ -363,7 +363,15 @@ export default function ReportsPage() {
         },
       }
 
-      // Fetch specific data based on report type and title (which contains filter info)
+      // Fetch specific data based on report type and title (which contains filter info).
+      //
+      // Wrapped so a failure while ENRICHING the report (a network hiccup, an
+      // unexpected null in one report type's data shape, etc.) can never abort
+      // the whole download — we always fall through to generating the file
+      // with whatever data we managed to gather. Previously any throw in here
+      // jumped to the outer catch and the user got "Error downloading report"
+      // with no file at all.
+      try {
       if (report.type === 'player') {
         // Extract player name from title (format: "Player Report - PlayerName - Date" or "Player Report - PlayerName (Date)")
         // Try multiple patterns to handle different title formats
@@ -1503,8 +1511,13 @@ export default function ReportsPage() {
             console.error('Final fetch error:', finalErr)
           }
         }
-        
+
         console.log('=== END VERIFICATION ===')
+      }
+      } catch (enrichErr) {
+        // Non-fatal: proceed to generate the file with the base report data
+        // we already have, so the user still gets a download.
+        console.error('Report data enrichment failed, downloading with base data:', enrichErr)
       }
 
       let blob: Blob

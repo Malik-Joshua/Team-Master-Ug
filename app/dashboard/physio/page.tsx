@@ -109,12 +109,34 @@ export default function PhysioDashboard() {
 
   const loadInjuries = async () => {
     const supabase = createClient()
-    
-    // First, get all injuries
-    const { data: injuriesData, error } = await supabase
-      .from('injuries')
-      .select('*')
-      .order('injury_date', { ascending: false })
+
+    // Load all injuries (active + cleared) so both stat cards are accurate.
+    // Prefer the service-role API — it doesn't depend on the browser's RLS
+    // session, so the counts are reliable even if the session is momentarily
+    // stale. Fall back to a direct RLS-scoped query if the API is unavailable.
+    let injuriesData: any[] | null = null
+    let error: any = null
+    try {
+      const res = await fetch('/api/admin/injuries?status=all', { cache: 'no-store' })
+      if (res.ok) {
+        const json = await res.json()
+        injuriesData = json.injuries || []
+      } else {
+        const direct = await supabase
+          .from('injuries')
+          .select('*')
+          .order('injury_date', { ascending: false })
+        injuriesData = direct.data
+        error = direct.error
+      }
+    } catch (e) {
+      const direct = await supabase
+        .from('injuries')
+        .select('*')
+        .order('injury_date', { ascending: false })
+      injuriesData = direct.data
+      error = direct.error
+    }
 
     if (error) {
       console.error('Error loading injuries:', error)

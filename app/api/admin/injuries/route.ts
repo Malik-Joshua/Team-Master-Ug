@@ -64,12 +64,20 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Fetch active injuries
-    const { data: injuriesData, error: injuriesError } = await supabaseAdmin
+    // By default returns only ACTIVE injuries (the widgets that consume this —
+    // players roster, messages, dashboard alert — all want the currently-injured
+    // list). Pass ?status=all to get every injury regardless of status, which
+    // the physio dashboard needs so its Active AND Cleared cards are both
+    // accurate without depending on the browser's RLS session.
+    const statusParam = request.nextUrl.searchParams.get('status')
+    let injuriesQuery = supabaseAdmin
       .from('injuries')
       .select('*')
-      .eq('status', 'active')
       .order('injury_date', { ascending: false })
+    if (statusParam !== 'all') {
+      injuriesQuery = injuriesQuery.eq('status', 'active')
+    }
+    const { data: injuriesData, error: injuriesError } = await injuriesQuery
 
     if (injuriesError) {
       console.error('Error fetching injuries:', injuriesError)

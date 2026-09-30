@@ -897,15 +897,20 @@ export function generateCSVReport(report: ReportData): Blob {
  * Download a blob as a file
  */
 export async function downloadBlob(blob: Blob, filename: string) {
-  // On iOS Safari (and most in-app mobile browsers) a plain <a download>
-  // click on a blob: URL is unreliable — the "download" attribute isn't
-  // honoured for blob URLs there, so it just opens the file in a new tab
-  // as a viewer instead of saving it. The Web Share API's file-sharing
-  // support is the reliable way to get an explicit "Save to Files"/share
-  // sheet on mobile, so prefer it when the browser can actually share this
-  // file. Desktop browsers (and any mobile browser without file-share
-  // support) fall through to the normal anchor-download.
-  if (typeof navigator !== 'undefined' && typeof (navigator as any).canShare === 'function') {
+  // Only genuinely-mobile devices (iOS/iPadOS/Android) use the Web Share
+  // "Save to Files"/share sheet, because there a plain <a download> on a
+  // blob: URL is unreliable — it opens the file in a viewer instead of
+  // saving. On DESKTOP the share sheet is the wrong UX (it offers AirDrop/
+  // Mail/Messages instead of just downloading), so desktop always uses the
+  // direct anchor-download below. macOS Safari reports canShare() === true,
+  // which is exactly why we gate on the device rather than on capability.
+  const ua = typeof navigator !== 'undefined' ? navigator.userAgent : ''
+  const isIOS = /iPad|iPhone|iPod/.test(ua) ||
+    (typeof navigator !== 'undefined' && (navigator as any).platform === 'MacIntel' && (navigator as any).maxTouchPoints > 1)
+  const isAndroid = /Android/.test(ua)
+  const isMobile = isIOS || isAndroid
+
+  if (isMobile && typeof navigator !== 'undefined' && typeof (navigator as any).canShare === 'function') {
     try {
       const file = new File([blob], filename, { type: blob.type })
       if ((navigator as any).canShare({ files: [file] })) {
@@ -914,12 +919,9 @@ export async function downloadBlob(blob: Blob, filename: string) {
       }
     } catch (err: any) {
       // AbortError means the user dismissed the share sheet themselves —
-      // that's a deliberate cancel, not a failure, so don't fall back to
-      // also triggering a browser download on top of it.
+      // a deliberate cancel, not a failure.
       if (err?.name === 'AbortError') return
-      // Any other failure (share not actually supported despite canShare
-      // reporting true, etc.) — fall through to the anchor-download below
-      // so the user still gets the file some other way.
+      // Otherwise fall through to the anchor-download so they still get the file.
     }
   }
 

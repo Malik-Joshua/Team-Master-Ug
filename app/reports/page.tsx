@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import Layout from '@/components/Layout'
 import StatCard from '@/components/StatCard'
-import { FileText, Filter, Calendar, BarChart3, TrendingUp, Users, Trophy, FileSpreadsheet, Trash2, X } from 'lucide-react'
+import { FileText, Filter, Calendar, BarChart3, TrendingUp, Users, Trophy, FileSpreadsheet, Trash2, X, CheckCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import RefreshButton from '@/components/RefreshButton'
 import { generatePDFReport, generateExcelReport, generateCSVReport, downloadBlob, type ReportData } from '@/lib/report-export'
@@ -28,6 +28,7 @@ export default function ReportsPage() {
     dateTo: '',
   })
   const [downloadingReport, setDownloadingReport] = useState<string | null>(null)
+  const [downloadedReport, setDownloadedReport] = useState<string | null>(null)
   const [players, setPlayers] = useState<Array<{ id: string; name: string }>>([])
   const [matches, setMatches] = useState<Array<{ id: string; opponent: string; match_date: string }>>([])
   const [trainingSessions, setTrainingSessions] = useState<Array<{ id: string; session_date: string; description?: string }>>([])
@@ -1533,7 +1534,11 @@ export default function ReportsPage() {
       }
 
       await downloadBlob(blob, filename)
-      alert(`${format.toUpperCase()} report ready — check your downloads or share sheet.`)
+      // Brief inline "Downloaded ✓" confirmation instead of a blocking alert
+      // (the alert previously mentioned a "share sheet", which is wrong on
+      // desktop where the file now downloads straight to the device).
+      setDownloadedReport(report.id)
+      setTimeout(() => setDownloadedReport((cur) => (cur === report.id ? null : cur)), 2500)
     } catch (error: any) {
       console.error('Error downloading report:', error)
       alert(`Error downloading report: ${error.message}`)
@@ -1914,9 +1919,18 @@ export default function ReportsPage() {
                           // in normal flow, so they never get clipped and each
                           // download is a single click.
                           downloadingReport === report.id ? (
-                            <div className="flex items-center gap-2 text-info px-2">
-                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-info"></div>
-                              <span className="text-sm font-medium">Downloading…</span>
+                            // Progress indicator while the file is being
+                            // prepared and saved to the device.
+                            <div className="flex flex-col gap-1 min-w-[150px] px-2">
+                              <span className="text-xs font-medium text-info">Downloading to your device…</span>
+                              <div className="h-1.5 w-full bg-info/15 rounded-full overflow-hidden">
+                                <div className="h-full w-1/2 bg-info rounded-full animate-[downloadbar_1s_ease-in-out_infinite]" />
+                              </div>
+                            </div>
+                          ) : downloadedReport === report.id ? (
+                            <div className="flex items-center gap-1.5 text-success px-2">
+                              <CheckCircle className="w-4 h-4" />
+                              <span className="text-sm font-medium">Downloaded</span>
                             </div>
                           ) : (
                             <div className="flex items-center gap-1.5 sm:gap-2">

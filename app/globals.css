@@ -187,6 +187,13 @@ body {
 @keyframes tm-spin-cw  { from { transform: rotate(0deg); }   to { transform: rotate(360deg); } }
 @keyframes tm-spin-ccw { from { transform: rotate(360deg); } to { transform: rotate(0deg); } }
 
+/* Indeterminate download progress bar — a segment sliding left→right while a
+   report file is generated and saved to the device. */
+@keyframes downloadbar {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .tm-ball-float, .tm-seam { animation: none !important; }
 }

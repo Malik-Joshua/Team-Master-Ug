@@ -39,6 +39,7 @@ export default function PerformancePage() {
   // Coach-specific stats
   const [coachStats, setCoachStats] = useState({
     trainingSessionsConducted: 0,
+    trainingSessionsAttended: 0,
     matchesAttended: 0,
   })
   const [teamStats, setTeamStats] = useState<any>(null)
@@ -199,21 +200,24 @@ export default function PerformancePage() {
             try {
               const { db } = await import('@/lib/db-helpers')
               
-              // Training sessions conducted
+              // Training sessions conducted (owned) and attended (marked
+              // present by whoever recorded the session's attendance).
               const sessionsCount = await db.getCoachTrainingSessionsCount(authUser.id)
-              
+              const sessionsAttended = await db.getStaffTrainingSessionsAttended(authUser.id)
+
               // Matches attended
               const matchesCount = await db.getCoachMatchesAttended(authUser.id)
               const matches = await db.getCoachMatches(authUser.id)
-              
+
               // Team performance stats
               const teamPerformance = await db.getTeamPerformanceStats()
-              
+
               // Players performance summary
               const playersPerf = await db.getPlayersPerformanceSummary()
-              
+
               setCoachStats({
                 trainingSessionsConducted: sessionsCount,
+                trainingSessionsAttended: sessionsAttended,
                 matchesAttended: matchesCount,
               })
               setTeamStats(teamPerformance)
@@ -242,8 +246,10 @@ export default function PerformancePage() {
               // Game days (matches created by team manager)
               const gameDays = await db.getTeamManagerGameDays(authUser.id)
               
-              // Training sessions attended (where team manager recorded attendance)
-              const trainingSessions = await db.getTeamManagerTrainingSessionsAttended(authUser.id)
+              // Training sessions the manager was themselves marked present at
+              // (from training_staff_attendance) — not the number of player
+              // attendance rows they typed in, which is what this used to count.
+              const trainingSessions = await db.getStaffTrainingSessionsAttended(authUser.id)
               
               // Injury reports - use API route to bypass RLS
               let injuries: any[] = []
@@ -1035,11 +1041,18 @@ export default function PerformancePage() {
   if (user.role === 'coach' || user.role === 'asst_coach') {
     const coachPerformanceCards = [
       {
-        title: 'Training Sessions',
+        title: 'Sessions Conducted',
         value: coachStats.trainingSessionsConducted,
         icon: Calendar,
         color: 'bg-primary',
-        description: 'Total sessions conducted',
+        description: 'Training sessions led',
+      },
+      {
+        title: 'Sessions Attended',
+        value: coachStats.trainingSessionsAttended,
+        icon: Calendar,
+        color: 'bg-info',
+        description: 'Marked present at training',
       },
       {
         title: 'Matches Attended',

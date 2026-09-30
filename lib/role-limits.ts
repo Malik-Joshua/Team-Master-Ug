@@ -1,18 +1,20 @@
-// Role limits configuration for the club
+// Role limits configuration for the club. Kept generous so an admin can add
+// staff freely (multiple admins, coaches, etc. are supported — the Staff
+// Directory numbers same-role members "Admin #2" to tell them apart).
 export const ROLE_LIMITS = {
-  admin: 3,
-  finance_admin: 2,
-  data_admin: 2,
+  admin: 10,
+  finance_admin: 5,
+  data_admin: 5,
   player: 100,
-  coach: 3,
+  coach: 10,
   // Assistant Coach: shares the Head Coach's dashboard and permissions
   // (team selection, match-day attendance, stats entry). Whenever either
   // one records a team selection or match-day attendance, the other coach
   // role gets notified — see notifyOtherCoaches() in lib/notify-coaches.ts —
   // so the two don't make conflicting entries for the same fixture.
-  asst_coach: 3,
-  physio: 3,
-  club_captain: 2, // Typically 1, but allow 2 for flexibility
+  asst_coach: 10,
+  physio: 10,
+  club_captain: 5,
 } as const
 
 export type Role = keyof typeof ROLE_LIMITS

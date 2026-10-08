@@ -73,6 +73,8 @@ export async function POST(request: NextRequest) {
       email,
       password: tempPassword,
       email_confirm: true,
+      // Forces the "create your own password" step on first sign-in.
+      user_metadata: { must_set_password: true },
     })
 
     if (authError) {
@@ -100,6 +102,9 @@ export async function POST(request: NextRequest) {
         phone: phone || null,
         role: 'player',
         status: status || 'active',
+        // The club is already set up by whoever invited them — never send an
+        // invited player to the Club Setup wizard.
+        onboarding_completed: true,
       })
       .select()
       .single()

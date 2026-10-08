@@ -195,8 +195,28 @@ export default function LoginPage() {
         // go straight to this role's real dashboard (skipping the generic
         // /dashboard hop, same as the dev-bypass path above) so sign-in
         // doesn't cost an extra full page mount + data fetch.
-        const onboardingDone = profile?.onboarding_completed ?? true
-        router.push(onboardingDone ? getDashboardPathForRole(profile?.role) : '/onboarding')
+        // Invited players/staff signing in with their temporary password must
+        // choose their own password first (and get the welcome message).
+        if (data.user.user_metadata?.must_set_password) {
+          router.push('/welcome')
+          router.refresh()
+          return
+        }
+
+        // Club Setup is only for the FIRST admin who creates the club. Anyone
+        // else — players, staff, or admins added later — joins a club that
+        // already exists, so they never see the wizard even if their profile's
+        // onboarding flag is false.
+        let needsClubSetup = false
+        if (profile?.role === 'admin' && profile?.onboarding_completed === false) {
+          const { data: existingClub } = await supabase
+            .from('club_settings')
+            .select('id')
+            .limit(1)
+            .maybeSingle()
+          needsClubSetup = !existingClub
+        }
+        router.push(needsClubSetup ? '/onboarding' : getDashboardPathForRole(profile?.role))
         router.refresh()
       }
     } catch (err: any) {

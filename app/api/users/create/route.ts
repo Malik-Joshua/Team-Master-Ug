@@ -137,6 +137,8 @@ export async function POST(request: NextRequest) {
       email,
       password: tempPassword,
       email_confirm: true,
+      // Forces the "create your own password" step on first sign-in.
+      user_metadata: { must_set_password: true },
     })
 
     if (createUserError) {
@@ -164,6 +166,9 @@ export async function POST(request: NextRequest) {
         phone: phone || null,
         role: role as Role,
         status: status || 'active',
+        // Invited by an existing admin, so the club is already set up —
+        // never send them to the Club Setup wizard.
+        onboarding_completed: true,
       })
       .select()
       .single()

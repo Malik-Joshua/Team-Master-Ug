@@ -123,6 +123,11 @@ function WelcomeContent() {
             <p className="text-white/70 text-sm leading-relaxed">
               Your password is set and your account is ready. We&apos;re glad to have you on the team.
             </p>
+            <div className="rounded-lg border border-sky-400/25 bg-sky-400/10 px-4 py-3 text-left text-[13px] text-sky-100/90 leading-relaxed">
+              <span className="font-semibold text-sky-200">Good to know:</span> the temporary password from your
+              invite email was only to get you in. You can change your password any time from your{' '}
+              <span className="font-semibold text-white">Profile</span> page (click your name, top right).
+            </div>
             <button
               onClick={() => { router.push(done.path); router.refresh() }}
               className="w-full mt-2 py-3 rounded-lg bg-sky-500 hover:bg-sky-400 text-white font-semibold transition-colors"

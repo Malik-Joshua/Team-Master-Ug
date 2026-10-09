@@ -129,8 +129,8 @@ function buildWelcomeContent(params: WelcomeEmailParams): EmailContent {
         Activate my account
       </a>
       <p style="font-size: 13px; color: #6b7280; margin: 24px 0 0; line-height: 1.5;">
-        The temporary password only works once — you&apos;ll be asked to create your own
-        password straight away. If you weren&apos;t expecting this email, you can
+        The temporary password is only there to get you in — you&apos;ll be asked to create your own
+        password straight away, and you can change it any time from your Profile page. If you weren&apos;t expecting this email, you can
         safely ignore it.
       </p>
     </div>
@@ -143,7 +143,7 @@ You've been added to ${club} on Team Master as a ${roleLabel}.
 Email: ${params.to}
 Temporary password: ${params.tempPassword}
 
-Activate your account (you'll choose your own password): ${loginUrl}`
+Activate your account (you'll choose your own password; you can change it later from your Profile page): ${loginUrl}`
 
   return { subject, html, text }
 }

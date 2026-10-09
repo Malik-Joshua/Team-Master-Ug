@@ -8,6 +8,7 @@ import RefreshButton from '@/components/RefreshButton'
 import RoleCard from '@/components/RoleCard'
 import ClubColorPicker from '@/components/ui/ClubColorPicker'
 import ProfileBackdrop from '@/components/ProfileBackdrop'
+import ChangePasswordCard from '@/components/ChangePasswordCard'
 
 
 export default function ProfilePage() {
@@ -772,6 +773,8 @@ export default function ProfilePage() {
                   </div>
                 </>
               )}
+
+              <ChangePasswordCard email={user.email} />
             </div>
           </div>
         </div>

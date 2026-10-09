@@ -19,6 +19,7 @@ import {
   Filler,
 } from 'chart.js'
 import { Line, Bar } from 'react-chartjs-2'
+import PlayerMatchLog from '@/components/PlayerMatchLog'
 
 ChartJS.register(
   CategoryScale,
@@ -2400,58 +2401,6 @@ export default function PerformancePage() {
   }
 
   // Player Performance View (existing)
-  const last10Games = ['Game 1', 'Game 2', 'Game 3', 'Game 4', 'Game 5', 'Game 6', 'Game 7', 'Game 8', 'Game 9', 'Game 10']
-  const tacklesData = [5, 4, 6, 3, 5, 4, 5, 6, 4, 5]
-  const triesData = [1, 0, 1, 0, 1, 1, 0, 1, 0, 1]
-
-  const chartData = {
-    labels: last10Games,
-    datasets: [
-      {
-        label: 'Tackles',
-        data: tacklesData,
-        borderColor: '#2563EB',
-        backgroundColor: 'rgba(37, 99, 235, 0.1)',
-        fill: true,
-        tension: 0.4,
-      },
-      {
-        label: 'Tries',
-        data: triesData,
-        borderColor: '#DC2626',
-        backgroundColor: 'rgba(220, 38, 38, 0.1)',
-        fill: true,
-        tension: 0.4,
-      },
-    ],
-  }
-
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        position: 'top' as const,
-      },
-      tooltip: {
-        mode: 'index' as const,
-        intersect: false,
-      },
-    },
-    scales: {
-      y: {
-        beginAtZero: true,
-        grid: {
-          color: 'rgba(0, 0, 0, 0.05)',
-        },
-      },
-      x: {
-        grid: {
-          display: false,
-        },
-      },
-    },
-  }
 
   const performanceCards = [
     {
@@ -2519,13 +2468,8 @@ export default function PerformancePage() {
           })}
         </div>
 
-        {/* Performance Chart */}
-        <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
-          <h2 className="text-2xl font-bold text-tm-text-1 mb-6">Performance Over Time</h2>
-          <div className="h-64">
-            <Line data={chartData} options={chartOptions} />
-          </div>
-        </div>
+        {/* Match-by-match stats for this player (real data) */}
+        <PlayerMatchLog playerId={user.linked_player_id || user.user_id} />
 
         {/* Match History */}
         <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">

@@ -26,6 +26,7 @@ import {
   Filler,
 } from 'chart.js'
 import { Line } from 'react-chartjs-2'
+import PlayerMatchLog from '@/components/PlayerMatchLog'
 
 // Register Chart.js components only on client side
 if (typeof window !== 'undefined') {
@@ -1251,61 +1252,8 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* Performance Chart */}
-          <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
-            <h3 className="text-xl font-bold text-tm-text-1 mb-4">Performance Over Time</h3>
-            <div className="h-64">
-              <Line
-                data={{
-                  labels: ['Game 1', 'Game 2', 'Game 3', 'Game 4', 'Game 5', 'Game 6', 'Game 7', 'Game 8', 'Game 9', 'Game 10'],
-                  datasets: [
-                    {
-                      label: 'Tackles',
-                      data: [5, 4, 6, 3, 5, 4, 5, 6, 4, 5],
-                      borderColor: '#2563EB',
-                      backgroundColor: 'rgba(37, 99, 235, 0.1)',
-                      fill: true,
-                      tension: 0.4,
-                    },
-                    {
-                      label: 'Tries',
-                      data: [1, 0, 1, 0, 1, 1, 0, 1, 0, 1],
-                      borderColor: '#DC2626',
-                      backgroundColor: 'rgba(220, 38, 38, 0.1)',
-                      fill: true,
-                      tension: 0.4,
-                    },
-                  ],
-                }}
-                options={{
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  plugins: {
-                    legend: {
-                      position: 'top' as const,
-                    },
-                    tooltip: {
-                      mode: 'index' as const,
-                      intersect: false,
-                    },
-                  },
-                  scales: {
-                    y: {
-                      beginAtZero: true,
-                      grid: {
-                        color: 'rgba(0, 0, 0, 0.05)',
-                      },
-                    },
-                    x: {
-                      grid: {
-                        display: false,
-                      },
-                    },
-                  },
-                }}
-              />
-            </div>
-          </div>
+          {/* Match-by-match stats for this player (real data) */}
+          <PlayerMatchLog playerId={user.linked_player_id || user.user_id} />
 
           {/* Recent Gym Schedules */}
           {recentGymSchedules.length > 0 && (

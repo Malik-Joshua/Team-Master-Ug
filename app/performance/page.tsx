@@ -20,6 +20,7 @@ import {
 } from 'chart.js'
 import { Line, Bar } from 'react-chartjs-2'
 import PlayerMatchLog from '@/components/PlayerMatchLog'
+import PerformanceResourcesViewer from '@/components/PerformanceResourcesViewer'
 
 ChartJS.register(
   CategoryScale,
@@ -45,6 +46,32 @@ export default function PerformancePage() {
   })
   const [teamStats, setTeamStats] = useState<any>(null)
   const [playersSummary, setPlayersSummary] = useState<any[]>([])
+  // Season scoping for the Team Overview + Players Summary (coach view). The
+  // selector lets a coach step back through past seasons — the same windowing
+  // legacy-season data will drop into once imported.
+  const [seasonYears, setSeasonYears] = useState<number[]>([])
+  const [seasonYear, setSeasonYear] = useState<number | null>(null)
+  const [seasonLabel, setSeasonLabel] = useState<string>('')
+  const [loadingSeason, setLoadingSeason] = useState(false)
+
+  const loadSeason = useCallback(async (year?: number) => {
+    setLoadingSeason(true)
+    try {
+      const qs = year ? `?year=${year}` : ''
+      const r = await fetch(`/api/performance/season${qs}`, { cache: 'no-store' })
+      if (!r.ok) throw new Error(`HTTP ${r.status}`)
+      const j = await r.json()
+      setTeamStats(j.teamStats)
+      setPlayersSummary(j.players || [])
+      setSeasonYears(j.seasonYears || [])
+      setSeasonYear(j.year)
+      setSeasonLabel(j.label || '')
+    } catch (e) {
+      console.error('Error loading season performance:', e)
+    } finally {
+      setLoadingSeason(false)
+    }
+  }, [])
   const [coachMatches, setCoachMatches] = useState<any[]>([])
   
   // Team Manager-specific stats
@@ -210,20 +237,16 @@ export default function PerformancePage() {
               const matchesCount = await db.getCoachMatchesAttended(authUser.id)
               const matches = await db.getCoachMatches(authUser.id)
 
-              // Team performance stats
-              const teamPerformance = await db.getTeamPerformanceStats()
-
-              // Players performance summary
-              const playersPerf = await db.getPlayersPerformanceSummary()
-
               setCoachStats({
                 trainingSessionsConducted: sessionsCount,
                 trainingSessionsAttended: sessionsAttended,
                 matchesAttended: matchesCount,
               })
-              setTeamStats(teamPerformance)
-              setPlayersSummary(playersPerf)
               setCoachMatches(matches)
+
+              // Team overview + players summary are season-scoped (current
+              // season by default; the selector in the UI loads past seasons).
+              await loadSeason()
             } catch (error) {
               console.error('Error loading coach performance data:', error)
               // Set default values on error
@@ -278,17 +301,16 @@ export default function PerformancePage() {
               
               // Matches created by team manager
               const matches = await db.getTeamManagerMatches(authUser.id)
-              
-              // Players performance summary
-              const playersPerf = await db.getPlayersPerformanceSummary()
-              
+
+              // Players summary is season-scoped (selector loads past seasons).
+              await loadSeason()
+
               setTeamManagerStats({
                 gameDays,
                 trainingSessionsAttended: trainingSessions,
                 injuryReports: injuries.length,
               })
               setInjuryReports(injuries)
-              setPlayersSummary(playersPerf)
               setTeamManagerMatches(matches)
             } catch (error) {
               console.error('Error loading team manager performance data:', error)
@@ -712,14 +734,34 @@ export default function PerformancePage() {
 
           {/* Players Performance Summary */}
           <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
-            <h2 className="text-2xl font-bold text-tm-text-1 mb-6 flex items-center">
-              <Users className="w-6 h-6 mr-2 text-primary" />
-              Players Performance Summary
-            </h2>
-            {playersSummary.length === 0 ? (
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+              <div>
+                <h2 className="text-2xl font-bold text-tm-text-1 flex items-center">
+                  <Users className="w-6 h-6 mr-2 text-primary" />
+                  Players Performance Summary
+                </h2>
+                {seasonLabel && <p className="text-sm text-tm-text-3 mt-1">{seasonLabel}</p>}
+              </div>
+              {seasonYears.length > 0 && (
+                <div className="flex items-center gap-2">
+                  {loadingSeason && <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary" />}
+                  <select
+                    value={seasonYear ?? ''}
+                    onChange={(e) => loadSeason(parseInt(e.target.value, 10))}
+                    disabled={loadingSeason}
+                    className="px-3 py-2 border border-tm-border rounded-lg text-sm bg-tm-surface focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-60"
+                  >
+                    {seasonYears.map((y) => (
+                      <option key={y} value={y}>Season {y}{y === seasonYears[0] ? ' (current)' : ''}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+            {playersSummary.every((p) => p.totalMatches === 0 && p.totalSessions === 0) ? (
               <div className="text-center py-12">
                 <Users className="w-16 h-16 text-tm-text-3 mx-auto mb-4" />
-                <p className="text-tm-text-3">No player data available yet</p>
+                <p className="text-tm-text-3">No player data recorded for this season yet</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -1200,7 +1242,32 @@ export default function PerformancePage() {
           {/* Team Performance Chart */}
           {teamChartData && (
             <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
-              <h2 className="text-2xl font-bold text-tm-text-1 mb-6">Team Performance Overview</h2>
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-tm-text-1">Team Performance Overview</h2>
+                  {seasonLabel && <p className="text-sm text-tm-text-3 mt-1">{seasonLabel}</p>}
+                </div>
+                {seasonYears.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    {loadingSeason && <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary" />}
+                    <select
+                      value={seasonYear ?? ''}
+                      onChange={(e) => loadSeason(parseInt(e.target.value, 10))}
+                      disabled={loadingSeason}
+                      className="px-3 py-2 border border-tm-border rounded-lg text-sm bg-tm-surface focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-60"
+                    >
+                      {seasonYears.map((y) => (
+                        <option key={y} value={y}>Season {y}{y === seasonYears[0] ? ' (current)' : ''}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+              {teamStats && teamStats.matchCount === 0 && (
+                <div className="mb-4 rounded-lg border border-tm-border bg-tm-surface-hover px-4 py-3 text-sm text-tm-text-3">
+                  No matches recorded for this season yet.
+                </div>
+              )}
               <div className="h-64">
                 <Bar data={teamChartData} options={teamChartOptions} />
               </div>
@@ -1239,14 +1306,34 @@ export default function PerformancePage() {
 
           {/* Players Performance Summary */}
           <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
-            <h2 className="text-2xl font-bold text-tm-text-1 mb-6 flex items-center">
-              <Users className="w-6 h-6 mr-2 text-primary" />
-              Players Performance Summary
-            </h2>
-            {playersSummary.length === 0 ? (
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+              <div>
+                <h2 className="text-2xl font-bold text-tm-text-1 flex items-center">
+                  <Users className="w-6 h-6 mr-2 text-primary" />
+                  Players Performance Summary
+                </h2>
+                {seasonLabel && <p className="text-sm text-tm-text-3 mt-1">{seasonLabel}</p>}
+              </div>
+              {seasonYears.length > 0 && (
+                <div className="flex items-center gap-2">
+                  {loadingSeason && <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary" />}
+                  <select
+                    value={seasonYear ?? ''}
+                    onChange={(e) => loadSeason(parseInt(e.target.value, 10))}
+                    disabled={loadingSeason}
+                    className="px-3 py-2 border border-tm-border rounded-lg text-sm bg-tm-surface focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-60"
+                  >
+                    {seasonYears.map((y) => (
+                      <option key={y} value={y}>Season {y}{y === seasonYears[0] ? ' (current)' : ''}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+            {playersSummary.every((p) => p.totalMatches === 0 && p.totalSessions === 0) ? (
               <div className="text-center py-12">
                 <Users className="w-16 h-16 text-tm-text-3 mx-auto mb-4" />
-                <p className="text-tm-text-3">No player data available yet</p>
+                <p className="text-tm-text-3">No player data recorded for this season yet</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -2395,6 +2482,9 @@ export default function PerformancePage() {
               </div>
             </div>
           </div>
+
+          {/* Performance resources — physio can view what coaches/admin publish */}
+          <PerformanceResourcesViewer viewerId={user?.user_id} />
         </div>
       </Layout>
     )
@@ -2616,8 +2706,20 @@ export default function PerformancePage() {
                         </div>
                       </div>
                     )}
-                    <div className="mt-4 pt-4 border-t border-tm-border text-xs text-tm-text-3">
-                      Created {new Date(resource.created_at).toLocaleDateString()}
+                    <div className="mt-4 pt-4 border-t border-tm-border flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        {resource.created_by_profile?.profile_picture_url ? (
+                          <img src={resource.created_by_profile.profile_picture_url} alt={resource.created_by_profile.name} className="h-6 w-6 rounded-full object-cover border border-tm-border flex-shrink-0" />
+                        ) : (
+                          <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-tm-secondary text-[10px] font-bold text-tm-on-secondary">
+                            {(resource.created_by_profile?.name || '?').charAt(0).toUpperCase()}
+                          </span>
+                        )}
+                        <span className="text-xs text-tm-text-3 truncate">
+                          {resource.created_by_profile ? `By ${resource.created_by_profile.name}` : 'Unknown author'}
+                        </span>
+                      </div>
+                      <span className="text-xs text-tm-text-3 flex-shrink-0">{new Date(resource.created_at).toLocaleDateString()}</span>
                     </div>
                   </div>
                 )
@@ -2914,8 +3016,11 @@ function PerformanceResourcesManagement({
                     {resource.description && (
                       <p className="text-sm text-tm-text-3 mb-2">{resource.description}</p>
                     )}
-                    <div className="text-xs text-tm-text-3">
-                      Created {new Date(resource.created_at).toLocaleDateString()}
+                    <div className="text-xs text-tm-text-3 flex items-center gap-1.5 flex-wrap">
+                      {resource.created_by_profile && (
+                        <span>By {resource.created_by_profile.name} ·</span>
+                      )}
+                      <span>Created {new Date(resource.created_at).toLocaleDateString()}</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">

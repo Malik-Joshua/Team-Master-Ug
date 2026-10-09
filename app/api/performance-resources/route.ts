@@ -116,7 +116,7 @@ export async function GET(request: NextRequest) {
       try {
         const { data: creators, error: creatorsError } = await supabaseAdmin
           .from('user_profiles')
-          .select('user_id, name, role')
+          .select('user_id, name, role, profile_picture_url')
           .in('user_id', creatorIds)
 
         if (creatorsError) {
@@ -139,7 +139,8 @@ export async function GET(request: NextRequest) {
         ...resource,
         created_by_profile: creator ? {
           name: creator.name,
-          role: creator.role
+          role: creator.role,
+          profile_picture_url: creator.profile_picture_url ?? null
         } : null
       }
     })

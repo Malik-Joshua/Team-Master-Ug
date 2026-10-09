@@ -6,7 +6,7 @@ import RefreshButton from '@/components/RefreshButton'
 import { createClient } from '@/lib/supabase/client'
 import {
   MessageSquare, ThumbsUp, Flag, CornerDownRight, Send, Trash2,
-  Users, Calendar, ClipboardCheck, Loader2, Trophy,
+  Users, Calendar, ClipboardCheck, Loader2, Trophy, X,
 } from 'lucide-react'
 
 /**
@@ -20,7 +20,7 @@ import {
  * other's input immediately instead of overwriting each other.
  */
 
-interface Person { name: string; role: string }
+interface Person { name: string; role: string; profile_picture_url?: string | null }
 interface Comment {
   id: string
   activity_id: string
@@ -85,6 +85,24 @@ export default function CollaborationPage() {
   const [drafts, setDrafts] = useState<Record<string, string>>({})
   const [replyingTo, setReplyingTo] = useState<Record<string, string | null>>({})
   const [busy, setBusy] = useState<string>('')
+  // Per-viewer dismissed cards (localStorage), so a coach can clear items they
+  // have dealt with without affecting what the other coach sees.
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set())
+  const [showDismissed, setShowDismissed] = useState(false)
+
+  const dismissKey = (vid: string) => `collab_dismissed_${vid}`
+  useEffect(() => {
+    if (!viewerId) return
+    try {
+      const raw = localStorage.getItem(dismissKey(viewerId))
+      if (raw) setDismissed(new Set(JSON.parse(raw)))
+    } catch {}
+  }, [viewerId])
+  const persistDismissed = (next: Set<string>) => {
+    try { if (viewerId) localStorage.setItem(dismissKey(viewerId), JSON.stringify([...next])) } catch {}
+  }
+  const dismissCard = (id: string) => setDismissed((prev) => { const n = new Set(prev).add(id); persistDismissed(n); return n })
+  const restoreCard = (id: string) => setDismissed((prev) => { const n = new Set(prev); n.delete(id); persistDismissed(n); return n })
   const didInitialLoad = useRef(false)
 
   const load = useCallback(async (opts?: { quiet?: boolean }) => {
@@ -225,11 +243,28 @@ export default function CollaborationPage() {
               Once a coach schedules a session, records match-day attendance or saves a squad, it appears here for the other to review.
             </p>
           </div>
-        ) : (
+        ) : (() => {
+          const visible = activities.filter((a) => showDismissed || !dismissed.has(a.id))
+          return (
           <div className="space-y-4">
-            {activities.map((a) => {
+            {dismissed.size > 0 && (
+              <div className="flex justify-end">
+                <button
+                  onClick={() => setShowDismissed((v) => !v)}
+                  className="text-xs font-medium text-tm-text-3 hover:text-tm-text-1 underline underline-offset-2"
+                >
+                  {showDismissed ? 'Hide dismissed' : `Show dismissed (${dismissed.size})`}
+                </button>
+              </div>
+            )}
+            {visible.length === 0 ? (
+              <div className="bg-tm-surface rounded-card border border-tm-border p-10 text-center text-tm-text-3 text-sm">
+                All caught up — every card has been dismissed.
+              </div>
+            ) : visible.map((a) => {
               const meta = KIND_META[a.kind] || KIND_META.team_selection
               const Icon = meta.icon
+              const isDismissed = dismissed.has(a.id)
               const likes = a.reactions.filter((r) => r.kind === 'like')
               const objections = a.reactions.filter((r) => r.kind === 'object')
               const mine = a.reactions.find((r) => r.user_id === viewerId)
@@ -252,12 +287,37 @@ export default function CollaborationPage() {
                           </span>
                           <h3 className="text-base font-bold text-tm-text-1">{a.title}</h3>
                         </div>
-                        <p className="text-xs text-tm-text-3 mt-1">
-                          {a.actor?.name || 'A coach'}
-                          {a.actor?.role ? ` · ${roleLabel(a.actor.role)}` : ''}
-                          {isMineActivity ? ' · you' : ''} · {relativeTime(a.created_at)}
-                        </p>
+                        <div className="mt-1 flex items-center gap-2">
+                          {/* The other coach's photo, so it's clear at a glance
+                              who did this. Hidden on the actor's own screen —
+                              they already know it was them. */}
+                          {!isMineActivity && (
+                            a.actor?.profile_picture_url ? (
+                              <img
+                                src={a.actor.profile_picture_url}
+                                alt={a.actor?.name || 'Coach'}
+                                className="h-6 w-6 flex-shrink-0 rounded-full object-cover border border-tm-border"
+                              />
+                            ) : (
+                              <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-tm-secondary text-[10px] font-bold text-tm-on-secondary">
+                                {(a.actor?.name || 'C').charAt(0).toUpperCase()}
+                              </span>
+                            )
+                          )}
+                          <p className="text-xs text-tm-text-3">
+                            {a.actor?.name || 'A coach'}
+                            {a.actor?.role ? ` · ${roleLabel(a.actor.role)}` : ''}
+                            {isMineActivity ? ' · you' : ''} · {relativeTime(a.created_at)}
+                          </p>
+                        </div>
                       </div>
+                      <button
+                        onClick={() => isDismissed ? restoreCard(a.id) : dismissCard(a.id)}
+                        title={isDismissed ? 'Restore card' : 'Dismiss card'}
+                        className="flex-shrink-0 rounded-md p-1.5 text-tm-text-3 hover:bg-tm-surface-hover hover:text-tm-text-1 transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
                     </div>
 
                     {/* Reactions */}
@@ -337,7 +397,8 @@ export default function CollaborationPage() {
               )
             })}
           </div>
-        )}
+          )
+        })()}
       </div>
     </Layout>
   )

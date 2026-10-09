@@ -54,13 +54,13 @@ export async function GET() {
       ...comments.map((c: any) => c.author_id),
       ...reactions.map((r: any) => r.user_id),
     ].filter(Boolean)))
-    const nameById: Record<string, { name: string; role: string }> = {}
+    const nameById: Record<string, { name: string; role: string; profile_picture_url: string | null }> = {}
     if (people.length > 0) {
       const { data: profiles } = await admin
         .from('user_profiles')
-        .select('user_id, name, role')
+        .select('user_id, name, role, profile_picture_url')
         .in('user_id', people)
-      for (const p of profiles || []) nameById[p.user_id] = { name: p.name, role: p.role }
+      for (const p of profiles || []) nameById[p.user_id] = { name: p.name, role: p.role, profile_picture_url: p.profile_picture_url ?? null }
     }
 
     return NextResponse.json({

@@ -64,3 +64,75 @@ export function getCurrentSeasonLabel(seasonStartMonth: string | null | undefine
 
   return `${dayName}, ${formattedDate} · Season ${seasonYear}`
 }
+
+export interface SeasonWindow {
+  /** The year this season is named after (its start year). */
+  year: number
+  /** Inclusive start date, "YYYY-MM-DD". */
+  start: string
+  /** Exclusive end date, "YYYY-MM-DD" (the next season's start). */
+  end: string
+  /** Short label, e.g. "2026 Season" or "Jun 2026 – May 2027". */
+  label: string
+}
+
+function startMonthIndex(seasonStartMonth: string | null | undefined): number {
+  const i = seasonStartMonth ? MONTH_NAMES.indexOf(seasonStartMonth.trim().toLowerCase()) : -1
+  return i >= 0 ? i : 0
+}
+
+/**
+ * The start/end window for the season identified by its start year. A season
+ * runs 12 months from `startMonth` of `year`. e.g. year 2026 + June start →
+ * 2026-06-01 inclusive to 2027-06-01 exclusive. January start collapses to a
+ * plain calendar year. `end` is exclusive so it pairs with `.lt('date', end)`.
+ */
+export function getSeasonWindow(seasonStartMonth: string | null | undefined, year: number): SeasonWindow {
+  const m = startMonthIndex(seasonStartMonth)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const start = `${year}-${pad(m + 1)}-01`
+  const end = `${year + 1}-${pad(m + 1)}-01`
+  let label: string
+  if (m === 0) {
+    label = `${year} Season`
+  } else {
+    const endMonth = (m + 11) % 12
+    label = `${MONTH_LABELS[m]} ${year} – ${MONTH_LABELS[endMonth]} ${year + 1}`
+  }
+  return { year, start, end, label }
+}
+
+/** The start year of the season containing `date` (an ISO "YYYY-MM-DD"). */
+export function seasonYearOfDate(seasonStartMonth: string | null | undefined, date: string): number {
+  const m = startMonthIndex(seasonStartMonth)
+  const [y, mm] = date.split('-').map((n) => parseInt(n, 10))
+  // Before the start month, the date belongs to the season that began last year.
+  return (mm - 1) >= m ? y : y - 1
+}
+
+/** The start year of the current season. */
+export function getCurrentSeasonYear(seasonStartMonth: string | null | undefined, now: Date = new Date()): number {
+  return parseInt(getCurrentSeasonStart(seasonStartMonth, now).split('-')[0], 10)
+}
+
+/**
+ * Season start-years to offer in a selector: every season from the earliest
+ * date given up to the current one, newest first. Always includes the current
+ * season even with no data, so the selector is never empty.
+ */
+export function listSeasonYears(
+  seasonStartMonth: string | null | undefined,
+  dates: (string | null | undefined)[],
+  now: Date = new Date(),
+): number[] {
+  const current = getCurrentSeasonYear(seasonStartMonth, now)
+  let earliest = current
+  for (const d of dates) {
+    if (!d) continue
+    const y = seasonYearOfDate(seasonStartMonth, d)
+    if (y < earliest) earliest = y
+  }
+  const years: number[] = []
+  for (let y = current; y >= earliest; y--) years.push(y)
+  return years
+}

@@ -491,6 +491,20 @@ export default function TrainingPage() {
     loadData()
   }, [loadData])
 
+  // Dashboard "View all" links to /training#sessions-summary. The section only
+  // exists after data has loaded, so the browser's own anchor jump misses it —
+  // scroll once it's rendered.
+  const scrolledToHash = useRef(false)
+  useEffect(() => {
+    if (loading || scrolledToHash.current) return
+    if (typeof window === 'undefined' || window.location.hash !== '#sessions-summary') return
+    const el = document.getElementById('sessions-summary')
+    if (el) {
+      scrolledToHash.current = true
+      requestAnimationFrame(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+    }
+  }, [loading, sessionSummaries.length])
+
   // Keep the staff attendance panel in sync with the chosen session, including
   // when the session is set programmatically (e.g. from the import flow).
   useEffect(() => {
@@ -2734,9 +2748,9 @@ export default function TrainingPage() {
         )}
 
         {/* Admin, Coach, and Data Admin Summary View */}
-        {['admin', 'coach', 'data_admin'].includes(user?.role || '') && (
+        {['admin', 'coach', 'asst_coach', 'data_admin'].includes(user?.role || '') && (
           <div className="space-y-4">
-            <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
+            <div id="sessions-summary" className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft scroll-mt-24">
               <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
                 <div>
                   <h2 className="text-2xl font-bold text-tm-text-1 mb-2">Training Sessions Summary</h2>

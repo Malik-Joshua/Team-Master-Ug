@@ -538,19 +538,7 @@ export default function AdminDashboard() {
             side-by-side split on wider screens. */}
         <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-4">
           {/* Attendance summary */}
-          {attendanceSummary && (
-            <AttendanceSummary
-              chips={[
-                { label: 'Present', value: attendanceSummary.presentCount, bgColor: 'rgba(45, 184, 138, 0.12)', textColor: '#2DB88A' },
-                { label: 'Absent', value: attendanceSummary.absentCount, bgColor: 'rgba(224, 87, 87, 0.12)', textColor: '#E05757' },
-                { label: 'Justified', value: attendanceSummary.justifiedAbsenceCount, bgColor: 'rgba(255, 255, 255, 0.04)', textColor: 'var(--tm-text-2)' },
-                { label: 'Injured', value: attendanceSummary.injuredCount, bgColor: 'rgba(224, 159, 66, 0.12)', textColor: '#E09F42' },
-              ]}
-              presentData={attendanceSummary.recentSessions.map(s => s.present)}
-              absentData={attendanceSummary.recentSessions.map(s => s.absent)}
-              labels={attendanceSummary.recentSessions.map(s => new Date(s.sessionDate).toLocaleDateString('en-US', { weekday: 'short' }))}
-            />
-          )}
+          <AttendanceSummary />
 
           {/* Right column - fixture + injuries */}
           <div className="flex flex-col gap-3.5">

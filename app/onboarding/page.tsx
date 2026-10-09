@@ -4,6 +4,14 @@ import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { readTabularFile } from '@/lib/tabular-import'
+import {
+  POSITION_OPTIONS,
+  STAFF_ROLE_OPTIONS,
+  normalizePosition,
+  normalizeDate,
+  normalizeStaffRole,
+  isValidEmail,
+} from '@/lib/import-normalize'
 import ClubColorPicker from '@/components/ui/ClubColorPicker'
 import SportBallsBackground from '@/components/SportBallsBackground'
 // @ts-ignore - themeEngine is a JS module
@@ -28,6 +36,8 @@ import {
   HeartPulse,
   Briefcase,
   CheckCircle2,
+  Download,
+  AlertTriangle,
 } from 'lucide-react'
 
 /* ─── Constants ─────────────────────────────────────────────── */
@@ -55,6 +65,8 @@ const STAFF_ROLES = [
   { id: 'asst_coach', label: 'Asst. Coach', icon: Shield },
   { id: 'physio', label: 'Physiotherapist', icon: HeartPulse },
   { id: 'data_admin', label: 'Team Manager', icon: Briefcase },
+  { id: 'finance_admin', label: 'Finance Admin', icon: Briefcase },
+  { id: 'admin', label: 'Admin', icon: Shield },
 ]
 
 /* ─── Shared input style ─────────────────────────────────────── */
@@ -113,8 +125,8 @@ export default function OnboardingPage() {
   // Progress + result of the actual "create players" pass that runs in finish().
   const [savingSquad, setSavingSquad] = useState(false)
   const [squadSaveProgress, setSquadSaveProgress] = useState<{ done: number; total: number; failed: { name: string; reason: string }[] } | null>(null)
-  const [manualPlayers, setManualPlayers] = useState<{ name: string; position: string }[]>([])
-  const [newPlayer, setNewPlayer] = useState({ name: '', position: '' })
+  const [manualPlayers, setManualPlayers] = useState<{ name: string; position: string; email: string }[]>([])
+  const [newPlayer, setNewPlayer] = useState({ name: '', position: '', email: '' })
   const csvRef = useRef<HTMLInputElement>(null)
 
   /* Step 4 — Staff */
@@ -124,6 +136,14 @@ export default function OnboardingPage() {
   // runs in finish() — mirrors the squad-import progress UI in Step 3, so
   // both async passes give the same "N/M, here's what failed" feedback.
   const [savingStaff, setSavingStaff] = useState(false)
+  const staffCsvRef = useRef<HTMLInputElement>(null)
+  const [staffImportNote, setStaffImportNote] = useState<{ added: number; problems: string[] } | null>(null)
+  // Outcome of the create-accounts pass, shown on the final screen so the admin
+  // can see exactly who was invited, who wasn't, and why — instead of the page
+  // jumping to the dashboard with failures only in the console.
+  type SetupRow = { kind: 'player' | 'staff'; name: string; email: string; roleLabel: string; status: 'emailed' | 'not_emailed' | 'failed'; detail?: string; tempPassword?: string }
+  const [setupRows, setSetupRows] = useState<SetupRow[] | null>(null)
+  const [setupRunning, setSetupRunning] = useState(false)
   const [staffSaveProgress, setStaffSaveProgress] = useState<{ done: number; total: number; failed: { email: string; reason: string }[] } | null>(null)
 
   /* ─── Handlers ─── */
@@ -145,9 +165,17 @@ export default function OnboardingPage() {
   }
 
   function addPlayer() {
-    if (!newPlayer.name.trim()) return
-    setManualPlayers([...manualPlayers, newPlayer])
-    setNewPlayer({ name: '', position: '' })
+    if (!newPlayer.name.trim() || !normalizePosition(newPlayer.position)) {
+      setError('Enter the player\'s name and pick a position.')
+      return
+    }
+    if (newPlayer.email.trim() && !isValidEmail(newPlayer.email)) {
+      setError('That email address does not look right.')
+      return
+    }
+    setError(null)
+    setManualPlayers([...manualPlayers, { ...newPlayer, email: newPlayer.email.trim().toLowerCase() }])
+    setNewPlayer({ name: '', position: '', email: '' })
   }
 
   function removePlayer(i: number) {
@@ -163,6 +191,16 @@ export default function OnboardingPage() {
   // a list of preview rows. The header row is used to find the right columns
   // regardless of order. Missing optional columns → empty strings. Rows with
   // no name are dropped silently (blank spreadsheet padding).
+  // Why a squad row can't be imported yet, or null if it's good to go.
+  function rowIssue(r: { name: string; position: string; email: string }, all: { email: string }[]): string | null {
+    if (!r.name.trim()) return 'Name missing'
+    if (!normalizePosition(r.position)) return r.position.trim() ? `Position "${r.position}" not recognised — choose one` : 'Choose a position'
+    const email = r.email.trim()
+    if (email && !isValidEmail(email)) return 'Invalid email'
+    if (email && all.filter((o) => o.email.trim().toLowerCase() === email.toLowerCase()).length > 1) return 'Duplicate email in this file'
+    return null
+  }
+
   async function handleCsvUpload(file: File) {
     setCsvFile(file)
     setCsvParseError(null)
@@ -198,11 +236,16 @@ export default function OnboardingPage() {
         const row = rows[r]
         const name = String(row[idx.name] || '').trim()
         if (!name) continue // silently skip blank rows
+        // Clean each cell to what the database accepts. "Fly-half" / "No. 10"
+        // become fly_half; an unrecognised position stays as typed so the
+        // preview can flag it and ask the admin to pick one.
+        const rawPosition = idx.position >= 0 ? String(row[idx.position] || '').trim() : ''
+        const rawDob = idx.date_of_birth >= 0 ? String(row[idx.date_of_birth] || '').trim() : ''
         parsed.push({
           name,
-          position: idx.position >= 0 ? String(row[idx.position] || '').trim() : '',
-          date_of_birth: idx.date_of_birth >= 0 ? String(row[idx.date_of_birth] || '').trim() : '',
-          email: idx.email >= 0 ? String(row[idx.email] || '').trim() : '',
+          position: normalizePosition(rawPosition) || rawPosition,
+          date_of_birth: normalizeDate(rawDob) || '',
+          email: idx.email >= 0 ? String(row[idx.email] || '').trim().toLowerCase() : '',
           jersey_number: idx.jersey_number >= 0 ? String(row[idx.jersey_number] || '').trim() : '',
           include: true,
         })
@@ -211,7 +254,9 @@ export default function OnboardingPage() {
         setCsvParseError('No player rows found. Make sure the file has at least one row under the header.')
         return
       }
-      setCsvParsedRows(parsed)
+      // Rows with a problem start unticked, so nothing broken is imported by
+      // accident; fix the cell in the preview and tick the row to include it.
+      setCsvParsedRows(parsed.map((r) => ({ ...r, include: !rowIssue(r, parsed) })))
     } catch (err: any) {
       console.error('CSV parse error:', err)
       setCsvParseError(err?.message || 'Could not read the file. Make sure it is a valid CSV or Excel file.')
@@ -249,9 +294,64 @@ export default function OnboardingPage() {
     URL.revokeObjectURL(url)
   }
 
+  // Import staff from a spreadsheet (Name, Email, Role). Roles are matched
+  // loosely ("Assistant Coach", "Physiotherapist"); anything we can't place or
+  // that has a bad/duplicate email is reported rather than silently dropped.
+  async function handleStaffFile(file: File) {
+    setStaffImportNote(null)
+    try {
+      const rows = await readTabularFile(file)
+      if (rows.length < 2) {
+        setStaffImportNote({ added: 0, problems: ['The file has no staff rows under the header.'] })
+        return
+      }
+      const header = rows[0].map((h) => norm(String(h || '')))
+      const find = (names: string[]) => header.findIndex((h) => names.includes(h))
+      const iName = find(['name', 'full_name', 'staff_name', 'names'])
+      const iEmail = find(['email', 'email_address', 'e_mail', 'mail'])
+      const iRole = find(['role', 'position', 'title', 'job', 'job_title'])
+      if (iName < 0 || iEmail < 0) {
+        setStaffImportNote({ added: 0, problems: ['Could not find "Name" and "Email" columns in the header row.'] })
+        return
+      }
+      const problems: string[] = []
+      const additions: { name: string; email: string; role: string }[] = []
+      const seen = new Set(staffInvites.map((s) => s.email.toLowerCase()))
+      for (let r = 1; r < rows.length; r++) {
+        const name = String(rows[r][iName] || '').trim()
+        const email = String(rows[r][iEmail] || '').trim().toLowerCase()
+        if (!name && !email) continue
+        const rawRole = iRole >= 0 ? String(rows[r][iRole] || '').trim() : ''
+        const role = rawRole ? normalizeStaffRole(rawRole) : 'coach'
+        if (!name) { problems.push(`Row ${r + 1}: name missing`); continue }
+        if (!isValidEmail(email)) { problems.push(`${name}: invalid or missing email`); continue }
+        if (!role) { problems.push(`${name}: role "${rawRole}" not recognised (use Coach, Asst. Coach, Physio, Team Manager, Finance Admin or Admin)`); continue }
+        if (seen.has(email)) { problems.push(`${name}: ${email} is already in the list`); continue }
+        seen.add(email)
+        additions.push({ name, email, role })
+      }
+      setStaffInvites((prev) => [...prev, ...additions])
+      setStaffImportNote({ added: additions.length, problems })
+    } catch (err: any) {
+      setStaffImportNote({ added: 0, problems: [err?.message || 'Could not read the file.'] })
+    }
+  }
+
+  function downloadStaffTemplate() {
+    const csv = ['Name,Email,Role', 'Jane Coach,jane@example.com,Head Coach', 'Sam Physio,sam@example.com,Physiotherapist'].join('\n')
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'staff-template.csv'
+    document.body.appendChild(a); a.click(); a.remove()
+    URL.revokeObjectURL(url)
+  }
+
   function addStaff() {
     if (!newStaff.name.trim() || !newStaff.email.trim()) return
-    setStaffInvites([...staffInvites, newStaff])
+    if (!isValidEmail(newStaff.email)) { setError('That staff email address does not look right.'); return }
+    setError(null)
+    setStaffInvites([...staffInvites, { ...newStaff, email: newStaff.email.trim().toLowerCase() }])
     setNewStaff({ name: '', email: '', role: 'coach' })
   }
 
@@ -272,6 +372,11 @@ export default function OnboardingPage() {
   }
 
   async function finish() {
+    if (setupRunning) return
+    const hasImports =
+      csvParsedRows.some((r) => r.include) ||
+      manualPlayers.some((p) => p.name.trim()) ||
+      staffInvites.length > 0
     try {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
@@ -347,103 +452,129 @@ export default function OnboardingPage() {
 
         // ── Create the players collected in Step 3 ────────────────────────
         //
-        // We fold both CSV rows (the ones the user left checked in the
-        // preview) and the manually-entered rows into one list, then POST
-        // each to /api/players. The endpoint handles duplicate-email
-        // rejection, role-limit checks, and creating auth+profile+players
-        // records atomically. Anything that fails is surfaced in the
-        // failed[] list below so the manager knows what to fix.
+        // CSV rows left ticked in the preview plus manually-added players are
+        // POSTed one by one to /api/players, which creates the login, profile
+        // and player record and emails them an activation link. We keep each
+        // outcome (emailed / created-but-not-emailed / failed + reason) so the
+        // final screen can show it — previously failures only hit the console.
         //
-        // The API requires an email per player. To keep onboarding friction
-        // low we auto-generate a placeholder if none was supplied — the
-        // manager can update it later on the Players screen. The domain uses
-        // `roster.local` to make placeholders obvious.
+        // A player with no email can't be invited, so they get a placeholder
+        // `@roster.local` address (the API skips emailing those); the admin
+        // adds a real email later from the Players screen.
         const nameSlug = (n: string) =>
           n.toLowerCase().replace(/[^a-z0-9]+/g, '.').replace(/^\.|\.$/g, '')
+        const placeholder = (n: string) =>
+          `${nameSlug(n)}.${Date.now()}${Math.floor(Math.random() * 1000)}@roster.local`
+
+        const rows: SetupRow[] = []
+        const posLabel = (v: string) => POSITION_OPTIONS.find((o) => o.value === v)?.label || v
 
         const csvPlayers = csvParsedRows
-          .filter((r) => r.include && r.name.trim())
-          .map((r) => ({
+          .filter((r) => r.include)
+          .map((r) => ({ r, issue: rowIssue(r, csvParsedRows) }))
+        const toCreate: { name: string; email: string; position: string; jersey_number?: number; date_of_birth?: string; hasRealEmail: boolean }[] = []
+        for (const { r, issue } of csvPlayers) {
+          if (issue) {
+            rows.push({ kind: 'player', name: r.name || '(no name)', email: r.email, roleLabel: 'Player', status: 'failed', detail: issue })
+            continue
+          }
+          const jersey = parseInt(r.jersey_number)
+          toCreate.push({
             name: r.name.trim(),
-            email: r.email.trim() || `${nameSlug(r.name)}.${Date.now()}${Math.floor(Math.random() * 1000)}@roster.local`,
-            position: r.position.trim() || 'Unassigned',
-            jersey_number: r.jersey_number ? parseInt(r.jersey_number) : undefined,
+            email: r.email.trim() || placeholder(r.name),
+            position: normalizePosition(r.position)!,
+            jersey_number: isNaN(jersey) ? undefined : jersey,
             date_of_birth: r.date_of_birth || undefined,
-          }))
-        const manualCommit = manualPlayers
-          .filter((p) => p.name.trim())
-          .map((p) => ({
+            hasRealEmail: !!r.email.trim(),
+          })
+        }
+        for (const p of manualPlayers.filter((p) => p.name.trim())) {
+          toCreate.push({
             name: p.name.trim(),
-            email: `${nameSlug(p.name)}.${Date.now()}${Math.floor(Math.random() * 1000)}@roster.local`,
-            position: p.position.trim() || 'Unassigned',
-          }))
-        const toCreate = [...csvPlayers, ...manualCommit]
+            email: p.email.trim() || placeholder(p.name),
+            position: normalizePosition(p.position) || p.position,
+            hasRealEmail: !!p.email.trim(),
+          })
+        }
 
-        if (toCreate.length > 0) {
-          setSavingSquad(true)
-          const failed: { name: string; reason: string }[] = []
+        const staffToCreate = staffInvites.map((s) => ({ ...s }))
+        const totalSteps = toCreate.length + staffToCreate.length
+
+        if (totalSteps > 0) {
+          setSetupRunning(true)
           let done = 0
+          const playerFailed: { name: string; reason: string }[] = []
+          const staffFailed: { email: string; reason: string }[] = []
+          setSavingSquad(toCreate.length > 0)
           setSquadSaveProgress({ done: 0, total: toCreate.length, failed: [] })
+
           for (const p of toCreate) {
+            const { hasRealEmail, ...payload } = p
             try {
               const res = await fetch('/api/players', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(p),
+                body: JSON.stringify(payload),
               })
+              const j = await res.json().catch(() => ({} as any))
               if (!res.ok) {
-                const j = await res.json().catch(() => ({} as any))
-                failed.push({ name: p.name, reason: j.error || `HTTP ${res.status}` })
+                const reason = j.error || `HTTP ${res.status}`
+                playerFailed.push({ name: p.name, reason })
+                rows.push({ kind: 'player', name: p.name, email: hasRealEmail ? p.email : '', roleLabel: posLabel(p.position), status: 'failed', detail: reason })
+              } else if (j.data?.emailSent) {
+                rows.push({ kind: 'player', name: p.name, email: p.email, roleLabel: posLabel(p.position), status: 'emailed' })
+              } else {
+                rows.push({
+                  kind: 'player', name: p.name, email: hasRealEmail ? p.email : '', roleLabel: posLabel(p.position), status: 'not_emailed',
+                  detail: hasRealEmail ? (j.data?.emailError || 'Email could not be sent') : 'No email address — add one on the Players screen',
+                  tempPassword: hasRealEmail ? j.data?.tempPassword : undefined,
+                })
               }
             } catch (e: any) {
-              failed.push({ name: p.name, reason: e?.message || 'Network error' })
+              playerFailed.push({ name: p.name, reason: e?.message || 'Network error' })
+              rows.push({ kind: 'player', name: p.name, email: p.email, roleLabel: posLabel(p.position), status: 'failed', detail: e?.message || 'Network error' })
             }
             done += 1
-            setSquadSaveProgress({ done, total: toCreate.length, failed: [...failed] })
+            setSquadSaveProgress({ done, total: toCreate.length, failed: [...playerFailed] })
           }
           setSavingSquad(false)
-          if (failed.length > 0) {
-            console.warn('[Onboarding] Some players failed to import:', failed)
-            // Not blocking — we still finish onboarding. The manager can
-            // add/fix them from the Players screen using the same form.
-          }
-        }
 
-        // ── Create the staff accounts collected in Step 4 ──────────────────
-        //
-        // Each invite POSTs to /api/users/create, which creates the auth
-        // user + user_profiles row (+ players row if role were 'player',
-        // not applicable here) and — same endpoint the Staff screen will
-        // eventually use — attempts to email the new account its login
-        // details via Resend. If email delivery fails the account still
-        // gets created; the admin can hand over credentials manually from
-        // the Staff screen (the API always returns tempPassword too).
-        if (staffInvites.length > 0) {
-          setSavingStaff(true)
-          const failed: { email: string; reason: string }[] = []
-          let done = 0
-          setStaffSaveProgress({ done: 0, total: staffInvites.length, failed: [] })
-          for (const s of staffInvites) {
-            try {
-              const res = await fetch('/api/users/create', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: s.name, email: s.email, role: s.role }),
-              })
-              if (!res.ok) {
+          // ── Staff collected in Step 4 (typed in or imported) ─────────────
+          // Same pattern via /api/users/create, which also emails the invite.
+          if (staffToCreate.length > 0) {
+            setSavingStaff(true)
+            let staffDone = 0
+            setStaffSaveProgress({ done: 0, total: staffToCreate.length, failed: [] })
+            for (const st of staffToCreate) {
+              const roleLabel = STAFF_ROLES.find((r) => r.id === st.role)?.label || st.role
+              try {
+                const res = await fetch('/api/users/create', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ name: st.name, email: st.email, role: st.role }),
+                })
                 const j = await res.json().catch(() => ({} as any))
-                failed.push({ email: s.email, reason: j.error || `HTTP ${res.status}` })
+                if (!res.ok) {
+                  const reason = j.error || `HTTP ${res.status}`
+                  staffFailed.push({ email: st.email, reason })
+                  rows.push({ kind: 'staff', name: st.name, email: st.email, roleLabel, status: 'failed', detail: reason })
+                } else if (j.data?.emailSent) {
+                  rows.push({ kind: 'staff', name: st.name, email: st.email, roleLabel, status: 'emailed' })
+                } else {
+                  rows.push({ kind: 'staff', name: st.name, email: st.email, roleLabel, status: 'not_emailed', detail: j.data?.emailError || 'Email could not be sent', tempPassword: j.data?.tempPassword })
+                }
+              } catch (e: any) {
+                staffFailed.push({ email: st.email, reason: e?.message || 'Network error' })
+                rows.push({ kind: 'staff', name: st.name, email: st.email, roleLabel, status: 'failed', detail: e?.message || 'Network error' })
               }
-            } catch (e: any) {
-              failed.push({ email: s.email, reason: e?.message || 'Network error' })
+              staffDone += 1
+              setStaffSaveProgress({ done: staffDone, total: staffToCreate.length, failed: [...staffFailed] })
             }
-            done += 1
-            setStaffSaveProgress({ done, total: staffInvites.length, failed: [...failed] })
+            setSavingStaff(false)
           }
-          setSavingStaff(false)
-          if (failed.length > 0) {
-            console.warn('[Onboarding] Some staff invites failed:', failed)
-          }
+          setSetupRows(rows)
+        } else if (rows.length > 0) {
+          setSetupRows(rows)
         }
 
         // Mark onboarding done
@@ -456,7 +587,27 @@ export default function OnboardingPage() {
       console.error('[Onboarding] Error during finish:', err)
       // non-blocking — proceed to dashboard regardless
     }
-    router.push('/dashboard')
+    setSetupRunning(false)
+    // If accounts were created, stay on the final screen so the admin sees who
+    // was invited and who needs attention; they continue with the button there.
+    if (!hasImports) router.push('/dashboard')
+  }
+
+  // Hand-over sheet for anyone whose invitation email didn't go out: their
+  // activation link plus the temporary password to give them directly.
+  function downloadCredentials() {
+    const origin = typeof window !== 'undefined' ? window.location.origin : ''
+    const esc = (v: string) => `"${String(v ?? '').replace(/"/g, '""')}"`
+    const lines = ['Name,Email,Role,Temporary password,Activation link']
+    ;(setupRows || [])
+      .filter((r) => r.status === 'not_emailed' && r.tempPassword && r.email)
+      .forEach((r) => lines.push([r.name, r.email, r.roleLabel, r.tempPassword!, `${origin}/welcome?email=${encodeURIComponent(r.email)}`].map(esc).join(',')))
+    const url = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'invite-credentials.csv'
+    document.body.appendChild(a); a.click(); a.remove()
+    URL.revokeObjectURL(url)
   }
 
   /* ─── Progress bar ─── */
@@ -797,11 +948,19 @@ export default function OnboardingPage() {
                           <td className="px-1 py-1 border-t border-[#27405c]">
                             <input value={r.name} onChange={(e) => updateCsvRow(i, { name: e.target.value })}
                               className="w-full bg-transparent text-white px-2 py-1 rounded border border-transparent hover:border-[#27405c] focus:border-[#0ea5e9] focus:outline-none" />
+                            {rowIssue(r, csvParsedRows) && (
+                              <p className="px-2 text-[10px] leading-tight text-amber-400">{rowIssue(r, csvParsedRows)}</p>
+                            )}
                           </td>
                           <td className="px-1 py-1 border-t border-[#27405c]">
-                            <input value={r.position} onChange={(e) => updateCsvRow(i, { position: e.target.value })}
-                              placeholder="Position"
-                              className="w-full bg-transparent text-white px-2 py-1 rounded border border-transparent hover:border-[#27405c] focus:border-[#0ea5e9] focus:outline-none" />
+                            <select
+                              value={normalizePosition(r.position) || ''}
+                              onChange={(e) => updateCsvRow(i, { position: e.target.value, include: true })}
+                              className={`w-full bg-[#16273d] px-1.5 py-1 rounded border focus:outline-none focus:border-[#0ea5e9] ${normalizePosition(r.position) ? 'text-white border-transparent' : 'text-amber-300 border-amber-500/50'}`}
+                            >
+                              <option value="">Choose…</option>
+                              {POSITION_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                            </select>
                           </td>
                           <td className="px-1 py-1 border-t border-[#27405c]">
                             <input value={r.date_of_birth} onChange={(e) => updateCsvRow(i, { date_of_birth: e.target.value })}
@@ -828,7 +987,7 @@ export default function OnboardingPage() {
                   </table>
                 </div>
                 <p className="px-3 py-2 text-[11px] text-gray-500 border-t border-[#27405c]">
-                  Emails are optional here — any player left blank gets a placeholder you can update from the Players screen.
+                  Each player with an email gets an invitation to activate their account and choose a password. Players without an email are still added, but can&apos;t be invited until you add one on the Players screen. Rows flagged in amber start unticked — fix them, then tick to include.
                 </p>
               </div>
             )}
@@ -866,15 +1025,20 @@ export default function OnboardingPage() {
               className="text-[12px] text-gray-500 hover:text-gray-300 mb-3 flex items-center gap-1">
               <ArrowLeft className="w-3 h-3" /> Change method
             </button>
-            <div className="flex gap-2 mb-3">
+            <div className="flex flex-col sm:flex-row gap-2 mb-3">
               <input type="text" value={newPlayer.name} onChange={(e) => setNewPlayer({ ...newPlayer, name: e.target.value })}
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addPlayer() } }}
-                placeholder="Player name" className={`${inpRow} flex-1 min-w-0`} />
-              <input type="text" value={newPlayer.position} onChange={(e) => setNewPlayer({ ...newPlayer, position: e.target.value })}
+                placeholder="Player name" className={`${inpRow} sm:flex-1 min-w-0`} />
+              <input type="email" value={newPlayer.email} onChange={(e) => setNewPlayer({ ...newPlayer, email: e.target.value })}
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addPlayer() } }}
-                placeholder="Position" className={`${inpRow} w-28 flex-shrink-0`} />
+                placeholder="Email (to send their invite)" className={`${inpRow} sm:flex-1 min-w-0`} />
+              <select value={normalizePosition(newPlayer.position) || ''} onChange={(e) => setNewPlayer({ ...newPlayer, position: e.target.value })}
+                className={`${inpRow} sm:w-40 flex-shrink-0`}>
+                <option value="">Position…</option>
+                {POSITION_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
               <button type="button" onClick={addPlayer}
-                className="px-3 py-2 bg-[#0ea5e9] rounded-lg text-white hover:bg-[#0284c7] transition-colors flex-shrink-0">
+                className="px-3 py-2 bg-[#0ea5e9] rounded-lg text-white hover:bg-[#0284c7] transition-colors flex-shrink-0 flex items-center justify-center">
                 <Plus className="w-4 h-4" />
               </button>
             </div>
@@ -882,9 +1046,10 @@ export default function OnboardingPage() {
               <div className="space-y-1.5 max-h-40 overflow-y-auto mb-3">
                 {manualPlayers.map((p, i) => (
                   <div key={i} className="flex items-center justify-between bg-[#16273d] rounded-lg px-3 py-2">
-                    <span className="text-[13px] text-white">{p.name}</span>
+                    <span className="text-[13px] text-white">{p.name}{' '}
+                      <span className="text-gray-500">· {p.email || 'no email'}</span></span>
                     <div className="flex items-center gap-3">
-                      <span className="text-[12px] text-gray-500">{p.position}</span>
+                      <span className="text-[12px] text-gray-500">{POSITION_OPTIONS.find((o) => o.value === normalizePosition(p.position))?.label || p.position}</span>
                       <button type="button" onClick={() => removePlayer(i)}>
                         <X className="w-3.5 h-3.5 text-gray-500 hover:text-red-400" />
                       </button>
@@ -913,7 +1078,7 @@ export default function OnboardingPage() {
           <UserPlus className="w-5 h-5 text-sky-400" />
         </div>
         <h2 className="text-lg font-medium text-white mb-1">Invite your staff</h2>
-        <p className="text-[13px] text-gray-400 mb-6">Add coaches, physios, and managers by name and email. They&apos;ll get an account and a welcome email with their login details when you finish setup.</p>
+        <p className="text-[13px] text-gray-400 mb-6">Add coaches, physios, and managers by name and email, or import a spreadsheet. When you finish setup each person is emailed a link to activate their account and choose their own password.</p>
 
         {/* Add staff row */}
         <div className="flex flex-col sm:flex-row gap-2 mb-4">
@@ -938,6 +1103,32 @@ export default function OnboardingPage() {
             </button>
           </div>
         </div>
+
+        {/* Spreadsheet import — same idea as the squad import */}
+        <div className="flex flex-wrap items-center gap-3 mb-4">
+          <button type="button" onClick={() => staffCsvRef.current?.click()}
+            className="flex items-center gap-1.5 px-3 py-2 border border-dashed border-[#27405c] hover:border-[#0ea5e9] rounded-lg text-[12px] text-gray-300 transition-colors">
+            <FileSpreadsheet className="w-3.5 h-3.5" /> Import staff from spreadsheet
+          </button>
+          <button type="button" onClick={downloadStaffTemplate} className="text-[12px] text-sky-400 hover:text-sky-300 transition-colors">
+            Download template
+          </button>
+          <span className="text-[11px] text-gray-500">Columns: Name, Email, Role</span>
+          <input ref={staffCsvRef} type="file" className="hidden"
+            accept=".csv,.tsv,.txt,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleStaffFile(f); e.target.value = '' }} />
+        </div>
+        {staffImportNote && (
+          <div className={`mb-4 rounded-lg border px-3 py-2 text-[12px] ${staffImportNote.problems.length ? 'border-amber-500/40 bg-amber-500/10 text-amber-200' : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'}`}>
+            <p className="font-medium">{staffImportNote.added} staff member{staffImportNote.added === 1 ? '' : 's'} added from the file.</p>
+            {staffImportNote.problems.length > 0 && (
+              <ul className="mt-1 list-disc pl-4 space-y-0.5">
+                {staffImportNote.problems.slice(0, 8).map((m, i) => <li key={i}>{m}</li>)}
+                {staffImportNote.problems.length > 8 && <li>…and {staffImportNote.problems.length - 8} more</li>}
+              </ul>
+            )}
+          </div>
+        )}
 
         {/* Invite list */}
         {staffInvites.length > 0 ? (
@@ -998,7 +1189,98 @@ export default function OnboardingPage() {
           Everything is in place. Head to your dashboard to start managing your club.
         </p>
 
-        <ul className="text-left space-y-0 mb-6">
+        {/* Live progress while accounts are being created and emailed */}
+        {setupRunning && (
+          <div className="text-left mb-6 space-y-3">
+            {squadSaveProgress && squadSaveProgress.total > 0 && (
+              <div className="rounded-lg border border-[#27405c] bg-[#0f1d2f] px-3 py-2">
+                <div className="flex items-center justify-between text-[12px] text-gray-300 mb-1">
+                  <span>Adding players &amp; sending invites…</span>
+                  <span className="font-semibold text-white">{squadSaveProgress.done}/{squadSaveProgress.total}</span>
+                </div>
+                <div className="h-1.5 w-full rounded-full bg-[#16273d] overflow-hidden">
+                  <div className="h-full bg-[#0ea5e9] transition-all" style={{ width: `${(squadSaveProgress.done / Math.max(1, squadSaveProgress.total)) * 100}%` }} />
+                </div>
+              </div>
+            )}
+            {staffSaveProgress && staffSaveProgress.total > 0 && (
+              <div className="rounded-lg border border-[#27405c] bg-[#0f1d2f] px-3 py-2">
+                <div className="flex items-center justify-between text-[12px] text-gray-300 mb-1">
+                  <span>Creating staff accounts &amp; sending invites…</span>
+                  <span className="font-semibold text-white">{staffSaveProgress.done}/{staffSaveProgress.total}</span>
+                </div>
+                <div className="h-1.5 w-full rounded-full bg-[#16273d] overflow-hidden">
+                  <div className="h-full bg-[#0ea5e9] transition-all" style={{ width: `${(staffSaveProgress.done / Math.max(1, staffSaveProgress.total)) * 100}%` }} />
+                </div>
+              </div>
+            )}
+            <p className="text-[11px] text-gray-500">Please keep this page open — large squads take a minute or two.</p>
+          </div>
+        )}
+
+        {/* What happened to each invite */}
+        {setupRows && !setupRunning && (() => {
+          const emailed = setupRows.filter((r) => r.status === 'emailed')
+          const notEmailed = setupRows.filter((r) => r.status === 'not_emailed')
+          const failed = setupRows.filter((r) => r.status === 'failed')
+          const hasCreds = notEmailed.some((r) => r.tempPassword)
+          return (
+            <div className="text-left mb-6 space-y-3">
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/30 py-2">
+                  <p className="text-xl font-semibold text-emerald-300">{emailed.length}</p>
+                  <p className="text-[11px] text-emerald-200/80">Invited by email</p>
+                </div>
+                <div className="rounded-lg bg-amber-500/10 border border-amber-500/30 py-2">
+                  <p className="text-xl font-semibold text-amber-300">{notEmailed.length}</p>
+                  <p className="text-[11px] text-amber-200/80">Added, no email sent</p>
+                </div>
+                <div className="rounded-lg bg-red-500/10 border border-red-500/30 py-2">
+                  <p className="text-xl font-semibold text-red-300">{failed.length}</p>
+                  <p className="text-[11px] text-red-200/80">Not added</p>
+                </div>
+              </div>
+
+              {notEmailed.length > 0 && (
+                <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+                  <p className="text-[12px] font-medium text-amber-200 flex items-center gap-1.5 mb-1">
+                    <AlertTriangle className="w-3.5 h-3.5" /> Added, but they weren&apos;t emailed
+                  </p>
+                  <ul className="max-h-32 overflow-y-auto space-y-0.5 text-[12px] text-gray-300">
+                    {notEmailed.map((r, i) => (
+                      <li key={i}><span className="text-white">{r.name}</span> — {r.detail}</li>
+                    ))}
+                  </ul>
+                  {hasCreds && (
+                    <button type="button" onClick={downloadCredentials}
+                      className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-amber-500/20 text-amber-100 text-[12px] hover:bg-amber-500/30 transition-colors">
+                      <Download className="w-3.5 h-3.5" /> Download sign-in details to hand over
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {failed.length > 0 && (
+                <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-3">
+                  <p className="text-[12px] font-medium text-red-200 mb-1">Couldn&apos;t be added — fix and add them from the Players or Staff screen</p>
+                  <ul className="max-h-32 overflow-y-auto space-y-0.5 text-[12px] text-gray-300">
+                    {failed.map((r, i) => (
+                      <li key={i}><span className="text-white">{r.name}</span>{r.email ? ` (${r.email})` : ''} — {r.detail}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {emailed.length > 0 && (
+                <p className="text-[12px] text-gray-400">
+                  Everyone invited by email gets a link to activate their account and choose their own password.
+                </p>
+              )}
+            </div>
+          )
+        })()}
+
+        <ul className={`text-left space-y-0 mb-6 ${setupRunning || setupRows ? 'hidden' : ''}`}>
           {[
             badgePreview ? 'Club badge uploaded' : 'Club badge — you can upload later',
             `Club colours configured`,
@@ -1082,15 +1364,19 @@ export default function OnboardingPage() {
           {step === 4 && (
             <button
               type="button"
-              onClick={finish}
-              disabled={savingSquad || savingStaff}
+              onClick={setupRows ? () => router.push('/dashboard') : finish}
+              disabled={setupRunning || savingSquad || savingStaff}
               className="w-full flex items-center justify-center gap-1.5 px-5 py-3 bg-[#0ea5e9] rounded-lg text-sm font-medium text-white hover:bg-[#0284c7] transition-all duration-200 hover:shadow-[0_0_18px_rgba(14,165,233,0.45)] hover:scale-[1.01] active:scale-100 mt-4 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {savingSquad && squadSaveProgress
                 ? <>Adding players {squadSaveProgress.done}/{squadSaveProgress.total}…</>
                 : savingStaff && staffSaveProgress
                   ? <>Creating staff accounts {staffSaveProgress.done}/{staffSaveProgress.total}…</>
-                  : <>Go to dashboard <ArrowRight className="w-3.5 h-3.5" /></>}
+                  : setupRows
+                    ? <>Go to dashboard <ArrowRight className="w-3.5 h-3.5" /></>
+                    : csvParsedRows.some((r) => r.include) || manualPlayers.length > 0 || staffInvites.length > 0
+                      ? <>Create accounts &amp; send invites <ArrowRight className="w-3.5 h-3.5" /></>
+                      : <>Go to dashboard <ArrowRight className="w-3.5 h-3.5" /></>}
             </button>
           )}
         </div>

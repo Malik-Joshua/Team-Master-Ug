@@ -76,6 +76,7 @@ export async function GET(request: NextRequest) {
       { data: matchStats },
       { data: matches },
       { data: activeInjuries },
+      { data: activePlayerRows },
     ] = await Promise.all([
       supabaseAdmin.from('user_profiles').select('*', { count: 'exact', head: true }),
       supabaseAdmin.from('user_profiles').select('*', { count: 'exact', head: true }).eq('role', 'player'),
@@ -95,9 +96,16 @@ export async function GET(request: NextRequest) {
       // records. Count distinct players with a currently-active injury
       // record instead, so this stat reflects the physio's actual data.
       supabaseAdmin.from('injuries').select('player_id').eq('status', 'active'),
+      supabaseAdmin.from('user_profiles').select('user_id').eq('role', 'player').eq('status', 'active'),
     ])
 
-    const injuredPlayersCount = new Set((activeInjuries || []).map((i: any) => i.player_id)).size
+    const injuredIdSet = new Set((activeInjuries || []).map((i: any) => i.player_id))
+    const injuredPlayersCount = injuredIdSet.size
+    // Available = active status AND not carrying an active injury. A player can
+    // be status 'active' but injured (the two are tracked separately), so the
+    // available count must exclude the injured, otherwise it reads as the whole
+    // active squad even when players are hurt.
+    const availablePlayersCount = (activePlayerRows || []).filter((p: any) => !injuredIdSet.has(p.user_id)).length
 
     const totalRevenue = transactions?.filter(t => t.type === 'revenue')
       .reduce((sum, t) => sum + parseFloat(t.amount?.toString() || '0'), 0) || 0
@@ -224,6 +232,7 @@ export async function GET(request: NextRequest) {
       totalUsers: totalUsersCount || 0,
       totalPlayers: totalPlayersCount || 0,
       activePlayers: activePlayersCount || 0,
+      availablePlayers: availablePlayersCount,
       injuredPlayers: injuredPlayersCount,
       totalStaff: totalStaffCount || 0,
       totalRevenue: Math.round(totalRevenue),

@@ -496,9 +496,15 @@ export default function PlayersPage() {
     )
   }
 
-  const activePlayers = players.filter((p) => p.status === 'active').length
-  const injuredPlayers = players.filter((p) => activeInjuryPlayerIds.has(p.user_id || p.id)).length
   const totalPlayers = players.length
+  const injuredPlayers = players.filter((p) => activeInjuryPlayerIds.has(p.user_id || p.id)).length
+  // "Available" = active status AND not carrying an active injury. A player
+  // can have status 'active' and still be injured (the injuries table is
+  // separate from status), so without excluding injuries the count read as
+  // the whole squad even when players were hurt.
+  const availablePlayers = players.filter(
+    (p) => p.status === 'active' && !activeInjuryPlayerIds.has(p.user_id || p.id)
+  ).length
 
   const filteredPlayers = players.filter((player) => {
     const matchesSearch = player.name.toLowerCase().includes(searchTerm.toLowerCase()) || (player.position || '').toLowerCase().includes(searchTerm.toLowerCase()) || player.email.toLowerCase().includes(searchTerm.toLowerCase())
@@ -561,9 +567,9 @@ export default function PlayersPage() {
             iconTextColor="#5BA3D9"
           />
           <ConceptStatCard
-            label="Active players"
-            value={`${activePlayers} (${Math.round((activePlayers / totalPlayers) * 100) || 0}%)`}
-            meta="Currently available"
+            label="Available players"
+            value={`${availablePlayers} (${Math.round((availablePlayers / totalPlayers) * 100) || 0}%)`}
+            meta="Active and fit to play"
             icon={CheckCircle}
             iconBgColor="rgba(45, 184, 138, 0.12)"
             iconTextColor="#2DB88A"

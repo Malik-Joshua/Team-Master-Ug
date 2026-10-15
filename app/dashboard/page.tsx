@@ -25,7 +25,7 @@ import {
   Legend,
   Filler,
 } from 'chart.js'
-import { Line } from 'react-chartjs-2'
+import { Line, Bar } from 'react-chartjs-2'
 import PlayerMatchLog from '@/components/PlayerMatchLog'
 
 // Register Chart.js components only on client side
@@ -65,6 +65,7 @@ export default function DashboardPage() {
   const [stats, setStats] = useState({
     totalPlayers: 0,
     activePlayers: 0,
+    availablePlayers: 0,
     injuredPlayers: 0,
     totalMatches: 0,
     totalTries: 0,
@@ -77,6 +78,10 @@ export default function DashboardPage() {
     matchesAttended: 0,
   })
   const [trainingSessionsData, setTrainingSessionsData] = useState<any[]>([])
+  // All training sessions the club has held (read access is open to everyone),
+  // used for the by-month frequency chart so it stays reliable regardless of
+  // which coach is viewing.
+  const [clubTrainingSessions, setClubTrainingSessions] = useState<any[]>([])
   const [gymStats, setGymStats] = useState({
     benchPressPB: null as number | null,
     squatPB: null as number | null,
@@ -166,6 +171,7 @@ export default function DashboardPage() {
                     ...prev,
                     totalPlayers: data.totalPlayers || 0,
                     activePlayers: data.activePlayers || 0,
+                    availablePlayers: data.availablePlayers ?? data.activePlayers ?? 0,
                     injuredPlayers: data.injuredPlayers || 0,
                     totalMatches: data.totalMatches || 0,
                     totalTries: data.totalTries || 0,
@@ -186,12 +192,13 @@ export default function DashboardPage() {
                   .select('*', { count: 'exact', head: true })
                   .eq('role', 'player')
                 
-                // Get active players count
-                const { count: activePlayersCount } = await supabase
+                // Active-status player ids (so we can exclude the injured).
+                const { data: activePlayerRows } = await supabase
                   .from('user_profiles')
-                  .select('*', { count: 'exact', head: true })
+                  .select('user_id')
                   .eq('role', 'player')
                   .eq('status', 'active')
+                const activePlayersCount = activePlayerRows?.length || 0
 
                 // Distinct players with a currently-active injury record —
                 // see app/api/admin/statistics/route.ts for why this replaced
@@ -200,7 +207,10 @@ export default function DashboardPage() {
                   .from('injuries')
                   .select('player_id')
                   .eq('status', 'active')
-                const injuredPlayersCount = new Set((activeInjuriesRows || []).map((i: any) => i.player_id)).size
+                const injuredIdSet = new Set((activeInjuriesRows || []).map((i: any) => i.player_id))
+                const injuredPlayersCount = injuredIdSet.size
+                // Available = active and not injured.
+                const availablePlayersCount = (activePlayerRows || []).filter((p: any) => !injuredIdSet.has(p.user_id)).length
 
                 // Get total matches count
                 const { count: totalMatchesCount } = await supabase
@@ -244,6 +254,7 @@ export default function DashboardPage() {
                   ...prev,
                   totalPlayers: totalPlayersCount || 0,
                   activePlayers: activePlayersCount || 0,
+                  availablePlayers: availablePlayersCount,
                   injuredPlayers: injuredPlayersCount,
                   totalMatches: totalMatchesCount || 0,
                   totalTries,
@@ -279,6 +290,11 @@ export default function DashboardPage() {
                   matchesAttended: matchAttendanceCount || 0,
                 }))
                 setTrainingSessionsData(sessions)
+                // Club-wide sessions for the by-month frequency chart.
+                const { data: allSessions } = await supabase
+                  .from('training_sessions')
+                  .select('session_date')
+                setClubTrainingSessions(allSessions || [])
                 
                 // Load top performers using API (accurate, ranked best to least)
                 try {
@@ -1362,8 +1378,8 @@ export default function DashboardPage() {
               href="/players"
             />
             <StatCard
-              title="Active Players"
-              value={`${stats.activePlayers} (${stats.totalPlayers > 0 ? Math.round((stats.activePlayers / stats.totalPlayers) * 100) : 0}%)`}
+              title="Available Players"
+              value={`${stats.availablePlayers} (${stats.totalPlayers > 0 ? Math.round((stats.availablePlayers / stats.totalPlayers) * 100) : 0}%)`}
               icon={Activity}
               iconColor="bg-success"
               iconTextColor="text-white"
@@ -1396,95 +1412,88 @@ export default function DashboardPage() {
             />
           </div>
 
-          {/* Training Sessions Track */}
-          <div className="bg-tm-surface rounded-card border border-tm-border shadow-soft p-4 sm:p-6">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6">
-              <h3 className="text-lg sm:text-xl font-bold text-tm-text-1">Training Sessions Track</h3>
-              <span className="text-sm text-tm-text-3">Total: {stats.trainingSessionsAttended} sessions</span>
-            </div>
-            <div className="h-48 sm:h-64 min-w-0">
-              <Line
-                data={{
-                  labels: trainingSessionsData.length > 0
-                    ? trainingSessionsData.map((session, index) => {
-                        const date = new Date(session.session_date)
-                        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                      })
-                    : Array.from({ length: 12 }, (_, i) => {
-                        const date = new Date()
-                        date.setDate(date.getDate() - (12 - i) * 7)
-                        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                      }),
-                  datasets: [
-                    {
-                      label: 'Training Sessions Conducted',
-                      data: trainingSessionsData.length > 0
-                        ? trainingSessionsData.map((_, index) => index + 1)
-                        : Array.from({ length: 12 }, (_, i) => i + 1),
-                      borderColor: '#2563EB',
-                      backgroundColor: 'rgba(37, 99, 235, 0.1)',
-                      fill: true,
-                      tension: 0.4,
-                      pointRadius: 5,
-                      pointHoverRadius: 7,
-                      pointBackgroundColor: '#2563EB',
-                      pointBorderColor: '#ffffff',
-                      pointBorderWidth: 2,
-                    },
-                  ],
-                }}
-                options={{
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  plugins: {
-                    legend: {
-                      display: true,
-                      position: 'top' as const,
-                    },
-                    tooltip: {
-                      mode: 'index' as const,
-                      intersect: false,
-                      callbacks: {
-                        label: function(context) {
-                          return `Session ${context.parsed.y}`
-                        }
-                      }
-                    },
-                  },
-                  scales: {
-                    y: {
-                      beginAtZero: true,
-                      ticks: {
-                        stepSize: 1,
-                        precision: 0,
+          {/* Training Sessions Track — how many sessions were held each month.
+              (The old version plotted a running count 1,2,3… against dates,
+              which was always a straight diagonal line and told you nothing.) */}
+          {(() => {
+            // Group sessions into the last 6 calendar months, oldest first, so
+            // the bars read left-to-right as "recent training frequency".
+            const now = new Date()
+            const buckets: { key: string; label: string; count: number }[] = []
+            for (let i = 5; i >= 0; i--) {
+              const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+              buckets.push({
+                key: `${d.getFullYear()}-${d.getMonth()}`,
+                label: d.toLocaleDateString('en-US', { month: 'short' }),
+                count: 0,
+              })
+            }
+            const byKey = new Map(buckets.map((b) => [b.key, b]))
+            clubTrainingSessions.forEach((s: any) => {
+              if (!s.session_date) return
+              const d = new Date(s.session_date)
+              const b = byKey.get(`${d.getFullYear()}-${d.getMonth()}`)
+              if (b) b.count += 1
+            })
+            const totalConducted = clubTrainingSessions.length
+            const inWindow = buckets.reduce((t, b) => t + b.count, 0)
+            const busiest = Math.max(...buckets.map((b) => b.count), 0)
+            return (
+              <div className="bg-tm-surface rounded-card border border-tm-border shadow-soft p-4 sm:p-6">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6">
+                  <div>
+                    <h3 className="text-lg sm:text-xl font-bold text-tm-text-1">Training Sessions Track</h3>
+                    <p className="text-sm text-tm-text-3">Training sessions held, by month</p>
+                  </div>
+                  <span className="text-sm text-tm-text-3">{totalConducted} total · {inWindow} in last 6 months</span>
+                </div>
+                <div className="h-48 sm:h-64 min-w-0">
+                  <Bar
+                    data={{
+                      labels: buckets.map((b) => b.label),
+                      datasets: [
+                        {
+                          label: 'Sessions conducted',
+                          data: buckets.map((b) => b.count),
+                          backgroundColor: '#2563EB',
+                          hoverBackgroundColor: '#1d4ed8',
+                          borderRadius: 6,
+                          maxBarThickness: 48,
+                        },
+                      ],
+                    }}
+                    options={{
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                          callbacks: {
+                            label: (ctx) => `${ctx.parsed.y} session${ctx.parsed.y === 1 ? '' : 's'}`,
+                          },
+                        },
                       },
-                      grid: {
-                        color: 'rgba(0, 0, 0, 0.05)',
+                      scales: {
+                        y: {
+                          beginAtZero: true,
+                          suggestedMax: busiest < 4 ? 4 : undefined,
+                          ticks: { stepSize: 1, precision: 0 },
+                          grid: { color: 'rgba(0, 0, 0, 0.05)' },
+                          title: { display: true, text: 'Sessions' },
+                        },
+                        x: { grid: { display: false } },
                       },
-                      title: {
-                        display: true,
-                        text: 'Number of Sessions',
-                      },
-                    },
-                    x: {
-                      grid: {
-                        display: false,
-                      },
-                      title: {
-                        display: true,
-                        text: 'Date',
-                      },
-                    },
-                  },
-                }}
-              />
-            </div>
-            {trainingSessionsData.length === 0 && (
-              <div className="mt-4 text-center text-tm-text-3 text-sm">
-                No training sessions recorded yet. Start by creating a training session!
+                    }}
+                  />
+                </div>
+                {totalConducted === 0 && (
+                  <div className="mt-4 text-center text-tm-text-3 text-sm">
+                    No training sessions recorded yet. Start by creating a training session.
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            )
+          })()}
 
           {/* Recent Training Schedules */}
           {recentTrainingSchedules.length > 0 && (

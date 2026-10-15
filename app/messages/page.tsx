@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import Layout from '@/components/Layout'
-import { MessageSquare, Send, User, Mail, Clock, X, Trash2 } from 'lucide-react'
+import { MessageSquare, Send, User, Mail, Clock, X, Trash2, Reply, RotateCcw, MessagesSquare } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import RefreshButton from '@/components/RefreshButton'
 import { getAllowedRecipients, canSendMessage, getRoleDisplayName, type UserRole } from '@/lib/communication-rules'
@@ -32,9 +32,11 @@ interface Message {
   sender_id: string
   sender_name: string
   sender_role: string
+  sender_picture?: string | null
   recipient_id: string
   recipient_name?: string
   recipient_role?: string
+  recipient_picture?: string | null
   subject: string
   message: string
   read: boolean
@@ -49,12 +51,40 @@ interface UserProfile {
   email: string
 }
 
+// Round avatar: the person's photo if they have one, otherwise their initial
+// on a coloured circle (a group message gets an icon instead).
+function Avatar({ src, name, group, size = 40 }: { src?: string | null; name?: string; group?: boolean; size?: number }) {
+  const dim = { width: size, height: size }
+  if (group) {
+    return (
+      <span className="flex flex-shrink-0 items-center justify-center rounded-full bg-tm-surface-hover text-tm-text-3" style={dim}>
+        <MessagesSquare className="w-1/2 h-1/2" />
+      </span>
+    )
+  }
+  if (src) {
+    return <img src={src} alt={name || ''} className="flex-shrink-0 rounded-full object-cover border border-tm-border" style={dim} />
+  }
+  return (
+    <span className="flex flex-shrink-0 items-center justify-center rounded-full bg-tm-secondary font-bold text-tm-on-secondary" style={{ ...dim, fontSize: size * 0.4 }}>
+      {(name || '?').charAt(0).toUpperCase()}
+    </span>
+  )
+}
+
 export default function MessagesPage() {
   const [user, setUser] = useState<any>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [loading, setLoading] = useState(true)
   const [showCompose, setShowCompose] = useState(false)
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null)
+  // Undo-send: a short grace period after pressing Send during which the
+  // message has not actually been sent yet, so a mistake can be taken back.
+  const [pendingSend, setPendingSend] = useState(false)
+  const [undoSeconds, setUndoSeconds] = useState(0)
+  const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const undoTicker = useRef<ReturnType<typeof setInterval> | null>(null)
+  const [deletingConversation, setDeletingConversation] = useState(false)
   const [players, setPlayers] = useState<UserProfile[]>([])
   const [admins, setAdmins] = useState<UserProfile[]>([])
   const [coaches, setCoaches] = useState<UserProfile[]>([])
@@ -126,7 +156,7 @@ export default function MessagesPage() {
                 if (senderIds.length > 0) {
                   const { data: profiles } = await supabase
                     .from('user_profiles')
-                    .select('user_id, name, role')
+                    .select('user_id, name, role, profile_picture_url')
                     .in('user_id', senderIds)
                   
                   if (profiles) {
@@ -141,7 +171,7 @@ export default function MessagesPage() {
                 if (recipientIds.length > 0) {
                   const { data: recipientProfiles } = await supabase
                     .from('user_profiles')
-                    .select('user_id, name, role')
+                    .select('user_id, name, role, profile_picture_url')
                     .in('user_id', recipientIds)
                   
                   if (recipientProfiles) {
@@ -161,9 +191,11 @@ export default function MessagesPage() {
                     sender_id: msg.sender_id,
                     sender_name: sender?.name || 'Unknown',
                     sender_role: sender?.role || 'unknown',
+                    sender_picture: sender?.profile_picture_url ?? null,
                     recipient_id: msg.recipient_id,
                     recipient_name: recipient?.name || 'Unknown',
                     recipient_role: recipient?.role || 'unknown',
+                    recipient_picture: recipient?.profile_picture_url ?? null,
                     subject: msg.subject || '',
                     message: msg.message,
                     read: msg.read || false,
@@ -698,6 +730,80 @@ export default function MessagesPage() {
       alert('Error deleting message. Please try again.')
     }
   }
+
+  // Pre-fill the composer as a reply to a received message and open it.
+  const handleReply = (message: Message) => {
+    setSelectedMessage(null)
+    setComposeData({
+      recipientType: 'individual',
+      recipient: message.sender_name,
+      recipientId: message.sender_id,
+      selectedRoles: [],
+      subject: message.subject?.toLowerCase().startsWith('re:') ? message.subject : `Re: ${message.subject || '(no subject)'}`,
+      message: '',
+    })
+    setShowCompose(true)
+  }
+
+  // Delete every message exchanged with one person (a whole "chat").
+  const deleteConversation = async (counterpartId: string, counterpartName: string) => {
+    if (!counterpartId) return
+    const convo = messages.filter(
+      (m) => m.sender_id === counterpartId || (m.recipient_id === counterpartId && m.is_sent)
+    )
+    if (convo.length === 0) return
+    if (!confirm(`Delete the entire conversation with ${counterpartName}? This removes ${convo.length} message${convo.length === 1 ? '' : 's'} and cannot be undone.`)) return
+    setDeletingConversation(true)
+    try {
+      await Promise.all(
+        convo.map((m) => fetch(`/api/messages/${m.id}`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' } }))
+      )
+      const ids = new Set(convo.map((m) => m.id))
+      setMessages((prev) => prev.filter((m) => !ids.has(m.id)))
+      setSelectedMessage(null)
+    } catch (error) {
+      console.error('Error deleting conversation:', error)
+      alert('Could not delete the whole conversation. Please try again.')
+    } finally {
+      setDeletingConversation(false)
+    }
+  }
+
+  // Validate, then hold the send for a few seconds so it can be undone. The
+  // real send (handleSendMessage) only fires when the grace period elapses.
+  const queueSend = () => {
+    const hasRecipient =
+      composeData.recipientType === 'role'
+        ? composeData.selectedRoles.length > 0
+        : !!composeData.recipientId
+    if (!hasRecipient || !composeData.message.trim()) {
+      alert('Please choose a recipient and type a message.')
+      return
+    }
+    setShowCompose(false)
+    setPendingSend(true)
+    setUndoSeconds(5)
+    undoTicker.current = setInterval(() => {
+      setUndoSeconds((s) => (s > 1 ? s - 1 : 0))
+    }, 1000)
+    undoTimer.current = setTimeout(() => {
+      if (undoTicker.current) clearInterval(undoTicker.current)
+      setPendingSend(false)
+      handleSendMessage()
+    }, 5000)
+  }
+
+  const undoSend = () => {
+    if (undoTimer.current) clearTimeout(undoTimer.current)
+    if (undoTicker.current) clearInterval(undoTicker.current)
+    setPendingSend(false)
+    setShowCompose(true) // reopen with the draft intact
+  }
+
+  useEffect(() => () => {
+    if (undoTimer.current) clearTimeout(undoTimer.current)
+    if (undoTicker.current) clearInterval(undoTicker.current)
+  }, [])
 
   const handleSendMessage = async () => {
     try {
@@ -2633,10 +2739,10 @@ export default function MessagesPage() {
               </div>
               <div className="flex gap-3">
                 <button
-                  onClick={handleSendMessage}
-                  className="px-6 py-3 bg-tm-secondary text-tm-on-secondary rounded-[6px] hover:opacity-90 transition-all duration-300 font-semibold shadow-soft hover:shadow-medium"
+                  onClick={queueSend}
+                  className="px-6 py-3 bg-tm-secondary text-tm-on-secondary rounded-[6px] hover:opacity-90 transition-all duration-300 font-semibold shadow-soft hover:shadow-medium inline-flex items-center gap-2"
                 >
-                  Send Message
+                  <Send className="w-4 h-4" /> Send Message
                 </button>
                 <button
                   onClick={() => {
@@ -2716,9 +2822,14 @@ export default function MessagesPage() {
                         console.error('Error marking notification as read:', error)
                       }
                     }}
-                    className="flex items-start justify-between"
+                    className="flex items-start justify-between gap-3"
                   >
-                    <div className="flex-1 pr-12">
+                    <Avatar
+                      src={message.is_sent ? message.recipient_picture : message.sender_picture}
+                      name={message.is_sent ? message.recipient_name : message.sender_name}
+                      group={message.is_sent && message.recipient_role?.startsWith('group:')}
+                    />
+                    <div className="flex-1 pr-12 min-w-0">
                       <div className="flex items-center gap-2 mb-2">
                         {message.is_sent ? (
                           <>
@@ -2769,8 +2880,15 @@ export default function MessagesPage() {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
             <div className="bg-tm-surface rounded-card shadow-large max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-tm-border">
               <div className="p-6 border-b border-tm-border">
-                <div className="flex justify-between items-start">
-                  <div>
+                <div className="flex justify-between items-start gap-3">
+                  <div className="flex items-start gap-3 min-w-0">
+                    <Avatar
+                      src={selectedMessage.is_sent ? selectedMessage.recipient_picture : selectedMessage.sender_picture}
+                      name={selectedMessage.is_sent ? selectedMessage.recipient_name : selectedMessage.sender_name}
+                      group={selectedMessage.is_sent && selectedMessage.recipient_role?.startsWith('group:')}
+                      size={44}
+                    />
+                    <div className="min-w-0">
                     <div className="flex items-center gap-2 mb-2">
                       <h2 className="text-2xl font-bold text-tm-text-1">{selectedMessage.subject}</h2>
                       {!selectedMessage.read && (
@@ -2808,6 +2926,7 @@ export default function MessagesPage() {
                         {new Date(selectedMessage.created_at).toLocaleString()}
                       </div>
                     </div>
+                    </div>
                   </div>
                   <button
                     onClick={() => setSelectedMessage(null)}
@@ -2822,26 +2941,63 @@ export default function MessagesPage() {
                   <p className="text-tm-text-1 whitespace-pre-wrap">{selectedMessage.message}</p>
                 </div>
               </div>
-              <div className="p-6 border-t border-tm-border flex justify-between items-center">
-                <button
-                  onClick={() => {
-                    if (selectedMessage && confirm('Are you sure you want to delete this message?')) {
-                      deleteMessage(selectedMessage.id, new MouseEvent('click') as any)
-                    }
-                  }}
-                  className="px-4 py-2 text-[#E05757] hover:bg-[#E05757]/10 rounded-[6px] transition-all duration-300 font-semibold flex items-center gap-2"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  Delete
-                </button>
-                <button
-                  onClick={() => setSelectedMessage(null)}
-                  className="px-6 py-3 bg-tm-surface-hover text-tm-text-1 rounded-[6px] hover:bg-tm-surface-hover transition-all duration-300 font-semibold"
-                >
-                  Close
-                </button>
+              <div className="p-6 border-t border-tm-border flex flex-wrap justify-between items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={() => {
+                      if (selectedMessage && confirm('Delete this message?')) {
+                        deleteMessage(selectedMessage.id, new MouseEvent('click') as any)
+                      }
+                    }}
+                    className="px-4 py-2 text-[#E05757] hover:bg-[#E05757]/10 rounded-[6px] transition-colors font-semibold flex items-center gap-2"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Delete
+                  </button>
+                  {/* A real person we can talk back to (not a group blast). */}
+                  {!selectedMessage.is_sent && selectedMessage.sender_id && !selectedMessage.recipient_role?.startsWith('group:') && (
+                    <button
+                      onClick={() => deleteConversation(selectedMessage.sender_id, selectedMessage.sender_name)}
+                      disabled={deletingConversation}
+                      className="px-4 py-2 text-tm-text-3 hover:text-[#E05757] hover:bg-[#E05757]/10 rounded-[6px] transition-colors font-semibold flex items-center gap-2 disabled:opacity-50"
+                    >
+                      <MessagesSquare className="w-4 h-4" />
+                      {deletingConversation ? 'Deleting…' : 'Delete chat'}
+                    </button>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  {!selectedMessage.is_sent && selectedMessage.sender_id && !selectedMessage.recipient_role?.startsWith('group:') && (
+                    <button
+                      onClick={() => handleReply(selectedMessage)}
+                      className="px-6 py-3 bg-tm-secondary text-tm-on-secondary rounded-[6px] hover:opacity-90 transition-colors font-semibold flex items-center gap-2 shadow-soft"
+                    >
+                      <Reply className="w-4 h-4" />
+                      Reply
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setSelectedMessage(null)}
+                    className="px-6 py-3 bg-tm-surface-hover text-tm-text-1 rounded-[6px] hover:opacity-90 transition-colors font-semibold"
+                  >
+                    Close
+                  </button>
+                </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Undo-send toast — the message hasn't actually been sent yet. */}
+        {pendingSend && (
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] flex items-center gap-4 rounded-full bg-tm-text-1 text-tm-surface px-5 py-3 shadow-large">
+            <span className="text-sm font-medium">Sending message… {undoSeconds}s</span>
+            <button
+              onClick={undoSend}
+              className="inline-flex items-center gap-1.5 text-sm font-bold text-tm-secondary hover:opacity-80"
+            >
+              <RotateCcw className="w-4 h-4" /> Undo
+            </button>
           </div>
         )}
       </div>

@@ -110,7 +110,7 @@ export async function GET(request: NextRequest) {
     if (allUserIds.length > 0) {
       const { data: profiles, error: profilesError } = await supabaseAdmin
         .from('user_profiles')
-        .select('user_id, name, role')
+        .select('user_id, name, role, profile_picture_url')
         .in('user_id', allUserIds)
 
       if (profilesError) {
@@ -227,9 +227,11 @@ export async function GET(request: NextRequest) {
           sender_id: msg.sender_id,
           sender_name: sender?.name || 'Unknown',
           sender_role: sender?.role || 'unknown',
+          sender_picture: sender?.profile_picture_url ?? null,
           recipient_id: msg.recipient_id,
           recipient_name: recipientName,
           recipient_role: recipientRole,
+          recipient_picture: recipient?.profile_picture_url ?? null,
           subject: msg.subject || '',
           message: msg.message,
           read: msg.read || false,

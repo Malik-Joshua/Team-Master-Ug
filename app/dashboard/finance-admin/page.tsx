@@ -122,29 +122,32 @@ export default function FinanceAdminDashboard() {
 
   const loadMatchAttendance = async (matchId: string) => {
     if (!matchId) return
-    
+
     setLoadingAttendance(true)
     try {
-      const supabase = createClient()
-      const { data: selectionsData } = await supabase
-        .from('fixture_team_selections')
-        .select('is_starting, is_substitute, player_id, players!inner(user_id, user_profiles!inner(name))')
-        .eq('match_id', matchId)
-      
-      if (selectionsData) {
-        const starting = selectionsData.filter((s: any) => s.is_starting).length
-        const substitutes = selectionsData.filter((s: any) => s.is_substitute).length
-        const total = selectionsData.length
-        
+      // Use the service-role API, same as the session loader above: a finance
+      // admin's RLS can't read the joined selection rows, so the old direct
+      // query returned nothing and no stats rendered.
+      const response = await fetch(`/api/attendance/match/${matchId}`, {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache' },
+      })
+      if (response.ok) {
+        const data = await response.json()
         setMatchAttendance({
-          starting,
-          substitutes,
-          total,
-          details: selectionsData,
+          starting: data.starting || 0,
+          substitutes: data.substitutes || 0,
+          total: data.total || 0,
+          details: [],
         })
+      } else {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        console.error('Error loading match attendance:', response.status, errorData)
+        setMatchAttendance({ starting: 0, substitutes: 0, total: 0, details: [] })
       }
     } catch (error) {
       console.error('Error loading match attendance:', error)
+      setMatchAttendance({ starting: 0, substitutes: 0, total: 0, details: [] })
     } finally {
       setLoadingAttendance(false)
     }

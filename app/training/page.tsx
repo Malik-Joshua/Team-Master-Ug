@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import Layout from '@/components/Layout'
-import { Calendar, Users, Save, Download, Plus, Clock, MapPin, FileText, X, Upload, Activity, ChevronDown, FileSpreadsheet, Trash2, CheckCircle2, AlertCircle, UserCheck } from 'lucide-react'
+import { Calendar, Users, Save, Download, Plus, Clock, MapPin, FileText, X, Upload, Activity, ChevronDown, FileSpreadsheet, Trash2, CheckCircle2, AlertCircle, UserCheck, Search } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import RefreshButton from '@/components/RefreshButton'
 import TimeDropdowns from '@/components/ui/TimeDropdowns'
@@ -212,6 +212,10 @@ export default function TrainingPage() {
   // Dismissed "Training Sessions Summary" cards (per user, persisted locally).
   const [dismissedSummaryCards, setDismissedSummaryCards] = useState<Set<string>>(new Set())
   const [showDismissedSummaries, setShowDismissedSummaries] = useState(false)
+  // Instant filter for the summary cards: by month and by free text (date or
+  // drills). Everything is already loaded, so filtering is pure client-side.
+  const [summaryMonth, setSummaryMonth] = useState<string>('all')
+  const [summarySearch, setSummarySearch] = useState<string>('')
   const [recordedTrainingSessions, setRecordedTrainingSessions] = useState<Set<string>>(new Set())
   const [trainingFiles, setTrainingFiles] = useState<any[]>([])
   const [trainingFileFilter, setTrainingFileFilter] = useState<string>('all')
@@ -2772,11 +2776,59 @@ export default function TrainingPage() {
                   <h3 className="text-xl font-bold text-tm-text-1 mb-2">No Training Sessions</h3>
                   <p className="text-tm-text-3">No training sessions have been recorded yet.</p>
                 </div>
-              ) : (
+              ) : (() => {
+                // Months present in the data, newest first, for the dropdown.
+                const monthKey = (d: string) => {
+                  const dt = new Date(d)
+                  return `${dt.getFullYear()}-${dt.getMonth()}`
+                }
+                const monthLabel = (key: string) => {
+                  const [y, m] = key.split('-').map(Number)
+                  return new Date(y, m, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+                }
+                const months = Array.from(new Set(sessionSummaries.map(s => monthKey(s.sessionDate))))
+                  .sort((a, b) => b.localeCompare(a))
+                const q = summarySearch.trim().toLowerCase()
+                const visible = sessionSummaries
+                  .filter(s => showDismissedSummaries || !dismissedSummaryCards.has(s.sessionId))
+                  .filter(s => summaryMonth === 'all' || monthKey(s.sessionDate) === summaryMonth)
+                  .filter(s => {
+                    if (!q) return true
+                    const hay = `${new Date(s.sessionDate).toLocaleDateString()} ${s.description || ''} ${s.drills || ''} ${s.location || ''}`.toLowerCase()
+                    return hay.includes(q)
+                  })
+                return (
+                <>
+                {/* Instant filter — results update as you change these */}
+                <div className="flex flex-col sm:flex-row gap-3 mb-5">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-tm-text-3" />
+                    <input
+                      type="text"
+                      value={summarySearch}
+                      onChange={(e) => setSummarySearch(e.target.value)}
+                      placeholder="Search by date, drills or location…"
+                      className="w-full pl-9 pr-3 py-2.5 border-2 border-tm-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                    />
+                  </div>
+                  <select
+                    value={summaryMonth}
+                    onChange={(e) => setSummaryMonth(e.target.value)}
+                    className="px-4 py-2.5 border-2 border-tm-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-tm-surface sm:w-56"
+                  >
+                    <option value="all">All months</option>
+                    {months.map(m => <option key={m} value={m}>{monthLabel(m)}</option>)}
+                  </select>
+                </div>
+                <p className="text-xs text-tm-text-3 mb-4">
+                  Showing {visible.length} of {sessionSummaries.length} session{sessionSummaries.length === 1 ? '' : 's'}
+                </p>
+
+                {visible.length === 0 ? (
+                  <div className="text-center py-10 text-tm-text-3 text-sm">No sessions match your filter.</div>
+                ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {sessionSummaries
-                  .filter(summary => showDismissedSummaries || !dismissedSummaryCards.has(summary.sessionId))
-                  .map((summary) => {
+                {visible.map((summary) => {
                   const isDismissed = dismissedSummaryCards.has(summary.sessionId)
                   return (
                   <div
@@ -2881,7 +2933,10 @@ export default function TrainingPage() {
                   )
                 })}
                 </div>
-              )}
+                )}
+                </>
+                )
+              })()}
             </div>
           </div>
         )}

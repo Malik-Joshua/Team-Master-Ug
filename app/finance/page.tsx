@@ -600,35 +600,27 @@ export default function FinancePage() {
 
   const loadSessionAttendance = async (sessionId: string) => {
     if (!sessionId) return
-    
+
     setLoadingAttendance(true)
     try {
-      const supabase = createClient()
-      const { data: attendanceData } = await supabase
-        .from('training_attendance')
-        .select('attendance_status, player_id, players!inner(user_id, user_profiles!inner(name))')
-        .eq('session_id', sessionId)
-      
-      if (attendanceData) {
-        const present = attendanceData.filter((a: any) => a.attendance_status === 'P').length
-        const absent = attendanceData.filter((a: any) => a.attendance_status === 'X').length
-        const justified = attendanceData.filter((a: any) => a.attendance_status === 'A').length
-        const injured = attendanceData.filter((a: any) => a.attendance_status === 'I').length
-        const total = attendanceData.length
-        const attendanceRate = total > 0 ? Math.round((present / total) * 100 * 10) / 10 : 0
-        
-        setSessionAttendance({
-          present,
-          absent,
-          justified,
-          injured,
-          total,
-          attendanceRate,
-          details: attendanceData,
-        })
-      }
+      // Use the service-role API instead of a direct query: a finance admin's
+      // RLS can't read the players / user_profiles rows the old inner-join
+      // needed, so that query returned zero rows and every count read 0.
+      const res = await fetch(`/api/attendance/session/${sessionId}`, { cache: 'no-store' })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json()
+      setSessionAttendance({
+        present: data.present || 0,
+        absent: data.absent || 0,
+        justified: data.justified || 0,
+        injured: data.injured || 0,
+        total: data.total || 0,
+        attendanceRate: data.attendanceRate || 0,
+        details: data.details || [],
+      })
     } catch (error) {
       console.error('Error loading session attendance:', error)
+      setSessionAttendance({ present: 0, absent: 0, justified: 0, injured: 0, total: 0, attendanceRate: 0, details: [] })
     } finally {
       setLoadingAttendance(false)
     }
@@ -636,29 +628,23 @@ export default function FinancePage() {
 
   const loadMatchAttendance = async (matchId: string) => {
     if (!matchId) return
-    
+
     setLoadingAttendance(true)
     try {
-      const supabase = createClient()
-      const { data: selectionsData } = await supabase
-        .from('fixture_team_selections')
-        .select('is_starting, is_substitute, player_id, players!inner(user_id, user_profiles!inner(name))')
-        .eq('match_id', matchId)
-      
-      if (selectionsData) {
-        const starting = selectionsData.filter((s: any) => s.is_starting).length
-        const substitutes = selectionsData.filter((s: any) => s.is_substitute).length
-        const total = selectionsData.length
-        
-        setMatchAttendance({
-          starting,
-          substitutes,
-          total,
-          details: selectionsData,
-        })
-      }
+      // Service-role API, same reason as the session loader: a finance admin's
+      // RLS can't read the joined selection rows, so the old query read zeros.
+      const res = await fetch(`/api/attendance/match/${matchId}`, { cache: 'no-store' })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json()
+      setMatchAttendance({
+        starting: data.starting || 0,
+        substitutes: data.substitutes || 0,
+        total: data.total || 0,
+        details: [],
+      })
     } catch (error) {
       console.error('Error loading match attendance:', error)
+      setMatchAttendance({ starting: 0, substitutes: 0, total: 0, details: [] })
     } finally {
       setLoadingAttendance(false)
     }

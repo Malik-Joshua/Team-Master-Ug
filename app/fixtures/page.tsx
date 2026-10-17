@@ -250,6 +250,10 @@ export default function FixturesPage() {
     isUpcoming: boolean
   }>>([])
   const [loadingSummaries, setLoadingSummaries] = useState(true)
+  // Instant filters for the Match Summaries list (all client-side).
+  const [summaryStatus, setSummaryStatus] = useState<'all' | 'played' | 'upcoming'>('all')
+  const [summaryType, setSummaryType] = useState<string>('all')
+  const [summarySearch, setSummarySearch] = useState<string>('')
   // Per-user soft-hidden summaries — populated from /api/fixtures/hide-summary
   // and applied client-side when rendering the Match Summaries list. Hiding is
   // a personal preference; the underlying match & stats stay untouched.
@@ -4018,9 +4022,61 @@ export default function FixturesPage() {
                   Matches will appear here once they have stats (for played matches) or team selections (for upcoming fixtures)
                 </p>
               </div>
-            ) : (
+            ) : (() => {
+              const notHidden = matchSummaries.filter((s) => !hiddenSummaryIds.has(s.matchId))
+              const types = Array.from(new Set(notHidden.map((s) => s.tournamentType).filter(Boolean)))
+              const typeLabel = (t: string) => t.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+              const q = summarySearch.trim().toLowerCase()
+              const visibleSummaries = notHidden
+                .filter((s) => summaryStatus === 'all' || (summaryStatus === 'played' ? !s.isUpcoming : s.isUpcoming))
+                .filter((s) => summaryType === 'all' || s.tournamentType === summaryType)
+                .filter((s) => {
+                  if (!q) return true
+                  return `${s.opponent} ${s.venue || ''} ${new Date(s.matchDate).toLocaleDateString()}`.toLowerCase().includes(q)
+                })
+              return (
+              <>
+              {/* Instant filters — the cards update as you change these */}
+              <div className="flex flex-col sm:flex-row gap-3 mb-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-tm-text-3" />
+                  <input
+                    type="text"
+                    value={summarySearch}
+                    onChange={(e) => setSummarySearch(e.target.value)}
+                    placeholder="Search by opponent or venue…"
+                    className="w-full pl-9 pr-3 py-2.5 border-2 border-tm-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                  />
+                </div>
+                <select
+                  value={summaryStatus}
+                  onChange={(e) => setSummaryStatus(e.target.value as 'all' | 'played' | 'upcoming')}
+                  className="px-4 py-2.5 border-2 border-tm-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-tm-surface"
+                >
+                  <option value="all">All matches</option>
+                  <option value="played">Played</option>
+                  <option value="upcoming">Upcoming</option>
+                </select>
+                {types.length > 1 && (
+                  <select
+                    value={summaryType}
+                    onChange={(e) => setSummaryType(e.target.value)}
+                    className="px-4 py-2.5 border-2 border-tm-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-tm-surface"
+                  >
+                    <option value="all">All types</option>
+                    {types.map((t) => <option key={t} value={t}>{typeLabel(t)}</option>)}
+                  </select>
+                )}
+              </div>
+              <p className="text-xs text-tm-text-3 mb-4">
+                Showing {visibleSummaries.length} of {notHidden.length} match{notHidden.length === 1 ? '' : 'es'}
+              </p>
+
+              {visibleSummaries.length === 0 ? (
+                <div className="text-center py-10 text-tm-text-3 text-sm">No matches match your filter.</div>
+              ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {matchSummaries.filter((s) => !hiddenSummaryIds.has(s.matchId)).map((summary) => {
+                {visibleSummaries.map((summary) => {
                   const isMatchDay = summary.isUpcoming && isMatchDayToday(summary.matchDate, now)
                   return (
                   <div
@@ -4141,7 +4197,10 @@ export default function FixturesPage() {
                   )
                 })}
               </div>
-            )}
+              )}
+              </>
+              )
+            })()}
           </div>
         </div>
 

@@ -94,6 +94,10 @@ export default function FinancePage() {
   const [filterType, setFilterType] = useState<'all' | 'revenue' | 'expense'>('all')
   const [filterDateFrom, setFilterDateFrom] = useState('')
   const [filterDateTo, setFilterDateTo] = useState('')
+  // Per-user dismissed budget-request cards (localStorage), so the list can be
+  // cleared when it gets crowded without touching the underlying requests.
+  const [dismissedBudgets, setDismissedBudgets] = useState<Set<string>>(new Set())
+  const [showDismissedBudgets, setShowDismissedBudgets] = useState(false)
   const [revenueForm, setRevenueForm] = useState({
     type: '',
     amount: '',
@@ -150,6 +154,10 @@ export default function FinancePage() {
         const { data: profile } = await supabase.from('user_profiles').select('*').eq('user_id', authUser.id).single()
         if (profile) {
           setUser(profile)
+          try {
+            const raw = localStorage.getItem(`dismissed_budgets_${authUser.id}`)
+            if (raw) setDismissedBudgets(new Set(JSON.parse(raw)))
+          } catch {}
           const { data: transactionsData } = await supabase
             .from('financial_transactions')
             .select('id, type, category, amount, transaction_date, description, created_by')
@@ -591,6 +599,12 @@ export default function FinancePage() {
     }
   }
 
+  const persistDismissedBudgets = (next: Set<string>) => {
+    try { if (user?.user_id) localStorage.setItem(`dismissed_budgets_${user.user_id}`, JSON.stringify([...next])) } catch {}
+  }
+  const dismissBudget = (id: string) => setDismissedBudgets((prev) => { const n = new Set(prev).add(id); persistDismissedBudgets(n); return n })
+  const restoreBudget = (id: string) => setDismissedBudgets((prev) => { const n = new Set(prev); n.delete(id); persistDismissedBudgets(n); return n })
+
   const filteredTransactions = transactions.filter(transaction => {
     if (filterType !== 'all' && transaction.type !== filterType) return false
     if (filterDateFrom && new Date(transaction.date) < new Date(filterDateFrom)) return false
@@ -981,14 +995,33 @@ export default function FinancePage() {
 
         {(user?.role === 'finance_admin' || user?.role === 'admin') && budgets.length > 0 && (
           <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
-            <h2 className="text-2xl font-bold text-tm-text-1 mb-6 flex items-center">
-              <FileText className="w-6 h-6 mr-2 text-info" />
-              Budget Requests
-            </h2>
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-6">
+              <h2 className="text-2xl font-bold text-tm-text-1 flex items-center">
+                <FileText className="w-6 h-6 mr-2 text-info" />
+                Budget Requests
+              </h2>
+              {dismissedBudgets.size > 0 && (
+                <button
+                  onClick={() => setShowDismissedBudgets((v) => !v)}
+                  className="text-xs font-medium text-tm-text-3 hover:text-tm-text-1 underline underline-offset-2"
+                >
+                  {showDismissedBudgets ? 'Hide dismissed' : `Show dismissed (${dismissedBudgets.size})`}
+                </button>
+              )}
+            </div>
             <div className="space-y-4">
-              {budgets.map((budget) => (
-                <div key={budget.id} className="p-4 bg-tm-surface-hover/50 rounded-lg border border-tm-border hover:bg-tm-surface-hover transition-colors">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              {budgets.filter((b) => showDismissedBudgets || !dismissedBudgets.has(b.id)).map((budget) => {
+                const isDismissed = dismissedBudgets.has(budget.id)
+                return (
+                <div key={budget.id} className={`p-4 bg-tm-surface-hover/50 rounded-lg border border-tm-border hover:bg-tm-surface-hover transition-colors relative ${isDismissed ? 'opacity-60' : ''}`}>
+                  <button
+                    onClick={() => (isDismissed ? restoreBudget(budget.id) : dismissBudget(budget.id))}
+                    title={isDismissed ? 'Restore card' : 'Dismiss card'}
+                    className="absolute top-3 right-3 p-1.5 text-tm-text-3 hover:text-tm-text-1 hover:bg-tm-surface-hover rounded-md transition-colors z-10"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pr-8">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-3 flex-wrap mb-2">
                         <h3 className="font-bold text-tm-text-1 break-words">{budget.event_name}</h3>
@@ -1026,7 +1059,8 @@ export default function FinancePage() {
                     )}
                   </div>
                 </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         )}
@@ -1047,22 +1081,25 @@ export default function FinancePage() {
 
         <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
           <h3 className="text-lg font-bold text-tm-text-1 mb-4">Filter Transactions</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
+          {/* All three controls share one height and style so they line up.
+              Native <select> and <input type="date"> otherwise render at
+              slightly different heights, which is what looked uneven. */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 items-end">
+            <div className="flex flex-col">
               <label className="block text-sm font-medium text-tm-text-3 mb-2">Type</label>
-              <select value={filterType} onChange={(e) => setFilterType(e.target.value as 'all' | 'revenue' | 'expense')} className="w-full px-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary focus:border-primary transition-all">
+              <select value={filterType} onChange={(e) => setFilterType(e.target.value as 'all' | 'revenue' | 'expense')} className="w-full h-12 px-4 border-2 border-tm-border rounded-[6px] bg-tm-surface text-tm-text-1 focus:ring-2 focus:ring-primary focus:border-primary transition-all">
                 <option value="all">All Types</option>
                 <option value="revenue">Revenue</option>
                 <option value="expense">Expense</option>
               </select>
             </div>
-            <div>
+            <div className="flex flex-col">
               <label className="block text-sm font-medium text-tm-text-3 mb-2">Date From</label>
-              <input type="date" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} className="w-full px-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary focus:border-primary transition-all" />
+              <input type="date" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} className="w-full h-12 px-4 border-2 border-tm-border rounded-[6px] bg-tm-surface text-tm-text-1 focus:ring-2 focus:ring-primary focus:border-primary transition-all" />
             </div>
-            <div>
+            <div className="flex flex-col">
               <label className="block text-sm font-medium text-tm-text-3 mb-2">Date To</label>
-              <input type="date" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} className="w-full px-4 py-3 border-2 border-tm-border rounded-[6px] focus:ring-2 focus:ring-primary focus:border-primary transition-all" />
+              <input type="date" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} className="w-full h-12 px-4 border-2 border-tm-border rounded-[6px] bg-tm-surface text-tm-text-1 focus:ring-2 focus:ring-primary focus:border-primary transition-all" />
             </div>
           </div>
         </div>

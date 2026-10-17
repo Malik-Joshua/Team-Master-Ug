@@ -115,6 +115,20 @@ export async function GET(request: NextRequest) {
       }) || []
     }
 
+    // Resolve creator / last-editor names so each card can show who added the
+    // item and who last changed it.
+    const peopleIds = Array.from(new Set(
+      (allItems || []).flatMap((i: any) => [i.created_by, i.updated_by]).filter(Boolean)
+    ))
+    const nameById: Record<string, string> = {}
+    if (peopleIds.length > 0) {
+      const { data: people } = await supabaseAdmin
+        .from('user_profiles')
+        .select('user_id, name')
+        .in('user_id', peopleIds)
+      for (const p of people || []) nameById[p.user_id] = p.name
+    }
+
     // Format items — quantity_in_store/in_use/spoilt/lost are cached totals
     // kept in sync with inventory_batches by a DB trigger (see migration
     // 046); status/low-stock is now based on quantity_in_store vs the item's
@@ -146,6 +160,13 @@ export async function GET(request: NextRequest) {
         lowStockThreshold: threshold,
         status,
         lastUpdated: item.updated_at || item.created_at || new Date().toISOString(),
+        createdAt: item.created_at || null,
+        createdByName: item.created_by ? (nameById[item.created_by] || null) : null,
+        // Only count as "last updated by" when an edit actually happened after
+        // creation — otherwise created and updated are the same event.
+        updatedByName: item.updated_by && item.updated_at && item.updated_at !== item.created_at
+          ? (nameById[item.updated_by] || null)
+          : null,
         lastReconciledAt,
         reconciliationOverdue,
       }

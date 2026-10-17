@@ -2295,36 +2295,6 @@ export default function PerformancePage() {
                     />
                   )
                 })}
-              </div>
-
-                {/* Financial Summary Cards */}
-              <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="p-6 bg-gradient-to-br from-success/10 to-success/5 rounded-lg border border-success/20">
-                      <div className="flex items-center justify-between mb-2">
-                        <p className="text-sm font-medium text-tm-text-3">Total Revenue</p>
-                        <TrendingUp className="w-5 h-5 text-success" />
-                  </div>
-                      <p className="text-3xl font-bold text-success mb-1">{formatCurrency(clubPerformance.totalRevenue)}</p>
-                      <p className="text-xs text-tm-text-3">All income sources</p>
-                  </div>
-                    <div className="p-6 bg-gradient-to-br from-secondary/10 to-secondary/5 rounded-lg border border-secondary/20">
-                      <div className="flex items-center justify-between mb-2">
-                        <p className="text-sm font-medium text-tm-text-3">Total Expenses</p>
-                        <TrendingDown className="w-5 h-5 text-secondary" />
-                  </div>
-                      <p className="text-3xl font-bold text-secondary mb-1">{formatCurrency(clubPerformance.totalExpenses)}</p>
-                      <p className="text-xs text-tm-text-3">All club expenditures</p>
-                    </div>
-                    <div className="p-6 bg-gradient-to-br from-primary/10 to-primary/5 rounded-lg border border-primary/20">
-                      <div className="flex items-center justify-between mb-2">
-                        <p className="text-sm font-medium text-tm-text-3">Net Balance</p>
-                        <DollarSign className="w-5 h-5 text-primary" />
-                      </div>
-                      <p className="text-3xl font-bold text-primary mb-1">{formatCurrency(clubPerformance.netBalance)}</p>
-                      <p className="text-xs text-tm-text-3">Current financial position</p>
-                    </div>
-                  </div>
                 </div>
               </div>
 

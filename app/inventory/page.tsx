@@ -25,6 +25,9 @@ interface InventoryItem {
   lowStockThreshold: number
   status: 'in_stock' | 'low_stock' | 'out_of_stock'
   lastUpdated: string
+  createdAt: string | null
+  createdByName: string | null
+  updatedByName: string | null
   lastReconciledAt: string | null
   reconciliationOverdue: boolean
 }
@@ -512,6 +515,15 @@ export default function InventoryPage() {
                       </div>
                       {item.description && <p className="text-xs text-tm-text-3 mb-1">{item.description}</p>}
                       <p className="text-xs text-tm-text-3">{item.location || 'No location set'}</p>
+                      {/* Who added the item and who last changed it */}
+                      <p className="text-[11px] text-tm-text-3 mt-1.5">
+                        {item.createdByName
+                          ? <>Added by <span className="text-tm-text-2 font-medium">{item.createdByName}</span>{item.createdAt ? ` · ${new Date(item.createdAt).toLocaleDateString()}` : ''}</>
+                          : 'Added — unknown'}
+                        {item.updatedByName && (
+                          <> · Last updated by <span className="text-tm-text-2 font-medium">{item.updatedByName}</span>{item.lastUpdated ? ` · ${new Date(item.lastUpdated).toLocaleDateString()}` : ''}</>
+                        )}
+                      </p>
                     </div>
 
                     {/* Status breakdown */}

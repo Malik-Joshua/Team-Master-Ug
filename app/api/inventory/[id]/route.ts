@@ -35,7 +35,7 @@ function adminClient() {
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const supabase = await createClient()
-    const { error } = await authorizeManager(supabase)
+    const { error, authUser } = await authorizeManager(supabase) as any
     if (error) return error
 
     const body = await request.json()
@@ -51,13 +51,29 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 })
     }
 
+    // Record who made the edit and when so the item card can show "Last
+    // updated by …". Falls back gracefully if migration 062 (updated_by)
+    // hasn't been run yet, so edits never fail because of a missing column.
+    const withAudit = { ...updates, updated_by: authUser?.id, updated_at: new Date().toISOString() }
+
     const supabaseAdmin = adminClient()
-    const { data, error: updateError } = await supabaseAdmin
+    let { data, error: updateError } = await supabaseAdmin
       .from('inventory')
-      .update(updates)
+      .update(withAudit)
       .eq('id', params.id)
       .select()
       .single()
+
+    if (updateError && (updateError.code === '42703' || /updated_by/.test(updateError.message || ''))) {
+      const retry = await supabaseAdmin
+        .from('inventory')
+        .update(updates)
+        .eq('id', params.id)
+        .select()
+        .single()
+      data = retry.data
+      updateError = retry.error
+    }
     if (updateError) throw updateError
 
     return NextResponse.json({ item: data })

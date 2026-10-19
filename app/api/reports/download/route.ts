@@ -45,80 +45,167 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Professional Header with Company Branding
-    doc.setFillColor(26, 26, 26)
-    doc.rect(0, 0, pageWidth, 35, 'F')
-    
-    doc.setFontSize(22)
+    // ---- Club branding -------------------------------------------------
+    // Pull the club's name, badge and slogan so every report reads as an
+    // official club document (logo + club title), with "Team Master" demoted
+    // to a quiet footer credit. Falls back to neutral defaults if the lookup
+    // fails so a report is still produced.
+    let clubName = 'Rugby Club'
+    let clubSlogan = ''
+    let logoData: { dataUrl: string; format: string } | null = null
+    try {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+      const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+      if (supabaseUrl && serviceKey) {
+        const admin = createServiceClient(supabaseUrl, serviceKey, {
+          auth: { autoRefreshToken: false, persistSession: false },
+        })
+        const { data: club } = await admin
+          .from('club_settings')
+          .select('club_nickname, club_slogan, badge_url')
+          .order('updated_at', { ascending: false, nullsFirst: false })
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+        if (club) {
+          if (club.club_nickname) clubName = String(club.club_nickname)
+          if (club.club_slogan) clubSlogan = String(club.club_slogan)
+          if (club.badge_url) {
+            try {
+              const imgRes = await fetch(club.badge_url)
+              if (imgRes.ok) {
+                const buf = Buffer.from(await imgRes.arrayBuffer())
+                const ct = (imgRes.headers.get('content-type') || '').toLowerCase()
+                const fmt = ct.includes('png') ? 'PNG' : 'JPEG'
+                logoData = { dataUrl: `data:${ct || 'image/jpeg'};base64,${buf.toString('base64')}`, format: fmt }
+              }
+            } catch (imgErr) {
+              console.error('[report] logo fetch failed:', imgErr)
+            }
+          }
+        }
+      }
+    } catch (brandErr) {
+      console.error('[report] club branding lookup failed:', brandErr)
+    }
+    // Strip emoji/pictographs from the slogan — jsPDF's core fonts can't
+    // render them and they come out as garbled boxes.
+    clubSlogan = clubSlogan.replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}️]/gu, '').replace(/\s+/g, ' ').trim()
+    const clubInitials = clubName
+      .split(/\s+/)
+      .filter((w) => w && !/^the$/i.test(w))
+      .slice(0, 3)
+      .map((w) => w[0]?.toUpperCase() || '')
+      .join('') || 'RC'
+
+    // ---- Branded header band ------------------------------------------
+    const bandH = 42
+    const accent = [201, 162, 39] as const // gold rule, matches club template
+    doc.setFillColor(17, 17, 17)
+    doc.rect(0, 0, pageWidth, bandH, 'F')
+    // Gold accent rule along the bottom of the band
+    doc.setFillColor(accent[0], accent[1], accent[2])
+    doc.rect(0, bandH - 2, pageWidth, 2, 'F')
+
+    // Logo holder on the LEFT (white rounded square with a gold ring)
+    const logoSize = 26
+    const logoX = margin
+    const logoY = (bandH - 2 - logoSize) / 2 + 1
+    doc.setFillColor(accent[0], accent[1], accent[2])
+    doc.roundedRect(logoX - 1, logoY - 1, logoSize + 2, logoSize + 2, 3, 3, 'F')
+    doc.setFillColor(255, 255, 255)
+    doc.roundedRect(logoX, logoY, logoSize, logoSize, 2.5, 2.5, 'F')
+    if (logoData) {
+      try {
+        doc.addImage(logoData.dataUrl, logoData.format, logoX + 2, logoY + 2, logoSize - 4, logoSize - 4)
+      } catch (addErr) {
+        console.error('[report] addImage failed, using initials:', addErr)
+        logoData = null
+      }
+    }
+    if (!logoData) {
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(16)
+      doc.setTextColor(17, 17, 17)
+      safeText(clubInitials, logoX + logoSize / 2, logoY + logoSize / 2 + 2, { align: 'center' })
+    }
+
+    // Club name + slogan beside the logo
+    const textX = logoX + logoSize + 8
     doc.setFont('helvetica', 'bold')
     doc.setTextColor(255, 255, 255)
-    safeText('TEAM MASTER', pageWidth / 2, 20, { align: 'center' })
-    
-    doc.setFontSize(11)
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(220, 220, 220)
-    safeText('Official Performance Report', pageWidth / 2, 28, { align: 'center' })
-    
-    yPos = 45
-    
+    const nameUpper = clubName.toUpperCase()
+    // Scale the club name down if it's long so it fits on one line
+    doc.setFontSize(nameUpper.length > 26 ? 15 : nameUpper.length > 18 ? 18 : 21)
+    safeText(nameUpper, textX, clubSlogan ? 19 : 22)
+    if (clubSlogan) {
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(9)
+      doc.setTextColor(accent[0], accent[1], accent[2])
+      safeText(clubSlogan.toUpperCase(), textX, 26)
+    }
+    // Report-type pill below the club name
+    const reportKind = `${String(report.type || 'report').charAt(0).toUpperCase() + String(report.type || 'report').slice(1)} Report`.toUpperCase()
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(7.5)
+    const pillY = clubSlogan ? 30 : 28
+    const pillW = doc.getTextWidth(reportKind) + 8
+    doc.setDrawColor(accent[0], accent[1], accent[2])
+    doc.setLineWidth(0.4)
+    doc.roundedRect(textX, pillY, pillW, 6, 3, 3, 'S')
+    doc.setTextColor(accent[0], accent[1], accent[2])
+    safeText(reportKind, textX + 4, pillY + 4)
+
+    yPos = bandH + 10
+
     // Report Title Section
-    doc.setFontSize(18)
+    doc.setFontSize(16)
     doc.setFont('helvetica', 'bold')
     doc.setTextColor(26, 26, 26)
     const titleText = String(report.title || 'Report')
     const titleLines = doc.splitTextToSize(titleText, contentWidth)
     if (Array.isArray(titleLines)) {
       titleLines.forEach((line: any, idx: number) => {
-        safeText(String(line), pageWidth / 2, yPos + (idx * 8), { align: 'center' })
+        safeText(String(line), margin, yPos + (idx * 7))
       })
-      yPos += titleLines.length * 8
+      yPos += titleLines.length * 7
     } else {
-      safeText(String(titleLines), pageWidth / 2, yPos, { align: 'center' })
-      yPos += 8
+      safeText(String(titleLines), margin, yPos)
+      yPos += 7
     }
 
     // Report Metadata Box
-    yPos += 12
-    doc.setFillColor(250, 250, 250)
-    doc.setDrawColor(220, 220, 220)
-    doc.setLineWidth(0.5)
-    doc.roundedRect(margin, yPos - 5, contentWidth, 35, 3, 3, 'FD')
-    
+    yPos += 8
+    doc.setFillColor(246, 247, 249)
+    doc.setDrawColor(229, 231, 235)
+    doc.setLineWidth(0.4)
+    doc.roundedRect(margin, yPos - 5, contentWidth, 28, 3, 3, 'FD')
+
     doc.setFontSize(10)
     doc.setFont('helvetica', 'normal')
     doc.setTextColor(51, 51, 51)
-    
-    const reportTypeText = `Report Type: ${String(report.type || 'unknown').charAt(0).toUpperCase() + String(report.type || 'unknown').slice(1)} Report`
-    safeText(reportTypeText, margin + 8, yPos)
-    
-    yPos += 7
+
     const dateRangeText = `Date Range: ${String(report.dateRange || 'All Time')}`
-    safeText(dateRangeText, margin + 8, yPos)
-    
+    safeText(dateRangeText, margin + 8, yPos + 1)
+
     yPos += 7
-    const generatedText = `Generated: ${new Date(report.generatedAt || Date.now()).toLocaleString('en-US', { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric', 
-      hour: '2-digit', 
-      minute: '2-digit' 
+    const generatedText = `Generated: ${new Date(report.generatedAt || Date.now()).toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
     })}`
-    safeText(generatedText, margin + 8, yPos)
-    
+    safeText(generatedText, margin + 8, yPos + 1)
+
     yPos += 7
     const reportIdText = `Report ID: ${report.id || 'N/A'}`
     doc.setFontSize(9)
     doc.setTextColor(102, 102, 102)
-    safeText(reportIdText, margin + 8, yPos)
-
-    // Add a line separator
-    yPos += 15
-    doc.setDrawColor(204, 204, 204)
-    doc.setLineWidth(0.5)
-    doc.line(margin, yPos, pageWidth - margin, yPos)
+    safeText(reportIdText, margin + 8, yPos + 1)
 
     // Report Content
-    yPos += 10
+    yPos += 18
     
     // Format training attendance data properly
     // Check for both formattedSessions (from training export) and attendance (from reports page)
@@ -430,7 +517,7 @@ export async function POST(request: NextRequest) {
           const bestDate = bestMatch.matches?.match_date 
             ? new Date(bestMatch.matches.match_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
             : 'N/A'
-          safeText(`🏆 Best Performance: ${bestDate} vs ${bestOpponent}`, margin + 8, yPos + 3)
+          safeText(`Best Performance: ${bestDate} vs ${bestOpponent}`, margin + 8, yPos + 3)
           yPos += 8
           doc.setFont('helvetica', 'normal')
           doc.setTextColor(51, 51, 51)
@@ -455,11 +542,11 @@ export async function POST(request: NextRequest) {
                            (gymStatsForCompleteness.deadliftPB !== null && gymStatsForCompleteness.deadliftPB !== undefined && gymStatsForCompleteness.deadliftPB > 0)
         const hasTrainingData = (report.data.trainingAttendance?.length || 0) > 0
         const dataCompleteness = [
-          hasMatchStats ? '✓ Match Statistics' : '○ Match Statistics',
-          hasGymStats ? '✓ Gym Statistics' : '○ Gym Statistics',
-          hasTrainingData ? '✓ Training Attendance' : '○ Training Attendance'
+          `Match Statistics: ${hasMatchStats ? 'Available' : 'Not available'}`,
+          `Gym Statistics: ${hasGymStats ? 'Available' : 'Not available'}`,
+          `Training Attendance: ${hasTrainingData ? 'Available' : 'Not available'}`
         ].join('  |  ')
-        safeText(`Data Available: ${dataCompleteness}`, margin + 5, yPos)
+        safeText(`Data Completeness — ${dataCompleteness}`, margin + 5, yPos)
         yPos += 10
         
         // Draw separator
@@ -1016,12 +1103,12 @@ export async function POST(request: NextRequest) {
             doc.setTextColor(26, 26, 26)
             if (topScorer && topScorer.tries_scored > 0) {
               const scorerName = topScorer.user_profiles?.name || 'Unknown'
-              safeText(`🏆 Top Scorer: ${scorerName} (${topScorer.tries_scored} tries)`, margin + 5, yPos)
+              safeText(`Top Scorer: ${scorerName} (${topScorer.tries_scored} tries)`, margin + 5, yPos)
               yPos += 6
             }
             if (topTackler && topTackler.tackles_made > 0) {
               const tacklerName = topTackler.user_profiles?.name || 'Unknown'
-              safeText(`🏆 Top Tackler: ${tacklerName} (${topTackler.tackles_made} tackles)`, margin + 5, yPos)
+              safeText(`Top Tackler: ${tacklerName} (${topTackler.tackles_made} tackles)`, margin + 5, yPos)
               yPos += 6
             }
           }
@@ -1509,21 +1596,25 @@ export async function POST(request: NextRequest) {
       doc.setLineWidth(0.5)
       doc.line(margin, pageHeight - 20, pageWidth - margin, pageHeight - 20)
       
-      doc.setFontSize(9)
-      doc.setFont('helvetica', 'normal')
-      doc.setTextColor(102, 102, 102)
-      
-      const pageText = pageCount > 1 ? `Page ${i} of ${pageCount}` : 'Page 1'
-      safeText(pageText, pageWidth / 2, pageHeight - 15, { align: 'center' })
-      
+      // Left: the official club document line. Center: page numbers.
+      // Right: the quiet "generated with Team Master" credit — the club is the
+      // hero of the document, Team Master is just the system that produced it.
       doc.setFontSize(8)
-      const footerText = `Generated by Team Master Management System | ${new Date(report.generatedAt || Date.now()).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`
-      safeText(footerText, pageWidth / 2, pageHeight - 8, { align: 'center' })
-      
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(102, 102, 102)
+      safeText(clubName.toUpperCase(), margin, pageHeight - 12)
+
+      doc.setFont('helvetica', 'normal')
+      const pageText = pageCount > 1 ? `Page ${i} of ${pageCount}` : 'Page 1'
+      safeText(pageText, pageWidth / 2, pageHeight - 12, { align: 'center' })
+
+      doc.setTextColor(140, 140, 140)
+      safeText('Generated with Team Master', pageWidth - margin, pageHeight - 12, { align: 'right' })
+
       // Confidentiality notice
       doc.setFontSize(7)
       doc.setTextColor(153, 153, 153)
-      safeText('This report contains confidential information and is intended for authorized use only.', pageWidth / 2, pageHeight - 3, { align: 'center' })
+      safeText(`This report contains confidential information and is intended for authorized use only.  ·  ${new Date(report.generatedAt || Date.now()).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`, pageWidth / 2, pageHeight - 6, { align: 'center' })
     }
 
     // Generate PDF buffer

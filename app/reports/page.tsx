@@ -1684,7 +1684,6 @@ export default function ReportsPage() {
                   <option value="match">Match Reports</option>
                   <option value="training">Training Reports</option>
                   <option value="financial">Financial Reports</option>
-                  <option value="summary">Summary Reports</option>
                 </select>
               </div>
               <div>
@@ -1831,23 +1830,6 @@ export default function ReportsPage() {
             </button>
           </div>
 
-          <div className="bg-tm-surface rounded-card p-6 border border-tm-border shadow-soft hover-lift cursor-pointer">
-            <div className="flex items-center space-x-4 mb-4">
-              <div className="w-12 h-12 bg-warning rounded-xl flex items-center justify-center">
-                <FileText className="w-6 h-6 text-white" />
-              </div>
-              <div className="flex-1">
-                <h3 className="font-bold text-tm-text-1">Summary Report</h3>
-                <p className="text-sm text-tm-text-3">Overall summary</p>
-              </div>
-            </div>
-            <button
-              onClick={() => handleGenerateReport('summary')}
-              className="w-full px-4 py-2 bg-warning text-white rounded-[6px] font-medium hover:bg-warning-dark transition-colors text-sm"
-            >
-              Generate
-            </button>
-          </div>
         </div>
 
         {/* Reports List */}

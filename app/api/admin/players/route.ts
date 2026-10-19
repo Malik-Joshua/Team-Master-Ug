@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic'
 // its player dropdown from here, and the injury cards resolve player_id ->
 // name from the same response. Without it the physio got a 403, leaving the
 // dropdown empty and every injury card labelled "Unknown Player".
-const PLAYER_ROSTER_ROLES = ['admin', 'data_admin', 'coach', 'asst_coach', 'club_captain', 'physio']
+const PLAYER_ROSTER_ROLES = ['admin', 'data_admin', 'coach', 'asst_coach', 'club_captain', 'physio', 'finance_admin']
 
 export async function GET(request: NextRequest) {
   try {

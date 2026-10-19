@@ -25,9 +25,11 @@ export async function GET(request: NextRequest) {
       .eq('user_id', authUser.id)
       .single()
 
-    if (!profile || !['admin', 'coach', 'asst_coach', 'data_admin', 'physio'].includes(profile.role)) {
+    // finance_admin is included so the Reports page match-report dropdown is
+    // populated for finance managers (they generate match reports too).
+    if (!profile || !['admin', 'coach', 'asst_coach', 'data_admin', 'physio', 'finance_admin'].includes(profile.role)) {
       return NextResponse.json(
-        { error: 'Unauthorized: Admin/Coach/Physio access required' },
+        { error: 'Unauthorized: Admin/Coach/Physio/Finance access required' },
         { status: 403 }
       )
     }

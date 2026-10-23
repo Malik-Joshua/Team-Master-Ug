@@ -172,18 +172,35 @@ export default function Sidebar({ userRole, onLogout, clubSettings, userName, us
                     href={item.href}
                     onClick={() => isMobile && setMobileOpen(false)}
                     className={cn(
-                      'flex items-center gap-2.5 px-3 py-2 mx-1 my-0.5 rounded-md text-xs transition-all duration-120',
+                      // `group` + `relative` drive the per-cell hover motion below.
+                      'group relative flex items-center gap-2.5 px-3 py-2 mx-1 my-0.5 rounded-md text-xs transition-colors duration-200',
                       isActive
                         ? 'font-medium'
-                        : 'hover:text-white/80'
+                        // Hover highlight uses the club's primary colour (its
+                        // translucent glow token), matching the active state.
+                        : 'hover:text-white/90 hover:bg-[var(--tm-sidebar-active-bg)]'
                     )}
                     title={collapsed && !isMobile ? item.name : undefined}
                     style={isActive ? { background: 'var(--tm-sidebar-active-bg)', color: 'var(--tm-sidebar-active-text)' } : { color: 'var(--tm-sidebar-text-muted)' }}
                   >
-                    <Icon className="w-[17px] h-[17px] flex-shrink-0" />
-                    {(!collapsed || isMobile) && (
-                      <span>{item.name}</span>
-                    )}
+                    {/* Club-primary accent bar: grows in while interacting,
+                        stays put for the active cell (see inspiration). */}
+                    <span
+                      aria-hidden
+                      className={cn(
+                        'absolute left-0 top-1/2 -translate-y-1/2 w-[3px] rounded-r-full transition-all duration-200 ease-out motion-reduce:transition-none',
+                        isActive ? 'h-5' : 'h-0 group-hover:h-5'
+                      )}
+                      style={{ background: 'var(--tm-primary)' }}
+                    />
+                    {/* Cell contents glide right while the user interacts, then
+                        settle back to their original position on leave. */}
+                    <span className="flex items-center gap-2.5 transition-transform duration-200 ease-out group-hover:translate-x-1 motion-reduce:transform-none motion-reduce:transition-none">
+                      <Icon className="w-[17px] h-[17px] flex-shrink-0" />
+                      {(!collapsed || isMobile) && (
+                        <span>{item.name}</span>
+                      )}
+                    </span>
                   </Link>
                 )
               })}
